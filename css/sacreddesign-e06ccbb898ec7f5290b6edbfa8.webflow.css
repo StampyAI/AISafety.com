@@ -114,12 +114,6 @@
   margin-left: 4px;
 }
 
-.w-page-count {
-  text-align: center;
-  width: 100%;
-  margin-top: 20px;
-}
-
 body {
   background-color: var(--grey-900);
   color: var(--grey-400);

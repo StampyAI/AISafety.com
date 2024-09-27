@@ -114,6 +114,25 @@
   margin-left: 4px;
 }
 
+.w-layout-blockcontainer {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
+
+@media screen and (max-width: 991px) {
+  .w-layout-blockcontainer {
+    max-width: 728px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .w-layout-blockcontainer {
+    max-width: none;
+  }
+}
+
 body {
   background-color: var(--grey-900);
   color: var(--grey-400);
@@ -320,7 +339,7 @@ img {
 .nav-container {
   justify-content: space-between;
   align-items: center;
-  height: 104px;
+  height: 71px;
   padding-left: 4.63vw;
   padding-right: 4.63vw;
   display: flex;
@@ -1261,6 +1280,11 @@ img {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
+.top-buttons.map-buttons {
+  grid-column-gap: 59px;
+  grid-row-gap: 59px;
+}
+
 .text-block, .text-block-2, .text-block-3 {
   padding-bottom: 24px;
 }
@@ -1276,6 +1300,33 @@ img {
 .code-embed {
   box-sizing: border-box;
   text-align: center;
+}
+
+.survey_bar {
+  grid-column-gap: 16px;
+  grid-row-gap: 16px;
+  background-color: #cf4d04;
+  justify-content: center;
+  align-items: center;
+  padding: 16px 32px;
+  display: flex;
+  position: relative;
+}
+
+.button {
+  background-color: var(--white);
+  color: var(--grey-900);
+  border-radius: 6px;
+  height: 40px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 140%;
+  display: block;
+}
+
+.survey_bar-x {
+  position: absolute;
+  inset: 24px 24px 0% auto;
 }
 
 @media screen and (max-width: 991px) {
@@ -1299,6 +1350,10 @@ img {
 
   .paragraph-bottom-margin {
     margin-bottom: 12px;
+  }
+
+  .survey_bar {
+    flex-flow: column;
   }
 }
 
@@ -1651,6 +1706,15 @@ img {
     grid-template-columns: 100%;
   }
 
+  .grid-4-4-4.padding-56px.mobile {
+    grid-row-gap: 23px;
+    padding-bottom: 25px;
+  }
+
+  .grid-4-4-4.padding-80px {
+    grid-row-gap: 23px;
+  }
+
   .text_field:focus {
     background-color: var(--cool-grey-150\<deleted\|variable-1efc54f7\>);
   }
@@ -1695,6 +1759,11 @@ img {
 
   .text-block-7, .text-block-8 {
     padding-bottom: 24px;
+  }
+
+  .survey_bar-x {
+    top: 16px;
+    right: 16px;
   }
 }
 

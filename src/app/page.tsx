@@ -153,7 +153,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="cards-grid margin-40px">
+      <div className="cards-grid margin-40px mb-10">
         <div className="card-half-width-1">
           <div className="card-half-width-main-text">
             <p className="paragraph-small-bold padding-12px shadow-text">

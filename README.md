@@ -1,6 +1,17 @@
 # AI Safety Website
 
-This is the Next.js implementation of aisafety.com, migrated from WebFlow.
+This is the Next.js implementation of aisafety.com, migrated from WebFlow. The site serves as a resource hub for the AI Safety community, providing curated lists of events, communities, courses, jobs, funding opportunities, and an interactive ecosystem map of organizations working on AI existential safety.
+
+## Documentation
+
+For comprehensive documentation, see the [docs/](./docs/) directory:
+
+- [Project Overview](./docs/project-overview.md) - Executive summary and quick start
+- [Architecture](./docs/architecture.md) - System design and data flow
+- [Source Tree](./docs/source-tree-analysis.md) - Directory structure guide
+- [API Contracts](./docs/api-contracts.md) - API endpoints and schemas
+- [Component Inventory](./docs/component-inventory.md) - React components reference
+- [Development Guide](./docs/development-guide.md) - Full setup and coding standards
 
 ## Development
 

@@ -1,0 +1,57 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2026-01-10T22:00:00.000Z",
+    "completed": "2026-01-10T22:20:00.000Z"
+  },
+  "mode": "initial_scan",
+  "scan_level": "deep",
+  "status": "completed",
+  "project_root": "/Users/luca/dev/AISafety.com",
+  "output_folder": "/Users/luca/dev/AISafety.com/docs",
+  "repository_type": "monolith",
+  "project_types": [
+    {
+      "part_id": "main",
+      "project_type_id": "web",
+      "display_name": "Next.js Web Application"
+    }
+  ],
+  "findings": {
+    "project_classification": {
+      "type": "web",
+      "framework": "Next.js 16",
+      "language": "TypeScript",
+      "styling": "Tailwind CSS v4 + Custom CSS (WebFlow migration)"
+    },
+    "technology_stack": {
+      "primary_framework": "Next.js 16.0.7",
+      "ui_library": "React 19.2.0",
+      "language": "TypeScript 5",
+      "styling": ["Tailwind CSS 4", "Custom CSS"],
+      "data_visualization": "D3.js 7.9.0",
+      "external_data": "Airtable API",
+      "tooling": ["ESLint 9", "Prettier 3.7.4", "Husky 9.1.7"]
+    },
+    "api_endpoints": 3,
+    "components": 5,
+    "pages_implemented": 3,
+    "pages_pending": 10,
+    "existing_docs_count": 2
+  },
+  "outputs_generated": [
+    "index.md",
+    "project-overview.md",
+    "architecture.md",
+    "source-tree-analysis.md",
+    "api-contracts.md",
+    "component-inventory.md",
+    "development-guide.md",
+    "project-scan-report.json"
+  ],
+  "summary": {
+    "total_files": 8,
+    "total_lines": 1581,
+    "total_size_kb": 50.6
+  }
+}

@@ -89,7 +89,7 @@ export default function Home() {
             A visual overview of the key organizations, programs, and projects
             in AI safety
           </h2>
-          <Link href="/map" className="button-primary drop-shadow-light">
+          <Link href="/map" className="button-primary drop-shadow">
             View map
           </Link>
           <p
@@ -130,7 +130,7 @@ export default function Home() {
             alt=""
             className={styles.bookmark}
             width={24}
-            height={24}
+            height={36}
           />
           <p className="paragraph-small-bold padding-bottom-12px">
             Largest real-time community
@@ -190,7 +190,7 @@ export default function Home() {
               alt=""
               className={styles.bookmark}
               width={24}
-              height={24}
+              height={36}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
               Standard intro course
@@ -288,7 +288,7 @@ export default function Home() {
               alt=""
               className={styles.bookmark}
               width={24}
-              height={24}
+              height={36}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
               Best for medium to large projects
@@ -323,7 +323,7 @@ export default function Home() {
       <div className={`${styles['cards-grid-three-col']} padding-bottom-104px`}>
         <div className={styles['card-third-width-1']}>
           <div className={styles['card-half-width-main-text']}>
-            <p className="paragraph-small-bold padding-bottom-8px-3 shadow-text">
+            <p className="paragraph-small-bold padding-bottom-8px shadow-text">
               Speak to an advisor
             </p>
             <h3 className="padding-bottom-32px shadow-text">
@@ -366,8 +366,8 @@ export default function Home() {
               src="/images/bookmark-dark-small.svg"
               alt=""
               className={styles.bookmark}
-              width={16}
-              height={16}
+              width={24}
+              height={36}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
               Featured project
@@ -390,7 +390,7 @@ export default function Home() {
 
         <div className={styles['card-third-width-3']}>
           <div className={styles['card-half-width-main-text']}>
-            <p className="paragraph-small-bold padding-bottom-8px-3 opacity-80">
+            <p className="paragraph-small-bold padding-bottom-8px opacity-80">
               Donate
             </p>
             <h3 className="padding-bottom-32px">
@@ -422,9 +422,9 @@ export default function Home() {
           href="https://aisafety.info/"
           target="_blank"
           rel="noopener noreferrer"
-          className="button-primary inline-flex items-center gap-8px"
+          className="button-primary"
         >
-          <p className="paragraph-xs">AISafety.info</p>
+          AISafety.info
           <Image
             loading="lazy"
             src="/images/arrow-up-right.svg"

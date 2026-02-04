@@ -76,6 +76,7 @@ select {
 }
 
 a {
+  display: block;
   color: inherit;
   text-decoration: inherit;
 }
@@ -175,14 +176,13 @@ label {
 
 /* Text effects */
 .shadow-text {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 0px 32px rgba(0, 25, 27, 1);
 }
 
 /* ===============================
    5. COLOR UTILITY CLASSES
    =============================== */
 
-/* Text colors */
 .color-teal-300 {
   color: var(--teal-300);
 }
@@ -194,6 +194,9 @@ label {
 }
 .color-light-teal {
   color: var(--bright-teal-300);
+}
+.color-white {
+  color: var(--white);
 }
 
 /* ===============================
@@ -614,6 +617,12 @@ label {
   width: 1056px;
 }
 
+/* Divider */
+.divider {
+  height: 1px;
+  background-color: var(--teal-700);
+}
+
 /* ===============================
    8. DISPLAY & VISIBILITY UTILITIES
    =============================== */
@@ -699,6 +708,11 @@ label {
 
 .button-primary:hover {
   background-color: var(--off-white);
+}
+
+.button-primary img {
+  display: block;
+  flex-shrink: 0;
 }
 
 .button-secondary {

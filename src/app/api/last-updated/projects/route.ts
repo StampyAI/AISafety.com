@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
 const BASE_ID = process.env.AIRTABLE_BASE_ID
-const TABLE_ID = 'TBD' // TODO: Replace with actual projects table ID
+const TABLE_ID = 'tblHT29QNgMYKB8iW'
 
 export async function GET() {
   if (!AIRTABLE_TOKEN || !BASE_ID) {

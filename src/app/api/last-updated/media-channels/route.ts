@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
 const BASE_ID = process.env.AIRTABLE_BASE_ID
-const TABLE_ID = 'TBD' // TODO: Replace with actual media channels table ID
+const TABLE_ID = 'tblCTOMzyH3vILL5I'
 
 export async function GET() {
   if (!AIRTABLE_TOKEN || !BASE_ID) {

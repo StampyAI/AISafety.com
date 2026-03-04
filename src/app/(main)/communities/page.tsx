@@ -4,7 +4,7 @@ import FeaturedCard from '@/components/FeaturedCard'
 import CommunitiesClient from './CommunitiesClient'
 import CommunitiesMap from './CommunitiesMap'
 import styles from './page.module.css'
-import { Community } from '../api/communities/route'
+import { Community } from '../../api/communities/route'
 
 export const metadata = {
   title: 'Communities – AISafety.com',

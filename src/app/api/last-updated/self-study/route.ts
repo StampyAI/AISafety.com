@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
 const BASE_ID = process.env.AIRTABLE_BASE_ID
-const TABLE_ID = 'TBD' // TODO: Replace with actual self-study table ID
-const VIEW_ID = 'TBD' // TODO: Replace with actual self-study view ID
+const TABLE_ID = 'tblRNYJ0m1cmJXKKk'
+const VIEW_ID = 'viwblgaia3x1gsqBo'
 
 export async function GET() {
   if (!AIRTABLE_TOKEN || !BASE_ID) {

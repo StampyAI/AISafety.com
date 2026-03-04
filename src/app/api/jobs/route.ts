@@ -2,25 +2,27 @@ import { NextResponse } from 'next/server'
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
 const BASE_ID = process.env.AIRTABLE_BASE_ID
-const TABLE_ID = 'TBD' // TODO: Replace with actual jobs table ID
+const TABLE_ID = 'tblyLelYCQjP6w3nV'
+const VIEW_ID = 'viwDXZcviPykFzt4g'
 
 interface AirtableRecord {
   id: string
   fields: {
-    Name?: string
-    Description?: string
-    Organization?: string
-    Logo?: Array<{
+    '!Title'?: string
+    '!Description'?: string
+    '!Org'?: string
+    "Org's logo"?: Array<{
       url: string
       thumbnails?: { large?: { url: string } }
     }>
-    'Skill set'?: string
-    Location?: string
-    'Minimum experience'?: string
-    'Role type'?: string
+    'Skill set text'?: string
+    'Location (formatted)'?: string
+    '!MinimumExperienceLevel (text)'?: string
+    'Role type text'?: string
     'Work location'?: string
-    URL?: string
-    'Last Modified'?: string
+    "Org's vacancies page"?: string
+    '!Salary (display)'?: string
+    '!Date it closes'?: string
   }
 }
 
@@ -53,9 +55,7 @@ export async function GET() {
 
     do {
       const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
-      url.searchParams.set('filterByFormula', '{Publish?} = TRUE()')
-      url.searchParams.set('sort[0][field]', 'Sort')
-      url.searchParams.set('sort[0][direction]', 'asc')
+      url.searchParams.set('view', VIEW_ID)
       if (offset) {
         url.searchParams.set('offset', offset)
       }
@@ -83,26 +83,27 @@ export async function GET() {
 
       for (const record of data.records as AirtableRecord[]) {
         const fields = record.fields
-        if (!fields.Name) continue
+        if (!fields['!Title']) continue
 
         let logo: string | null = null
-        if (fields.Logo && fields.Logo.length > 0) {
-          logo = fields.Logo[0].url
+        const logoField = fields["Org's logo"]
+        if (logoField && logoField.length > 0) {
+          logo = logoField[0].url
         }
 
         allRecords.push({
           id: record.id,
-          name: fields.Name,
-          description: fields.Description || '',
-          organization: fields.Organization || '',
+          name: fields['!Title'],
+          description: fields['!Description'] || '',
+          organization: fields['!Org'] || '',
           logo,
-          skillSet: fields['Skill set'] || '',
-          location: fields.Location || '',
-          minimumExperience: fields['Minimum experience'] || '',
-          roleType: fields['Role type'] || '',
+          skillSet: fields['Skill set text'] || '',
+          location: fields['Location (formatted)'] || '',
+          minimumExperience: fields['!MinimumExperienceLevel (text)'] || '',
+          roleType: fields['Role type text'] || '',
           workLocation: fields['Work location'] || '',
-          url: fields.URL || '#',
-          lastModified: fields['Last Modified'] || null,
+          url: fields["Org's vacancies page"] || '#',
+          lastModified: fields['!Date it closes'] || null,
         })
       }
 

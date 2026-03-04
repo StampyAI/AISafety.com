@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import FilterGroup from '@/components/FilterGroup'
 import ContributeButtons from '@/components/ContributeButtons'
-import { Community } from '../api/communities/route'
+import { Community } from '../../api/communities/route'
 
 interface CommunitiesClientProps {
   communities: Community[]

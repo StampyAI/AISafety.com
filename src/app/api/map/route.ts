@@ -35,6 +35,7 @@ interface AirtableRecord {
       thumbnails?: { large?: { url: string } }
     }>
     Link?: string
+    'Short URL'?: string
     'Date added'?: string
     x?: number
     y?: number
@@ -52,6 +53,7 @@ interface MapOrg {
   logo: string | null
   mapLogo: string | null
   link: string
+  shortUrl: string | null
   lastModified: string | null
   x: number | null
   y: number | null
@@ -154,6 +156,7 @@ export async function GET() {
           logo,
           mapLogo,
           link: fields.Link || '#',
+          shortUrl: fields['Short URL'] || null,
           lastModified: fields['Date added'] || null,
           x: fields.x ?? null,
           y: fields.y ?? null,

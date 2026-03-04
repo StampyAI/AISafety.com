@@ -1,0 +1,98 @@
+/* D3 Poster Map Container - full viewport */
+.map-container {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  background-color: transparent;
+  overflow: hidden;
+}
+
+.map-container svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Map wrapper for positioning controls */
+.map-wrapper {
+  position: relative;
+}
+
+/* Scroll button - pink themed */
+.scroll-button {
+  position: fixed;
+  bottom: 20px;
+  left: 19px;
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-family: Inter, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.36px;
+  line-height: 160%;
+  text-align: left;
+  background-color: #ff1493;
+  color: white;
+  border: 2px solid #ff69b4;
+  box-shadow: 0px 16px 40px 0px rgba(255, 20, 147, 0.3);
+  cursor: pointer;
+  z-index: 1000;
+  user-select: none;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.scroll-button:hover {
+  background-color: #ff69b4;
+}
+
+/* Map zoom controls - pink themed */
+.map-controls {
+  position: fixed;
+  bottom: 18px;
+  right: 24px;
+  z-index: 999;
+}
+
+.map-control-group {
+  display: flex;
+  flex-direction: column;
+  width: 40px;
+  background-color: #ff1493;
+  border: 2px solid #ff69b4;
+  border-radius: 30px;
+  overflow: hidden;
+  box-shadow: 0px 16px 40px 0px rgba(255, 20, 147, 0.3);
+}
+
+.map-control-button {
+  width: 40px;
+  height: 40px;
+  background-color: #ff1493;
+  color: white;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease-in-out;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-control-button svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.map-control-button:hover {
+  background-color: #ff69b4;
+}
+
+.map-control-button + .map-control-button {
+  border-top: 1px solid #ff69b4;
+}

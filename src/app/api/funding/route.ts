@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
 const BASE_ID = process.env.AIRTABLE_BASE_ID
-const TABLE_ID = 'TBD' // TODO: Replace with actual funding table ID
+const TABLE_ID = 'tblzMTLDZWZKqTxrq'
 
 interface AirtableRecord {
   id: string
@@ -15,9 +15,8 @@ interface AirtableRecord {
     }>
     Type?: string
     'Recipient type'?: string
-    'Accepting applications'?: string
-    URL?: string
-    'Last Modified'?: string
+    'Accepting applications?'?: string
+    Website?: string
   }
 }
 
@@ -91,9 +90,9 @@ export async function GET() {
           logo,
           type: fields.Type || '',
           recipientType: fields['Recipient type'] || '',
-          acceptingApplications: fields['Accepting applications'] || '',
-          url: fields.URL || '#',
-          lastModified: fields['Last Modified'] || null,
+          acceptingApplications: fields['Accepting applications?'] || '',
+          url: fields.Website || '#',
+          lastModified: null,
         })
       }
 

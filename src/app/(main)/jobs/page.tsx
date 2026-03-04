@@ -1,210 +1,122 @@
-'use client'
-
-import Image from 'next/image'
-import { useEffect, useState } from 'react'
 import LastUpdated from '@/components/LastUpdated'
-import FilterGroup from '@/components/FilterGroup'
-import ContributeButtons from '@/components/ContributeButtons'
+import JobsClient from './JobsClient'
+import { Job } from '../../api/jobs/route'
 
-const skillSetOptions = [
-  'Data',
-  'Information security',
-  'Legal',
-  'Management',
-  'Operations',
-  'Other',
-  'Outreach',
-  'Policy',
-  'Research',
-  'Software engineering',
-  'Strategy',
-]
-
-const experienceOptions = [
-  'Entry level',
-  'Junior (1–4 years experience)',
-  'Mid (5–9 years experience)',
-  'Senior (10+ years experience)',
-]
-
-const roleTypeOptions = [
-  'Full-time',
-  'Part-time',
-  'Internship',
-  'Fellowship',
-  'Volunteering',
-  'Funding',
-]
-
-const workLocationOptions = ['Remote', 'On-site']
-
-interface Job {
-  id: string
-  name: string
-  description: string
-  organization: string
-  logo: string | null
-  skillSet: string
-  location: string
-  minimumExperience: string
-  roleType: string
-  workLocation: string
-  url: string
-  lastModified: string | null
+export const metadata = {
+  title: 'Jobs – AISafety.com',
+  description:
+    "AI safety career opportunities. Many roles don't require technical skills.",
 }
 
-export default function JobsPage() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set())
-  const [selectedExperience, setSelectedExperience] = useState<Set<string>>(
-    new Set()
-  )
-  const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
-  const [selectedWorkLocation, setSelectedWorkLocation] = useState<Set<string>>(
-    new Set()
-  )
+const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
+const BASE_ID = process.env.AIRTABLE_BASE_ID
+const TABLE_ID = 'tblyLelYCQjP6w3nV'
+const VIEW_ID = 'viwDXZcviPykFzt4g'
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/jobs')
-        if (!res.ok) throw new Error('Failed to fetch data')
-        const data = await res.json()
-        setJobs(data.records)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+interface AirtableRecord {
+  id: string
+  fields: {
+    '!Title'?: string
+    '!Description'?: string
+    '!Org'?: string
+    "Org's logo"?: Array<{ url: string }>
+    'Skill set text'?: string | string[]
+    'Location (formatted)'?: string | string[]
+    '!MinimumExperienceLevel (text)'?: string | string[]
+    'Role type text'?: string | string[]
+    'Work location'?: string | string[]
+    "Org's vacancies page"?: string
+    '!Date it closes'?: string
+  }
+}
 
-  const filteredJobs = jobs.filter(job => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      if (
-        !job.name.toLowerCase().includes(query) &&
-        !job.organization.toLowerCase().includes(query) &&
-        !job.location.toLowerCase().includes(query)
-      ) {
-        return false
-      }
-    }
-
-    if (selectedSkills.size > 0) {
-      const jobSkills = job.skillSet
-        .toLowerCase()
-        .split(',')
-        .map(s => s.trim())
-      const hasMatch = Array.from(selectedSkills).some(s =>
-        jobSkills.some(js => js.includes(s.toLowerCase()))
-      )
-      if (!hasMatch) return false
-    }
-
-    if (selectedExperience.size > 0) {
-      const hasMatch = Array.from(selectedExperience).some(e =>
-        job.minimumExperience.toLowerCase().includes(e.toLowerCase())
-      )
-      if (!hasMatch) return false
-    }
-
-    if (selectedRoles.size > 0) {
-      const jobRoles = job.roleType
-        .toLowerCase()
-        .split(',')
-        .map(r => r.trim())
-      const hasMatch = Array.from(selectedRoles).some(r =>
-        jobRoles.some(jr => jr.includes(r.toLowerCase()))
-      )
-      if (!hasMatch) return false
-    }
-
-    if (selectedWorkLocation.size > 0) {
-      const hasMatch = Array.from(selectedWorkLocation).some(w =>
-        job.workLocation.toLowerCase().includes(w.toLowerCase())
-      )
-      if (!hasMatch) return false
-    }
-
-    return true
-  })
-
-  const toggle = (
-    value: string,
-    selected: Set<string>,
-    setter: (s: Set<string>) => void
-  ) => {
-    const next = new Set(selected)
-    if (next.has(value)) {
-      next.delete(value)
-    } else {
-      next.add(value)
-    }
-    setter(next)
+async function getJobs(): Promise<Job[]> {
+  if (!AIRTABLE_TOKEN || !BASE_ID) {
+    console.error('Airtable credentials not configured')
+    return []
   }
 
-  const skillCounts = jobs.reduce(
-    (counts, job) => {
-      const skills = job.skillSet
-        .toLowerCase()
-        .split(',')
-        .map(s => s.trim())
-      for (const option of skillSetOptions) {
-        if (skills.some(s => s.includes(option.toLowerCase()))) {
-          counts[option] = (counts[option] || 0) + 1
-        }
-      }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+  try {
+    const allRecords: Job[] = []
+    let offset: string | null = null
 
-  const experienceCounts = jobs.reduce(
-    (counts, job) => {
-      for (const option of experienceOptions) {
-        if (
-          job.minimumExperience.toLowerCase().includes(option.toLowerCase())
-        ) {
-          counts[option] = (counts[option] || 0) + 1
-        }
+    do {
+      const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+      url.searchParams.set('view', VIEW_ID)
+      if (offset) {
+        url.searchParams.set('offset', offset)
       }
-      return counts
-    },
-    {} as Record<string, number>
-  )
 
-  const roleCounts = jobs.reduce(
-    (counts, job) => {
-      const roles = job.roleType
-        .toLowerCase()
-        .split(',')
-        .map(r => r.trim())
-      for (const option of roleTypeOptions) {
-        if (roles.some(r => r.includes(option.toLowerCase()))) {
-          counts[option] = (counts[option] || 0) + 1
-        }
-      }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+      let response = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        next: { revalidate: 300 },
+      })
 
-  const workLocationCounts = jobs.reduce(
-    (counts, job) => {
-      for (const option of workLocationOptions) {
-        if (job.workLocation.toLowerCase().includes(option.toLowerCase())) {
-          counts[option] = (counts[option] || 0) + 1
-        }
+      if (!response.ok) {
+        await new Promise(r => setTimeout(r, 1000))
+        response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          next: { revalidate: 300 },
+        })
       }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+
+      if (!response.ok) {
+        console.warn('Airtable API error:', response.status)
+        return []
+      }
+
+      const data = await response.json()
+
+      for (const record of data.records as AirtableRecord[]) {
+        const fields = record.fields
+        if (!fields['!Title']) continue
+
+        let logo: string | null = null
+        const logoField = fields["Org's logo"]
+        if (logoField && logoField.length > 0) {
+          logo = logoField[0].url
+        }
+
+        allRecords.push({
+          id: record.id,
+          name: fields['!Title'],
+          description: fields['!Description'] || '',
+          organization: fields['!Org'] || '',
+          logo,
+          skillSet: Array.isArray(fields['Skill set text'])
+            ? fields['Skill set text'].join(', ')
+            : fields['Skill set text'] || '',
+          location: Array.isArray(fields['Location (formatted)'])
+            ? fields['Location (formatted)'].join(', ')
+            : fields['Location (formatted)'] || '',
+          minimumExperience: Array.isArray(
+            fields['!MinimumExperienceLevel (text)']
+          )
+            ? fields['!MinimumExperienceLevel (text)'].join(', ')
+            : fields['!MinimumExperienceLevel (text)'] || '',
+          roleType: Array.isArray(fields['Role type text'])
+            ? fields['Role type text'].join(', ')
+            : fields['Role type text'] || '',
+          workLocation: Array.isArray(fields['Work location'])
+            ? fields['Work location'].join(', ')
+            : fields['Work location'] || '',
+          url: fields["Org's vacancies page"] || '#',
+          lastModified: fields['!Date it closes'] || null,
+        })
+      }
+
+      offset = data.offset || null
+    } while (offset)
+
+    return allRecords
+  } catch (error) {
+    console.error('Error fetching jobs:', error)
+    return []
+  }
+}
+
+export default async function JobsPage() {
+  const jobs = await getJobs()
 
   return (
     <div className="container-default">
@@ -219,129 +131,8 @@ export default function JobsPage() {
         to contribute. Many roles don&apos;t require technical skills.
       </h2>
 
-      {/* Database Grid */}
-      <div className="database-outer-grid">
-        <div>
-          <div className="padding-bottom-40px">
-            <input
-              type="text"
-              className="text-field"
-              placeholder="Search jobs by title, organization, or location"
-              maxLength={256}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Loading...</p>
-            </div>
-          ) : error ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Error: {error}</p>
-            </div>
-          ) : (
-            <div className="collection-list padding-bottom-40px">
-              {filteredJobs.map(job => (
-                <a
-                  key={job.id}
-                  href={job.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                >
-                  <div className="flex items-center gap-16px padding-bottom-24px">
-                    <div className="featured-img">
-                      {job.logo && (
-                        <Image
-                          src={job.logo}
-                          alt=""
-                          className="card-image"
-                          width={64}
-                          height={64}
-                          unoptimized
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <p className="paragraph-xs-bold color-teal-400">
-                        {job.organization}
-                      </p>
-                      <h3>{job.name}</h3>
-                    </div>
-                  </div>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Skill set
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {job.skillSet}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Location
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {job.location}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Minimum experience
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {job.minimumExperience}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Role type
-                  </p>
-                  <p className="paragraph-small">{job.roleType}</p>
-                </a>
-              ))}
-              {filteredJobs.length === 0 && (
-                <p className="paragraph-small color-teal-300">
-                  No items found.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="hide-mobile">
-          <FilterGroup
-            title="Skill set"
-            options={skillSetOptions}
-            selected={Array.from(selectedSkills)}
-            counts={skillCounts}
-            onToggle={v => toggle(v, selectedSkills, setSelectedSkills)}
-          />
-          <FilterGroup
-            title="Minimum experience"
-            options={experienceOptions}
-            selected={Array.from(selectedExperience)}
-            counts={experienceCounts}
-            onToggle={v => toggle(v, selectedExperience, setSelectedExperience)}
-          />
-          <FilterGroup
-            title="Role type"
-            options={roleTypeOptions}
-            selected={Array.from(selectedRoles)}
-            counts={roleCounts}
-            onToggle={v => toggle(v, selectedRoles, setSelectedRoles)}
-          />
-          <FilterGroup
-            title="Work location"
-            options={workLocationOptions}
-            selected={Array.from(selectedWorkLocation)}
-            counts={workLocationCounts}
-            onToggle={v =>
-              toggle(v, selectedWorkLocation, setSelectedWorkLocation)
-            }
-          />
-          <ContributeButtons
-            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
-            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-            noun="job"
-          />
-        </div>
-      </div>
+      {/* Main Content with Search, Cards, and Filters */}
+      <JobsClient jobs={jobs} />
     </div>
   )
 }

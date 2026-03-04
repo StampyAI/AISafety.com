@@ -1,98 +1,102 @@
-'use client'
-
-import Image from 'next/image'
-import { useEffect, useState } from 'react'
 import LastUpdated from '@/components/LastUpdated'
 import FeaturedCard from '@/components/FeaturedCard'
-import FilterGroup from '@/components/FilterGroup'
-import ContributeButtons from '@/components/ContributeButtons'
+import MediaChannelsClient from './MediaChannelsClient'
+import { MediaChannel } from '../../api/media-channels/route'
 
-const typeOptions = [
-  'Article',
-  'Blog',
-  'Book',
-  'Forum',
-  'Newsletter',
-  'Podcast',
-  'Twitter/X list',
-  'YouTube channel',
-]
-
-interface MediaChannel {
-  id: string
-  name: string
-  description: string
-  logo: string | null
-  type: string
-  url: string
-  lastModified: string | null
+export const metadata = {
+  title: 'Media Channels – AISafety.com',
+  description:
+    'Information sources to help you learn more about AI safety and stay up to date.',
 }
 
-export default function MediaChannelsPage() {
-  const [channels, setChannels] = useState<MediaChannel[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
+const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
+const BASE_ID = process.env.AIRTABLE_BASE_ID
+const TABLE_ID = 'tblCTOMzyH3vILL5I'
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/media-channels')
-        if (!res.ok) throw new Error('Failed to fetch data')
-        const data = await res.json()
-        setChannels(data.records)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+interface AirtableRecord {
+  id: string
+  fields: {
+    Name?: string
+    Description?: string
+    Image?: Array<{ url: string }>
+    Type?: string | string[]
+    Link?: string
+  }
+}
 
-  const filteredChannels = channels.filter(channel => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      if (
-        !channel.name.toLowerCase().includes(query) &&
-        !channel.description.toLowerCase().includes(query)
-      ) {
-        return false
-      }
-    }
-
-    if (selectedTypes.size > 0) {
-      const hasMatch = Array.from(selectedTypes).some(t =>
-        channel.type.toLowerCase().includes(t.toLowerCase())
-      )
-      if (!hasMatch) return false
-    }
-
-    return true
-  })
-
-  const toggleType = (type: string) => {
-    const next = new Set(selectedTypes)
-    if (next.has(type)) {
-      next.delete(type)
-    } else {
-      next.add(type)
-    }
-    setSelectedTypes(next)
+async function getMediaChannels(): Promise<MediaChannel[]> {
+  if (!AIRTABLE_TOKEN || !BASE_ID) {
+    console.error('Airtable credentials not configured')
+    return []
   }
 
-  const typeCounts = channels.reduce(
-    (counts, channel) => {
-      for (const option of typeOptions) {
-        if (channel.type.toLowerCase().includes(option.toLowerCase())) {
-          counts[option] = (counts[option] || 0) + 1
-        }
+  try {
+    const allRecords: MediaChannel[] = []
+    let offset: string | null = null
+
+    do {
+      const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+      url.searchParams.set('filterByFormula', '{Publish?} = TRUE()')
+      url.searchParams.set('sort[0][field]', 'Sort')
+      url.searchParams.set('sort[0][direction]', 'asc')
+      if (offset) {
+        url.searchParams.set('offset', offset)
       }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+
+      let response = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        next: { revalidate: 300 },
+      })
+
+      if (!response.ok) {
+        await new Promise(r => setTimeout(r, 1000))
+        response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          next: { revalidate: 300 },
+        })
+      }
+
+      if (!response.ok) {
+        console.warn('Airtable API error:', response.status)
+        return []
+      }
+
+      const data = await response.json()
+
+      for (const record of data.records as AirtableRecord[]) {
+        const fields = record.fields
+        if (!fields.Name) continue
+
+        let logo: string | null = null
+        if (fields.Image && fields.Image.length > 0) {
+          logo = fields.Image[0].url
+        }
+
+        allRecords.push({
+          id: record.id,
+          name: fields.Name,
+          description: fields.Description || '',
+          logo,
+          type: Array.isArray(fields.Type)
+            ? fields.Type.join(', ')
+            : fields.Type || '',
+          url: fields.Link || '#',
+          lastModified: null,
+        })
+      }
+
+      offset = data.offset || null
+    } while (offset)
+
+    return allRecords
+  } catch (error) {
+    console.error('Error fetching media channels:', error)
+    return []
+  }
+}
+
+export default async function MediaChannelsPage() {
+  const channels = await getMediaChannels()
 
   return (
     <div className="container-default">
@@ -163,86 +167,8 @@ export default function MediaChannelsPage() {
         </aside>
       </div>
 
-      {/* Database Grid */}
-      <div className="database-outer-grid">
-        <div>
-          <div className="padding-bottom-40px">
-            <input
-              type="text"
-              className="text-field"
-              placeholder="Search sources by name or description"
-              maxLength={256}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Loading...</p>
-            </div>
-          ) : error ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Error: {error}</p>
-            </div>
-          ) : (
-            <div className="collection-list padding-bottom-40px">
-              {filteredChannels.map(channel => (
-                <a
-                  key={channel.id}
-                  href={channel.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                >
-                  <div className="flex items-center gap-16px padding-bottom-24px">
-                    <div className="featured-img">
-                      {channel.logo && (
-                        <Image
-                          src={channel.logo}
-                          alt=""
-                          className="card-image"
-                          width={64}
-                          height={64}
-                          unoptimized
-                        />
-                      )}
-                    </div>
-                    <h3>{channel.name}</h3>
-                  </div>
-                  <p className="paragraph-small padding-bottom-24px">
-                    {channel.description}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Type
-                  </p>
-                  <p className="paragraph-small">{channel.type}</p>
-                </a>
-              ))}
-              {filteredChannels.length === 0 && (
-                <p className="paragraph-small color-teal-300">
-                  No items found.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="hide-mobile">
-          <FilterGroup
-            title="Type"
-            options={typeOptions}
-            selected={Array.from(selectedTypes)}
-            counts={typeCounts}
-            onToggle={toggleType}
-          />
-          <ContributeButtons
-            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
-            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-            noun="media source"
-          />
-        </div>
-      </div>
+      {/* Main Content with Search, Cards, and Filters */}
+      <MediaChannelsClient channels={channels} />
     </div>
   )
 }

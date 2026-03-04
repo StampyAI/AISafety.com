@@ -1,105 +1,112 @@
-'use client'
-
-import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
 import LastUpdated from '@/components/LastUpdated'
 import FeaturedCard from '@/components/FeaturedCard'
-import FilterGroup from '@/components/FilterGroup'
-import ContributeButtons from '@/components/ContributeButtons'
+import FoundersClient from './FoundersClient'
+import { FounderResource } from '../../api/founders/route'
 
-const typeOptions = [
-  'Article/tool',
-  'Fiscal sponsor',
-  'Incubator',
-  'Venture capitalist',
-]
-
-interface FounderResource {
-  id: string
-  name: string
-  sort: number | null
-  type: string
-  image: string | null
-  description: string
-  website: string
+export const metadata = {
+  title: 'Founder Toolkit – AISafety.com',
+  description:
+    'Resources for starting and growing an AI safety organization, including incubators, fiscal sponsors, venture capital, and practical guides.',
 }
 
-export default function FoundersPage() {
-  const [resources, setResources] = useState<FounderResource[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
+const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
+const BASE_ID = process.env.AIRTABLE_BASE_ID
+const TABLE_ID = 'tbl59Ye8oxvPjoVJv'
+const VIEW_ID = 'viwzMBhPBk1GpQXnn'
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/founders')
-        if (!res.ok) throw new Error('Failed to fetch data')
-        const data = await res.json()
-        setResources(data.records)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+interface AirtableRecord {
+  id: string
+  fields: {
+    Name?: string
+    Sort?: number
+    Type?: string | string[]
+    Image?: Array<{ url: string }>
+    Description?: string
+    Website?: string
+    'Publish?'?: boolean
+  }
+}
 
-  const filteredResources = resources.filter(resource => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      if (
-        !resource.name.toLowerCase().includes(query) &&
-        !resource.description.toLowerCase().includes(query)
-      ) {
-        return false
-      }
-    }
-
-    if (selectedTypes.size > 0) {
-      const resourceType = resource.type.toLowerCase().trim()
-      const hasMatch = Array.from(selectedTypes).some(t =>
-        resourceType.includes(t.toLowerCase())
-      )
-      if (!hasMatch) return false
-    }
-
-    return true
-  })
-
-  const toggle = (
-    value: string,
-    selected: Set<string>,
-    setter: (s: Set<string>) => void
-  ) => {
-    const next = new Set(selected)
-    if (next.has(value)) {
-      next.delete(value)
-    } else {
-      next.add(value)
-    }
-    setter(next)
+async function getFounderResources(): Promise<FounderResource[]> {
+  if (!AIRTABLE_TOKEN || !BASE_ID) {
+    console.error('Airtable credentials not configured')
+    return []
   }
 
-  const typeCounts = resources.reduce(
-    (counts, resource) => {
-      const resourceType = resource.type.toLowerCase().trim()
-      for (const option of typeOptions) {
-        if (resourceType.includes(option.toLowerCase())) {
-          counts[option] = (counts[option] || 0) + 1
-        }
+  try {
+    const allRecords: FounderResource[] = []
+    let offset: string | null = null
+
+    do {
+      const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+      url.searchParams.set('view', VIEW_ID)
+      url.searchParams.set('filterByFormula', '{Publish?} = TRUE()')
+      url.searchParams.set('sort[0][field]', 'Sort')
+      url.searchParams.set('sort[0][direction]', 'asc')
+      url.searchParams.set('sort[1][field]', 'Name')
+      url.searchParams.set('sort[1][direction]', 'asc')
+      if (offset) {
+        url.searchParams.set('offset', offset)
       }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+
+      let response = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        next: { revalidate: 300 },
+      })
+
+      if (!response.ok) {
+        await new Promise(r => setTimeout(r, 1000))
+        response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          next: { revalidate: 300 },
+        })
+      }
+
+      if (!response.ok) {
+        console.warn('Airtable API error:', response.status)
+        return []
+      }
+
+      const data = await response.json()
+
+      for (const record of data.records as AirtableRecord[]) {
+        const fields = record.fields
+        if (!fields.Name) continue
+
+        let image: string | null = null
+        if (fields.Image && fields.Image.length > 0) {
+          image = fields.Image[0].url
+        }
+
+        allRecords.push({
+          id: record.id,
+          name: fields.Name,
+          sort: fields.Sort ?? null,
+          type: Array.isArray(fields.Type)
+            ? fields.Type.join(', ')
+            : fields.Type || '',
+          image,
+          description: fields.Description || '',
+          website: fields.Website || '#',
+        })
+      }
+
+      offset = data.offset || null
+    } while (offset)
+
+    return allRecords
+  } catch (error) {
+    console.error('Error fetching founder resources:', error)
+    return []
+  }
+}
+
+export default async function FoundersPage() {
+  const resources = await getFounderResources()
 
   return (
     <div className="container-default">
-      {/* Hero */}
       <h1 className="padding-top-56px padding-bottom-8px">Founder Toolkit</h1>
       <LastUpdated
         apiEndpoint="/api/last-updated/founders"
@@ -161,88 +168,8 @@ export default function FoundersPage() {
         </aside>
       </div>
 
-      {/* Database Grid */}
-      <div className="database-outer-grid">
-        {/* Left column: search + cards */}
-        <div>
-          <div className="padding-bottom-40px">
-            <input
-              type="text"
-              className="text-field"
-              placeholder="Search listings by name or description"
-              maxLength={256}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Loading...</p>
-            </div>
-          ) : error ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Error: {error}</p>
-            </div>
-          ) : (
-            <div className="collection-list padding-bottom-40px">
-              {filteredResources.map(resource => (
-                <a
-                  key={resource.id}
-                  href={resource.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                >
-                  <div className="flex items-center gap-16px padding-bottom-24px">
-                    <div className="featured-img">
-                      {resource.image && (
-                        <Image
-                          src={resource.image}
-                          alt=""
-                          className="card-image"
-                          width={64}
-                          height={64}
-                          unoptimized
-                        />
-                      )}
-                    </div>
-                    <h3>{resource.name}</h3>
-                  </div>
-                  <p className="paragraph-small padding-bottom-24px">
-                    {resource.description}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Type
-                  </p>
-                  <p className="paragraph-small">{resource.type}</p>
-                </a>
-              ))}
-              {filteredResources.length === 0 && (
-                <p className="paragraph-small color-teal-300">
-                  No items found.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right column: filters (desktop only) */}
-        <div className="hide-mobile">
-          <FilterGroup
-            title="Type"
-            options={typeOptions}
-            selected={Array.from(selectedTypes)}
-            counts={typeCounts}
-            onToggle={v => toggle(v, selectedTypes, setSelectedTypes)}
-          />
-          <ContributeButtons
-            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag1OO5TrQkO96W7R/form"
-            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-            noun="resource"
-          />
-        </div>
-      </div>
+      {/* Main Content with Search, Cards, and Filters */}
+      <FoundersClient resources={resources} />
     </div>
   )
 }

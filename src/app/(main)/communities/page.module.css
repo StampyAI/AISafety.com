@@ -40,7 +40,7 @@
 
 /* Mapbox tooltip */
 :global(#mapbox-tooltip) {
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   background-color: #0e2628;
   border: 1px solid #394c4e;

@@ -1,150 +1,115 @@
-'use client'
-
-import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
 import LastUpdated from '@/components/LastUpdated'
 import FeaturedCard from '@/components/FeaturedCard'
-import FilterGroup from '@/components/FilterGroup'
-import ContributeButtons from '@/components/ContributeButtons'
+import SelfStudyClient from './SelfStudyClient'
+import { Course } from '../../api/self-study/route'
 
-const categoryOptions = [
-  'Introductory',
-  'Technical Alignment',
-  'Governance',
-  'Strategy',
-]
-
-const typeOptions = ['Curriculum', 'Reading list']
-
-interface Course {
-  id: string
-  name: string
-  description: string
-  category: string
-  courseType: string
-  organizer: string
-  url: string
-  image: string | null
-  lastModified: string | null
+export const metadata = {
+  title: 'Self-study – AISafety.com',
+  description:
+    'Curricula and reading lists to dive deeper into AI safety through independent learning.',
 }
 
-export default function SelfStudyPage() {
-  const [courses, setCourses] = useState<Course[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set()
-  )
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set())
+const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
+const BASE_ID = process.env.AIRTABLE_BASE_ID
+const TABLE_ID = 'tblRNYJ0m1cmJXKKk'
+const VIEW_ID = 'viwblgaia3x1gsqBo'
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/self-study')
-        if (!res.ok) {
-          throw new Error('Failed to fetch data')
-        }
-        const data = await res.json()
-        setCourses(data.records)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+interface AirtableRecord {
+  id: string
+  fields: {
+    Name?: string
+    Description?: string
+    Category?: string | string[]
+    Type?: string | string[]
+    'Created by'?: string
+    Link?: string
+    Logo?: Array<{ url: string }>
+    'Publish?'?: boolean
+  }
+}
 
-  // Filter courses based on search, category, and type
-  const filteredCourses = courses.filter(course => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      if (
-        !course.name.toLowerCase().includes(query) &&
-        !course.description.toLowerCase().includes(query) &&
-        !course.organizer.toLowerCase().includes(query)
-      ) {
-        return false
-      }
-    }
-
-    if (selectedCategories.size > 0) {
-      const courseCategories = course.category
-        .toLowerCase()
-        .split(',')
-        .map(c => c.trim())
-      const hasMatchingCategory = Array.from(selectedCategories).some(cat =>
-        courseCategories.some(cc => cc.includes(cat.toLowerCase()))
-      )
-      if (!hasMatchingCategory) return false
-    }
-
-    if (selectedTypes.size > 0) {
-      const courseType = course.courseType.toLowerCase().trim()
-      const hasMatchingType = Array.from(selectedTypes).some(t =>
-        courseType.includes(t.toLowerCase())
-      )
-      if (!hasMatchingType) return false
-    }
-
-    return true
-  })
-
-  const toggleCategory = (category: string) => {
-    const newSelected = new Set(selectedCategories)
-    if (newSelected.has(category)) {
-      newSelected.delete(category)
-    } else {
-      newSelected.add(category)
-    }
-    setSelectedCategories(newSelected)
+async function getCourses(): Promise<Course[]> {
+  if (!AIRTABLE_TOKEN || !BASE_ID) {
+    console.error('Airtable credentials not configured')
+    return []
   }
 
-  const toggleType = (type: string) => {
-    const newSelected = new Set(selectedTypes)
-    if (newSelected.has(type)) {
-      newSelected.delete(type)
-    } else {
-      newSelected.add(type)
-    }
-    setSelectedTypes(newSelected)
+  try {
+    const allRecords: Course[] = []
+    let offset: string | null = null
+
+    do {
+      const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+      url.searchParams.set('view', VIEW_ID)
+      url.searchParams.set('filterByFormula', '{Publish?} = TRUE()')
+      url.searchParams.set('sort[0][field]', 'Sort')
+      url.searchParams.set('sort[0][direction]', 'asc')
+      if (offset) {
+        url.searchParams.set('offset', offset)
+      }
+
+      let response = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        next: { revalidate: 300 },
+      })
+
+      if (!response.ok) {
+        await new Promise(r => setTimeout(r, 1000))
+        response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          next: { revalidate: 300 },
+        })
+      }
+
+      if (!response.ok) {
+        console.warn('Airtable API error:', response.status)
+        return []
+      }
+
+      const data = await response.json()
+
+      for (const record of data.records as AirtableRecord[]) {
+        const fields = record.fields
+        if (!fields.Name) continue
+
+        let image: string | null = null
+        if (fields.Logo && fields.Logo.length > 0) {
+          image = fields.Logo[0].url
+        }
+
+        allRecords.push({
+          id: record.id,
+          name: fields.Name,
+          description: fields.Description || '',
+          category: Array.isArray(fields.Category)
+            ? fields.Category.join(', ')
+            : fields.Category || '',
+          courseType: Array.isArray(fields.Type)
+            ? fields.Type.join(', ')
+            : fields.Type || '',
+          organizer: fields['Created by'] || '',
+          url: fields.Link || '#',
+          image,
+          lastModified: null,
+        })
+      }
+
+      offset = data.offset || null
+    } while (offset)
+
+    return allRecords
+  } catch (error) {
+    console.error('Error fetching courses:', error)
+    return []
   }
+}
 
-  const categoryCounts = courses.reduce(
-    (counts, course) => {
-      const courseCategories = course.category
-        .toLowerCase()
-        .split(',')
-        .map(c => c.trim())
-      for (const category of categoryOptions) {
-        const catLower = category.toLowerCase()
-        if (courseCategories.some(cc => cc.includes(catLower))) {
-          counts[category] = (counts[category] || 0) + 1
-        }
-      }
-      return counts
-    },
-    {} as Record<string, number>
-  )
-
-  const typeCounts = courses.reduce(
-    (counts, course) => {
-      const courseType = course.courseType.toLowerCase().trim()
-      for (const type of typeOptions) {
-        if (courseType.includes(type.toLowerCase())) {
-          counts[type] = (counts[type] || 0) + 1
-        }
-      }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+export default async function SelfStudyPage() {
+  const courses = await getCourses()
 
   return (
     <div className="container-default">
-      {/* Hero */}
       <h1 className="padding-top-56px padding-bottom-8px">Self-study</h1>
       <LastUpdated
         apiEndpoint="/api/last-updated/self-study"
@@ -215,101 +180,8 @@ export default function SelfStudyPage() {
         </aside>
       </div>
 
-      {/* Database Grid */}
-      <div className="database-outer-grid">
-        {/* Left column: search + cards */}
-        <div>
-          <div className="padding-bottom-40px">
-            <input
-              type="text"
-              className="text-field"
-              placeholder="Search courses by name, description, or creator"
-              maxLength={256}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Loading...</p>
-            </div>
-          ) : error ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Error: {error}</p>
-            </div>
-          ) : (
-            <div className="collection-list padding-bottom-40px">
-              {filteredCourses.map(course => (
-                <a
-                  key={course.id}
-                  href={course.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                >
-                  <div className="flex items-center gap-16px padding-bottom-24px">
-                    <div className="featured-img">
-                      {course.image && (
-                        <Image
-                          src={course.image}
-                          alt=""
-                          className="card-image"
-                          width={64}
-                          height={64}
-                          unoptimized
-                        />
-                      )}
-                    </div>
-                    <h3>{course.name}</h3>
-                  </div>
-                  <p className="paragraph-small padding-bottom-24px">
-                    {course.description}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Category
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {course.category}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Created by
-                  </p>
-                  <p className="paragraph-small">{course.organizer}</p>
-                </a>
-              ))}
-              {filteredCourses.length === 0 && (
-                <p className="paragraph-small color-teal-300">
-                  No items found.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right column: filters (desktop only) */}
-        <div className="hide-mobile">
-          <FilterGroup
-            title="Category"
-            options={categoryOptions}
-            selected={Array.from(selectedCategories)}
-            counts={categoryCounts}
-            onToggle={toggleCategory}
-          />
-          <FilterGroup
-            title="Type"
-            options={typeOptions}
-            selected={Array.from(selectedTypes)}
-            counts={typeCounts}
-            onToggle={toggleType}
-          />
-          <ContributeButtons
-            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
-            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-            noun="course"
-          />
-        </div>
-      </div>
+      {/* Main Content with Search, Cards, and Filters */}
+      <SelfStudyClient courses={courses} />
     </div>
   )
 }

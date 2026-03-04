@@ -78,6 +78,25 @@ export async function GET() {
     do {
       const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
       url.searchParams.set('view', VIEW_ID)
+      // Only fetch fields we actually use to reduce payload size
+      const fields = [
+        'Long name',
+        'Long name for cards',
+        'Short name',
+        'Description',
+        'Category (text)',
+        'Category',
+        'Status',
+        'Logo (for cards)',
+        'Logo (for map)',
+        'Link',
+        'Short URL',
+        'Date added',
+        'x',
+        'y',
+        'Scale',
+      ]
+      fields.forEach(f => url.searchParams.append('fields[]', f))
       if (offset) {
         url.searchParams.set('offset', offset)
       }
@@ -168,11 +187,17 @@ export async function GET() {
       offset = data.offset || null
     } while (offset)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       records: allRecords,
       lastUpdated: lastUpdatedFromMagicRow,
       count: allRecords.length,
     })
+    // Cache in browser for 5 minutes, allow stale for 1 hour while revalidating
+    response.headers.set(
+      'Cache-Control',
+      'public, s-maxage=1800, stale-while-revalidate=3600'
+    )
+    return response
   } catch (error) {
     console.error('Error fetching map data:', error)
     return NextResponse.json(

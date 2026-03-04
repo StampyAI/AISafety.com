@@ -10,8 +10,8 @@ interface AirtableRecord {
   fields: {
     Name?: string
     Description?: string
-    Category?: string
-    Type?: string
+    Category?: string | string[]
+    Type?: string | string[]
     'Created by'?: string
     Link?: string
     Logo?: Array<{
@@ -92,8 +92,12 @@ export async function GET() {
           id: record.id,
           name,
           description: fields.Description || '',
-          category: fields.Category || '',
-          courseType: fields.Type || '',
+          category: Array.isArray(fields.Category)
+            ? fields.Category.join(', ')
+            : fields.Category || '',
+          courseType: Array.isArray(fields.Type)
+            ? fields.Type.join(', ')
+            : fields.Type || '',
           organizer: fields['Created by'] || '',
           url: fields.Link || '#',
           image,
@@ -104,10 +108,15 @@ export async function GET() {
       offset = data.offset || null
     } while (offset)
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       records: allRecords,
       count: allRecords.length,
     })
+    res.headers.set(
+      'Cache-Control',
+      'public, s-maxage=1800, stale-while-revalidate=3600'
+    )
+    return res
   } catch (error) {
     console.error('Error fetching self-study data:', error)
     return NextResponse.json(

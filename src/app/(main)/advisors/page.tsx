@@ -1,117 +1,107 @@
-'use client'
-
-import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
 import LastUpdated from '@/components/LastUpdated'
 import FeaturedCard from '@/components/FeaturedCard'
-import FilterGroup from '@/components/FilterGroup'
-import ContributeButtons from '@/components/ContributeButtons'
+import AdvisorsClient from './AdvisorsClient'
+import { Advisor } from '../../api/advisors/route'
 
-const focusOptions = ['Career/contribution', 'Other']
-
-const statusOptions = ['Active', 'Inactive']
-
-interface Advisor {
-  id: string
-  name: string
-  description: string
-  logo: string | null
-  focus: string
-  status: string
-  url: string
-  lastModified: string | null
+export const metadata = {
+  title: 'Advisors – AISafety.com',
+  description:
+    'Advisors offering free guidance calls to help you most effectively contribute to AI safety.',
 }
 
-export default function AdvisorsPage() {
-  const [advisors, setAdvisors] = useState<Advisor[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFocus, setSelectedFocus] = useState<Set<string>>(new Set())
-  const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set())
+const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
+const BASE_ID = process.env.AIRTABLE_BASE_ID
+const TABLE_ID = 'tblf3KKYnmgcjVGhD'
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/advisors')
-        if (!res.ok) throw new Error('Failed to fetch data')
-        const data = await res.json()
-        setAdvisors(data.records)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+interface AirtableRecord {
+  id: string
+  fields: {
+    Name?: string
+    Description?: string
+    Logo?: Array<{ url: string }>
+    Focus?: string | string[]
+    Status?: string | string[]
+    Link?: string
+  }
+}
 
-  const filteredAdvisors = advisors.filter(advisor => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      if (
-        !advisor.name.toLowerCase().includes(query) &&
-        !advisor.description.toLowerCase().includes(query)
-      ) {
-        return false
-      }
-    }
-
-    if (selectedFocus.size > 0) {
-      const hasMatch = Array.from(selectedFocus).some(f =>
-        advisor.focus.toLowerCase().includes(f.toLowerCase())
-      )
-      if (!hasMatch) return false
-    }
-
-    if (selectedStatus.size > 0) {
-      const hasMatch = Array.from(selectedStatus).some(s =>
-        advisor.status.toLowerCase().includes(s.toLowerCase())
-      )
-      if (!hasMatch) return false
-    }
-
-    return true
-  })
-
-  const toggle = (
-    value: string,
-    selected: Set<string>,
-    setter: (s: Set<string>) => void
-  ) => {
-    const next = new Set(selected)
-    if (next.has(value)) {
-      next.delete(value)
-    } else {
-      next.add(value)
-    }
-    setter(next)
+async function getAdvisors(): Promise<Advisor[]> {
+  if (!AIRTABLE_TOKEN || !BASE_ID) {
+    console.error('Airtable credentials not configured')
+    return []
   }
 
-  const focusCounts = advisors.reduce(
-    (counts, advisor) => {
-      for (const option of focusOptions) {
-        if (advisor.focus.toLowerCase().includes(option.toLowerCase())) {
-          counts[option] = (counts[option] || 0) + 1
-        }
-      }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+  try {
+    const allRecords: Advisor[] = []
+    let offset: string | null = null
 
-  const statusCounts = advisors.reduce(
-    (counts, advisor) => {
-      for (const option of statusOptions) {
-        if (advisor.status.toLowerCase().includes(option.toLowerCase())) {
-          counts[option] = (counts[option] || 0) + 1
-        }
+    do {
+      const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+      url.searchParams.set('filterByFormula', '{Publish?} = TRUE()')
+      url.searchParams.set('sort[0][field]', 'Sort')
+      url.searchParams.set('sort[0][direction]', 'asc')
+      if (offset) {
+        url.searchParams.set('offset', offset)
       }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+
+      let response = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        next: { revalidate: 300 },
+      })
+
+      if (!response.ok) {
+        await new Promise(r => setTimeout(r, 1000))
+        response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          next: { revalidate: 300 },
+        })
+      }
+
+      if (!response.ok) {
+        console.warn('Airtable API error:', response.status)
+        return []
+      }
+
+      const data = await response.json()
+
+      for (const record of data.records as AirtableRecord[]) {
+        const fields = record.fields
+        if (!fields.Name) continue
+
+        let logo: string | null = null
+        if (fields.Logo && fields.Logo.length > 0) {
+          logo = fields.Logo[0].url
+        }
+
+        allRecords.push({
+          id: record.id,
+          name: fields.Name,
+          description: fields.Description || '',
+          logo,
+          focus: Array.isArray(fields.Focus)
+            ? fields.Focus.join(', ')
+            : fields.Focus || '',
+          status: Array.isArray(fields.Status)
+            ? fields.Status.join(', ')
+            : fields.Status || '',
+          url: fields.Link || '#',
+          lastModified: null,
+        })
+      }
+
+      offset = data.offset || null
+    } while (offset)
+
+    return allRecords
+  } catch (error) {
+    console.error('Error fetching advisors:', error)
+    return []
+  }
+}
+
+export default async function AdvisorsPage() {
+  const advisors = await getAdvisors()
 
   return (
     <div className="container-default">
@@ -184,99 +174,8 @@ export default function AdvisorsPage() {
         </aside>
       </div>
 
-      {/* Database Grid */}
-      <div className="database-outer-grid">
-        <div>
-          <div className="padding-bottom-40px">
-            <input
-              type="text"
-              className="text-field"
-              placeholder="Search advisors by name or description"
-              maxLength={256}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Loading...</p>
-            </div>
-          ) : error ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Error: {error}</p>
-            </div>
-          ) : (
-            <div className="collection-list padding-bottom-40px">
-              {filteredAdvisors.map(advisor => (
-                <a
-                  key={advisor.id}
-                  href={advisor.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                >
-                  <div className="flex items-center gap-16px padding-bottom-24px">
-                    <div className="featured-img">
-                      {advisor.logo && (
-                        <Image
-                          src={advisor.logo}
-                          alt=""
-                          className="card-image"
-                          width={64}
-                          height={64}
-                          unoptimized
-                        />
-                      )}
-                    </div>
-                    <h3>{advisor.name}</h3>
-                  </div>
-                  <p className="paragraph-small padding-bottom-24px">
-                    {advisor.description}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Focus
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {advisor.focus}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Status
-                  </p>
-                  <p className="paragraph-small">{advisor.status}</p>
-                </a>
-              ))}
-              {filteredAdvisors.length === 0 && (
-                <p className="paragraph-small color-teal-300">
-                  No items found.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="hide-mobile">
-          <FilterGroup
-            title="Focus"
-            options={focusOptions}
-            selected={Array.from(selectedFocus)}
-            counts={focusCounts}
-            onToggle={v => toggle(v, selectedFocus, setSelectedFocus)}
-          />
-          <FilterGroup
-            title="Status"
-            options={statusOptions}
-            selected={Array.from(selectedStatus)}
-            counts={statusCounts}
-            onToggle={v => toggle(v, selectedStatus, setSelectedStatus)}
-          />
-          <ContributeButtons
-            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
-            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-            noun="advisor"
-          />
-        </div>
-      </div>
+      {/* Main Content with Search, Cards, and Filters */}
+      <AdvisorsClient advisors={advisors} />
     </div>
   )
 }

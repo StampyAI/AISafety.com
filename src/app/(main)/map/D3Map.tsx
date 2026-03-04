@@ -203,13 +203,15 @@ export default function D3Map({ orgs }: D3MapProps) {
       const padding = 2
       const contentSize = iconSize - 2 * padding
 
-      // Create link group
-      const linkEl = svgGroup
+      // Create item group with translate, then link inside (matching Webflow structure)
+      const itemGroup = svgGroup
+        .append('g')
+        .attr('transform', `translate(${xPos}, ${yPos})`)
+      const linkEl = itemGroup
         .append('a')
         .attr('xlink:href', org.link)
         .attr('target', '_blank')
-        .append('g')
-        .attr('transform', `translate(${xPos}, ${yPos})`)
+        .attr('class', 'mapItem')
         .style('cursor', 'pointer')
 
       // White circle background

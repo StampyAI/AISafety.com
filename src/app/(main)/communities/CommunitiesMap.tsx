@@ -185,13 +185,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             if (finalX < mapRect.left) finalX = mapRect.left + 2
           }
 
-          tt.style.left = window.scrollX + finalX + 'px'
-          tt.style.top = window.scrollY + finalY + 'px'
+          tt.style.left = finalX + 'px'
+          tt.style.top = finalY + 'px'
 
           if (isMobile) {
-            const minLeftMarginPage = window.scrollX + 20
-            if (window.scrollX + finalX < minLeftMarginPage)
-              tt.style.left = minLeftMarginPage + 'px'
+            const minLeftMargin = 20
+            if (finalX < minLeftMargin) tt.style.left = minLeftMargin + 'px'
           }
         }
 
@@ -450,7 +449,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       <div
         ref={tooltipRef}
         id="mapbox-tooltip"
-        style={{ display: 'none', position: 'absolute' }}
+        style={{ display: 'none', position: 'fixed' }}
       />
     </>
   )

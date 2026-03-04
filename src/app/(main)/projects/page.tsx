@@ -1,90 +1,98 @@
-'use client'
-
-import Image from 'next/image'
-import { useEffect, useState } from 'react'
 import LastUpdated from '@/components/LastUpdated'
 import FeaturedCard from '@/components/FeaturedCard'
-import FilterGroup from '@/components/FilterGroup'
-import ContributeButtons from '@/components/ContributeButtons'
+import ProjectsClient from './ProjectsClient'
+import { Project } from '../../api/projects/route'
 
-const statusOptions = ['Active', 'Paused', 'Seeking owner']
-
-interface Project {
-  id: string
-  name: string
-  description: string
-  logo: string | null
-  contact: string
-  status: string
-  url: string
-  lastModified: string | null
+export const metadata = {
+  title: 'Volunteer Projects – AISafety.com',
+  description:
+    'Initiatives seeking your volunteer help, focused on supporting and improving the AI safety field.',
 }
 
-export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState<Set<string>>(new Set())
+const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN
+const BASE_ID = process.env.AIRTABLE_BASE_ID
+const TABLE_ID = 'tblHT29QNgMYKB8iW'
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/projects')
-        if (!res.ok) throw new Error('Failed to fetch data')
-        const data = await res.json()
-        setProjects(data.records)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+interface AirtableRecord {
+  id: string
+  fields: {
+    'Project Name'?: string
+    'Description (short)'?: string
+    Status?: string | string[]
+    Website?: string
+    'Contact name'?: string
+  }
+}
 
-  const filteredProjects = projects.filter(project => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      if (
-        !project.name.toLowerCase().includes(query) &&
-        !project.description.toLowerCase().includes(query)
-      ) {
-        return false
-      }
-    }
-
-    if (selectedStatus.size > 0) {
-      const hasMatch = Array.from(selectedStatus).some(s =>
-        project.status.toLowerCase().includes(s.toLowerCase())
-      )
-      if (!hasMatch) return false
-    }
-
-    return true
-  })
-
-  const toggleStatus = (status: string) => {
-    const next = new Set(selectedStatus)
-    if (next.has(status)) {
-      next.delete(status)
-    } else {
-      next.add(status)
-    }
-    setSelectedStatus(next)
+async function getProjects(): Promise<Project[]> {
+  if (!AIRTABLE_TOKEN || !BASE_ID) {
+    console.error('Airtable credentials not configured')
+    return []
   }
 
-  const statusCounts = projects.reduce(
-    (counts, project) => {
-      for (const option of statusOptions) {
-        if (project.status.toLowerCase().includes(option.toLowerCase())) {
-          counts[option] = (counts[option] || 0) + 1
-        }
+  try {
+    const allRecords: Project[] = []
+    let offset: string | null = null
+
+    do {
+      const url = new URL(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`)
+      url.searchParams.set('filterByFormula', '{Publish?} = TRUE()')
+      url.searchParams.set('sort[0][field]', 'Sort')
+      url.searchParams.set('sort[0][direction]', 'asc')
+      if (offset) {
+        url.searchParams.set('offset', offset)
       }
-      return counts
-    },
-    {} as Record<string, number>
-  )
+
+      let response = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+        next: { revalidate: 300 },
+      })
+
+      if (!response.ok) {
+        await new Promise(r => setTimeout(r, 1000))
+        response = await fetch(url.toString(), {
+          headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+          next: { revalidate: 300 },
+        })
+      }
+
+      if (!response.ok) {
+        console.warn('Airtable API error:', response.status)
+        return []
+      }
+
+      const data = await response.json()
+
+      for (const record of data.records as AirtableRecord[]) {
+        const fields = record.fields
+        if (!fields['Project Name']) continue
+
+        allRecords.push({
+          id: record.id,
+          name: fields['Project Name'],
+          description: fields['Description (short)'] || '',
+          logo: null,
+          contact: fields['Contact name'] || '',
+          status: Array.isArray(fields.Status)
+            ? fields.Status.join(', ')
+            : fields.Status || '',
+          url: fields.Website || '#',
+          lastModified: null,
+        })
+      }
+
+      offset = data.offset || null
+    } while (offset)
+
+    return allRecords
+  } catch (error) {
+    console.error('Error fetching projects:', error)
+    return []
+  }
+}
+
+export default async function ProjectsPage() {
+  const projects = await getProjects()
 
   return (
     <div className="container-default">
@@ -149,92 +157,8 @@ export default function ProjectsPage() {
         </aside>
       </div>
 
-      {/* Database Grid */}
-      <div className="database-outer-grid">
-        <div>
-          <div className="padding-bottom-40px">
-            <input
-              type="text"
-              className="text-field"
-              placeholder="Search projects by name or description"
-              maxLength={256}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          {loading ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Loading...</p>
-            </div>
-          ) : error ? (
-            <div className="padding-bottom-40px">
-              <p className="paragraph-small color-teal-300">Error: {error}</p>
-            </div>
-          ) : (
-            <div className="collection-list padding-bottom-40px">
-              {filteredProjects.map(project => (
-                <a
-                  key={project.id}
-                  href={project.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                >
-                  <div className="flex items-center gap-16px padding-bottom-24px">
-                    <div className="featured-img">
-                      {project.logo && (
-                        <Image
-                          src={project.logo}
-                          alt=""
-                          className="card-image"
-                          width={64}
-                          height={64}
-                          unoptimized
-                        />
-                      )}
-                    </div>
-                    <h3>{project.name}</h3>
-                  </div>
-                  <p className="paragraph-small padding-bottom-24px">
-                    {project.description}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Contact
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {project.contact}
-                  </p>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Status
-                  </p>
-                  <p className="paragraph-small">{project.status}</p>
-                </a>
-              ))}
-              {filteredProjects.length === 0 && (
-                <p className="paragraph-small color-teal-300">
-                  No items found.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="hide-mobile">
-          <FilterGroup
-            title="Status"
-            options={statusOptions}
-            selected={Array.from(selectedStatus)}
-            counts={statusCounts}
-            onToggle={toggleStatus}
-          />
-          <ContributeButtons
-            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
-            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-            noun="project"
-          />
-        </div>
-      </div>
+      {/* Main Content with Search, Cards, and Filters */}
+      <ProjectsClient projects={projects} />
     </div>
   )
 }

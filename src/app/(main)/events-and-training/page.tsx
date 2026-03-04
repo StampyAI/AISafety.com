@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import LastUpdated from '@/components/LastUpdated'
+import EventsEmbeds from './EventsEmbeds'
 import styles from './page.module.css'
 
 export const metadata = {
@@ -11,6 +12,9 @@ export const metadata = {
 export default function EventsAndTrainingPage() {
   return (
     <div>
+      {/* Preconnect to Airtable so embeds load faster */}
+      <link rel="preconnect" href="https://airtable.com" />
+      <link rel="dns-prefetch" href="https://airtable.com" />
       {/* Main Content */}
       <div className="container-default">
         <h1 className="padding-top-56px padding-bottom-8px">
@@ -78,42 +82,8 @@ export default function EventsAndTrainingPage() {
         </h2>
       </div>
 
-      {/* Airtable Embeds */}
-      <div className={styles['airtable-section']}>
-        <iframe
-          src="https://airtable.com/embed/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc?viewControls=on"
-          frameBorder={0}
-          width="100%"
-          height="2300"
-          style={{ background: 'transparent', border: '1px solid #ccc' }}
-          className={styles['airtable-embed']}
-        />
-
-        <iframe
-          src="https://airtable.com/embed/appF8XfZUGXtfi40E/shrZ4Uh9OsbUryfjp"
-          frameBorder={0}
-          width="100%"
-          height="2880"
-          style={{ background: 'transparent', border: '1px solid #ccc' }}
-          className={`${styles['airtable-embed']} hide-mobile`}
-        />
-      </div>
-
-      {/* Second section */}
-      <div className="container-default">
-        <h2 className="hide-mobile">Open for application/registration</h2>
-      </div>
-
-      <div className={styles['airtable-section']}>
-        <iframe
-          src="https://airtable.com/embed/appF8XfZUGXtfi40E/shrbap2hy8Yd3xojA"
-          frameBorder={0}
-          width="100%"
-          height="1000"
-          style={{ background: 'transparent', border: '1px solid #ccc' }}
-          className={`${styles['airtable-embed']} hide-mobile`}
-        />
-      </div>
+      {/* Airtable Embeds – load on view, then sequentially in background */}
+      <EventsEmbeds />
 
       {/* Link to self-study */}
       <div className="container-default">

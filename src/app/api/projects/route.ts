@@ -87,10 +87,15 @@ export async function GET() {
       offset = data.offset || null
     } while (offset)
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       records: allRecords,
       count: allRecords.length,
     })
+    res.headers.set(
+      'Cache-Control',
+      'public, s-maxage=1800, stale-while-revalidate=3600'
+    )
+    return res
   } catch (error) {
     console.error('Error fetching projects data:', error)
     return NextResponse.json(

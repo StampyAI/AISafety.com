@@ -99,6 +99,15 @@
   line-height: 1.4;
 }
 
+/* Map icon hover effect (matching Webflow) */
+.map-container :global(.mapItem) {
+  transition: transform 0.3s;
+}
+
+.map-container :global(.mapItem:hover) {
+  transform: scale(1.2);
+}
+
 /* Map wrapper for positioning controls */
 .map-wrapper {
   position: relative;

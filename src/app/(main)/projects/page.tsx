@@ -118,7 +118,6 @@ export default async function ProjectsPage() {
             tagline="Seeking maintainer"
             name="Alignment Research Dataset"
             description='Regularly scrapes all major sources of alignment data for use by the AI Safety Chatbot and other projects. Currently needs someone to maintain it. Search "alignment research dataset" on Hugging Face for details.'
-            logo="/images/download-2-1.svg"
             metadata={[
               { label: 'Contact', value: 'Olivier Coutu' },
               { label: 'Status', value: 'Active' },
@@ -129,7 +128,6 @@ export default async function ProjectsPage() {
             tagline="Content curation platform"
             name="AI Safety Feed"
             description="A curated stream for AI safety content, gathering posts and research from key sources. AI helps summarize, tag, and rate content for novelty, letting users quickly find what's important and relevant to them."
-            logo="/images/download-2-1.svg"
             metadata={[
               { label: 'Contact', value: 'Matt Brooks' },
               { label: 'Status', value: 'Active' },

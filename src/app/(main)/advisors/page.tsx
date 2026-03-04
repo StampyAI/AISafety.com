@@ -126,7 +126,7 @@ export default async function AdvisorsPage() {
             tagline="Experienced EA career advisors"
             name="80,000 Hours"
             description="Career advice by a well-connected and professional organization dedicated to helping people use their career for good. Does not accept all applications."
-            logo="/images/download-2-1.svg"
+            logo="/images/80000_Hours_logo2.png"
             metadata={[
               { label: 'Focus', value: 'Career/contribution' },
               { label: 'Status', value: 'Active' },
@@ -137,7 +137,7 @@ export default async function AdvisorsPage() {
             tagline="Impact-focused career advice"
             name="AI Safety Quest"
             description="Grassroots volunteer organization helping people contribute to reducing catastrophic risk from AI by directing them to the most relevant resources and communities."
-            logo="/images/download-2-1.svg"
+            logo="/images/dc409ec6a6a8a2083408f6dffc3f80c2.png"
             metadata={[
               { label: 'Focus', value: 'Career/contribution' },
               { label: 'Status', value: 'Active' },

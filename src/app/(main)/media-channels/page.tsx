@@ -120,7 +120,7 @@ export default async function MediaChannelsPage() {
             tagline="Top newsletter recommendation"
             name="Transformer"
             description="Aims to help decision-makers understand what's happening in AI and why it matters, through news roundups, explainers, features, and opinion pieces."
-            logo="/images/download-2-1.svg"
+            logo="/images/1-21-min.png"
             metadata={[{ label: 'Type', value: 'Newsletter' }]}
           />
           <FeaturedCard
@@ -128,7 +128,7 @@ export default async function MediaChannelsPage() {
             tagline="Top recommended videos"
             name="AI Safety Playlist"
             description="A carefully curated and regularly updated YouTube playlist to help people gain an understanding of what's going on with AI."
-            logo="/images/download-2-1.svg"
+            logo="/images/YouTube.png"
             metadata={[{ label: 'Type', value: 'YouTube' }]}
           />
         </div>

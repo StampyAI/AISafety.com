@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Project } from '../../api/projects/route'
@@ -84,21 +83,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
               rel="noopener noreferrer"
               className="card"
             >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {project.logo && (
-                    <Image
-                      src={project.logo}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                    />
-                  )}
-                </div>
-                <h3>{project.name}</h3>
-              </div>
+              <h3 className="padding-bottom-24px">{project.name}</h3>
               <p className="paragraph-small padding-bottom-24px">
                 {project.description}
               </p>

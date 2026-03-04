@@ -105,6 +105,10 @@ export default function MediaChannelsClient({
                       width={64}
                       height={64}
                       unoptimized
+                      loading="eager"
+                      onError={e => {
+                        ;(e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
                   )}
                 </div>

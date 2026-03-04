@@ -11,7 +11,7 @@ interface FeaturedCardProps {
   tagline: string
   name: string
   description: string
-  logo: string
+  logo?: string
   metadata: MetadataField[]
 }
 
@@ -41,18 +41,22 @@ export default function FeaturedCard({
         <p className="paragraph-small-bold color-teal-300 padding-bottom-16px">
           {tagline}
         </p>
-        <div className="flex items-center gap-16px padding-bottom-24px">
-          <div className="featured-img">
-            <Image
-              src={logo}
-              alt={`${name} logo`}
-              width={64}
-              height={64}
-              className="card-image"
-            />
+        {logo ? (
+          <div className="flex items-center gap-16px padding-bottom-24px">
+            <div className="featured-img">
+              <Image
+                src={logo}
+                alt={`${name} logo`}
+                width={64}
+                height={64}
+                className="card-image"
+              />
+            </div>
+            <h3>{name}</h3>
           </div>
-          <h3>{name}</h3>
-        </div>
+        ) : (
+          <h3 className="padding-bottom-24px">{name}</h3>
+        )}
         <p className="padding-bottom-24px">{description}</p>
         {metadata.map((field, i) => (
           <div key={field.label}>

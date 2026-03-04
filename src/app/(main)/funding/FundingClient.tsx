@@ -189,6 +189,10 @@ export default function FundingClient({ funders }: FundingClientProps) {
                       width={64}
                       height={64}
                       unoptimized
+                      loading="eager"
+                      onError={e => {
+                        ;(e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
                   )}
                 </div>

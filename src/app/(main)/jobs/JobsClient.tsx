@@ -220,14 +220,18 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                       width={64}
                       height={64}
                       unoptimized
+                      loading="eager"
+                      onError={e => {
+                        ;(e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
                   )}
                 </div>
                 <div>
-                  <p className="paragraph-xs-bold color-teal-400">
+                  <h3>{job.name}</h3>
+                  <p className="paragraph-small color-teal-300">
                     {job.organization}
                   </p>
-                  <h3>{job.name}</h3>
                 </div>
               </div>
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
@@ -252,6 +256,17 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                 Role type
               </p>
               <p className="paragraph-small">{job.roleType}</p>
+              {job.datePublished && (
+                <div className="date-published">
+                  <span className="paragraph-xs color-teal-300 italic">
+                    Posted:{' '}
+                    {(() => {
+                      const d = new Date(job.datePublished + 'T00:00:00')
+                      return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+                    })()}
+                  </span>
+                </div>
+              )}
             </a>
           ))}
           {filteredJobs.length === 0 && (

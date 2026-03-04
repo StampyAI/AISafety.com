@@ -129,7 +129,7 @@ export default async function SelfStudyPage() {
             tagline="Fundamental reading"
             name="AI Alignment Forum: Curated Sequences"
             description="List of sequences curated by the AI Alignment Forum team, featuring work from Richard Ngo, Paul Christiano, etc."
-            logo="/images/download-2-1.svg"
+            logo="/images/2.png"
             metadata={[
               { label: 'Category', value: 'Technical Alignment' },
               { label: 'Created by', value: 'Various' },
@@ -140,7 +140,7 @@ export default async function SelfStudyPage() {
             tagline="Standard introductory courses"
             name="BlueDot Impact: Technical & Governance"
             description="Covers key concepts and research perspectives in AI safety, split into two main streams: Technical AI Safety and AI Governance."
-            logo="/images/download-2-1.svg"
+            logo="/images/download-2.svg"
             metadata={[
               { label: 'Category', value: 'Technical Alignment, Governance' },
               { label: 'Created by', value: 'BlueDot Impact' },

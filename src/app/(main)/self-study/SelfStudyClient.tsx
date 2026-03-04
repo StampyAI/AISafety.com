@@ -139,6 +139,10 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
                       width={64}
                       height={64}
                       unoptimized
+                      loading="eager"
+                      onError={e => {
+                        ;(e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
                   )}
                 </div>

@@ -23,6 +23,7 @@ interface AirtableRecord {
     "Org's vacancies page"?: string
     '!Salary (display)'?: string
     '!Date it closes'?: string
+    'Date published'?: string
   }
 }
 
@@ -105,6 +106,7 @@ export async function GET() {
           workLocation: fields['Work location'] || '',
           url: fields["Org's vacancies page"] || '#',
           lastModified: fields['!Date it closes'] || null,
+          datePublished: fields['Date published'] || null,
         })
       }
 

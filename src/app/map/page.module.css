@@ -85,8 +85,10 @@
 
 .map-tooltip strong {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 165%;
+  letter-spacing: -0.3px;
   color: var(--white);
   margin-bottom: 4px;
 }
@@ -95,8 +97,9 @@
   display: block;
   font-size: 13px;
   font-weight: 300;
+  line-height: 167.5%;
+  letter-spacing: -0.2px;
   color: var(--teal-300);
-  line-height: 1.4;
 }
 
 /* Map icon hover effect (matching Webflow) */

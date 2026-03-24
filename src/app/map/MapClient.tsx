@@ -199,7 +199,7 @@ export default function MapClient({
               />
             </div>
 
-            <div className="collection-list padding-bottom-40px">
+            <div className="collection-list padding-bottom-16px">
               {filteredOrgs.map(org => (
                 <a
                   key={org.id}

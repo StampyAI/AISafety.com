@@ -32,6 +32,7 @@ interface AirtableRecord {
 export interface MapOrg {
   id: string
   title: string
+  tooltipTitle: string
   shortName: string | null
   description: string
   category: string
@@ -116,9 +117,15 @@ export async function getMapData(): Promise<MapData> {
       mapLogo = fields['Logo (for map)'][0].url
     }
 
+    // QA: 'Long name for cards' includes acronyms in brackets (e.g. "CARMA"),
+    // which is correct for card titles but not for the map tooltip. The tooltip
+    // should use 'Long name' (without brackets), matching the live site's LongLabel.
+    const tooltipTitle = fields['Long name'] || title
+
     allRecords.push({
       id: record.id,
       title,
+      tooltipTitle,
       shortName: fields['Short name'] || null,
       description: fields.Description,
       category,

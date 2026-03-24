@@ -45,6 +45,7 @@ const categories = [
 interface MapOrg {
   id: string
   title: string
+  tooltipTitle: string
   shortName: string | null
   description: string
   category: string
@@ -80,8 +81,29 @@ export default function MapClient({
   const scrollToCards = () => {
     if (!mapWrapperRef.current) return
     const mapRect = mapWrapperRef.current.getBoundingClientRect()
-    const scrollAmount = window.scrollY + mapRect.bottom
-    window.scrollTo({ top: scrollAmount, behavior: 'smooth' })
+    const scrollTarget = window.scrollY + mapRect.bottom
+
+    // QA: Custom scroll animation matching the live site — the browser's
+    // native smooth scroll starts too quickly and feels too slow overall.
+    // Uses quadratic ease-out for a snappier feel with a 500ms duration.
+    const startPos = window.scrollY
+    const distance = scrollTarget - startPos
+    const duration = 500
+    const startTime = performance.now()
+
+    function step(currentTime: number) {
+      const elapsed = currentTime - startTime
+      if (elapsed < duration) {
+        const progress = elapsed / duration
+        const easeOut = 1 - Math.pow(1 - progress, 2)
+        window.scrollTo(0, startPos + distance * easeOut)
+        requestAnimationFrame(step)
+      } else {
+        window.scrollTo(0, scrollTarget)
+      }
+    }
+
+    requestAnimationFrame(step)
   }
 
   const filteredOrgs = useMemo(() => {
@@ -238,9 +260,7 @@ export default function MapClient({
                 </a>
               ))}
               {filteredOrgs.length === 0 && (
-                <p className="paragraph-small color-teal-300">
-                  No items found.
-                </p>
+                <p className="paragraph-small color-teal-300">Nothing found.</p>
               )}
             </div>
           </div>

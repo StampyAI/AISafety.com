@@ -7,6 +7,7 @@ import styles from './page.module.css'
 interface MapOrg {
   id: string
   title: string
+  tooltipTitle: string
   shortName: string | null
   description: string
   category: string
@@ -207,12 +208,18 @@ export default function D3Map({ orgs }: D3MapProps) {
       const itemGroup = svgGroup
         .append('g')
         .attr('transform', `translate(${xPos}, ${yPos})`)
+      // QA: Items with no real link (e.g. "Last updated") should render
+      // on the map but not be clickable
+      const hasLink = org.link && org.link !== '#'
       const linkEl = itemGroup
-        .append('a')
-        .attr('xlink:href', org.link)
-        .attr('target', '_blank')
+        .append(hasLink ? 'a' : 'g')
         .attr('class', 'mapItem')
-        .style('cursor', 'pointer')
+      if (hasLink) {
+        linkEl
+          .attr('xlink:href', org.link)
+          .attr('target', '_blank')
+          .style('cursor', 'pointer')
+      }
 
       // White circle background
       linkEl
@@ -318,6 +325,34 @@ export default function D3Map({ orgs }: D3MapProps) {
           .attr('fill', '#fff')
 
         textEl.attr('y', bbox.height * 0.35)
+
+        // QA: Add invisible rect filling the gap between circle and label pill.
+        // Without this, moving the mouse through the empty gap fires mouseleave,
+        // causing the tooltip to flicker. This matches the live site's gapRect.
+        linkEl
+          .append('rect')
+          .attr('x', -iconSize / 2)
+          .attr('y', iconSize / 2)
+          .attr('width', iconSize)
+          .attr('height', labelOffset)
+          .attr('fill', 'rgba(0,0,0,0)')
+          .style('pointer-events', 'all')
+
+        // QA: Add a wider invisible bridge rect that slightly overlaps both the
+        // circle and the pill. This provides a more forgiving hover zone so the
+        // tooltip doesn't disappear when the cursor drifts slightly outside the
+        // narrow gap. Pushed to the back so it doesn't block clicks on other items.
+        // Matches the live site's addUnifiedHoverArea.
+        const bridgeWidth = iconSize * 0.8
+        linkEl
+          .append('rect')
+          .attr('x', -bridgeWidth / 2)
+          .attr('y', iconSize / 2 - 2)
+          .attr('width', bridgeWidth)
+          .attr('height', labelOffset + 4)
+          .attr('fill', 'rgba(0,0,0,0)')
+          .style('pointer-events', 'all')
+          .lower()
       }
 
       // Tooltip events
@@ -328,7 +363,9 @@ export default function D3Map({ orgs }: D3MapProps) {
             visible: true,
             x: mouseX + 10,
             y: mouseY + 10,
-            title: org.title,
+            // QA: Use tooltipTitle ('Long name') not title ('Long name for cards')
+            // so bracketed acronyms like "(CARMA)" don't appear in the tooltip
+            title: org.tooltipTitle,
             description: org.description,
           })
         })

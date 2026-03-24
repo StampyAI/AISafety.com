@@ -214,7 +214,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
             </a>
           ))}
           {filteredFunders.length === 0 && (
-            <p className="paragraph-small color-teal-300">No items found.</p>
+            <p className="paragraph-small color-teal-300">Nothing found.</p>
           )}
         </div>
       </div>

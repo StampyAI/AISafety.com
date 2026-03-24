@@ -270,7 +270,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             </a>
           ))}
           {filteredJobs.length === 0 && (
-            <p className="paragraph-small color-teal-300">No items found.</p>
+            <p className="paragraph-small color-teal-300">Nothing found.</p>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { fetchAirtableRecords } from './airtable'
 
 const TABLE_ID = 'tblyLelYCQjP6w3nV'
-const VIEW_ID = 'viwDXZcviPykFzt4g'
+const VIEW_ID = 'viwBfn9CIUVqQHUy6'
 
 interface AirtableRecord {
   fields: {
@@ -15,6 +15,7 @@ interface AirtableRecord {
     'Role type text'?: string | string[]
     'Work location'?: string | string[]
     "Org's vacancies page"?: string
+    'Vacancy Button'?: string
     'Date published'?: string
   }
 }
@@ -30,6 +31,7 @@ const FIELDS = [
   'Role type text',
   'Work location',
   "Org's vacancies page",
+  'Vacancy Button',
   'Date published',
 ]
 
@@ -91,7 +93,7 @@ export async function getJobs(): Promise<Job[]> {
       workLocation: Array.isArray(fields['Work location'])
         ? fields['Work location'].join(', ')
         : fields['Work location'] || '',
-      url: fields["Org's vacancies page"] || '#',
+      url: fields['Vacancy Button'] || fields["Org's vacancies page"] || '#',
       datePublished: fields['Date published'] || null,
     })
   }

@@ -1,6 +1,7 @@
 import { fetchAirtableRecords } from './airtable'
 
 const TABLE_ID = 'tbluI5Dll697WiSm8'
+const VIEW_ID = 'viwFIU3lKQHZlpc0b'
 
 interface AirtableRecord {
   fields: {
@@ -44,6 +45,7 @@ export interface Community {
 export async function getCommunities(): Promise<Community[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
+    viewId: VIEW_ID,
     filterByFormula: '{Publish?} = TRUE()',
     sort: [{ field: 'Sort', direction: 'asc' }],
   })

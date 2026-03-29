@@ -1,6 +1,7 @@
 import { fetchAirtableRecords } from './airtable'
 
 const TABLE_ID = 'tblf3KKYnmgcjVGhD'
+const VIEW_ID = 'viwIdRmaCar2Y6gPi'
 
 interface AirtableRecord {
   fields: {
@@ -26,6 +27,7 @@ export interface Advisor {
 export async function getAdvisors(): Promise<Advisor[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
+    viewId: VIEW_ID,
     filterByFormula: '{Publish?} = TRUE()',
     sort: [{ field: 'Sort', direction: 'asc' }],
   })

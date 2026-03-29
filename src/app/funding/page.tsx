@@ -35,7 +35,7 @@ export default async function FundingPage() {
           <FeaturedCard
             href="https://coefficientgiving.org/apply-for-funding/"
             tagline="Largest funder in x-risk reduction"
-            name="Coefficient Giving"
+            name="Coefficient Giving (CG)"
             description="Most funding is done via proactive research, but there are frequent requests for proposals in certain areas. Previously called Open Philanthropy."
             logo="/images/coefficient-giving.webp"
             metadata={[
@@ -46,7 +46,7 @@ export default async function FundingPage() {
           <FeaturedCard
             href="https://survivalandflourishing.fund/"
             tagline="Best for mid- to large-scale projects"
-            name="Survival and Flourishing Fund"
+            name="Survival and Flourishing Fund (SFF)"
             description="Funds organizations working on humanity's long-term survival and flourishing. Speculation Grants are rolling; the full S-Process runs annually and is currently open."
             logo="/images/sff-white.svg"
             metadata={[

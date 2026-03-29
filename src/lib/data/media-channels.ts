@@ -1,6 +1,7 @@
 import { fetchAirtableRecords } from './airtable'
 
 const TABLE_ID = 'tblCTOMzyH3vILL5I'
+const VIEW_ID = 'viwT8KTwupcVyGKLZ'
 
 interface AirtableRecord {
   fields: {
@@ -24,6 +25,7 @@ export interface MediaChannel {
 export async function getMediaChannels(): Promise<MediaChannel[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
+    viewId: VIEW_ID,
     filterByFormula: '{Publish?} = TRUE()',
     sort: [{ field: 'Sort', direction: 'asc' }],
   })

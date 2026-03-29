@@ -10,17 +10,6 @@ interface FundingClientProps {
   funders: Funder[]
 }
 
-const recipientOptions = [
-  'Researchers',
-  'Individuals',
-  'Early-stage startups',
-  'Existing companies',
-  'Academics',
-  'Entrepreneurs',
-  'Non-profits',
-  'Youth',
-]
-
 const acceptingOptions = ['Yes', 'No']
 
 const typeOptions = [
@@ -34,7 +23,6 @@ const typeOptions = [
 
 export default function FundingClient({ funders }: FundingClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([])
   const [selectedAccepting, setSelectedAccepting] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
@@ -48,17 +36,6 @@ export default function FundingClient({ funders }: FundingClientProps) {
         ) {
           return false
         }
-      }
-
-      if (selectedRecipients.length > 0) {
-        const funderRecipients = (funder.recipientType || '')
-          .toLowerCase()
-          .split(',')
-          .map(r => r.trim())
-        const hasMatch = selectedRecipients.some(r =>
-          funderRecipients.some(fr => fr.includes(r.toLowerCase()))
-        )
-        if (!hasMatch) return false
       }
 
       if (selectedAccepting.length > 0) {
@@ -83,31 +60,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
 
       return true
     })
-  }, [
-    funders,
-    searchQuery,
-    selectedRecipients,
-    selectedAccepting,
-    selectedTypes,
-  ])
-
-  const recipientCounts = useMemo(() => {
-    return funders.reduce(
-      (counts, funder) => {
-        const types = (funder.recipientType || '')
-          .toLowerCase()
-          .split(',')
-          .map(r => r.trim())
-        for (const option of recipientOptions) {
-          if (types.some(t => t.includes(option.toLowerCase()))) {
-            counts[option] = (counts[option] || 0) + 1
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [funders])
+  }, [funders, searchQuery, selectedAccepting, selectedTypes])
 
   const acceptingCounts = useMemo(() => {
     return funders.reduce(
@@ -220,15 +173,6 @@ export default function FundingClient({ funders }: FundingClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Recipient type"
-          options={recipientOptions}
-          selected={selectedRecipients}
-          counts={recipientCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedRecipients, setSelectedRecipients)
-          }
-        />
         <FilterGroup
           title="Accepting applications"
           options={acceptingOptions}

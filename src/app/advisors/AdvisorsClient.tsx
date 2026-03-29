@@ -16,7 +16,7 @@ const statusOptions = ['Active', 'Inactive']
 export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFocus, setSelectedFocus] = useState<string[]>([])
-  const [selectedStatus, setSelectedStatus] = useState<string[]>([])
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(['Active'])
 
   const filteredAdvisors = useMemo(() => {
     return advisors.filter(advisor => {

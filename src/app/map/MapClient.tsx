@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import ContributeButtons from '@/components/ContributeButtons'
 import styles from './page.module.css'
@@ -151,13 +151,23 @@ export default function MapClient({
     return orgs.filter(org => !org.isMagic && org.status !== 'Active').length
   }, [orgs])
 
+  const savedScrollY = useRef<number | null>(null)
+
   const toggleCategory = (category: string) => {
+    savedScrollY.current = window.scrollY
     if (selectedCategories.includes(category)) {
       setSelectedCategories(selectedCategories.filter(c => c !== category))
     } else {
       setSelectedCategories([...selectedCategories, category])
     }
   }
+
+  useLayoutEffect(() => {
+    if (savedScrollY.current !== null) {
+      window.scrollTo(0, savedScrollY.current)
+      savedScrollY.current = null
+    }
+  }, [filteredOrgs])
 
   return (
     <>
@@ -265,6 +275,7 @@ export default function MapClient({
                 'No longer active': inactiveCount,
               }}
               onToggle={status => {
+                savedScrollY.current = window.scrollY
                 if (status === 'Active') setShowActive(!showActive)
                 else setShowInactive(!showInactive)
               }}

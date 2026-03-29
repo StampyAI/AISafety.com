@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import FilterGroup from '@/components/FilterGroup'
@@ -111,17 +111,27 @@ export default function CommunitiesClient({
     return counts
   }, [filteredCommunities])
 
+  const savedScrollY = useRef<number | null>(null)
+
   const toggleFilter = (
     value: string,
     current: string[],
     setter: (v: string[]) => void
   ) => {
+    savedScrollY.current = window.scrollY
     if (current.includes(value)) {
       setter(current.filter(v => v !== value))
     } else {
       setter([...current, value])
     }
   }
+
+  useLayoutEffect(() => {
+    if (savedScrollY.current !== null) {
+      window.scrollTo(0, savedScrollY.current)
+      savedScrollY.current = null
+    }
+  }, [filteredCommunities])
 
   return (
     <div className="database-outer-grid">

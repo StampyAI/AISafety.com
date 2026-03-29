@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Project } from '@/lib/data/projects'
@@ -52,13 +52,23 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
     )
   }, [projects])
 
+  const savedScrollY = useRef<number | null>(null)
+
   const toggleStatus = (status: string) => {
+    savedScrollY.current = window.scrollY
     if (selectedStatus.includes(status)) {
       setSelectedStatus(selectedStatus.filter(s => s !== status))
     } else {
       setSelectedStatus([...selectedStatus, status])
     }
   }
+
+  useLayoutEffect(() => {
+    if (savedScrollY.current !== null) {
+      window.scrollTo(0, savedScrollY.current)
+      savedScrollY.current = null
+    }
+  }, [filteredProjects])
 
   return (
     <div className="database-outer-grid">

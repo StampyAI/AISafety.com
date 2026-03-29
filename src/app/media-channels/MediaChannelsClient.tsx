@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import ContributeButtons from '@/components/ContributeButtons'
@@ -64,13 +64,23 @@ export default function MediaChannelsClient({
     )
   }, [channels])
 
+  const savedScrollY = useRef<number | null>(null)
+
   const toggleType = (type: string) => {
+    savedScrollY.current = window.scrollY
     if (selectedTypes.includes(type)) {
       setSelectedTypes(selectedTypes.filter(t => t !== type))
     } else {
       setSelectedTypes([...selectedTypes, type])
     }
   }
+
+  useLayoutEffect(() => {
+    if (savedScrollY.current !== null) {
+      window.scrollTo(0, savedScrollY.current)
+      savedScrollY.current = null
+    }
+  }, [filteredChannels])
 
   return (
     <div className="database-outer-grid">

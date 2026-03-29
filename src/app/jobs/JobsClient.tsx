@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import ContributeButtons from '@/components/ContributeButtons'
@@ -25,7 +25,7 @@ const skillSetOptions = [
 ]
 
 const experienceOptions = [
-  'Entry level',
+  'Entry-level',
   'Junior (1–4 years experience)',
   'Mid (5–9 years experience)',
   'Senior (10+ years experience)',
@@ -48,6 +48,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const [selectedExperience, setSelectedExperience] = useState<string[]>([])
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<string[]>([])
+  const savedScrollY = useRef<number | null>(null)
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
@@ -180,12 +181,20 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     current: string[],
     setter: (v: string[]) => void
   ) => {
+    savedScrollY.current = window.scrollY
     if (current.includes(value)) {
       setter(current.filter(v => v !== value))
     } else {
       setter([...current, value])
     }
   }
+
+  useLayoutEffect(() => {
+    if (savedScrollY.current !== null) {
+      window.scrollTo(0, savedScrollY.current)
+      savedScrollY.current = null
+    }
+  }, [filteredJobs])
 
   return (
     <div className="database-outer-grid">

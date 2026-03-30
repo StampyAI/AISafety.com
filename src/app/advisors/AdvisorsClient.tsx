@@ -152,20 +152,22 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Focus"
-          options={focusOptions}
-          selected={selectedFocus}
-          counts={focusCounts}
-          onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
-        />
-        <FilterGroup
-          title="Status"
-          options={statusOptions}
-          selected={selectedStatus}
-          counts={statusCounts}
-          onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Focus"
+            options={focusOptions}
+            selected={selectedFocus}
+            counts={focusCounts}
+            onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
+          />
+          <FilterGroup
+            title="Status"
+            options={statusOptions}
+            selected={selectedStatus}
+            counts={statusCounts}
+            onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
+          />
+        </div>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

@@ -16,7 +16,7 @@ export default function FilterGroup({
   onToggle,
 }: FilterGroupProps) {
   return (
-    <div className="padding-bottom-40px">
+    <div>
       <p className="paragraph-small-bold color-white padding-bottom-24px">
         {title}
       </p>

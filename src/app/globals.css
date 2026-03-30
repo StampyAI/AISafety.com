@@ -713,9 +713,6 @@ label {
    =============================== */
 
 /* Display */
-.hide-mobile {
-  display: block;
-}
 .hidden {
   display: none;
 }

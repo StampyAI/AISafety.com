@@ -24,9 +24,6 @@
    =============================== */
 
 :root {
-  /* Signal dark mode to browsers and plugins (e.g., Dark Reader) */
-  color-scheme: dark;
-
   /* Teal Scale */
   --teal-100: #e3e5e6;
   --teal-200: #c6cccc;

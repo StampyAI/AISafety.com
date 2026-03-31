@@ -918,6 +918,9 @@ label {
   border: 1px solid var(--teal-700);
   border-radius: 16px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  will-change: transform;
+  transform: scale(1);
+  backface-visibility: hidden;
   transition:
     background-color var(--hover-transition),
     transform var(--hover-transition);

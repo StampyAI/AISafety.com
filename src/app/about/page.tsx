@@ -58,7 +58,10 @@ export default function AboutPage() {
             want to hear from you.
           </p>
           <div className="padding-top-24px">
-            <a href="#team" className="button-secondary">
+            <a
+              href="https://airtable.com/appF8XfZUGXtfi40E/pagUmmzVb8OnVvTZS/form"
+              className="button-secondary"
+            >
               Send us an email
             </a>
           </div>

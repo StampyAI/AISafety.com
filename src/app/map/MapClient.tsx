@@ -246,29 +246,31 @@ export default function MapClient({
           </div>
 
           <div className="hide-mobile">
-            <FilterGroup
-              title="Category"
-              options={categories}
-              selected={selectedCategories}
-              counts={categoryCounts}
-              onToggle={toggleCategory}
-            />
-            <FilterGroup
-              title="Status"
-              options={['Active', 'No longer active']}
-              selected={[
-                ...(showActive ? ['Active'] : []),
-                ...(showInactive ? ['No longer active'] : []),
-              ]}
-              counts={{
-                Active: activeCount,
-                'No longer active': inactiveCount,
-              }}
-              onToggle={status => {
-                if (status === 'Active') setShowActive(!showActive)
-                else setShowInactive(!showInactive)
-              }}
-            />
+            <div className="flex flex-col gap-40px">
+              <FilterGroup
+                title="Category"
+                options={categories}
+                selected={selectedCategories}
+                counts={categoryCounts}
+                onToggle={toggleCategory}
+              />
+              <FilterGroup
+                title="Status"
+                options={['Active', 'No longer active']}
+                selected={[
+                  ...(showActive ? ['Active'] : []),
+                  ...(showInactive ? ['No longer active'] : []),
+                ]}
+                counts={{
+                  Active: activeCount,
+                  'No longer active': inactiveCount,
+                }}
+                onToggle={status => {
+                  if (status === 'Active') setShowActive(!showActive)
+                  else setShowInactive(!showInactive)
+                }}
+              />
+            </div>
             <ContributeButtons
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}

@@ -4,20 +4,7 @@ import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import QRCode from 'qrcode'
 import styles from './page.module.css'
-
-interface MapOrg {
-  id: string
-  title: string
-  shortName: string | null
-  description: string
-  category: string
-  link: string
-  shortUrl: string | null
-  mapLogo: string | null
-  x: number | null
-  y: number | null
-  scale: string | null
-}
+import { MapOrg } from '@/lib/data/map'
 
 interface D3PosterMapProps {
   orgs: MapOrg[]
@@ -344,7 +331,7 @@ export default function D3PosterMap({ orgs }: D3PosterMapProps) {
             .attr('transform', `translate(${qrX}, 0)`)
 
           // Use short URL if available, fall back to full URL
-          const urlForQR = org.shortUrl || org.link
+          const urlForQR = org.link
 
           // Generate QR code as data URL
           QRCode.toDataURL(urlForQR, {

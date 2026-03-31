@@ -14,13 +14,12 @@
 
 .mapTitleOverlay {
   position: absolute;
-  top: 32px;
+  top: 40px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 5;
   text-align: center;
   pointer-events: none;
-  text-shadow: 0 0 12px rgba(0, 25, 27, 0.8);
   max-width: 600px;
 }
 

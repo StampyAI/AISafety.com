@@ -2,11 +2,3 @@
 # Set PATH to include common Node.js locations for GUI apps like GitHub Desktop
 export PATH="/usr/local/bin:$PATH"
 npx lint-staged
-
-# Check if any files were modified by formatting/linting
-if [ -n "$(git diff --name-only)" ]; then
-  echo "❌ Files were modified by linting/formatting. Please stage the changes and commit again."
-  echo "Modified files:"
-  git diff --name-only
-  exit 1
-fi

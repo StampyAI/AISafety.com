@@ -37,9 +37,6 @@ export default async function EventsAndTrainingPage() {
           </span>
         </h2>
 
-        {/* Action Links — QA: changed from <h3> to <p> with paragraph-default-bold
-            and padding-bottom-16px to match live Webflow site structure.
-            Arrow uses color-teal-400 span to match live site's color-grey-old class. */}
         <div className={styles['action-links-grid']}>
           <Link
             href="https://aisafetyeventsandtraining.substack.com/"

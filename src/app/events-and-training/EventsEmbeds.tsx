@@ -5,8 +5,6 @@ import styles from './page.module.css'
 
 const EMBEDS = [
   {
-    // QA: uses airtable-embed-mobile class to reduce height to 600px on mobile
-    // (matching live site's .airtable-embed-mobile-1 override)
     src: 'https://airtable.com/embed/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc?viewControls=on',
     height: 2600,
     className: `${styles['airtable-embed']} ${styles['airtable-embed-mobile']} margin-bottom-40px`,
@@ -92,10 +90,8 @@ export default function EventsEmbeds() {
   return (
     <>
       <div className="container-wide">{renderEmbed(0)}</div>
-      {/* QA: second embed is desktop-only, separate wrapper so it hides fully on mobile */}
       <div className="container-wide hide-mobile">{renderEmbed(1)}</div>
 
-      {/* QA: entire "Open for application" section is desktop-only on live site */}
       <div className="container-default hide-mobile">
         <h2 className="padding-bottom-24px">
           Open for application/registration

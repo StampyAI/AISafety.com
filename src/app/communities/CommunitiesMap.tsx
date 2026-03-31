@@ -14,7 +14,6 @@ interface CommunitiesMapProps {
 declare global {
   interface Window {
     mapboxgl: any
-    mobileTooltipHandlersInitialized?: boolean
   }
 }
 
@@ -22,7 +21,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
-  const scriptLoadedRef = useRef(false)
+  const cleanupRef = useRef<(() => void) | null>(null)
 
   function initMap() {
     if (!mapContainerRef.current || !tooltipRef.current || !window.mapboxgl)
@@ -292,8 +291,8 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         })
 
         // Mobile global handlers
-        if (isMobile && !window.mobileTooltipHandlersInitialized) {
-          tooltip.addEventListener('click', function (e) {
+        if (isMobile) {
+          const handleTooltipClick = function (e: MouseEvent) {
             if ((e.target as HTMLElement).closest('#mapbox-tooltip')) {
               const lnk = tooltip.getAttribute('data-link-url')
               if (lnk && lnk !== '#') {
@@ -306,8 +305,9 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
               }
               e.stopPropagation()
             }
-          })
-          document.addEventListener('click', function (e) {
+          }
+
+          const handleDocumentClick = function (e: MouseEvent) {
             const clickedOnMapCanvas = (e.target as HTMLElement).closest(
               '.mapboxgl-canvas'
             )
@@ -323,7 +323,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
                 )
                 clickedOnPin = features.length > 0
               } catch {
-                /* Ignore */
+                /* Ignore - map may be in invalid state */
               }
             }
             if (!clickedOnTooltip && !clickedOnPin) {
@@ -335,8 +335,16 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
                 }
               }
             }
-          })
-          window.mobileTooltipHandlersInitialized = true
+          }
+
+          tooltip.addEventListener('click', handleTooltipClick)
+          document.addEventListener('click', handleDocumentClick)
+
+          // Store cleanup function for useEffect teardown
+          cleanupRef.current = () => {
+            tooltip.removeEventListener('click', handleTooltipClick)
+            document.removeEventListener('click', handleDocumentClick)
+          }
         }
 
         // Custom reset button
@@ -399,10 +407,17 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   }
 
   useEffect(() => {
-    if (scriptLoadedRef.current && window.mapboxgl) {
+    // Check if mapboxgl is already available (script loaded on previous mount)
+    if (window.mapboxgl) {
       initMap()
     }
     return () => {
+      // Clean up event listeners
+      if (cleanupRef.current) {
+        cleanupRef.current()
+        cleanupRef.current = null
+      }
+      // Clean up map instance
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
@@ -412,7 +427,6 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   }, [])
 
   function handleScriptLoad() {
-    scriptLoadedRef.current = true
     initMap()
   }
 

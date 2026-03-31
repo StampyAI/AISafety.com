@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import styles from './page.module.css'
 
@@ -68,13 +68,48 @@ const AREA_LABELS = [
 export default function D3Map({ orgs }: D3MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
-  const [tooltip, setTooltip] = useState<{
-    visible: boolean
-    x: number
-    y: number
-    title: string
-    description: string
-  }>({ visible: false, x: 0, y: 0, title: '', description: '' })
+  const tooltipRef = useRef<HTMLDivElement>(null)
+
+  // Position tooltip with edge detection (matches communities map)
+  function positionTooltip(
+    event: MouseEvent,
+    tt: HTMLDivElement,
+    container: HTMLDivElement
+  ) {
+    const mapRect = container.getBoundingClientRect()
+    const cursorX = event.clientX
+    const cursorY = event.clientY
+    const tooltipWidth = tt.offsetWidth
+    const tooltipHeight = tt.offsetHeight
+    const offset = 15
+
+    let finalY: number
+    const spaceBelow = mapRect.bottom - (cursorY + offset)
+    const spaceAbove = cursorY - offset - mapRect.top
+    if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
+      finalY = cursorY + offset
+      if (finalY + tooltipHeight > mapRect.bottom)
+        finalY = mapRect.bottom - tooltipHeight - 2
+    } else {
+      finalY = cursorY - offset - tooltipHeight
+      if (finalY < mapRect.top) finalY = mapRect.top + 2
+    }
+
+    let finalX: number
+    const spaceRight = mapRect.right - (cursorX + offset)
+    const spaceLeft = cursorX - offset - mapRect.left
+    if (spaceRight >= tooltipWidth || spaceRight >= spaceLeft) {
+      finalX = cursorX + offset
+      if (finalX + tooltipWidth > mapRect.right)
+        finalX = mapRect.right - tooltipWidth - 2
+    } else {
+      finalX = cursorX - offset - tooltipWidth
+      if (finalX < mapRect.left) finalX = mapRect.left + 2
+    }
+
+    tt.style.left = finalX + 'px'
+    tt.style.top = finalY + 'px'
+  }
 
   useEffect(() => {
     if (!containerRef.current || orgs.length === 0) return
@@ -116,7 +151,10 @@ export default function D3Map({ orgs }: D3MapProps) {
           `translate(${newX}, ${newY}) scale(${event.transform.k})`
         )
         // Hide tooltip on zoom/pan
-        setTooltip(t => ({ ...t, visible: false }))
+        if (tooltipRef.current) {
+          tooltipRef.current.style.visibility = 'hidden'
+          tooltipRef.current.style.opacity = '0'
+        }
       })
 
     svg.call(zoom)
@@ -320,28 +358,29 @@ export default function D3Map({ orgs }: D3MapProps) {
         textEl.attr('y', bbox.height * 0.35)
       }
 
-      // Tooltip events
+      // Tooltip events with smart edge-detection positioning
       linkEl
         .on('mouseenter', event => {
-          const [mouseX, mouseY] = d3.pointer(event, document.body)
-          setTooltip({
-            visible: true,
-            x: mouseX + 10,
-            y: mouseY + 10,
-            title: org.title,
-            description: org.description,
-          })
+          const tt = tooltipRef.current
+          const container = containerRef.current
+          if (!tt || !container) return
+          tt.querySelector('strong')!.textContent = org.title
+          tt.querySelector('span')!.textContent = org.description
+          tt.style.visibility = 'visible'
+          tt.style.opacity = '1'
+          positionTooltip(event, tt, container)
         })
         .on('mousemove', event => {
-          const [mouseX, mouseY] = d3.pointer(event, document.body)
-          setTooltip(t => ({
-            ...t,
-            x: mouseX + 10,
-            y: mouseY + 10,
-          }))
+          const tt = tooltipRef.current
+          const container = containerRef.current
+          if (!tt || !container) return
+          positionTooltip(event, tt, container)
         })
         .on('mouseleave', () => {
-          setTooltip(t => ({ ...t, visible: false }))
+          if (tooltipRef.current) {
+            tooltipRef.current.style.visibility = 'hidden'
+            tooltipRef.current.style.opacity = '0'
+          }
         })
     })
 
@@ -435,19 +474,15 @@ export default function D3Map({ orgs }: D3MapProps) {
         </div>
       </div>
 
-      {/* Tooltip */}
-      {tooltip.visible && (
-        <div
-          className={styles['map-tooltip']}
-          style={{
-            left: tooltip.x,
-            top: tooltip.y,
-          }}
-        >
-          <strong>{tooltip.title}</strong>
-          <span>{tooltip.description}</span>
-        </div>
-      )}
+      {/* Tooltip — always in DOM for measuring, visibility toggled via ref */}
+      <div
+        ref={tooltipRef}
+        className={styles['map-tooltip']}
+        style={{ visibility: 'hidden', opacity: 0 }}
+      >
+        <strong></strong>
+        <span></span>
+      </div>
     </>
   )
 }

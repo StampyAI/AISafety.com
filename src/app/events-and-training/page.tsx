@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import EventsEmbeds from './EventsEmbeds'
 import styles from './page.module.css'
 
@@ -19,23 +20,19 @@ export default async function EventsAndTrainingPage() {
       <link rel="dns-prefetch" href="https://airtable.com" />
       {/* Main Content */}
       <div className="container-default">
-        <h1 className="padding-top-56px padding-bottom-8px">
-          Events &amp; training
-        </h1>
-
-        {lastUpdated.formattedDate && (
-          <p className="paragraph-small color-teal-300 margin-bottom-40px">
-            Last updated: {lastUpdated.formattedDate}
-          </p>
-        )}
-
-        <h2 className="width-7-col margin-bottom-56px">
-          There&apos;s a wide range of events and training programs in AI
-          safety, both online and in-person. These can help you{' '}
-          <span className="color-light-teal">
-            build skills, make connections, and discover opportunities.
-          </span>
-        </h2>
+        <PageHeader
+          title="Events & training"
+          lastUpdated={lastUpdated.formattedDate}
+          description={
+            <>
+              There&apos;s a wide range of events and training programs in AI
+              safety, both online and in-person. These can help you{' '}
+              <span className="color-light-teal">
+                build skills, make connections, and discover opportunities.
+              </span>
+            </>
+          }
+        />
 
         <div className={styles['action-links-grid']}>
           <Link

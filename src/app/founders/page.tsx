@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import FoundersClient from './FoundersClient'
 import { getFounderResources } from '@/lib/data/founders'
@@ -18,18 +19,18 @@ export default async function FoundersPage() {
 
   return (
     <div className="container-default">
-      <h1 className="padding-top-56px padding-bottom-8px">Founder Toolkit</h1>
-      {lastUpdated.formattedDate && (
-        <p className="paragraph-small color-teal-300 margin-bottom-40px">
-          Last updated: {lastUpdated.formattedDate}
-        </p>
-      )}
-      <h2 className="width-7-col margin-bottom-56px">
-        Resources for{' '}
-        <span className="color-light-teal">starting and growing</span> an AI
-        safety organization – including incubators, fiscal sponsors, VCs, and
-        practical tools.
-      </h2>
+      <PageHeader
+        title="Founder Toolkit"
+        lastUpdated={lastUpdated.formattedDate}
+        description={
+          <>
+            Resources for{' '}
+            <span className="color-light-teal">starting and growing</span> an AI
+            safety organization – including incubators, fiscal sponsors, VCs,
+            and practical tools.
+          </>
+        }
+      />
 
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">

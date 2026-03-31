@@ -50,7 +50,6 @@ export default function Navigation({
 }: {
   counts: Partial<Record<string, number>>
 }) {
-  const [hasBlur, setHasBlur] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [visibleCount, setVisibleCount] = useState(
@@ -176,10 +175,13 @@ export default function Navigation({
         }
       }
 
-      // Only show blur when nav is revealed mid-page (not when scrolling away from top)
-      setHasBlur(
-        scrollInfo.current.mode === 'revealed' && y > SCROLL_THRESHOLD_BLUR
-      )
+      // Toggle blur class directly on the DOM — no React render delay
+      const blurClass = styles['nav-blur']
+      if (y > SCROLL_THRESHOLD_BLUR) {
+        el.classList.add(blurClass)
+      } else {
+        el.classList.remove(blurClass)
+      }
 
       scrollInfo.current.lastY = y
     }
@@ -189,10 +191,7 @@ export default function Navigation({
   }, [])
   return (
     <>
-      <div
-        ref={navOuterRef}
-        className={`${styles.nav} ${styles['nav-fixed']} ${hasBlur ? styles['nav-blur'] : ''}`}
-      >
+      <div ref={navOuterRef} className={`${styles.nav} ${styles['nav-fixed']}`}>
         <div className={styles['nav-container']}>
           <Link href="/" className="padding-right-24px">
             <Image

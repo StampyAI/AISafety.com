@@ -1,4 +1,5 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import JobsClient from './JobsClient'
 import { getJobs } from '@/lib/data/jobs'
 
@@ -16,17 +17,19 @@ export default async function JobsPage() {
 
   return (
     <div className="container-default">
-      <h1 className="padding-top-56px padding-bottom-8px">Jobs</h1>
-      {lastUpdated.formattedDate && (
-        <p className="paragraph-small color-teal-300 margin-bottom-40px">
-          Last updated: {lastUpdated.formattedDate}
-        </p>
-      )}
-      <h2 className="width-7-col margin-bottom-56px">
-        Pursuing a career in AI safety can be{' '}
-        <span className="color-light-teal">one of the most impactful ways</span>{' '}
-        to contribute. Many roles don&apos;t require technical skills.
-      </h2>
+      <PageHeader
+        title="Jobs"
+        lastUpdated={lastUpdated.formattedDate}
+        description={
+          <>
+            Pursuing a career in AI safety can be{' '}
+            <span className="color-light-teal">
+              one of the most impactful ways
+            </span>{' '}
+            to contribute. Many roles don&apos;t require technical skills.
+          </>
+        }
+      />
 
       {/* Main Content with Search, Cards, and Filters */}
       <JobsClient jobs={jobs} />

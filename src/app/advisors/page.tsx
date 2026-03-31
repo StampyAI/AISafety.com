@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import AdvisorsClient from './AdvisorsClient'
 import { getAdvisors } from '@/lib/data/advisors'
@@ -18,19 +19,19 @@ export default async function AdvisorsPage() {
 
   return (
     <div className="container-default">
-      <h1 className="padding-top-56px padding-bottom-8px">Advisors</h1>
-      {lastUpdated.formattedDate && (
-        <p className="paragraph-small color-teal-300 margin-bottom-40px">
-          Last updated: {lastUpdated.formattedDate}
-        </p>
-      )}
-      <h2 className="width-7-col margin-bottom-56px">
-        <span className="color-light-teal">
-          Connecting with human experts can be invaluable.
-        </span>{' '}
-        These advisors offer free guidance calls to help you most effectively
-        contribute to AI safety.
-      </h2>
+      <PageHeader
+        title="Advisors"
+        lastUpdated={lastUpdated.formattedDate}
+        description={
+          <>
+            <span className="color-light-teal">
+              Connecting with human experts can be invaluable.
+            </span>{' '}
+            These advisors offer free guidance calls to help you most
+            effectively contribute to AI safety.
+          </>
+        }
+      />
 
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">

@@ -1,4 +1,5 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import ProjectsClient from './ProjectsClient'
 import { getProjects } from '@/lib/data/projects'
@@ -17,20 +18,20 @@ export default async function ProjectsPage() {
 
   return (
     <div className="container-default">
-      <h1 className="padding-top-56px padding-bottom-8px">
-        Volunteer projects
-      </h1>
-      {lastUpdated.formattedDate && (
-        <p className="paragraph-small color-teal-300 margin-bottom-40px">
-          Last updated: {lastUpdated.formattedDate}
-        </p>
-      )}
-      <h2 className="width-7-col margin-bottom-56px">
-        Initiatives{' '}
-        <span className="color-light-teal">seeking your volunteer help</span>.
-        These projects are focused on supporting and improving the AI safety
-        field.
-      </h2>
+      <PageHeader
+        title="Volunteer projects"
+        lastUpdated={lastUpdated.formattedDate}
+        description={
+          <>
+            Initiatives{' '}
+            <span className="color-light-teal">
+              seeking your volunteer help
+            </span>
+            . These projects are focused on supporting and improving the AI
+            safety field.
+          </>
+        }
+      />
 
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
@@ -41,7 +42,10 @@ export default async function ProjectsPage() {
             name="Alignment Research Dataset"
             description="Regularly scrapes all major sources of alignment data for use by the Stampy chatbot and other projects. Currently needs someone to maintain it."
             metadata={[
-              { label: 'Contact', value: 'Olivier Coutu' },
+              {
+                label: 'Contact',
+                value: 'Olivier Coutu\ncoutu.olivier@gmail.com',
+              },
               { label: 'Status', value: 'Active' },
             ]}
           />
@@ -51,7 +55,10 @@ export default async function ProjectsPage() {
             name="AI Safety Feed"
             description="Curated stream for AI safety content, gathering posts and research from key sources. AI helps summarize, tag, and rate the novelty of content."
             metadata={[
-              { label: 'Contact', value: 'Matt Brooks' },
+              {
+                label: 'Contact',
+                value: 'Matt Brooks\nmatthewrbrooks94@gmail.com',
+              },
               { label: 'Status', value: 'Active' },
             ]}
           />

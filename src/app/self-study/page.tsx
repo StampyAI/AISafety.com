@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import SelfStudyClient from './SelfStudyClient'
 import { getCourses } from '@/lib/data/self-study'
@@ -18,17 +19,19 @@ export default async function SelfStudyPage() {
 
   return (
     <div className="container-default">
-      <h1 className="padding-top-56px padding-bottom-8px">Self-study</h1>
-      {lastUpdated.formattedDate && (
-        <p className="paragraph-small color-teal-300 margin-bottom-40px">
-          Last updated: {lastUpdated.formattedDate}
-        </p>
-      )}
-      <h2 className="width-7-col margin-bottom-56px">
-        These curricula and reading lists enable you to{' '}
-        <span className="color-light-teal">dive deeper into AI safety </span>
-        through independent learning.
-      </h2>
+      <PageHeader
+        title="Self-study"
+        lastUpdated={lastUpdated.formattedDate}
+        description={
+          <>
+            These curricula and reading lists enable you to{' '}
+            <span className="color-light-teal">
+              dive deeper into AI safety{' '}
+            </span>
+            through independent learning.
+          </>
+        }
+      />
 
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">

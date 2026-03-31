@@ -1,4 +1,5 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import MediaChannelsClient from './MediaChannelsClient'
 import { getMediaChannels } from '@/lib/data/media-channels'
@@ -17,18 +18,19 @@ export default async function MediaChannelsPage() {
 
   return (
     <div className="container-default">
-      <h1 className="padding-top-56px padding-bottom-8px">Media channels</h1>
-      {lastUpdated.formattedDate && (
-        <p className="paragraph-small color-teal-300 margin-bottom-40px">
-          Last updated: {lastUpdated.formattedDate}
-        </p>
-      )}
-      <h2 className="width-7-col margin-bottom-56px">
-        <span className="color-light-teal">
-          The AI safety space is changing rapidly.
-        </span>{' '}
-        These information sources can help you learn more and stay up to date.
-      </h2>
+      <PageHeader
+        title="Media channels"
+        lastUpdated={lastUpdated.formattedDate}
+        description={
+          <>
+            <span className="color-light-teal">
+              The AI safety space is changing rapidly.
+            </span>{' '}
+            These information sources can help you learn more and stay up to
+            date.
+          </>
+        }
+      />
 
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">

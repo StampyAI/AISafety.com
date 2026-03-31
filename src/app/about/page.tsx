@@ -50,9 +50,12 @@ export default function AboutPage() {
 
         {/* Right column — Questions card */}
         <div className={`${styles.questionsCard} width-5-col-narrow`}>
-          <p className="color-white paragraph-default-bold">Questions?</p>
+          <p className="color-white paragraph-default-bold">
+            Get in touch with the team
+          </p>
           <p className="color-teal-300 padding-top-16px paragraph-small">
-            Takes? Suggestions? Requests?
+            Whether it&apos;s a take, suggestion, request, or something else, we
+            want to hear from you.
           </p>
           <div className="padding-top-24px">
             <a href="#team" className="button-secondary">
@@ -97,20 +100,6 @@ export default function AboutPage() {
               group now past 300 meetings. As a father of two, protecting his
               family is his greatest motivation.
             </p>
-            <a
-              href="mailto:soeren@aisafety.com"
-              className="color-teal paragraph-small"
-            >
-              soeren@aisafety.com
-            </a>
-            <div className="padding-top-16px">
-              <a
-                href="https://calendly.com/soeren-elverlin/30-minute-evening-meeting?utm_medium=website&utm_source=aisafetycom&utm_campaign=about"
-                className="button-secondary"
-              >
-                Schedule a meeting
-              </a>
-            </div>
           </div>
 
           <div className="width-6-col-narrow">
@@ -137,12 +126,6 @@ export default function AboutPage() {
               his video agency and pivoted his career to working full time on AI
               safety.
             </p>
-            <a
-              href="mailto:bryce@aisafety.com"
-              className="color-teal paragraph-small"
-            >
-              bryce@aisafety.com
-            </a>
           </div>
         </div>
 
@@ -171,25 +154,6 @@ export default function AboutPage() {
               Buddhist-inspired mantra ‘may all sentient beings be free of
               suffering’. But future AI could go unimaginably well or
               unimaginably badly. She set out to help things go well.
-            </p>
-          </div>
-
-          <div className="width-6-col-narrow">
-            <div className="flex gap-16px items-center padding-bottom-24px">
-              <Image src="/images/plex.png" alt="Plex" width={72} height={72} />
-              <div>
-                <p className="paragraph-default-bold padding-bottom-4px">
-                  Plex
-                </p>
-                <p className="paragraph-small color-teal-300">
-                  Founder, advisor
-                </p>
-              </div>
-            </div>
-            <p className="paragraph-small color-teal-300">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-              enim ad minim veniam, quis nostrud exercitation.
             </p>
           </div>
         </div>

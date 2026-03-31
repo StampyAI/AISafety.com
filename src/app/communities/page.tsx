@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import CommunitiesClient from './CommunitiesClient'
 import CommunitiesMap from './CommunitiesMap'
@@ -56,22 +57,20 @@ export default async function CommunitiesPage() {
         </h2>
       </div>
       <div className="container-default">
-        <h1 id="communities" className="padding-top-40px padding-bottom-8px">
-          Communities
-        </h1>
-
-        {lastUpdated.formattedDate && (
-          <p className="paragraph-small color-teal-300 margin-bottom-40px">
-            Last updated: {lastUpdated.formattedDate}
-          </p>
-        )}
-
-        <h2 className="width-7-col margin-bottom-56px">
-          There are many groups dedicated to discussing and contributing to AI
-          safety, both{' '}
-          <span className="color-light-teal">online and in-person.</span> We
-          recommend joining a few.
-        </h2>
+        <PageHeader
+          title="Communities"
+          lastUpdated={lastUpdated.formattedDate}
+          id="communities"
+          topPadding="padding-top-40px"
+          description={
+            <>
+              There are many groups dedicated to discussing and contributing to
+              AI safety, both{' '}
+              <span className="color-light-teal">online and in-person.</span> We
+              recommend joining a few.
+            </>
+          }
+        />
 
         {/* Featured Communities + Related Resources */}
         <div className="flex flex-col-mobile gap-56px padding-bottom-80px">

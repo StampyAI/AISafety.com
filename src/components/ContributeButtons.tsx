@@ -15,8 +15,6 @@ interface ContributeButtonsProps {
   extraLinks?: ExtraLink[]
 }
 
-// QA: arrow spans changed from color-teal-300 to color-teal-400
-// to match live site's color-grey-old class (which maps to var(--teal-400)).
 export default function ContributeButtons({
   suggestEntryUrl,
   suggestCorrectionUrl,

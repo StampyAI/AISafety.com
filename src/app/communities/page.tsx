@@ -51,7 +51,7 @@ export default async function CommunitiesPage() {
     <div>
       <div className={styles.mapWrapper}>
         <CommunitiesMap communities={communities} />
-        <h2 className={styles.mapTitleOverlay}>
+        <h2 className={`${styles.mapTitleOverlay} shadow-text`}>
           In-person AI safety communities
         </h2>
       </div>

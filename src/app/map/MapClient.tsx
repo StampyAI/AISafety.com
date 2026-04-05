@@ -209,7 +209,7 @@ export default function MapClient({
               />
             </div>
 
-            <div className="collection-list padding-bottom-40px">
+            <div className="collection-list padding-bottom-16px">
               {filteredOrgs.map(org => (
                 <a
                   key={org.id}
@@ -256,30 +256,32 @@ export default function MapClient({
           </div>
 
           <div className="hide-mobile">
-            <FilterGroup
-              title="Category"
-              options={categories}
-              selected={selectedCategories}
-              counts={categoryCounts}
-              onToggle={toggleCategory}
-            />
-            <FilterGroup
-              title="Status"
-              options={['Active', 'No longer active']}
-              selected={[
-                ...(showActive ? ['Active'] : []),
-                ...(showInactive ? ['No longer active'] : []),
-              ]}
-              counts={{
-                Active: activeCount,
-                'No longer active': inactiveCount,
-              }}
-              onToggle={status => {
-                savedScrollY.current = window.scrollY
-                if (status === 'Active') setShowActive(!showActive)
-                else setShowInactive(!showInactive)
-              }}
-            />
+            <div className="flex flex-col gap-40px">
+              <FilterGroup
+                title="Category"
+                options={categories}
+                selected={selectedCategories}
+                counts={categoryCounts}
+                onToggle={toggleCategory}
+              />
+              <FilterGroup
+                title="Status"
+                options={['Active', 'No longer active']}
+                selected={[
+                  ...(showActive ? ['Active'] : []),
+                  ...(showInactive ? ['No longer active'] : []),
+                ]}
+                counts={{
+                  Active: activeCount,
+                  'No longer active': inactiveCount,
+                }}
+                onToggle={status => {
+                  savedScrollY.current = window.scrollY
+                  if (status === 'Active') setShowActive(!showActive)
+                  else setShowInactive(!showInactive)
+                }}
+              />
+            </div>
             <ContributeButtons
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}

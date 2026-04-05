@@ -12,19 +12,19 @@ interface CommunitiesClientProps {
 }
 
 // Filter options based on Airtable data
-const typeOptions = ['Online', 'In-person']
+const typeOptions = ['Online', 'In person']
 const platformOptions = [
   'Discord',
   'Facebook',
   'Forum',
   'Gather',
-  'Other',
   'Reddit',
   'Slack',
   'Telegram',
   'WhatsApp',
+  'Other',
 ]
-const activityOptions = ['Very active', 'Active', 'Semi-active']
+const activityOptions = ['Very active', 'Active', 'Semi-active', 'Inactive']
 const focusOptions = ['Main focus is AI safety', 'Partial focus on AI safety']
 
 export default function CommunitiesClient({
@@ -93,7 +93,7 @@ export default function CommunitiesClient({
       activity: {} as Record<string, number>,
       focus: {} as Record<string, number>,
     }
-    for (const community of filteredCommunities) {
+    for (const community of communities) {
       for (const t of community.type) {
         counts.type[t] = (counts.type[t] || 0) + 1
       }
@@ -109,7 +109,7 @@ export default function CommunitiesClient({
       }
     }
     return counts
-  }, [filteredCommunities])
+  }, [communities])
 
   const savedScrollY = useRef<number | null>(null)
 
@@ -208,34 +208,36 @@ export default function CommunitiesClient({
 
       {/* Filters Sidebar */}
       <aside className="hide-mobile">
-        <FilterGroup
-          title="Type"
-          options={typeOptions}
-          selected={typeFilters}
-          counts={filterCounts.type}
-          onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
-        />
-        <FilterGroup
-          title="Platform"
-          options={platformOptions}
-          selected={platformFilters}
-          counts={filterCounts.platform}
-          onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
-        />
-        <FilterGroup
-          title="Activity level"
-          options={activityOptions}
-          selected={activityFilters}
-          counts={filterCounts.activity}
-          onToggle={v => toggleFilter(v, activityFilters, setActivityFilters)}
-        />
-        <FilterGroup
-          title="Focus"
-          options={focusOptions}
-          selected={focusFilters}
-          counts={filterCounts.focus}
-          onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Type"
+            options={typeOptions}
+            selected={typeFilters}
+            counts={filterCounts.type}
+            onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
+          />
+          <FilterGroup
+            title="Platform"
+            options={platformOptions}
+            selected={platformFilters}
+            counts={filterCounts.platform}
+            onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
+          />
+          <FilterGroup
+            title="Activity level"
+            options={activityOptions}
+            selected={activityFilters}
+            counts={filterCounts.activity}
+            onToggle={v => toggleFilter(v, activityFilters, setActivityFilters)}
+          />
+          <FilterGroup
+            title="Focus"
+            options={focusOptions}
+            selected={focusFilters}
+            counts={filterCounts.focus}
+            onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
+          />
+        </div>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

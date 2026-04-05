@@ -36,11 +36,11 @@ export default async function AdvisorsPage() {
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
           <FeaturedCard
-            href="https://80000hours.org/speak-with-us/?int_campaign=aisafety.com"
-            tagline="Experienced EA career advisors"
-            name="80,000 Hours"
-            description="Career advice by a well-connected and professional organization dedicated to helping people use their career for good. Does not accept all applications."
-            logo="/images/80000-hours.png"
+            href="https://successif.org/"
+            tagline="Career transition advice"
+            name="Successif"
+            description="Provides personalized career advising to experienced professionals seeking to transition into AI risk reduction roles, offering expert guidance and practical support."
+            logo="/images/successif.webp"
             metadata={[
               { label: 'Focus', value: 'Career/contribution' },
               { label: 'Status', value: 'Active' },

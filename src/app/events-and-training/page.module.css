@@ -2,9 +2,6 @@
    EVENTS & TRAINING PAGE STYLES
    =============================== */
 
-/* QA: changed from grid (1fr 1fr 1fr) to flex to match live site.
-   Grid forced equal-width columns, making text wrap too early.
-   Live site uses Webflow's flex-gap-56px class. */
 .action-links-grid {
   display: flex;
   gap: 56px;
@@ -48,7 +45,6 @@
     max-width: 100%;
   }
 
-  /* QA: live site's padding-56px reduces to 32px at mobile breakpoint */
   .action-links-grid {
     flex-direction: column;
     gap: 24px;

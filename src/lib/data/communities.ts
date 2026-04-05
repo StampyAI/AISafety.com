@@ -44,7 +44,7 @@ export interface Community {
 export async function getCommunities(): Promise<Community[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
-    filterByFormula: '{Publish?} = TRUE()',
+    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
     sort: [{ field: 'Sort', direction: 'asc' }],
   })
 

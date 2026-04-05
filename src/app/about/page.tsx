@@ -60,6 +60,8 @@ export default function AboutPage() {
           <div className="padding-top-24px">
             <a
               href="https://airtable.com/appF8XfZUGXtfi40E/pagUmmzVb8OnVvTZS/form"
+              target="_blank"
+              rel="noopener noreferrer"
               className="button-secondary"
             >
               Send us an email

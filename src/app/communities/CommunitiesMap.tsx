@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import Image from 'next/image'
 import styles from './page.module.css'
@@ -22,6 +22,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   const mapRef = useRef<any>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
 
   function initMap() {
     if (!mapContainerRef.current || !tooltipRef.current || !window.mapboxgl)
@@ -407,10 +408,16 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   }
 
   useEffect(() => {
-    // Check if mapboxgl is already available (script loaded on previous mount)
+    // If the script was already loaded (e.g. cached from a previous visit),
+    // mark it as ready so the init effect below fires.
     if (window.mapboxgl) {
-      initMap()
+      setScriptLoaded(true)
     }
+  }, [])
+
+  useEffect(() => {
+    if (!scriptLoaded) return
+    initMap()
     return () => {
       // Clean up event listeners
       if (cleanupRef.current) {
@@ -424,10 +431,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [scriptLoaded])
 
   function handleScriptLoad() {
-    initMap()
+    setScriptLoaded(true)
   }
 
   function handleViewOnline() {

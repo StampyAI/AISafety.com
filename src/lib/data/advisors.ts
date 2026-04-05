@@ -28,7 +28,7 @@ export async function getAdvisors(): Promise<Advisor[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
-    filterByFormula: '{Publish?} = TRUE()',
+    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
     sort: [{ field: 'Sort', direction: 'asc' }],
   })
 

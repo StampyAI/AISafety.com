@@ -17,13 +17,13 @@ export default function FilterGroup({
 }: FilterGroupProps) {
   return (
     <div className="padding-bottom-40px">
-      <p className="paragraph-small-bold color-white padding-bottom-24px">
+      <p className="paragraph-small-bold color-white padding-bottom-16px">
         {title}
       </p>
-      {options.map(option => (
+      {options.map((option, i) => (
         <label
           key={option}
-          className="flex items-center cursor-pointer padding-bottom-16px"
+          className={`flex items-center cursor-pointer${i < options.length - 1 ? ' padding-bottom-16px' : ''}`}
         >
           <input
             type="checkbox"

@@ -40,7 +40,6 @@ export default async function ProjectsPage() {
             tagline="Seeking maintainer"
             name="Alignment Research Dataset"
             description="Regularly scrapes all major sources of alignment data for use by the Stampy chatbot and other projects. Currently needs someone to maintain it."
-            logo="/images/blue-dot-impact.svg"
             metadata={[
               { label: 'Contact', value: 'Olivier Coutu' },
               { label: 'Status', value: 'Active' },
@@ -51,7 +50,6 @@ export default async function ProjectsPage() {
             tagline="Content curation platform"
             name="AI Safety Feed"
             description="Curated stream for AI safety content, gathering posts and research from key sources. AI helps summarize, tag, and rate the novelty of content."
-            logo="/images/blue-dot-impact.svg"
             metadata={[
               { label: 'Contact', value: 'Matt Brooks' },
               { label: 'Status', value: 'Active' },

@@ -18,6 +18,23 @@ The #1 source of sloppy code in this project is recreating styles that already e
 
 If a button hover looks wrong, fix the shared `.button-primary` definition — don't add a one-off hover style. That way every button is fixed at once. This is the whole point of standardizing: define once, reference everywhere.
 
+## Error Handling: Never Silently Fail
+
+Errors must propagate so developers can fix them. Never silently swallow errors, use fallback values for invalid data, or assume defaults when encountering unexpected input.
+
+- **Don't** catch exceptions and ignore them
+- **Don't** return default values for invalid input (e.g., assuming `.png` for an unknown extension)
+- **Don't** skip items that fail to process without logging
+- **Do** throw errors with clear messages explaining what went wrong
+- **Do** let builds fail loudly when data is malformed
+- **Do** use `console.warn` for recoverable issues that need attention
+
+A silent failure today becomes a mystery bug tomorrow.
+
+## Before Committing: Always Build
+
+Always run `npm run build` before committing to verify changes work. Don't commit untested code - a broken build in main wastes everyone's time.
+
 ## Reference Files
 
 - `backup/` — HTML snapshots of every live page

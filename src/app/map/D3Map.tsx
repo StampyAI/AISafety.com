@@ -160,6 +160,13 @@ export default function D3Map({ orgs }: D3MapProps) {
 
     svg.call(zoom)
 
+    // Prevent wheel events over the map from zooming the whole page
+    // (once D3's zoom hits its scaleExtent limit, the browser would
+    // otherwise handle the event as a page zoom or scroll).
+    const svgNode = svg.node()!
+    const preventPageZoom = (e: WheelEvent) => e.preventDefault()
+    svgNode.addEventListener('wheel', preventPageZoom, { passive: false })
+
     // Add background image
     svgGroup
       .append('image')
@@ -444,6 +451,7 @@ export default function D3Map({ orgs }: D3MapProps) {
 
     const container = containerRef.current
     return () => {
+      svgNode.removeEventListener('wheel', preventPageZoom)
       if (container) {
         d3.select(container).select('svg').remove()
       }

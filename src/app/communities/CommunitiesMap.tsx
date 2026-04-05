@@ -225,7 +225,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             const name = feature.properties?.name
             const description = feature.properties?.description
             const location = feature.properties?.location
-            let tooltipHTML = `<strong>${name}</strong>`
+            let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
             if (location)
               tooltipHTML += `<span class="location-text">${location}</span>`
             tooltipHTML += `${description}`
@@ -277,7 +277,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             const name = feature.properties?.name
             const description = feature.properties?.description
             const location = feature.properties?.location
-            let tooltipHTML = `<strong>${name}</strong>`
+            let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
             if (location)
               tooltipHTML += `<span class="location-text">${location}</span>`
             tooltipHTML += `${description}`
@@ -463,6 +463,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       <div
         ref={tooltipRef}
         id="mapbox-tooltip"
+        className="paragraph-xs"
         style={{ display: 'none', position: 'fixed' }}
       />
     </>

@@ -220,31 +220,33 @@ export default function FundingClient({ funders }: FundingClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Recipient type"
-          options={recipientOptions}
-          selected={selectedRecipients}
-          counts={recipientCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedRecipients, setSelectedRecipients)
-          }
-        />
-        <FilterGroup
-          title="Accepting applications"
-          options={acceptingOptions}
-          selected={selectedAccepting}
-          counts={acceptingCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedAccepting, setSelectedAccepting)
-          }
-        />
-        <FilterGroup
-          title="Type"
-          options={typeOptions}
-          selected={selectedTypes}
-          counts={typeCounts}
-          onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Recipient type"
+            options={recipientOptions}
+            selected={selectedRecipients}
+            counts={recipientCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedRecipients, setSelectedRecipients)
+            }
+          />
+          <FilterGroup
+            title="Accepting applications"
+            options={acceptingOptions}
+            selected={selectedAccepting}
+            counts={acceptingCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedAccepting, setSelectedAccepting)
+            }
+          />
+          <FilterGroup
+            title="Type"
+            options={typeOptions}
+            selected={selectedTypes}
+            counts={typeCounts}
+            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+          />
+        </div>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

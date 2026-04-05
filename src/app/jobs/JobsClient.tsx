@@ -275,38 +275,40 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Skill set"
-          options={skillSetOptions}
-          selected={selectedSkills}
-          counts={skillCounts}
-          onToggle={v => toggleFilter(v, selectedSkills, setSelectedSkills)}
-        />
-        <FilterGroup
-          title="Minimum experience"
-          options={experienceOptions}
-          selected={selectedExperience}
-          counts={experienceCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedExperience, setSelectedExperience)
-          }
-        />
-        <FilterGroup
-          title="Role type"
-          options={roleTypeOptions}
-          selected={selectedRoles}
-          counts={roleCounts}
-          onToggle={v => toggleFilter(v, selectedRoles, setSelectedRoles)}
-        />
-        <FilterGroup
-          title="Work location"
-          options={workLocationOptions}
-          selected={selectedWorkLocation}
-          counts={workLocationCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
-          }
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Skill set"
+            options={skillSetOptions}
+            selected={selectedSkills}
+            counts={skillCounts}
+            onToggle={v => toggleFilter(v, selectedSkills, setSelectedSkills)}
+          />
+          <FilterGroup
+            title="Minimum experience"
+            options={experienceOptions}
+            selected={selectedExperience}
+            counts={experienceCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedExperience, setSelectedExperience)
+            }
+          />
+          <FilterGroup
+            title="Role type"
+            options={roleTypeOptions}
+            selected={selectedRoles}
+            counts={roleCounts}
+            onToggle={v => toggleFilter(v, selectedRoles, setSelectedRoles)}
+          />
+          <FilterGroup
+            title="Work location"
+            options={workLocationOptions}
+            selected={selectedWorkLocation}
+            counts={workLocationCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
+            }
+          />
+        </div>
         <div>
           <p className="paragraph-small padding-bottom-4px padding-top-56px">
             Source:

@@ -198,34 +198,36 @@ export default function CommunitiesClient({
 
       {/* Filters Sidebar */}
       <aside className="hide-mobile">
-        <FilterGroup
-          title="Type"
-          options={typeOptions}
-          selected={typeFilters}
-          counts={filterCounts.type}
-          onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
-        />
-        <FilterGroup
-          title="Platform"
-          options={platformOptions}
-          selected={platformFilters}
-          counts={filterCounts.platform}
-          onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
-        />
-        <FilterGroup
-          title="Activity level"
-          options={activityOptions}
-          selected={activityFilters}
-          counts={filterCounts.activity}
-          onToggle={v => toggleFilter(v, activityFilters, setActivityFilters)}
-        />
-        <FilterGroup
-          title="Focus"
-          options={focusOptions}
-          selected={focusFilters}
-          counts={filterCounts.focus}
-          onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Type"
+            options={typeOptions}
+            selected={typeFilters}
+            counts={filterCounts.type}
+            onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
+          />
+          <FilterGroup
+            title="Platform"
+            options={platformOptions}
+            selected={platformFilters}
+            counts={filterCounts.platform}
+            onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
+          />
+          <FilterGroup
+            title="Activity level"
+            options={activityOptions}
+            selected={activityFilters}
+            counts={filterCounts.activity}
+            onToggle={v => toggleFilter(v, activityFilters, setActivityFilters)}
+          />
+          <FilterGroup
+            title="Focus"
+            options={focusOptions}
+            selected={focusFilters}
+            counts={filterCounts.focus}
+            onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
+          />
+        </div>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

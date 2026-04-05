@@ -182,6 +182,8 @@ export default function AboutPage() {
             </p>
             <a
               href="mailto:bryceerobertson@gmail.com?subject=Volunteering%20for%20AISafety.com"
+              target="_blank"
+              rel="noopener noreferrer"
               className="button-secondary"
             >
               Volunteer

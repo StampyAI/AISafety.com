@@ -106,13 +106,15 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Status"
-          options={statusOptions}
-          selected={selectedStatus}
-          counts={statusCounts}
-          onToggle={toggleStatus}
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Status"
+            options={statusOptions}
+            selected={selectedStatus}
+            counts={statusCounts}
+            onToggle={toggleStatus}
+          />
+        </div>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

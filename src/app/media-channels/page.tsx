@@ -37,8 +37,8 @@ export default async function MediaChannelsPage() {
             href="https://thezvi.substack.com/"
             tagline="Top blog recommendation"
             name="Don't Worry About the Vase"
-            description="Zvi Mowshowitz's blog covering AI developments, policy, and safety with detailed analysis and commentary."
-            logo="/images/blue-dot-impact.svg"
+            description="Blog by Zvi Mowshowitz on various topics, including AI, offering detailed analysis and personal insights from a rationalist perspective. Posts very often."
+            logo="/images/zvi.webp"
             metadata={[{ label: 'Type', value: 'Blog' }]}
           />
           <FeaturedCard

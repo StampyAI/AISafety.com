@@ -130,15 +130,17 @@ export default function MediaChannelsClient({
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Type"
-          options={typeOptions}
-          selected={selectedTypes}
-          counts={typeCounts}
-          onToggle={toggleType}
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Type"
+            options={typeOptions}
+            selected={selectedTypes}
+            counts={typeCounts}
+            onToggle={toggleType}
+          />
+        </div>
         <ContributeButtons
-          suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
+          suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagSZ7vJj9MHyYmtS/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="media source"
           suggestEntryDescription="Suggest an information source to be listed here"

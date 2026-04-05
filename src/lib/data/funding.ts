@@ -28,7 +28,7 @@ export interface Funder {
 export async function getFunders(): Promise<Funder[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
-    filterByFormula: '{Publish?} = TRUE()',
+    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
     sort: [{ field: 'Sort', direction: 'asc' }],
   })
 

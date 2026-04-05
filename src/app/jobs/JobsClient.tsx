@@ -3,7 +3,6 @@
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
-import ContributeButtons from '@/components/ContributeButtons'
 import { Job } from '@/lib/data/jobs'
 
 interface JobsClientProps {
@@ -276,43 +275,53 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Skill set"
-          options={skillSetOptions}
-          selected={selectedSkills}
-          counts={skillCounts}
-          onToggle={v => toggleFilter(v, selectedSkills, setSelectedSkills)}
-        />
-        <FilterGroup
-          title="Minimum experience"
-          options={experienceOptions}
-          selected={selectedExperience}
-          counts={experienceCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedExperience, setSelectedExperience)
-          }
-        />
-        <FilterGroup
-          title="Role type"
-          options={roleTypeOptions}
-          selected={selectedRoles}
-          counts={roleCounts}
-          onToggle={v => toggleFilter(v, selectedRoles, setSelectedRoles)}
-        />
-        <FilterGroup
-          title="Work location"
-          options={workLocationOptions}
-          selected={selectedWorkLocation}
-          counts={workLocationCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
-          }
-        />
-        <ContributeButtons
-          suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
-          suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-          noun="job"
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Skill set"
+            options={skillSetOptions}
+            selected={selectedSkills}
+            counts={skillCounts}
+            onToggle={v => toggleFilter(v, selectedSkills, setSelectedSkills)}
+          />
+          <FilterGroup
+            title="Minimum experience"
+            options={experienceOptions}
+            selected={selectedExperience}
+            counts={experienceCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedExperience, setSelectedExperience)
+            }
+          />
+          <FilterGroup
+            title="Role type"
+            options={roleTypeOptions}
+            selected={selectedRoles}
+            counts={roleCounts}
+            onToggle={v => toggleFilter(v, selectedRoles, setSelectedRoles)}
+          />
+          <FilterGroup
+            title="Work location"
+            options={workLocationOptions}
+            selected={selectedWorkLocation}
+            counts={workLocationCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
+            }
+          />
+        </div>
+        <div>
+          <p className="paragraph-small padding-bottom-4px padding-top-56px">
+            Source:
+          </p>
+          <a
+            href="https://jobs.80000hours.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="color-light-teal"
+          >
+            80,000 Hours Job Board
+          </a>
+        </div>
       </div>
     </div>
   )

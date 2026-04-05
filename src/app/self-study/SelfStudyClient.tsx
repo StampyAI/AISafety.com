@@ -170,22 +170,24 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterGroup
-          title="Category"
-          options={categoryOptions}
-          selected={selectedCategories}
-          counts={categoryCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedCategories, setSelectedCategories)
-          }
-        />
-        <FilterGroup
-          title="Type"
-          options={typeOptions}
-          selected={selectedTypes}
-          counts={typeCounts}
-          onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-        />
+        <div className="flex flex-col gap-40px">
+          <FilterGroup
+            title="Category"
+            options={categoryOptions}
+            selected={selectedCategories}
+            counts={categoryCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedCategories, setSelectedCategories)
+            }
+          />
+          <FilterGroup
+            title="Type"
+            options={typeOptions}
+            selected={selectedTypes}
+            counts={typeCounts}
+            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+          />
+        </div>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

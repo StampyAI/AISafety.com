@@ -235,6 +235,8 @@ export default function AboutPage() {
             </p>
             <a
               href="https://discord.gg/faamWzPcv8"
+              target="_blank"
+              rel="noopener noreferrer"
               className="button-secondary"
             >
               Give us your take
@@ -253,6 +255,8 @@ export default function AboutPage() {
           </p>
           <a
             href="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
+            target="_blank"
+            rel="noopener noreferrer"
             className="button-secondary"
           >
             Suggest a correction

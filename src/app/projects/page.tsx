@@ -44,7 +44,7 @@ export default async function ProjectsPage() {
             metadata={[
               {
                 label: 'Contact',
-                value: 'Olivier Coutu\ncoutu.olivier@gmail.com',
+                value: 'Olivier Coutu',
               },
               { label: 'Status', value: 'Active' },
             ]}
@@ -57,7 +57,7 @@ export default async function ProjectsPage() {
             metadata={[
               {
                 label: 'Contact',
-                value: 'Matt Brooks\nmatthewrbrooks94@gmail.com',
+                value: 'Matt Brooks',
               },
               { label: 'Status', value: 'Active' },
             ]}

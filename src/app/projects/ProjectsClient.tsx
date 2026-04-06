@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
+import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Project } from '@/lib/data/projects'
 
@@ -116,7 +117,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <div className="flex flex-col gap-40px">
+        <FilterSidebar>
           <FilterGroup
             title="Status"
             options={statusOptions}
@@ -124,7 +125,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
             counts={statusCounts}
             onToggle={toggleStatus}
           />
-        </div>
+        </FilterSidebar>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

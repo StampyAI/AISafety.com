@@ -125,3 +125,16 @@
   z-index: 1000;
   box-shadow: 0 12px 24px rgba(0, 25, 27, 0.5);
 }
+
+@media (max-width: 991px) {
+  .map-container {
+    height: 70vh;
+    min-height: 0;
+  }
+
+  .map-controls {
+    top: auto;
+    bottom: 0 !important;
+    right: 0 !important;
+  }
+}

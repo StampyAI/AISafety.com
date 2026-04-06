@@ -89,6 +89,11 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
     map.addControl(new mapboxgl.NavigationControl())
 
+    // Mapbox doesn't auto-resize when its container changes size (e.g. via
+    // CSS media queries). Watch the container and tell Mapbox to recalculate.
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(mapContainer)
+
     const customPin = new window.Image()
     customPin.crossOrigin = 'anonymous'
 
@@ -245,49 +250,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           }
         })
 
-        // Click handler
+        // Click handler — single tap opens the link on both mobile and desktop
         map.on('click', 'community-pins', (e: any) => {
           if (!e.features || e.features.length === 0) return
           const feature = e.features[0]
-          const currentFeatureId = feature.id as number
           const link = feature.properties?.link || feature.properties?.url
-
-          if (isMobile) {
-            e.preventDefault()
-            e.originalEvent.stopPropagation()
-            const uniqueId = 'map-item-' + currentFeatureId
-            const currentSourceId = tooltip.getAttribute('data-source-id')
-            const isTooltipVisible = tooltip.style.display !== 'none'
-            if (isTooltipVisible && currentSourceId === uniqueId) {
-              if (link && link !== '#') {
-                resetHover()
-                tappedPinId = null
-                tooltip.style.display = 'none'
-                window.open(link, '_blank')
-              }
-              return
-            }
-            geojsonData.features.forEach((f: any) => {
-              f.properties.hover = f.id === currentFeatureId
-            })
-            setData(geojsonData)
-            tappedPinId = currentFeatureId
-            tooltip.setAttribute('data-link-url', link || '#')
-            tooltip.setAttribute('data-source-id', uniqueId)
-            const name = feature.properties?.name
-            const description = feature.properties?.description
-            const location = feature.properties?.location
-            let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
-            if (location)
-              tooltipHTML += `<span class="location-text">${location}</span>`
-            tooltipHTML += `${description}`
-            tooltip.innerHTML = tooltipHTML
-            tooltip.style.display = 'block'
-            tooltip.classList.add('mobile-tooltip')
-            updateTooltipPosition(e, tooltip, mapContainer)
-          } else {
-            if (link && link !== '#') window.open(link, '_blank')
-          }
+          if (link && link !== '#') window.open(link, '_blank')
         })
 
         // Mobile global handlers
@@ -344,6 +312,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           cleanupRef.current = () => {
             tooltip.removeEventListener('click', handleTooltipClick)
             document.removeEventListener('click', handleDocumentClick)
+            resizeObserver.disconnect()
           }
         }
 

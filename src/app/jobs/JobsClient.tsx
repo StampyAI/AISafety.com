@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
+import FilterSidebar from '@/components/FilterSidebar'
 import { Job } from '@/lib/data/jobs'
 
 interface JobsClientProps {
@@ -284,7 +285,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <div className="flex flex-col gap-40px">
+        <FilterSidebar>
           <FilterGroup
             title="Skill set"
             options={skillSetOptions}
@@ -317,7 +318,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
               toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
             }
           />
-        </div>
+        </FilterSidebar>
         <div>
           <p className="paragraph-small padding-bottom-4px padding-top-56px">
             Source:

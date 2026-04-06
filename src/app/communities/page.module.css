@@ -37,6 +37,18 @@
   right: 0 !important;
 }
 
+@media (max-width: 991px) {
+  :global(.mapboxgl-ctrl-top-right) {
+    top: auto !important;
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+
+  :global(.mapboxgl-ctrl-top-right .mapboxgl-ctrl) {
+    margin: 0 !important;
+  }
+}
+
 /* Mapbox tooltip */
 :global(#mapbox-tooltip) {
   position: fixed;
@@ -142,9 +154,7 @@
 
 @media (max-width: 991px) {
   .mapContainer {
-    min-height: 400px !important;
-    max-height: 65vh !important;
-    height: auto;
+    height: 70vh !important;
   }
 
   .mapTitleOverlay {

@@ -217,9 +217,13 @@ export async function fetchAirtableRecords(
       url.searchParams.set('offset', offset)
     }
 
+    // Pagination offsets expire quickly server-side, so we can't use Next.js's
+    // fetch cache here — a stale cached first page would return an offset that
+    // Airtable has already forgotten (LIST_RECORDS_ITERATOR_NOT_AVAILABLE).
+    // Page-level caching upstream keeps Airtable calls rare enough.
     let response = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${token}` },
-      next: { revalidate: 3600 }, // Hourly revalidation fetches fresh API responses with valid attachment URLs
+      cache: 'no-store',
     })
 
     if (!response.ok) {
@@ -227,12 +231,15 @@ export async function fetchAirtableRecords(
       await new Promise(r => setTimeout(r, 1000))
       response = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 3600 }, // Retry also uses hourly revalidation
+        cache: 'no-store',
       })
     }
 
     if (!response.ok) {
-      throw new Error(`Airtable API error after retry: ${response.status}`)
+      const body = await response.text()
+      throw new Error(
+        `Airtable API error after retry: ${response.status} (table=${options.tableId} view=${options.viewId}) — ${body}`
+      )
     }
 
     const data = await response.json()

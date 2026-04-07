@@ -314,8 +314,8 @@ export default async function Home() {
                 src="/images/sff.png"
                 alt=""
                 className={styles['icon-homepage']}
-                width={32}
-                height={32}
+                width={56}
+                height={56}
               />
               <h3>Survival and Flourishing Fund</h3>
             </div>

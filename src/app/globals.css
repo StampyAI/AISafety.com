@@ -931,6 +931,10 @@ label {
   transform: scale(1.015);
 }
 
+.card-static:hover {
+  transform: scale(1);
+}
+
 .featured-img {
   display: flex;
   justify-content: center;

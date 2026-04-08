@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
+import { trackListingClick } from '@/lib/analytics'
 import styles from './page.module.css'
 
 interface MapOrg {
@@ -264,6 +265,9 @@ export default function D3Map({ orgs }: D3MapProps) {
           .attr('xlink:href', org.link)
           .attr('target', '_blank')
           .style('cursor', 'pointer')
+          .on('click', () => {
+            trackListingClick('Map', org.title, org.link)
+          })
       }
 
       // White circle background

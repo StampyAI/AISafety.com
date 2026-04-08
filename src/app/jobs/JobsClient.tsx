@@ -5,6 +5,7 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import { Job } from '@/lib/data/jobs'
+import { trackListingClick } from '@/lib/analytics'
 
 interface JobsClientProps {
   jobs: Job[]
@@ -218,6 +219,13 @@ export default function JobsClient({ jobs }: JobsClientProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="card"
+              onClick={() =>
+                trackListingClick(
+                  'Jobs',
+                  `${job.name} – ${job.organization}`,
+                  job.url
+                )
+              }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
                 <div className="featured-img">

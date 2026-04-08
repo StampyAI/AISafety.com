@@ -42,6 +42,7 @@ export default async function MediaChannelsPage() {
             description="Blog by Zvi Mowshowitz on various topics, including AI, offering detailed analysis and personal insights from a rationalist perspective. Posts very often."
             logo="/images/zvi.webp"
             metadata={[{ label: 'Type', value: 'Blog' }]}
+            trackingPage="Media channels"
           />
           <FeaturedCard
             href="https://www.youtube.com/playlist?list=PLWQikawCP4UFM_ziLf9X2rcOLCSbqisRE"
@@ -50,6 +51,7 @@ export default async function MediaChannelsPage() {
             description="A carefully curated and regularly updated YouTube playlist to help people gain an understanding of what's going on with AI."
             logo="/images/YouTube.png"
             metadata={[{ label: 'Type', value: 'YouTube' }]}
+            trackingPage="Media channels"
           />
         </div>
 

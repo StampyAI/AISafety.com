@@ -6,6 +6,7 @@ import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Funder } from '@/lib/data/funding'
+import { trackListingClick } from '@/lib/analytics'
 
 interface FundingClientProps {
   funders: Funder[]
@@ -143,6 +144,9 @@ export default function FundingClient({ funders }: FundingClientProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="card"
+              onClick={() =>
+                trackListingClick('Funding', funder.name, funder.url)
+              }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
                 <div className="featured-img">

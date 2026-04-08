@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import RelativeDate from '@/components/RelativeDate'
+import TrackedLink from '@/components/TrackedLink'
 import { fetchAllLastUpdated } from '@/lib/data/last-updated'
 import styles from './page.module.css'
 
@@ -78,14 +79,16 @@ export default async function Home() {
             Free event covering a broad range of topics, from agent foundations
             to evals. Attendees are welcome regardless of prior experience.
           </p>
-          <a
+          <TrackedLink
             href="https://tais2026.cc/"
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"
+            trackingPage="Home"
+            trackingName="Technical AI Safety Conference (TAIS)"
           >
             Learn more
-          </a>
+          </TrackedLink>
         </div>
       </div>
 
@@ -161,14 +164,16 @@ export default async function Home() {
             Join thousands of AI safety folks ready to answer questions, share
             opportunities, and connect.
           </p>
-          <a
+          <TrackedLink
             href="https://join.slack.com/t/ai-alignment/shared_invite/zt-3oytsoq2q-nzMwWJqs5fl4H~VXA6FQTA"
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"
+            trackingPage="Home"
+            trackingName="AI Alignment Slack"
           >
             Join
-          </a>
+          </TrackedLink>
         </div>
       </div>
 
@@ -221,14 +226,16 @@ export default async function Home() {
               into two tracks.
             </p>
             <div className="block">
-              <a
+              <TrackedLink
                 href="https://bluedot.org/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="button-secondary"
+                trackingPage="Home"
+                trackingName="Blue Dot Impact: Technical & Governance"
               >
                 View curricula
-              </a>
+              </TrackedLink>
             </div>
           </div>
         </div>
@@ -323,14 +330,16 @@ export default async function Home() {
               Funds orgs working to improve humanity&apos;s long-term prospects
               for survival and flourishing.
             </p>
-            <a
+            <TrackedLink
               href="https://survivalandflourishing.fund/"
               target="_blank"
               rel="noopener noreferrer"
               className="button-secondary"
+              trackingPage="Home"
+              trackingName="Survival and Flourishing Fund"
             >
               Learn more
-            </a>
+            </TrackedLink>
           </div>
         </div>
       </div>
@@ -391,14 +400,16 @@ export default async function Home() {
               <h3>AI Safety Feed</h3>
             </div>
             <div className="block">
-              <a
+              <TrackedLink
                 href="https://aisafetyfeed.com/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="button-secondary"
+                trackingPage="Home"
+                trackingName="AI Safety Feed"
               >
                 Learn more
-              </a>
+              </TrackedLink>
             </div>
           </div>
         </div>
@@ -433,11 +444,13 @@ export default async function Home() {
             Learn what AI safety is, why it matters, and what you can do to help
           </h2>
         </div>
-        <a
+        <TrackedLink
           href="https://aisafety.info/"
           target="_blank"
           rel="noopener noreferrer"
           className="button-primary"
+          trackingPage="Home"
+          trackingName="AISafety.info"
         >
           <span>AISafety.info</span>
           <Image
@@ -447,7 +460,7 @@ export default async function Home() {
             width={16}
             height={16}
           />
-        </a>
+        </TrackedLink>
       </div>
     </div>
   )

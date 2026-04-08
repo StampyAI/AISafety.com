@@ -6,6 +6,7 @@ import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Advisor } from '@/lib/data/advisors'
+import { trackListingClick } from '@/lib/analytics'
 
 interface AdvisorsClientProps {
   advisors: Advisor[]
@@ -121,6 +122,9 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="card"
+              onClick={() =>
+                trackListingClick('Advisors', advisor.name, advisor.url)
+              }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
                 <div className="featured-img">

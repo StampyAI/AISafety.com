@@ -88,6 +88,7 @@ export default async function CommunitiesPage() {
                   { label: 'Activity level', value: community.activityLevel },
                   { label: 'Focus', value: community.focus },
                 ]}
+                trackingPage="Communities"
               />
             ))}
           </div>

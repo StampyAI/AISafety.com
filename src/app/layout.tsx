@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import LayoutShell from '@/components/LayoutShell'
 import { fetchAllCounts } from '@/lib/data/counts'
@@ -49,6 +50,21 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} antialiased`}>
+        <Script id="matomo" strategy="afterInteractive">
+          {`
+            var _paq = window._paq = window._paq || [];
+            _paq.push(["disableCookies"]);
+            _paq.push(['trackPageView']);
+            _paq.push(['enableLinkTracking']);
+            (function() {
+              var u="https://aisafety.matomo.cloud/";
+              _paq.push(['setTrackerUrl', u+'matomo.php']);
+              _paq.push(['setSiteId', '1']);
+              var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+              g.async=true; g.src='https://cdn.matomo.cloud/aisafety.matomo.cloud/matomo.js'; s.parentNode.insertBefore(g,s);
+            })();
+          `}
+        </Script>
         <LayoutShell counts={counts}>{children}</LayoutShell>
       </body>
     </html>

@@ -6,6 +6,7 @@ import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { FounderResource } from '@/lib/data/founders'
+import { trackListingClick } from '@/lib/analytics'
 
 interface FoundersClientProps {
   resources: FounderResource[]
@@ -101,6 +102,9 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="card"
+              onClick={() =>
+                trackListingClick('Founders', resource.name, resource.website)
+              }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
                 <div className="featured-img">

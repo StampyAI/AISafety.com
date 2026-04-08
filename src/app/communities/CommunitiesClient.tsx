@@ -7,6 +7,7 @@ import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Community } from '@/lib/data/communities'
+import { trackListingClick } from '@/lib/analytics'
 
 interface CommunitiesClientProps {
   communities: Community[]
@@ -160,6 +161,13 @@ export default function CommunitiesClient({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="card"
+                onClick={() =>
+                  trackListingClick(
+                    'Communities',
+                    community.name,
+                    community.joinLink
+                  )
+                }
               >
                 <div className="flex items-center gap-16px padding-bottom-24px">
                   {community.logo && (

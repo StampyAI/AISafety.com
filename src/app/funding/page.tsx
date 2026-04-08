@@ -43,6 +43,7 @@ export default async function FundingPage() {
               { label: 'Type', value: 'Fund' },
               { label: 'Accepting applications', value: 'Yes – rolling basis' },
             ]}
+            trackingPage="Funding"
           />
           <FeaturedCard
             href="https://survivalandflourishing.fund/"
@@ -57,6 +58,7 @@ export default async function FundingPage() {
                 value: 'Yes – closes 22 April 2026',
               },
             ]}
+            trackingPage="Funding"
           />
         </div>
 

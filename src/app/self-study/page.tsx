@@ -46,6 +46,7 @@ export default async function SelfStudyPage() {
               { label: 'Category', value: 'Technical Alignment' },
               { label: 'Created by', value: 'Various' },
             ]}
+            trackingPage="Self-study"
           />
           <FeaturedCard
             href="https://bluedot.org/"
@@ -57,6 +58,7 @@ export default async function SelfStudyPage() {
               { label: 'Category', value: 'Technical Alignment, Governance' },
               { label: 'Created by', value: 'BlueDot Impact' },
             ]}
+            trackingPage="Self-study"
           />
         </div>
 

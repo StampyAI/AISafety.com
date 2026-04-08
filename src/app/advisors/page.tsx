@@ -46,6 +46,7 @@ export default async function AdvisorsPage() {
               { label: 'Focus', value: 'Career/contribution' },
               { label: 'Status', value: 'Active' },
             ]}
+            trackingPage="Advisors"
           />
           <FeaturedCard
             href="https://aisafety.quest/#calls"
@@ -57,6 +58,7 @@ export default async function AdvisorsPage() {
               { label: 'Focus', value: 'Career/contribution' },
               { label: 'Status', value: 'Active' },
             ]}
+            trackingPage="Advisors"
           />
         </div>
 

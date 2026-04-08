@@ -6,6 +6,7 @@ import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { MediaChannel } from '@/lib/data/media-channels'
+import { trackListingClick } from '@/lib/analytics'
 
 interface MediaChannelsClientProps {
   channels: MediaChannel[]
@@ -105,6 +106,9 @@ export default function MediaChannelsClient({
               target="_blank"
               rel="noopener noreferrer"
               className="card"
+              onClick={() =>
+                trackListingClick('Media channels', channel.name, channel.url)
+              }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
                 <div className="featured-img">

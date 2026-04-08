@@ -6,6 +6,7 @@ import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Course } from '@/lib/data/self-study'
+import { trackListingClick } from '@/lib/analytics'
 
 interface SelfStudyClientProps {
   courses: Course[]
@@ -139,6 +140,9 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="card"
+              onClick={() =>
+                trackListingClick('Self-study', course.name, course.url)
+              }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
                 <div className="featured-img">

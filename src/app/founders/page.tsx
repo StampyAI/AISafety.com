@@ -42,6 +42,7 @@ export default async function FoundersPage() {
             description="Providing fiscal sponsorship to AI safety projects, saving them time and allowing them to access more funding."
             logo="/images/ashgro-logo.png"
             metadata={[{ label: 'Type', value: 'Fiscal sponsor' }]}
+            trackingPage="Founders"
           />
           <FeaturedCard
             href="https://www.catalyze-impact.org/"
@@ -50,6 +51,7 @@ export default async function FoundersPage() {
             description="Incubating early-stage AI safety research organizations. The program involves co-founder matching, mentorship, and seed funding, culminating in an in-person building phase."
             logo="/images/catalyze-impact-logo.png"
             metadata={[{ label: 'Type', value: 'Incubator' }]}
+            trackingPage="Founders"
           />
         </div>
 

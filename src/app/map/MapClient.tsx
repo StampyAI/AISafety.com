@@ -6,6 +6,7 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import { trackListingClick } from '@/lib/analytics'
 import styles from './page.module.css'
 
 const D3Map = dynamic(() => import('./D3Map'), {
@@ -240,6 +241,7 @@ export default function MapClient({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="card"
+                  onClick={() => trackListingClick('Map', org.title, org.link)}
                 >
                   <div className="flex items-center gap-16px padding-bottom-24px">
                     <div className="featured-img">

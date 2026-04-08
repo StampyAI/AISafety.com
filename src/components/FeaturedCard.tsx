@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import TrackedLink from './TrackedLink'
 import styles from './FeaturedCard.module.css'
 
 interface MetadataField {
@@ -13,6 +14,7 @@ interface FeaturedCardProps {
   description: string
   logo?: string
   metadata: MetadataField[]
+  trackingPage: string
 }
 
 export default function FeaturedCard({
@@ -22,6 +24,7 @@ export default function FeaturedCard({
   description,
   logo,
   metadata,
+  trackingPage,
 }: FeaturedCardProps) {
   const cardInner = (
     <div className={`${styles.card} ${href ? '' : styles.cardStatic}`}>
@@ -80,13 +83,15 @@ export default function FeaturedCard({
   if (!href) return cardInner
 
   return (
-    <a
+    <TrackedLink
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       className="flex flex-col-mobile"
+      trackingPage={trackingPage}
+      trackingName={name}
     >
       {cardInner}
-    </a>
+    </TrackedLink>
   )
 }

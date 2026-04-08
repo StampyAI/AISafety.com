@@ -47,6 +47,7 @@ export default async function ProjectsPage() {
               },
               { label: 'Status', value: 'Active' },
             ]}
+            trackingPage="Projects"
           />
           <FeaturedCard
             tagline="Content curation platform"
@@ -59,6 +60,7 @@ export default async function ProjectsPage() {
               },
               { label: 'Status', value: 'Active' },
             ]}
+            trackingPage="Projects"
           />
         </div>
 

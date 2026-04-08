@@ -72,20 +72,22 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     })
     mapRef.current = map
 
-    const isMobile = window.innerWidth < 768
+    // Read live so behavior adapts when the viewport is resized (e.g.
+    // dev tools mobile mode toggled after load).
+    const isMobile = () => window.innerWidth < 768
 
-    if (isMobile) {
-      setTimeout(() => {
-        const mapButtons = document.querySelectorAll(
-          '.mapboxgl-ctrl-group button'
-        )
-        mapButtons.forEach(button => {
-          button.addEventListener('touchend', function (this: HTMLElement) {
-            setTimeout(() => this.blur(), 100)
-          })
+    // Touchend-blur fires only on touch devices anyway, so it's safe to
+    // always register — no need to gate on viewport width.
+    setTimeout(() => {
+      const mapButtons = document.querySelectorAll(
+        '.mapboxgl-ctrl-group button'
+      )
+      mapButtons.forEach(button => {
+        button.addEventListener('touchend', function (this: HTMLElement) {
+          setTimeout(() => this.blur(), 100)
         })
-      }, 500)
-    }
+      })
+    }, 500)
 
     map.addControl(new mapboxgl.NavigationControl())
 
@@ -192,7 +194,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           tt.style.left = finalX + 'px'
           tt.style.top = finalY + 'px'
 
-          if (isMobile) {
+          if (isMobile()) {
             const minLeftMargin = 20
             if (finalX < minLeftMargin) tt.style.left = minLeftMargin + 'px'
           }
@@ -209,8 +211,8 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
         // Desktop hover
         map.on('mousemove', 'community-pins', (e: any) => {
-          if (isMobile || !e.features || e.features.length === 0) {
-            if (!isMobile && hoveredPinId !== null) {
+          if (isMobile() || !e.features || e.features.length === 0) {
+            if (!isMobile() && hoveredPinId !== null) {
               map.getCanvas().style.cursor = ''
               resetHover()
               hoveredPinId = null
@@ -241,7 +243,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         })
 
         map.on('mouseleave', 'community-pins', () => {
-          if (isMobile) return
+          if (isMobile()) return
           if (hoveredPinId !== null) {
             map.getCanvas().style.cursor = ''
             resetHover()
@@ -257,7 +259,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           if (!e.features || e.features.length === 0) return
           const feature = e.features[0]
 
-          if (!isMobile) {
+          if (!isMobile()) {
             const link = feature.properties?.link || feature.properties?.url
             if (link && link !== '#') window.open(link, '_blank')
             return
@@ -287,62 +289,66 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           updateTooltipPosition(e, tooltip, mapContainer)
         })
 
-        // Mobile global handlers
-        if (isMobile) {
-          const handleTooltipClick = function (e: MouseEvent) {
-            if ((e.target as HTMLElement).closest('#mapbox-tooltip')) {
-              const lnk = tooltip.getAttribute('data-link-url')
-              if (lnk && lnk !== '#') {
-                tooltip.style.display = 'none'
-                if (tappedPinId !== null) {
-                  resetHover()
-                  tappedPinId = null
-                }
-                window.open(lnk, '_blank')
+        // Tooltip tap → open listing. Registered unconditionally so it
+        // still works if the viewport is resized to mobile after load.
+        const handleTooltipClick = function (e: MouseEvent) {
+          if ((e.target as HTMLElement).closest('#mapbox-tooltip')) {
+            const lnk = tooltip.getAttribute('data-link-url')
+            if (lnk && lnk !== '#') {
+              tooltip.style.display = 'none'
+              if (tappedPinId !== null) {
+                resetHover()
+                tappedPinId = null
               }
-              e.stopPropagation()
+              window.open(lnk, '_blank')
+            }
+            e.stopPropagation()
+          }
+        }
+
+        // Tap outside any pin/tooltip → dismiss tooltip.
+        const handleDocumentClick = function (e: MouseEvent) {
+          const clickedOnMapCanvas = (e.target as HTMLElement).closest(
+            '.mapboxgl-canvas'
+          ) as HTMLCanvasElement | null
+          const clickedOnTooltip = (e.target as HTMLElement).closest(
+            '#mapbox-tooltip'
+          )
+          let clickedOnPin = false
+          if (clickedOnMapCanvas && map.queryRenderedFeatures) {
+            try {
+              // queryRenderedFeatures expects canvas-relative coordinates,
+              // not viewport coordinates. Without this offset the lookup
+              // misses the pin when the map sits below any header.
+              const canvasRect = clickedOnMapCanvas.getBoundingClientRect()
+              const features = map.queryRenderedFeatures(
+                [e.clientX - canvasRect.left, e.clientY - canvasRect.top],
+                { layers: ['community-pins'] }
+              )
+              clickedOnPin = features.length > 0
+            } catch {
+              /* Ignore - map may be in invalid state */
             }
           }
-
-          const handleDocumentClick = function (e: MouseEvent) {
-            const clickedOnMapCanvas = (e.target as HTMLElement).closest(
-              '.mapboxgl-canvas'
-            )
-            const clickedOnTooltip = (e.target as HTMLElement).closest(
-              '#mapbox-tooltip'
-            )
-            let clickedOnPin = false
-            if (clickedOnMapCanvas && map.queryRenderedFeatures) {
-              try {
-                const features = map.queryRenderedFeatures(
-                  [e.clientX, e.clientY],
-                  { layers: ['community-pins'] }
-                )
-                clickedOnPin = features.length > 0
-              } catch {
-                /* Ignore - map may be in invalid state */
-              }
-            }
-            if (!clickedOnTooltip && !clickedOnPin) {
-              if (tooltip.style.display !== 'none') {
-                tooltip.style.display = 'none'
-                if (tappedPinId !== null) {
-                  resetHover()
-                  tappedPinId = null
-                }
+          if (!clickedOnTooltip && !clickedOnPin) {
+            if (tooltip.style.display !== 'none') {
+              tooltip.style.display = 'none'
+              if (tappedPinId !== null) {
+                resetHover()
+                tappedPinId = null
               }
             }
           }
+        }
 
-          tooltip.addEventListener('click', handleTooltipClick)
-          document.addEventListener('click', handleDocumentClick)
+        tooltip.addEventListener('click', handleTooltipClick)
+        document.addEventListener('click', handleDocumentClick)
 
-          // Store cleanup function for useEffect teardown
-          cleanupRef.current = () => {
-            tooltip.removeEventListener('click', handleTooltipClick)
-            document.removeEventListener('click', handleDocumentClick)
-            resizeObserver.disconnect()
-          }
+        // Store cleanup function for useEffect teardown
+        cleanupRef.current = () => {
+          tooltip.removeEventListener('click', handleTooltipClick)
+          document.removeEventListener('click', handleDocumentClick)
+          resizeObserver.disconnect()
         }
 
         // Custom reset button

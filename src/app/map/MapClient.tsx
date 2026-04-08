@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
+import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import styles from './page.module.css'
 
@@ -276,7 +277,7 @@ export default function MapClient({
           </div>
 
           <div className="hide-mobile">
-            <div className="flex flex-col gap-40px">
+            <FilterSidebar>
               <FilterGroup
                 title="Category"
                 options={categories}
@@ -301,7 +302,7 @@ export default function MapClient({
                   else setShowInactive(!showInactive)
                 }}
               />
-            </div>
+            </FilterSidebar>
             <ContributeButtons
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}

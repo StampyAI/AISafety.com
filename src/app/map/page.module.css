@@ -14,10 +14,10 @@
   height: 100%;
 }
 
-/* Map zoom controls - positioned to match communities map (top-right) */
+/* Map zoom controls - bottom-right on both desktop and mobile */
 .map-controls {
   position: absolute;
-  top: 0;
+  bottom: 24px;
   right: 24px;
   z-index: 999;
 }
@@ -124,4 +124,13 @@
   left: 24px;
   z-index: 1000;
   box-shadow: 0 12px 24px rgba(0, 25, 27, 0.5);
+}
+
+@media (max-width: 991px) {
+  .map-container {
+    /* Fill the visible viewport minus the 88px navbar. dvh accounts for
+       mobile browser chrome so the View cards button stays on-screen. */
+    height: calc(100dvh - 88px);
+    min-height: 0;
+  }
 }

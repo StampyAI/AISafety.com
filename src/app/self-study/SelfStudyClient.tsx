@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
+import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Course } from '@/lib/data/self-study'
 
@@ -180,7 +181,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <div className="flex flex-col gap-40px">
+        <FilterSidebar>
           <FilterGroup
             title="Category"
             options={categoryOptions}
@@ -197,7 +198,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
             counts={typeCounts}
             onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
           />
-        </div>
+        </FilterSidebar>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

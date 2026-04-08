@@ -90,6 +90,11 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
     map.addControl(new mapboxgl.NavigationControl())
 
+    // Mapbox doesn't auto-resize when its container changes size (e.g. via
+    // CSS media queries). Watch the container and tell Mapbox to recalculate.
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(mapContainer)
+
     // Repurpose Mapbox's compass button as a "reset map view" button.
     // addControl synchronously inserts the compass into the DOM, so this
     // runs reliably without depending on the map 'load' event or pin image
@@ -383,6 +388,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           cleanupRef.current = () => {
             tooltip.removeEventListener('click', handleTooltipClick)
             document.removeEventListener('click', handleDocumentClick)
+            resizeObserver.disconnect()
           }
         }
       })

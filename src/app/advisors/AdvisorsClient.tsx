@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
+import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Advisor } from '@/lib/data/advisors'
 
@@ -162,7 +163,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <div className="flex flex-col gap-40px">
+        <FilterSidebar>
           <FilterGroup
             title="Focus"
             options={focusOptions}
@@ -177,7 +178,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
             counts={statusCounts}
             onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
           />
-        </div>
+        </FilterSidebar>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

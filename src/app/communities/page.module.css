@@ -31,10 +31,17 @@
   box-shadow: 0 12px 24px rgba(0, 25, 27, 0.5);
 }
 
-/* Mapbox controls position (offset for fixed nav) */
+/* Mapbox controls position - bottom-right on both desktop and mobile */
 :global(.mapboxgl-ctrl-top-right) {
-  top: 0 !important;
-  right: 0 !important;
+  top: auto !important;
+  bottom: 16px !important;
+  right: 8px !important;
+}
+
+@media (max-width: 991px) {
+  :global(.mapboxgl-ctrl-top-right .mapboxgl-ctrl) {
+    margin: 0 !important;
+  }
 }
 
 /* Mapbox tooltip */
@@ -142,9 +149,7 @@
 
 @media (max-width: 991px) {
   .mapContainer {
-    min-height: 400px !important;
-    max-height: 65vh !important;
-    height: auto;
+    height: 70vh !important;
   }
 
   .mapTitleOverlay {

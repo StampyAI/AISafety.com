@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import FilterGroup from '@/components/FilterGroup'
+import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Community } from '@/lib/data/communities'
 
@@ -208,7 +209,7 @@ export default function CommunitiesClient({
 
       {/* Filters Sidebar */}
       <aside className="hide-mobile">
-        <div className="flex flex-col gap-40px">
+        <FilterSidebar>
           <FilterGroup
             title="Type"
             options={typeOptions}
@@ -237,7 +238,7 @@ export default function CommunitiesClient({
             counts={filterCounts.focus}
             onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
           />
-        </div>
+        </FilterSidebar>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

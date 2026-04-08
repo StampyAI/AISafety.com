@@ -250,12 +250,41 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           }
         })
 
-        // Click handler — single tap opens the link on both mobile and desktop
+        // Click handler — desktop opens the listing directly. Mobile shows
+        // the tooltip first so users can preview the info; tapping the
+        // tooltip then opens the listing (handled below).
         map.on('click', 'community-pins', (e: any) => {
           if (!e.features || e.features.length === 0) return
           const feature = e.features[0]
-          const link = feature.properties?.link || feature.properties?.url
-          if (link && link !== '#') window.open(link, '_blank')
+
+          if (!isMobile) {
+            const link = feature.properties?.link || feature.properties?.url
+            if (link && link !== '#') window.open(link, '_blank')
+            return
+          }
+
+          const currentFeatureId = feature.id as number
+          if (tappedPinId !== currentFeatureId) {
+            geojsonData.features.forEach((f: any) => {
+              f.properties.hover = f.id === currentFeatureId
+            })
+            setData(geojsonData)
+            tappedPinId = currentFeatureId
+
+            const name = feature.properties?.name
+            const description = feature.properties?.description
+            const location = feature.properties?.location
+            let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
+            if (location)
+              tooltipHTML += `<span class="location-text">${location}</span>`
+            tooltipHTML += `${description}`
+            tooltip.innerHTML = tooltipHTML
+
+            const link = feature.properties?.link || feature.properties?.url
+            tooltip.setAttribute('data-link-url', link || '')
+            tooltip.style.display = 'block'
+          }
+          updateTooltipPosition(e, tooltip, mapContainer)
         })
 
         // Mobile global handlers

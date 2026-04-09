@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import Image from 'next/image'
 import styles from './page.module.css'
@@ -22,6 +22,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   const mapRef = useRef<any>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
 
   function initMap() {
     if (!mapContainerRef.current || !tooltipRef.current || !window.mapboxgl)
@@ -95,6 +96,44 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     // CSS media queries). Watch the container and tell Mapbox to recalculate.
     const resizeObserver = new ResizeObserver(() => map.resize())
     resizeObserver.observe(mapContainer)
+
+    // Repurpose Mapbox's compass button as a "reset map view" button.
+    // addControl synchronously inserts the compass into the DOM, so this
+    // runs reliably without depending on the map 'load' event or pin image
+    // load — both of which previously caused the icon and click handler to
+    // intermittently fail to apply, making the button look missing.
+    const compassButton = mapContainer.querySelector(
+      '.mapboxgl-ctrl-compass'
+    ) as HTMLElement | null
+    if (compassButton) {
+      const iconElement = compassButton.querySelector(
+        '.mapboxgl-ctrl-icon'
+      ) as HTMLElement | null
+      if (iconElement) iconElement.style.backgroundImage = 'none'
+      const resetIconDataUri =
+        "data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M8 3.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM2.5 8a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z' fill='white'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='white'/%3E%3C/svg%3E"
+      compassButton.style.backgroundImage = `url("${resetIconDataUri}")`
+      compassButton.style.backgroundSize = '18px 18px'
+      compassButton.style.backgroundRepeat = 'no-repeat'
+      compassButton.style.backgroundPosition = 'center'
+      compassButton.addEventListener(
+        'click',
+        ev => {
+          ev.preventDefault()
+          ev.stopPropagation()
+          map.flyTo({
+            center: initialCenter,
+            zoom: initialZoom,
+            bearing: 0,
+            pitch: 0,
+            duration: 500,
+            essential: true,
+          })
+        },
+        true
+      )
+      compassButton.setAttribute('title', 'Reset map view')
+    }
 
     const customPin = new window.Image()
     customPin.crossOrigin = 'anonymous'
@@ -350,40 +389,6 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           document.removeEventListener('click', handleDocumentClick)
           resizeObserver.disconnect()
         }
-
-        // Custom reset button
-        const compassButton = mapContainer.querySelector(
-          '.mapboxgl-ctrl-compass'
-        ) as HTMLElement | null
-        if (compassButton) {
-          const iconElement = compassButton.querySelector(
-            '.mapboxgl-ctrl-icon'
-          ) as HTMLElement | null
-          if (iconElement) iconElement.style.backgroundImage = 'none'
-          const resetIconDataUri =
-            "data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M8 3.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM2.5 8a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z' fill='white'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='white'/%3E%3C/svg%3E"
-          compassButton.style.backgroundImage = `url("${resetIconDataUri}")`
-          compassButton.style.backgroundSize = '18px 18px'
-          compassButton.style.backgroundRepeat = 'no-repeat'
-          compassButton.style.backgroundPosition = 'center'
-          compassButton.addEventListener(
-            'click',
-            ev => {
-              ev.preventDefault()
-              ev.stopPropagation()
-              map.flyTo({
-                center: initialCenter,
-                zoom: initialZoom,
-                bearing: 0,
-                pitch: 0,
-                duration: 500,
-                essential: true,
-              })
-            },
-            true
-          )
-          compassButton.setAttribute('title', 'Reset map view')
-        }
       })
     }
 
@@ -411,10 +416,16 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   }
 
   useEffect(() => {
-    // Check if mapboxgl is already available (script loaded on previous mount)
+    // If the script was already loaded (e.g. cached from a previous visit),
+    // mark it as ready so the init effect below fires.
     if (window.mapboxgl) {
-      initMap()
+      setScriptLoaded(true)
     }
+  }, [])
+
+  useEffect(() => {
+    if (!scriptLoaded) return
+    initMap()
     return () => {
       // Clean up event listeners
       if (cleanupRef.current) {
@@ -428,10 +439,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [scriptLoaded])
 
   function handleScriptLoad() {
-    initMap()
+    setScriptLoaded(true)
   }
 
   function handleViewOnline() {

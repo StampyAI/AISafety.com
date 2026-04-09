@@ -26,7 +26,7 @@ const featuredCommunities = [
     activityLevel: 'Very active',
     focus: 'Main focus is AI safety',
     joinLink:
-      'https://join.slack.com/t/ai-alignment/shared_invite/zt-3jqiicbfr-u1lLvDWy6E5WL7uucV~opw',
+      'https://join.slack.com/t/ai-alignment/shared_invite/zt-3oytsoq2q-nzMwWJqs5fl4H~VXA6FQTA',
   },
   {
     id: 'lesswrong',

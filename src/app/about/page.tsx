@@ -60,6 +60,8 @@ export default function AboutPage() {
           <div className="padding-top-24px">
             <a
               href="https://airtable.com/appF8XfZUGXtfi40E/pagUmmzVb8OnVvTZS/form"
+              target="_blank"
+              rel="noopener noreferrer"
               className="button-secondary"
             >
               Send us an email
@@ -180,6 +182,8 @@ export default function AboutPage() {
             </p>
             <a
               href="mailto:bryceerobertson@gmail.com?subject=Volunteering%20for%20AISafety.com"
+              target="_blank"
+              rel="noopener noreferrer"
               className="button-secondary"
             >
               Volunteer
@@ -217,7 +221,7 @@ export default function AboutPage() {
           </div>
           <p className="paragraph-small color-teal-300 padding-top-24px padding-bottom-24px">
             We encourage community members to add listings we may have missed
-            through the ‘Suggest listing’ button on each listing page, or
+            through the ‘Suggest listing’ button on each resource page, or
             suggest corrections using the button below.
           </p>
           <a

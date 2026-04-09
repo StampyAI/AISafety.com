@@ -40,10 +40,10 @@ export default function FundingClient({ funders }: FundingClientProps) {
       }
 
       if (selectedAccepting.length > 0) {
-        const hasMatch = selectedAccepting.some(
-          a =>
-            (funder.acceptingApplications || '').toLowerCase() ===
-            a.toLowerCase()
+        const hasMatch = selectedAccepting.some(a =>
+          (funder.acceptingApplications || '')
+            .toLowerCase()
+            .includes(a.toLowerCase())
         )
         if (!hasMatch) return false
       }
@@ -68,8 +68,9 @@ export default function FundingClient({ funders }: FundingClientProps) {
       (counts, funder) => {
         for (const option of acceptingOptions) {
           if (
-            (funder.acceptingApplications || '').toLowerCase() ===
-            option.toLowerCase()
+            (funder.acceptingApplications || '')
+              .toLowerCase()
+              .includes(option.toLowerCase())
           ) {
             counts[option] = (counts[option] || 0) + 1
           }

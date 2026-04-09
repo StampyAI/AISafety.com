@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import RelativeDate from '@/components/RelativeDate'
 import { fetchAllLastUpdated } from '@/lib/data/last-updated'
-import { formatRelativeDate } from '@/lib/format-date'
 import styles from './page.module.css'
 
 export default async function Home() {
@@ -53,9 +53,10 @@ export default async function Home() {
             View all events and programs
           </Link>
           {dates.events && (
-            <p className={`${styles.date} paragraph-xs shadow-text`}>
-              {formatRelativeDate(dates.events)}
-            </p>
+            <RelativeDate
+              iso={dates.events}
+              className={`${styles.date} paragraph-xs shadow-text`}
+            />
           )}
         </div>
         <div className={styles['card-full-width-1-right-card']}>
@@ -103,9 +104,10 @@ export default async function Home() {
             View map
           </Link>
           {dates.map && (
-            <p className={`${styles.date} paragraph-xs shadow-text opacity-80`}>
-              {formatRelativeDate(dates.map)}
-            </p>
+            <RelativeDate
+              iso={dates.map}
+              className={`${styles.date} paragraph-xs shadow-text opacity-80`}
+            />
           )}
         </div>
       </div>
@@ -126,9 +128,10 @@ export default async function Home() {
             View all communities
           </Link>
           {dates.communities && (
-            <p className={`${styles.date} paragraph-xs`}>
-              {formatRelativeDate(dates.communities)}
-            </p>
+            <RelativeDate
+              iso={dates.communities}
+              className={`${styles.date} paragraph-xs`}
+            />
           )}
         </div>
         <div className={styles['card-full-width-3-right-card-light']}>
@@ -183,9 +186,10 @@ export default async function Home() {
               View all self-study options
             </Link>
             {dates['self-study'] && (
-              <p className={`${styles['date-alt']} paragraph-xs`}>
-                {formatRelativeDate(dates['self-study'])}
-              </p>
+              <RelativeDate
+                iso={dates['self-study']}
+                className={`${styles['date-alt']} paragraph-xs`}
+              />
             )}
           </div>
           <div
@@ -231,9 +235,10 @@ export default async function Home() {
 
         <div className={styles['card-half-width-2']}>
           {dates.jobs && (
-            <p className={`${styles['date-alt']} paragraph-xs opacity-80`}>
-              {formatRelativeDate(dates.jobs)}
-            </p>
+            <RelativeDate
+              iso={dates.jobs}
+              className={`${styles['date-alt']} paragraph-xs opacity-80`}
+            />
           )}
           <p className="paragraph-small-bold padding-bottom-12px opacity-80">
             Find a job
@@ -245,9 +250,10 @@ export default async function Home() {
             View all jobs
           </Link>
           {dates.jobs && (
-            <p className={`${styles['date-alt']} paragraph-xs opacity-80`}>
-              {formatRelativeDate(dates.jobs)}
-            </p>
+            <RelativeDate
+              iso={dates.jobs}
+              className={`${styles['date-alt']} paragraph-xs opacity-80`}
+            />
           )}
         </div>
 
@@ -264,9 +270,10 @@ export default async function Home() {
               View all media channels
             </Link>
             {dates['media-channels'] && (
-              <p className={`${styles['date-alt']} paragraph-xs opacity-80`}>
-                {formatRelativeDate(dates['media-channels'])}
-              </p>
+              <RelativeDate
+                iso={dates['media-channels']}
+                className={`${styles['date-alt']} paragraph-xs opacity-80`}
+              />
             )}
           </div>
         </div>
@@ -283,9 +290,10 @@ export default async function Home() {
               View all funders
             </Link>
             {dates.funding && (
-              <p className={`${styles['date-alt']} paragraph-xs`}>
-                {formatRelativeDate(dates.funding)}
-              </p>
+              <RelativeDate
+                iso={dates.funding}
+                className={`${styles['date-alt']} paragraph-xs`}
+              />
             )}
           </div>
           <div className={styles['card-half-width-bottom-card-light']}>
@@ -306,8 +314,8 @@ export default async function Home() {
                 src="/images/sff.png"
                 alt=""
                 className={styles['icon-homepage']}
-                width={32}
-                height={32}
+                width={56}
+                height={56}
               />
               <h3>Survival and Flourishing Fund</h3>
             </div>
@@ -341,9 +349,10 @@ export default async function Home() {
               View all advisors
             </Link>
             {dates.advisors && (
-              <p className={`${styles['date-alt']} paragraph-xs shadow-text`}>
-                {formatRelativeDate(dates.advisors)}
-              </p>
+              <RelativeDate
+                iso={dates.advisors}
+                className={`${styles['date-alt']} paragraph-xs shadow-text`}
+              />
             )}
           </div>
         </div>
@@ -360,9 +369,10 @@ export default async function Home() {
               View all projects
             </Link>
             {dates.projects && (
-              <p className={`${styles['date-alt']} paragraph-xs`}>
-                {formatRelativeDate(dates.projects)}
-              </p>
+              <RelativeDate
+                iso={dates.projects}
+                className={`${styles['date-alt']} paragraph-xs`}
+              />
             )}
           </div>
           <div className={styles['card-third-width-bottom-card']}>
@@ -405,9 +415,10 @@ export default async function Home() {
               View guide
             </Link>
             {dates['donation-guide'] && (
-              <p className={`${styles['date-alt']} paragraph-xs opacity-80`}>
-                {formatRelativeDate(dates['donation-guide'])}
-              </p>
+              <RelativeDate
+                iso={dates['donation-guide']}
+                className={`${styles['date-alt']} paragraph-xs opacity-80`}
+              />
             )}
           </div>
         </div>

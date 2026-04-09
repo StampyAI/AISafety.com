@@ -8,8 +8,8 @@ interface AirtableRecord {
     'Project Name'?: string
     'Description (short)'?: string
     Status?: string | string[]
-    Website?: string
     'Contact name'?: string
+    'Contact email'?: string
   }
 }
 
@@ -19,8 +19,8 @@ export interface Project {
   description: string
   logo: string | null
   contact: string
+  email: string | null
   status: string
-  url: string
 }
 
 export async function getProjects(): Promise<Project[]> {
@@ -42,10 +42,10 @@ export async function getProjects(): Promise<Project[]> {
       description: fields['Description (short)'] || '',
       logo: null,
       contact: fields['Contact name'] || '',
+      email: fields['Contact email'] || null,
       status: Array.isArray(fields.Status)
         ? fields.Status.join(', ')
         : fields.Status || '',
-      url: fields.Website || '#',
     })
   }
 

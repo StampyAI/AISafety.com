@@ -20,6 +20,10 @@
   transform: scale(1.015);
 }
 
+.cardStatic:hover {
+  transform: scale(1);
+}
+
 .bookmark {
   position: absolute;
   top: 0;

@@ -37,27 +37,25 @@ export default async function ProjectsPage() {
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
           <FeaturedCard
-            href="https://huggingface.co/datasets/StampyAI/alignment-research-dataset"
             tagline="Seeking maintainer"
             name="Alignment Research Dataset"
             description="Regularly scrapes all major sources of alignment data for use by the Stampy chatbot and other projects. Currently needs someone to maintain it."
             metadata={[
               {
                 label: 'Contact',
-                value: 'Olivier Coutu\ncoutu.olivier@gmail.com',
+                value: ['Olivier Coutu', 'coutu.olivier@gmail.com'],
               },
               { label: 'Status', value: 'Active' },
             ]}
           />
           <FeaturedCard
-            href="https://aisafetyfeed.com/"
             tagline="Content curation platform"
             name="AI Safety Feed"
             description="Curated stream for AI safety content, gathering posts and research from key sources. AI helps summarize, tag, and rate the novelty of content."
             metadata={[
               {
                 label: 'Contact',
-                value: 'Matt Brooks\nmatthewrbrooks94@gmail.com',
+                value: ['Matt Brooks', 'matthewrbrooks94@gmail.com'],
               },
               { label: 'Status', value: 'Active' },
             ]}

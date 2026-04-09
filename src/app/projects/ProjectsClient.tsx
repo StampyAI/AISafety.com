@@ -87,13 +87,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
 
         <div className="collection-list padding-bottom-40px">
           {filteredProjects.map(project => (
-            <a
-              key={project.id}
-              href={project.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-            >
+            <div key={project.id} className="card card-static">
               <h3 className="padding-bottom-24px">{project.name}</h3>
               <p className="paragraph-small padding-bottom-24px">
                 {project.description}
@@ -101,14 +95,15 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
                 Contact
               </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {project.contact}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
+              <p className="paragraph-small">{project.contact}</p>
+              {project.email && (
+                <p className="paragraph-small">{project.email}</p>
+              )}
+              <p className="paragraph-xs-bold padding-top-16px padding-bottom-4px color-teal-400">
                 Status
               </p>
               <p className="paragraph-small">{project.status}</p>
-            </a>
+            </div>
           ))}
           {filteredProjects.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>

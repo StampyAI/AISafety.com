@@ -135,16 +135,18 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       compassButton.setAttribute('title', 'Reset map view')
     }
 
-    // Load the pin image and wait for the map to be ready independently,
-    // then add the layer once BOTH are done. Previously the image load was
-    // nested inside `map.on('load', ...)`, which created a race: on an
-    // uncached first visit the image resolved AFTER the map 'load' event had
-    // already fired, so the listener attached too late and never ran —
-    // leaving the map with no pins until a refresh.
+    // Start loading the pin image immediately, in parallel with the map
+    // style. Wrapping it in a promise lets us await it alongside the map's
+    // `style.load` event without nesting callbacks (the nested version
+    // caused a race where the image resolved after the map event fired and
+    // the listener attached too late — leaving the map pin-less on an
+    // uncached first visit).
     const pinImagePromise = new Promise<HTMLImageElement | HTMLCanvasElement>(
       resolve => {
+        // No `crossOrigin` set — /images/pin.svg is same-origin, and
+        // setting it would cause the browser to issue a second fetch that
+        // doesn't match the `<link rel="preload">` hint.
         const customPin = new window.Image()
-        customPin.crossOrigin = 'anonymous'
         customPin.onload = () => resolve(customPin)
         customPin.onerror = () => {
           // Fallback: generate a simple canvas pin if the SVG fails to load.
@@ -166,15 +168,22 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       }
     )
 
-    const mapLoadPromise = new Promise<void>(resolve => {
-      if (map.loaded()) {
+    // Use `style.load` instead of `load`. Mapbox's `load` event waits for
+    // the first complete tile render before firing, which introduces a
+    // visible gap where the basemap is painted but the pins aren't added
+    // yet. `style.load` fires as soon as the style JSON is parsed — well
+    // before any tiles come back — so we can register the source and
+    // layer early enough that pins render in the *same frame* as the
+    // first tiles, not a second or two after.
+    const styleLoadPromise = new Promise<void>(resolve => {
+      if (map.isStyleLoaded()) {
         resolve()
       } else {
-        map.once('load', () => resolve())
+        map.once('style.load', () => resolve())
       }
     })
 
-    Promise.all([pinImagePromise, mapLoadPromise]).then(([pinImage]) => {
+    Promise.all([pinImagePromise, styleLoadPromise]).then(([pinImage]) => {
       if (!map.hasImage('custom-pin')) {
         map.addImage('custom-pin', pinImage)
       }

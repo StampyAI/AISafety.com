@@ -135,266 +135,19 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       compassButton.setAttribute('title', 'Reset map view')
     }
 
-    const customPin = new window.Image()
-    customPin.crossOrigin = 'anonymous'
-
-    customPin.onload = function () {
-      map.on('load', function () {
-        if (!map.hasImage('custom-pin')) {
-          map.addImage('custom-pin', customPin)
-        }
-
-        let hoveredPinId: number | null = null
-        let tappedPinId: number | null = null
-
-        const geojsonData = {
-          type: 'FeatureCollection' as const,
-          features: mapCommunities.map((community, index) => ({
-            type: 'Feature' as const,
-            id: index,
-            properties: {
-              id: index,
-              name: community.name,
-              description: community.description,
-              type: community.type,
-              url: community.url,
-              link: community.link,
-              location: community.location,
-              baseSize:
-                community.type === 'city'
-                  ? 0.25
-                  : community.type === 'country'
-                    ? 0.35
-                    : 0.45,
-              hover: false,
-            },
-            geometry: {
-              type: 'Point' as const,
-              coordinates: community.coordinates,
-            },
-          })),
-        }
-
-        map.addSource('communities', { type: 'geojson', data: geojsonData })
-
-        map.addLayer({
-          id: 'community-pins',
-          type: 'symbol',
-          source: 'communities',
-          layout: {
-            'icon-image': 'custom-pin',
-            'icon-size': [
-              'case',
-              ['boolean', ['get', 'hover'], false],
-              ['*', ['get', 'baseSize'], 1.2],
-              ['get', 'baseSize'],
-            ],
-            'icon-anchor': 'center',
-            'icon-allow-overlap': true,
-          },
-        })
-
-        function updateTooltipPosition(
-          e: any,
-          tt: HTMLDivElement,
-          container: HTMLDivElement
-        ) {
-          const mapRect = container.getBoundingClientRect()
-          const cursorX = e.originalEvent.clientX
-          const cursorY = e.originalEvent.clientY
-          const tooltipWidth = tt.offsetWidth
-          const tooltipHeight = tt.offsetHeight
-          const offset = 15
-
-          let finalY: number
-          const spaceBelow = mapRect.bottom - (cursorY + offset)
-          const spaceAbove = cursorY - offset - mapRect.top
-          if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
-            finalY = cursorY + offset
-            if (finalY + tooltipHeight > mapRect.bottom)
-              finalY = mapRect.bottom - tooltipHeight - 2
-          } else {
-            finalY = cursorY - offset - tooltipHeight
-            if (finalY < mapRect.top) finalY = mapRect.top + 2
-          }
-
-          let finalX: number
-          const spaceRight = mapRect.right - (cursorX + offset)
-          const spaceLeft = cursorX - offset - mapRect.left
-          if (spaceRight >= tooltipWidth || spaceRight >= spaceLeft) {
-            finalX = cursorX + offset
-            if (finalX + tooltipWidth > mapRect.right)
-              finalX = mapRect.right - tooltipWidth - 2
-          } else {
-            finalX = cursorX - offset - tooltipWidth
-            if (finalX < mapRect.left) finalX = mapRect.left + 2
-          }
-
-          tt.style.left = finalX + 'px'
-          tt.style.top = finalY + 'px'
-
-          if (isMobile()) {
-            const minLeftMargin = 20
-            if (finalX < minLeftMargin) tt.style.left = minLeftMargin + 'px'
-          }
-        }
-
-        function setData(data: any) {
-          map.getSource('communities').setData(data)
-        }
-
-        function resetHover() {
-          geojsonData.features.forEach((f: any) => (f.properties.hover = false))
-          setData(geojsonData)
-        }
-
-        // Desktop hover
-        map.on('mousemove', 'community-pins', (e: any) => {
-          if (isMobile() || !e.features || e.features.length === 0) {
-            if (!isMobile() && hoveredPinId !== null) {
-              map.getCanvas().style.cursor = ''
-              resetHover()
-              hoveredPinId = null
-              tooltip.style.display = 'none'
-            }
-            return
-          }
-          map.getCanvas().style.cursor = 'pointer'
-          const feature = e.features[0]
-          const currentFeatureId = feature.id as number
-          if (hoveredPinId !== currentFeatureId) {
-            geojsonData.features.forEach((f: any) => {
-              f.properties.hover = f.id === currentFeatureId
-            })
-            setData(geojsonData)
-            hoveredPinId = currentFeatureId
-            const name = feature.properties?.name
-            const description = feature.properties?.description
-            const location = feature.properties?.location
-            let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
-            if (location)
-              tooltipHTML += `<span class="location-text">${location}</span>`
-            tooltipHTML += `${description}`
-            tooltip.innerHTML = tooltipHTML
-            tooltip.style.display = 'block'
-          }
-          updateTooltipPosition(e, tooltip, mapContainer)
-        })
-
-        map.on('mouseleave', 'community-pins', () => {
-          if (isMobile()) return
-          if (hoveredPinId !== null) {
-            map.getCanvas().style.cursor = ''
-            resetHover()
-            hoveredPinId = null
-            tooltip.style.display = 'none'
-          }
-        })
-
-        // Click handler — desktop opens the listing directly. Mobile shows
-        // the tooltip first so users can preview the info; tapping the
-        // tooltip then opens the listing (handled below).
-        map.on('click', 'community-pins', (e: any) => {
-          if (!e.features || e.features.length === 0) return
-          const feature = e.features[0]
-
-          if (!isMobile()) {
-            const link = feature.properties?.link || feature.properties?.url
-            if (link && link !== '#') window.open(link, '_blank')
-            return
-          }
-
-          const currentFeatureId = feature.id as number
-          if (tappedPinId !== currentFeatureId) {
-            geojsonData.features.forEach((f: any) => {
-              f.properties.hover = f.id === currentFeatureId
-            })
-            setData(geojsonData)
-            tappedPinId = currentFeatureId
-
-            const name = feature.properties?.name
-            const description = feature.properties?.description
-            const location = feature.properties?.location
-            let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
-            if (location)
-              tooltipHTML += `<span class="location-text">${location}</span>`
-            tooltipHTML += `${description}`
-            tooltip.innerHTML = tooltipHTML
-
-            const link = feature.properties?.link || feature.properties?.url
-            tooltip.setAttribute('data-link-url', link || '')
-            tooltip.style.display = 'block'
-          }
-          updateTooltipPosition(e, tooltip, mapContainer)
-        })
-
-        // Tooltip tap → open listing. Registered unconditionally so it
-        // still works if the viewport is resized to mobile after load.
-        const handleTooltipClick = function (e: MouseEvent) {
-          if ((e.target as HTMLElement).closest('#mapbox-tooltip')) {
-            const lnk = tooltip.getAttribute('data-link-url')
-            if (lnk && lnk !== '#') {
-              tooltip.style.display = 'none'
-              if (tappedPinId !== null) {
-                resetHover()
-                tappedPinId = null
-              }
-              window.open(lnk, '_blank')
-            }
-            e.stopPropagation()
-          }
-        }
-
-        // Tap outside any pin/tooltip → dismiss tooltip.
-        const handleDocumentClick = function (e: MouseEvent) {
-          const clickedOnMapCanvas = (e.target as HTMLElement).closest(
-            '.mapboxgl-canvas'
-          ) as HTMLCanvasElement | null
-          const clickedOnTooltip = (e.target as HTMLElement).closest(
-            '#mapbox-tooltip'
-          )
-          let clickedOnPin = false
-          if (clickedOnMapCanvas && map.queryRenderedFeatures) {
-            try {
-              // queryRenderedFeatures expects canvas-relative coordinates,
-              // not viewport coordinates. Without this offset the lookup
-              // misses the pin when the map sits below any header.
-              const canvasRect = clickedOnMapCanvas.getBoundingClientRect()
-              const features = map.queryRenderedFeatures(
-                [e.clientX - canvasRect.left, e.clientY - canvasRect.top],
-                { layers: ['community-pins'] }
-              )
-              clickedOnPin = features.length > 0
-            } catch {
-              /* Ignore - map may be in invalid state */
-            }
-          }
-          if (!clickedOnTooltip && !clickedOnPin) {
-            if (tooltip.style.display !== 'none') {
-              tooltip.style.display = 'none'
-              if (tappedPinId !== null) {
-                resetHover()
-                tappedPinId = null
-              }
-            }
-          }
-        }
-
-        tooltip.addEventListener('click', handleTooltipClick)
-        document.addEventListener('click', handleDocumentClick)
-
-        // Store cleanup function for useEffect teardown
-        cleanupRef.current = () => {
-          tooltip.removeEventListener('click', handleTooltipClick)
-          document.removeEventListener('click', handleDocumentClick)
-          resizeObserver.disconnect()
-        }
-      })
-    }
-
-    customPin.onerror = function () {
-      map.on('load', function () {
-        if (!map.hasImage('custom-pin')) {
+    // Load the pin image and wait for the map to be ready independently,
+    // then add the layer once BOTH are done. Previously the image load was
+    // nested inside `map.on('load', ...)`, which created a race: on an
+    // uncached first visit the image resolved AFTER the map 'load' event had
+    // already fired, so the listener attached too late and never ran —
+    // leaving the map with no pins until a refresh.
+    const pinImagePromise = new Promise<HTMLImageElement | HTMLCanvasElement>(
+      resolve => {
+        const customPin = new window.Image()
+        customPin.crossOrigin = 'anonymous'
+        customPin.onload = () => resolve(customPin)
+        customPin.onerror = () => {
+          // Fallback: generate a simple canvas pin if the SVG fails to load.
           const canvas = document.createElement('canvas')
           const size = 20
           canvas.width = size
@@ -407,12 +160,271 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           ctx.lineWidth = 1
           ctx.strokeStyle = '#ffffff'
           ctx.stroke()
-          map.addImage('custom-pin', canvas)
+          resolve(canvas)
+        }
+        customPin.src = '/images/pin.svg'
+      }
+    )
+
+    const mapLoadPromise = new Promise<void>(resolve => {
+      if (map.loaded()) {
+        resolve()
+      } else {
+        map.once('load', () => resolve())
+      }
+    })
+
+    Promise.all([pinImagePromise, mapLoadPromise]).then(([pinImage]) => {
+      if (!map.hasImage('custom-pin')) {
+        map.addImage('custom-pin', pinImage)
+      }
+
+      let hoveredPinId: number | null = null
+      let tappedPinId: number | null = null
+
+      const geojsonData = {
+        type: 'FeatureCollection' as const,
+        features: mapCommunities.map((community, index) => ({
+          type: 'Feature' as const,
+          id: index,
+          properties: {
+            id: index,
+            name: community.name,
+            description: community.description,
+            type: community.type,
+            url: community.url,
+            link: community.link,
+            location: community.location,
+            baseSize:
+              community.type === 'city'
+                ? 0.25
+                : community.type === 'country'
+                  ? 0.35
+                  : 0.45,
+            hover: false,
+          },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: community.coordinates,
+          },
+        })),
+      }
+
+      map.addSource('communities', { type: 'geojson', data: geojsonData })
+
+      map.addLayer({
+        id: 'community-pins',
+        type: 'symbol',
+        source: 'communities',
+        layout: {
+          'icon-image': 'custom-pin',
+          'icon-size': [
+            'case',
+            ['boolean', ['get', 'hover'], false],
+            ['*', ['get', 'baseSize'], 1.2],
+            ['get', 'baseSize'],
+          ],
+          'icon-anchor': 'center',
+          'icon-allow-overlap': true,
+        },
+      })
+
+      function updateTooltipPosition(
+        e: any,
+        tt: HTMLDivElement,
+        container: HTMLDivElement
+      ) {
+        const mapRect = container.getBoundingClientRect()
+        const cursorX = e.originalEvent.clientX
+        const cursorY = e.originalEvent.clientY
+        const tooltipWidth = tt.offsetWidth
+        const tooltipHeight = tt.offsetHeight
+        const offset = 15
+
+        let finalY: number
+        const spaceBelow = mapRect.bottom - (cursorY + offset)
+        const spaceAbove = cursorY - offset - mapRect.top
+        if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
+          finalY = cursorY + offset
+          if (finalY + tooltipHeight > mapRect.bottom)
+            finalY = mapRect.bottom - tooltipHeight - 2
+        } else {
+          finalY = cursorY - offset - tooltipHeight
+          if (finalY < mapRect.top) finalY = mapRect.top + 2
+        }
+
+        let finalX: number
+        const spaceRight = mapRect.right - (cursorX + offset)
+        const spaceLeft = cursorX - offset - mapRect.left
+        if (spaceRight >= tooltipWidth || spaceRight >= spaceLeft) {
+          finalX = cursorX + offset
+          if (finalX + tooltipWidth > mapRect.right)
+            finalX = mapRect.right - tooltipWidth - 2
+        } else {
+          finalX = cursorX - offset - tooltipWidth
+          if (finalX < mapRect.left) finalX = mapRect.left + 2
+        }
+
+        tt.style.left = finalX + 'px'
+        tt.style.top = finalY + 'px'
+
+        if (isMobile()) {
+          const minLeftMargin = 20
+          if (finalX < minLeftMargin) tt.style.left = minLeftMargin + 'px'
+        }
+      }
+
+      function setData(data: any) {
+        map.getSource('communities').setData(data)
+      }
+
+      function resetHover() {
+        geojsonData.features.forEach((f: any) => (f.properties.hover = false))
+        setData(geojsonData)
+      }
+
+      // Desktop hover
+      map.on('mousemove', 'community-pins', (e: any) => {
+        if (isMobile() || !e.features || e.features.length === 0) {
+          if (!isMobile() && hoveredPinId !== null) {
+            map.getCanvas().style.cursor = ''
+            resetHover()
+            hoveredPinId = null
+            tooltip.style.display = 'none'
+          }
+          return
+        }
+        map.getCanvas().style.cursor = 'pointer'
+        const feature = e.features[0]
+        const currentFeatureId = feature.id as number
+        if (hoveredPinId !== currentFeatureId) {
+          geojsonData.features.forEach((f: any) => {
+            f.properties.hover = f.id === currentFeatureId
+          })
+          setData(geojsonData)
+          hoveredPinId = currentFeatureId
+          const name = feature.properties?.name
+          const description = feature.properties?.description
+          const location = feature.properties?.location
+          let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
+          if (location)
+            tooltipHTML += `<span class="location-text">${location}</span>`
+          tooltipHTML += `${description}`
+          tooltip.innerHTML = tooltipHTML
+          tooltip.style.display = 'block'
+        }
+        updateTooltipPosition(e, tooltip, mapContainer)
+      })
+
+      map.on('mouseleave', 'community-pins', () => {
+        if (isMobile()) return
+        if (hoveredPinId !== null) {
+          map.getCanvas().style.cursor = ''
+          resetHover()
+          hoveredPinId = null
+          tooltip.style.display = 'none'
         }
       })
-    }
 
-    customPin.src = '/images/pin.svg'
+      // Click handler — desktop opens the listing directly. Mobile shows
+      // the tooltip first so users can preview the info; tapping the
+      // tooltip then opens the listing (handled below).
+      map.on('click', 'community-pins', (e: any) => {
+        if (!e.features || e.features.length === 0) return
+        const feature = e.features[0]
+
+        if (!isMobile()) {
+          const link = feature.properties?.link || feature.properties?.url
+          if (link && link !== '#') window.open(link, '_blank')
+          return
+        }
+
+        const currentFeatureId = feature.id as number
+        if (tappedPinId !== currentFeatureId) {
+          geojsonData.features.forEach((f: any) => {
+            f.properties.hover = f.id === currentFeatureId
+          })
+          setData(geojsonData)
+          tappedPinId = currentFeatureId
+
+          const name = feature.properties?.name
+          const description = feature.properties?.description
+          const location = feature.properties?.location
+          let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
+          if (location)
+            tooltipHTML += `<span class="location-text">${location}</span>`
+          tooltipHTML += `${description}`
+          tooltip.innerHTML = tooltipHTML
+
+          const link = feature.properties?.link || feature.properties?.url
+          tooltip.setAttribute('data-link-url', link || '')
+          tooltip.style.display = 'block'
+        }
+        updateTooltipPosition(e, tooltip, mapContainer)
+      })
+
+      // Tooltip tap → open listing. Registered unconditionally so it
+      // still works if the viewport is resized to mobile after load.
+      const handleTooltipClick = function (e: MouseEvent) {
+        if ((e.target as HTMLElement).closest('#mapbox-tooltip')) {
+          const lnk = tooltip.getAttribute('data-link-url')
+          if (lnk && lnk !== '#') {
+            tooltip.style.display = 'none'
+            if (tappedPinId !== null) {
+              resetHover()
+              tappedPinId = null
+            }
+            window.open(lnk, '_blank')
+          }
+          e.stopPropagation()
+        }
+      }
+
+      // Tap outside any pin/tooltip → dismiss tooltip.
+      const handleDocumentClick = function (e: MouseEvent) {
+        const clickedOnMapCanvas = (e.target as HTMLElement).closest(
+          '.mapboxgl-canvas'
+        ) as HTMLCanvasElement | null
+        const clickedOnTooltip = (e.target as HTMLElement).closest(
+          '#mapbox-tooltip'
+        )
+        let clickedOnPin = false
+        if (clickedOnMapCanvas && map.queryRenderedFeatures) {
+          try {
+            // queryRenderedFeatures expects canvas-relative coordinates,
+            // not viewport coordinates. Without this offset the lookup
+            // misses the pin when the map sits below any header.
+            const canvasRect = clickedOnMapCanvas.getBoundingClientRect()
+            const features = map.queryRenderedFeatures(
+              [e.clientX - canvasRect.left, e.clientY - canvasRect.top],
+              { layers: ['community-pins'] }
+            )
+            clickedOnPin = features.length > 0
+          } catch {
+            /* Ignore - map may be in invalid state */
+          }
+        }
+        if (!clickedOnTooltip && !clickedOnPin) {
+          if (tooltip.style.display !== 'none') {
+            tooltip.style.display = 'none'
+            if (tappedPinId !== null) {
+              resetHover()
+              tappedPinId = null
+            }
+          }
+        }
+      }
+
+      tooltip.addEventListener('click', handleTooltipClick)
+      document.addEventListener('click', handleDocumentClick)
+
+      // Store cleanup function for useEffect teardown
+      cleanupRef.current = () => {
+        tooltip.removeEventListener('click', handleTooltipClick)
+        document.removeEventListener('click', handleDocumentClick)
+        resizeObserver.disconnect()
+      }
+    })
   }
 
   useEffect(() => {

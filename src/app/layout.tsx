@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import Script from 'next/script'
+import { Suspense } from 'react'
 import './globals.css'
 import LayoutShell from '@/components/LayoutShell'
+import MatomoRouteTracker from '@/components/MatomoRouteTracker'
 import { fetchAllCounts } from '@/lib/data/counts'
 
 const inter = Inter({
@@ -65,6 +67,9 @@ export default async function RootLayout({
             })();
           `}
         </Script>
+        <Suspense fallback={null}>
+          <MatomoRouteTracker />
+        </Suspense>
         <LayoutShell counts={counts}>{children}</LayoutShell>
       </body>
     </html>

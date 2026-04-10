@@ -6,7 +6,7 @@ import styles from './page.module.css'
 const EMBEDS = [
   {
     src: 'https://airtable.com/embed/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc?viewControls=on',
-    height: 2600,
+    height: 2800,
     className: `${styles['airtable-embed']} ${styles['airtable-embed-mobile']} margin-bottom-40px`,
   },
   {

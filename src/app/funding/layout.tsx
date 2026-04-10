@@ -3,7 +3,13 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Funding – AISafety.com',
   description:
-    'Organizations providing financial support to organizations and individuals working on AI safety.',
+    'Sources of financial support for organizations and individuals working on AI safety.',
+  openGraph: {
+    title: 'Funding – AISafety.com',
+    description:
+      'Sources of financial support for organizations and individuals working on AI safety.',
+    images: [{ url: '/images/link-preview.png' }],
+  },
 }
 
 export default function FundingLayout({

@@ -1,9 +1,14 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Founder Toolkit – AISafety.com',
-  description:
-    'Resources for starting and growing an AI safety organization – including incubators, fiscal sponsors, venture capital, and practical guides.',
+  title: 'Founder toolkit – AISafety.com',
+  description: 'Resources for starting and growing an AI safety organization.',
+  openGraph: {
+    title: 'Founder toolkit – AISafety.com',
+    description:
+      'Resources for starting and growing an AI safety organization.',
+    images: [{ url: '/images/link-preview.png' }],
+  },
 }
 
 export default function FoundersLayout({

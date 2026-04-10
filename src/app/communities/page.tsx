@@ -11,6 +11,12 @@ export const metadata = {
   title: 'Communities – AISafety.com',
   description:
     'Groups dedicated to discussing and contributing to AI safety, both online and in-person.',
+  openGraph: {
+    title: 'Communities – AISafety.com',
+    description:
+      'Groups dedicated to discussing and contributing to AI safety, both online and in-person.',
+    images: [{ url: '/images/link-preview.png' }],
+  },
 }
 
 // Featured communities data (hardcoded as these are special highlights)

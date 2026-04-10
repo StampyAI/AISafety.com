@@ -5,9 +5,15 @@ import EventsEmbeds from './EventsEmbeds'
 import styles from './page.module.css'
 
 export const metadata = {
-  title: 'Events & Training – AISafety.com',
+  title: 'Events & training – AISafety.com',
   description:
     'AI safety events and training programs, both online and in-person.',
+  openGraph: {
+    title: 'Events & training – AISafety.com',
+    description:
+      'AI safety events and training programs, both online and in-person.',
+    images: [{ url: '/images/link-preview.png' }],
+  },
 }
 
 export default async function EventsAndTrainingPage() {

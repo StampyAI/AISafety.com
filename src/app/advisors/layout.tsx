@@ -3,7 +3,13 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Advisors – AISafety.com',
   description:
-    'These advisors offer free guidance calls to help you most effectively contribute to AI safety.',
+    'Advisors offering free guidance calls to help you most effectively contribute to AI safety.',
+  openGraph: {
+    title: 'Advisors – AISafety.com',
+    description:
+      'Advisors offering free guidance calls to help you most effectively contribute to AI safety.',
+    images: [{ url: '/images/link-preview.png' }],
+  },
 }
 
 export default function AdvisorsLayout({

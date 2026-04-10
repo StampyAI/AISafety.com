@@ -3,6 +3,11 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Jobs – AISafety.com',
   description: 'A list of current open positions in AI safety.',
+  openGraph: {
+    title: 'Jobs – AISafety.com',
+    description: 'A list of current open positions in AI safety.',
+    images: [{ url: '/images/link-preview.png' }],
+  },
 }
 
 export default function JobsLayout({

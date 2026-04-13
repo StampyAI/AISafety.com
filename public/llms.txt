@@ -1,0 +1,26 @@
+# AISafety.com
+
+> AISafety.com is the hub for AI existential safety. We provide curated, up-to-date resource pages to help people learn about, contribute to, and find their place in the AI safety ecosystem. Run by a small nonprofit team and 30+ volunteers.
+
+AISafety.com is focused on preventing human extinction from advanced AI. The site is a collection of regularly maintained resource directories — each one a curated list of opportunities, organizations, or materials in a specific category. All listings are maintained by hand with community input.
+
+The site does not publish articles or research. It is a directory and discovery tool for the AI safety field.
+
+## Resource Pages
+
+- [Events and Training](https://aisafety.com/events-and-training): Upcoming events, workshops, conferences, and training programs in AI safety — both online and in-person
+- [Field Map](https://aisafety.com/map): An interactive visual overview of key organizations, programs, and projects in AI safety
+- [Communities](https://aisafety.com/communities): Online and in-person groups dedicated to discussing and contributing to AI safety
+- [Self-Study](https://aisafety.com/self-study): Courses, curricula, and study guides for learning AI safety independently
+- [Jobs](https://aisafety.com/jobs): Open positions in AI safety across research, policy, engineering, operations, and more
+- [Funding](https://aisafety.com/funding): Organizations and programs offering financial support for AI safety projects and research
+- [Media Channels](https://aisafety.com/media-channels): Podcasts, newsletters, YouTube channels, and other media covering AI safety
+- [Advisors](https://aisafety.com/advisors): People offering free 1-on-1 calls to help others contribute effectively to AI safety
+- [Volunteer Projects](https://aisafety.com/projects): Open-source and volunteer-driven tools and projects supporting the AI safety ecosystem
+- [Donation Guide](https://aisafety.com/donation-guide): Guidance on how to donate effectively to AI safety organizations
+- [Founder Toolkit](https://aisafety.com/founders): Resources for starting a new AI safety organization or project
+
+## Other Pages
+
+- [About](https://aisafety.com/about): Information about the team, mission, and how to get involved
+- [AISafety.info](https://aisafety.info): Sister site explaining what AI safety is, why it matters, and what you can do to help

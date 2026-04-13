@@ -309,7 +309,7 @@ export default function MapClient({
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}
               noun="listing"
-              suggestEntryDescription="Suggest something to be listed on the map"
+              suggestEntryDescription="Suggest a resource to be published here"
               extraLinks={[
                 {
                   label: 'View raw data',

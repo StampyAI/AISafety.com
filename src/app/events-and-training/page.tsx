@@ -61,8 +61,7 @@ export default async function EventsAndTrainingPage() {
               Suggest listing <span className="color-teal-400">&rarr;</span>
             </p>
             <p className={styles['action-description']}>
-              Suggest an event or training program to be listed here and in the
-              newsletter
+              Suggest a resource to be published here
             </p>
           </Link>
 

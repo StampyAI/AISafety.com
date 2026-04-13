@@ -158,7 +158,7 @@ export default function MediaChannelsClient({
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagSZ7vJj9MHyYmtS/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="media source"
-          suggestEntryDescription="Suggest an information source to be listed here"
+          suggestEntryDescription="Suggest a resource to be published here"
           suggestCorrectionDescription="Let us know of changes to an entry"
         />
       </div>

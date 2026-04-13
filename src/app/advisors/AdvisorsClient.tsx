@@ -187,7 +187,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="advisor"
-          suggestEntryDescription="Suggest an advisor to be listed here"
+          suggestEntryDescription="Suggest a resource to be published here"
           suggestCorrectionDescription="Let us know of changes that should be made"
           extraLinks={[
             {

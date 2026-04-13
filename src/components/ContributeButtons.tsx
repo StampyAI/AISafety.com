@@ -30,7 +30,7 @@ export default function ContributeButtons({
           Suggest listing <span className="color-teal-400">&rarr;</span>
         </p>
         <p className="paragraph-small color-teal-300">
-          {suggestEntryDescription || `Suggest a ${noun} to be listed here`}
+          {suggestEntryDescription || 'Suggest a resource to be published here'}
         </p>
       </a>
       <a href={suggestCorrectionUrl} target="_blank" rel="noopener noreferrer">

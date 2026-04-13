@@ -20,7 +20,7 @@ export default async function FoundersPage() {
   return (
     <div className="container-default">
       <PageHeader
-        title="Founder Toolkit"
+        title="Founder toolkit"
         lastUpdated={lastUpdated.formattedDate}
         description={
           <>

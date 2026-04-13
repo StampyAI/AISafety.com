@@ -13,6 +13,10 @@
   color: inherit;
 }
 
+.action-link:hover {
+  opacity: 0.8;
+}
+
 .action-description {
   line-height: 160%;
   color: var(--teal-300);

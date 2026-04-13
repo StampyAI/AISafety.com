@@ -27,7 +27,7 @@ export default function ContributeButtons({
     <div className={styles.wrapper}>
       <a href={suggestEntryUrl} target="_blank" rel="noopener noreferrer">
         <p className="paragraph-default-bold padding-bottom-8px">
-          Suggest entry <span className="color-teal-400">&rarr;</span>
+          Suggest listing <span className="color-teal-400">&rarr;</span>
         </p>
         <p className="paragraph-small color-teal-300">
           {suggestEntryDescription || `Suggest a ${noun} to be listed here`}

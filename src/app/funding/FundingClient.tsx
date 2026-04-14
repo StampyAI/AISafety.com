@@ -41,8 +41,11 @@ export default function FundingClient({ funders }: FundingClientProps) {
       }
 
       if (selectedAccepting.length > 0) {
-        if (!selectedAccepting.includes(funder.acceptingApplications || ''))
-          return false
+        // Airtable values are prefixed: "Yes – rolling basis", "Yes – closes …", or "No".
+        // Match on the prefix so the Yes/No filter catches all variants.
+        const accepting = funder.acceptingApplications || ''
+        const hasMatch = selectedAccepting.some(a => accepting.startsWith(a))
+        if (!hasMatch) return false
       }
 
       if (selectedTypes.length > 0) {
@@ -58,9 +61,11 @@ export default function FundingClient({ funders }: FundingClientProps) {
   const acceptingCounts = useMemo(() => {
     return funders.reduce(
       (counts, funder) => {
+        const accepting = funder.acceptingApplications || ''
         for (const option of acceptingOptions) {
-          if ((funder.acceptingApplications || '') === option) {
+          if (accepting.startsWith(option)) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts

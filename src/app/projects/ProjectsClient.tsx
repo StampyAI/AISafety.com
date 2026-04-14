@@ -42,6 +42,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
         for (const option of statusOptions) {
           if (project.status === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts

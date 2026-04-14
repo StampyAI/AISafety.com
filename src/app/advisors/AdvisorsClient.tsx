@@ -50,6 +50,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
         for (const option of focusOptions) {
           if (advisor.focus === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts
@@ -64,6 +65,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
         for (const option of statusOptions) {
           if (advisor.status === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts

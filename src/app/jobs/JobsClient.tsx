@@ -71,7 +71,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       }
 
       if (selectedExperience.length > 0) {
-        if (!selectedExperience.includes(job.minimumExperience)) return false
+        const jobExperience = job.minimumExperience
+          .split(',')
+          .map(e => e.trim())
+        const hasMatch = selectedExperience.some(e => jobExperience.includes(e))
+        if (!hasMatch) return false
       }
 
       if (selectedRoles.length > 0) {
@@ -113,8 +117,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const experienceCounts = useMemo(() => {
     return jobs.reduce(
       (counts, job) => {
+        const jobExperience = job.minimumExperience
+          .split(',')
+          .map(e => e.trim())
         for (const option of experienceOptions) {
-          if (job.minimumExperience === option) {
+          if (jobExperience.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -145,6 +152,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
         for (const option of workLocationOptions) {
           if (job.workLocation === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts

@@ -19,7 +19,7 @@ const categoryOptions = [
   'Strategy',
 ]
 
-const typeOptions = ['Curriculum', 'Reading list']
+const typeOptions = ['Curriculum', 'Reading List']
 
 export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -40,21 +40,16 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
       }
 
       if (selectedCategories.length > 0) {
-        const courseCategories = course.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const courseCategories = course.category.split(',').map(c => c.trim())
         const hasMatchingCategory = selectedCategories.some(cat =>
-          courseCategories.some(cc => cc.includes(cat.toLowerCase()))
+          courseCategories.includes(cat)
         )
         if (!hasMatchingCategory) return false
       }
 
       if (selectedTypes.length > 0) {
-        const courseType = course.courseType.toLowerCase().trim()
-        const hasMatchingType = selectedTypes.some(t =>
-          courseType.includes(t.toLowerCase())
-        )
+        const courseTypes = course.courseType.split(',').map(t => t.trim())
+        const hasMatchingType = selectedTypes.some(t => courseTypes.includes(t))
         if (!hasMatchingType) return false
       }
 
@@ -65,13 +60,9 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const categoryCounts = useMemo(() => {
     return courses.reduce(
       (counts, course) => {
-        const courseCategories = course.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const courseCategories = course.category.split(',').map(c => c.trim())
         for (const category of categoryOptions) {
-          const catLower = category.toLowerCase()
-          if (courseCategories.some(cc => cc.includes(catLower))) {
+          if (courseCategories.includes(category)) {
             counts[category] = (counts[category] || 0) + 1
           }
         }
@@ -84,9 +75,9 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const typeCounts = useMemo(() => {
     return courses.reduce(
       (counts, course) => {
-        const courseType = course.courseType.toLowerCase().trim()
+        const courseTypes = course.courseType.split(',').map(t => t.trim())
         for (const type of typeOptions) {
-          if (courseType.includes(type.toLowerCase())) {
+          if (courseTypes.includes(type)) {
             counts[type] = (counts[type] || 0) + 1
           }
         }

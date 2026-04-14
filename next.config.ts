@@ -1,6 +1,11 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  env: {
+    // Timestamp when this build started. Used by /api/check-rebuild to decide
+    // whether Airtable has been edited since the last deploy.
+    BUILD_TIME: new Date().toISOString(),
+  },
   async redirects() {
     return [
       {

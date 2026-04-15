@@ -70,22 +70,23 @@ export default async function Home() {
             height={32}
           />
           <h3 className="shadow-text padding-bottom-8px">
-            Technical AI Safety Conference (TAIS)
+            EA Global: New York City 2026
           </h3>
           <p className="paragraph-small-bold shadow-text padding-bottom-16px">
-            14 May 2026 – Oxford, UK
+            {/* Location omitted – obvious from event name. Format: "DATE – CITY, COUNTRY" */}
+            16–18 October 2026
           </p>
           <p className="padding-bottom-40px">
-            Free event covering a broad range of topics, from agent foundations
-            to evals. Attendees are welcome regardless of prior experience.
+            3-day conference with talks, workshops, and networking on AI safety
+            and other effective altruism cause areas.
           </p>
           <TrackedLink
-            href="https://tais2026.cc/"
+            href="https://www.effectivealtruism.org/ea-global/events/ea-global-new-york-city-2026"
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"
             trackingPage="Home"
-            trackingName="Technical AI Safety Conference (TAIS)"
+            trackingName="EA Global: New York City 2026"
           >
             Learn more
           </TrackedLink>

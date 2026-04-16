@@ -37,7 +37,15 @@ function isAttachmentArray(value: unknown): value is AirtableAttachment[] {
   )
 }
 
-const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif']
+const ALLOWED_EXTENSIONS = [
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.svg',
+  '.webp',
+  '.gif',
+  '.avif',
+]
 
 function getExtension(url: string, filename: string): string {
   const filenameExt = path.extname(filename).toLowerCase()

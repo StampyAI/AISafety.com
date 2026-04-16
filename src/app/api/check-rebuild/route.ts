@@ -69,7 +69,6 @@ async function hasChangesSince(
   const url = new URL(`https://api.airtable.com/v0/${baseId}/${tableId}`)
   url.searchParams.set('filterByFormula', formula)
   url.searchParams.set('maxRecords', '1')
-  url.searchParams.set('fields[]', 'Name')
 
   const response = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },

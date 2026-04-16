@@ -6,9 +6,6 @@ export const dynamic = 'force-dynamic'
 // Airtable tables whose changes should trigger a rebuild. The filter mirrors
 // what the corresponding page actually displays, so internal-only edits on
 // unpublished records don't cause unnecessary rebuilds.
-//
-// Each entry queries the table sorted by the standard "Last modified" field
-// and returns the most recent timestamp.
 const TABLES: Array<{
   name: string
   tableId: string
@@ -53,18 +50,26 @@ const TABLES: Array<{
   { name: 'events', tableId: 'tblx0L8qJEaLBxJFS' },
 ]
 
-async function fetchLastModified(
+// Uses LAST_MODIFIED_TIME() (a formula function) rather than any table's
+// "Last modified" field. The field may be configured as date-only, which
+// collapses intra-day edits to midnight UTC and hides same-day changes from
+// a later-that-day build. LAST_MODIFIED_TIME() always returns a full
+// timestamp regardless of how the field is displayed.
+async function hasChangesSince(
   baseId: string,
   token: string,
   tableId: string,
+  since: Date,
   filter?: string
-): Promise<Date | null> {
+): Promise<boolean> {
+  const sinceIso = since.toISOString()
+  const timeCheck = `IS_AFTER(LAST_MODIFIED_TIME(), DATETIME_PARSE("${sinceIso}"))`
+  const formula = filter ? `AND(${filter}, ${timeCheck})` : timeCheck
+
   const url = new URL(`https://api.airtable.com/v0/${baseId}/${tableId}`)
-  if (filter) url.searchParams.set('filterByFormula', filter)
-  url.searchParams.set('sort[0][field]', 'Last modified')
-  url.searchParams.set('sort[0][direction]', 'desc')
+  url.searchParams.set('filterByFormula', formula)
   url.searchParams.set('maxRecords', '1')
-  url.searchParams.set('fields[]', 'Last modified')
+  url.searchParams.set('fields[]', 'Name')
 
   const response = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
@@ -78,17 +83,7 @@ async function fetchLastModified(
   }
 
   const data = await response.json()
-  const record = data.records?.[0]
-  if (!record) return null
-
-  const dateStr = record.fields?.['Last modified']
-  if (!dateStr) return null
-
-  const date = new Date(dateStr as string)
-  if (isNaN(date.getTime())) {
-    throw new Error(`Invalid "Last modified" date for ${tableId}: "${dateStr}"`)
-  }
-  return date
+  return (data.records?.length ?? 0) > 0
 }
 
 export async function GET(request: Request) {
@@ -127,31 +122,28 @@ export async function GET(request: Request) {
 
   const buildDate = new Date(buildTime)
 
-  // Fetch max Last modified for every table in parallel
+  // Check each table in parallel for any record modified after the build
   const results = await Promise.all(
     TABLES.map(async t => ({
       name: t.name,
-      lastModified: await fetchLastModified(baseId, token, t.tableId, t.filter),
+      changed: await hasChangesSince(
+        baseId,
+        token,
+        t.tableId,
+        buildDate,
+        t.filter
+      ),
     }))
   )
 
-  let maxDate: Date | null = null
-  let maxTable: string | null = null
-  for (const r of results) {
-    if (r.lastModified && (!maxDate || r.lastModified > maxDate)) {
-      maxDate = r.lastModified
-      maxTable = r.name
-    }
-  }
-
-  const shouldRebuild = maxDate !== null && maxDate > buildDate
+  const changedTables = results.filter(r => r.changed).map(r => r.name)
+  const shouldRebuild = changedTables.length > 0
 
   if (!shouldRebuild) {
     return NextResponse.json({
       triggered: false,
       buildTime: buildDate.toISOString(),
-      latestChange: maxDate?.toISOString() ?? null,
-      latestTable: maxTable,
+      changedTables: [],
     })
   }
 
@@ -165,7 +157,6 @@ export async function GET(request: Request) {
   return NextResponse.json({
     triggered: true,
     buildTime: buildDate.toISOString(),
-    latestChange: maxDate?.toISOString(),
-    latestTable: maxTable,
+    changedTables,
   })
 }

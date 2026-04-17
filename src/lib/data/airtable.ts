@@ -25,6 +25,9 @@ interface FetchOptions {
 
 const CACHE_DIR = path.join(process.cwd(), 'public', 'images', 'airtable-cache')
 const CONCURRENCY = 20
+const DOWNLOAD_MAX_RETRIES = 3
+const DOWNLOAD_RETRY_DELAY_MS = 2000
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504])
 
 function isAttachmentArray(value: unknown): value is AirtableAttachment[] {
   return (
@@ -65,7 +68,26 @@ function getExtension(url: string, filename: string): string {
   )
 }
 
-function downloadFile(url: string, dest: string): Promise<void> {
+function parseHttpStatus(message: string): number {
+  const match = message.match(/^HTTP (\d+)$/)
+  return match ? parseInt(match[1], 10) : 0
+}
+
+function isRetryableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  if (RETRYABLE_STATUS_CODES.has(parseHttpStatus(message))) return true
+  const networkErrors = [
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ENOTFOUND',
+    'EPIPE',
+    'EAI_AGAIN',
+    'socket hang up',
+  ]
+  return networkErrors.some(e => message.includes(e))
+}
+
+function downloadFileOnce(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest)
     file.on('error', err => {
@@ -80,7 +102,7 @@ function downloadFile(url: string, dest: string): Promise<void> {
           if (redirectUrl) {
             file.close()
             fs.unlinkSync(dest)
-            downloadFile(redirectUrl, dest).then(resolve).catch(reject)
+            downloadFileOnce(redirectUrl, dest).then(resolve).catch(reject)
             return
           }
         }
@@ -104,6 +126,25 @@ function downloadFile(url: string, dest: string): Promise<void> {
         reject(err)
       })
   })
+}
+
+async function downloadFile(url: string, dest: string): Promise<void> {
+  for (let attempt = 0; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
+    try {
+      await downloadFileOnce(url, dest)
+      return
+    } catch (error) {
+      if (!isRetryableError(error) || attempt === DOWNLOAD_MAX_RETRIES) {
+        throw error
+      }
+      const delay = DOWNLOAD_RETRY_DELAY_MS * Math.pow(2, attempt)
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(
+        `Download failed (${message}), retrying in ${delay}ms... (attempt ${attempt + 1}/${DOWNLOAD_MAX_RETRIES})`
+      )
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
 }
 
 interface DownloadTask {

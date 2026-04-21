@@ -22,6 +22,7 @@ interface AirtableRecord {
     'Logo (for cards)'?: Array<{ url: string }>
     'Logo (for map)'?: Array<{ url: string }>
     Link?: string
+    'Short URL'?: string
     'Date added'?: string
     x?: number
     y?: number
@@ -40,6 +41,7 @@ export interface MapOrg {
   logo: string | null
   mapLogo: string | null
   link: string
+  shortUrl: string | null
   x: number | null
   y: number | null
   scale: string | null
@@ -64,6 +66,7 @@ const FIELD_LIST = [
   'Logo (for cards)',
   'Logo (for map)',
   'Link',
+  'Short URL',
   'Date added',
   'x',
   'y',
@@ -133,6 +136,7 @@ export async function getMapData(): Promise<MapData> {
       logo,
       mapLogo,
       link: fields.Link || '#',
+      shortUrl: fields['Short URL'] || null,
       x: fields.x ?? null,
       y: fields.y ?? null,
       scale: fields.Scale || null,

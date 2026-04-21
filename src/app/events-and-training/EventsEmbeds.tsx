@@ -90,11 +90,15 @@ export default function EventsEmbeds() {
   return (
     <>
       <div className="container-wide">{renderEmbed(0)}</div>
+
+      <div className="container-default hide-mobile">
+        <h2 className="padding-bottom-24px">Calendar view</h2>
+      </div>
       <div className="container-wide hide-mobile">{renderEmbed(1)}</div>
 
       <div className="container-default hide-mobile">
         <h2 className="padding-bottom-24px">
-          Open for application/registration
+          By application/registration deadline
         </h2>
       </div>
 

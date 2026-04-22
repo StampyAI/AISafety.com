@@ -52,7 +52,7 @@ export default async function ProjectsPage() {
           <FeaturedCard
             tagline="Content curation platform"
             name="AI Safety Feed"
-            description="Curated stream for AI safety content, gathering posts and research from key sources. AI helps summarize, tag, and rate the novelty of content."
+            description="Curated stream for AI safety content, gathering posts and research from key sources. AI helps summarize, tag, and rate the novelty of content. Site: aisafetyfeed.com"
             metadata={[
               {
                 label: 'Contact',

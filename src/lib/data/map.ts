@@ -73,6 +73,60 @@ const FIELD_LIST = [
   'Scale',
 ]
 
+// Sort order is hardcoded so the Airtable view sort can be changed freely
+// without affecting how cards are displayed on /map.
+const STATUS_ORDER = ['Active', 'Inactive']
+const SCALE_ORDER_LARGE_FIRST = ['Large', 'Medium', 'Small']
+const CATEGORY_ORDER = [
+  'Advocacy',
+  'Blog',
+  'Capabilities research',
+  'Career support',
+  'Conceptual research',
+  'Empirical research',
+  'Forecasting',
+  'Funding',
+  'Governance',
+  'Newsletter',
+  'Podcast',
+  'Research support',
+  'Resource',
+  'Strategy',
+  'Training and education',
+  'Video',
+  'No longer active',
+]
+
+function rankIn(value: string | null | undefined, order: string[]): number {
+  if (!value) return order.length + 1
+  const idx = order.indexOf(value)
+  return idx === -1 ? order.length : idx
+}
+
+// Multi-select sort: compare categories in selection order (not sorted),
+// using each option's index in CATEGORY_ORDER as the rank, then compare
+// lexicographically. Records with fewer categories sort first when the
+// prefix is equal — matches Airtable's multi-select sort behavior.
+function categoryIndices(category: string): number[] {
+  if (!category) return [CATEGORY_ORDER.length + 1]
+  return category
+    .split(',')
+    .map(c => c.trim())
+    .filter(Boolean)
+    .map(c => {
+      const i = CATEGORY_ORDER.indexOf(c)
+      return i === -1 ? CATEGORY_ORDER.length : i
+    })
+}
+
+function compareCategoryIndices(a: number[], b: number[]): number {
+  const len = Math.min(a.length, b.length)
+  for (let i = 0; i < len; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i]
+  }
+  return a.length - b.length
+}
+
 export async function getMapData(): Promise<MapData> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
@@ -143,6 +197,27 @@ export async function getMapData(): Promise<MapData> {
       isMagic,
     })
   }
+
+  allRecords.sort((a, b) => {
+    if (a.isMagic !== b.isMagic) return a.isMagic ? 1 : -1
+
+    const statusDiff =
+      rankIn(a.status, STATUS_ORDER) - rankIn(b.status, STATUS_ORDER)
+    if (statusDiff !== 0) return statusDiff
+
+    const scaleDiff =
+      rankIn(a.scale, SCALE_ORDER_LARGE_FIRST) -
+      rankIn(b.scale, SCALE_ORDER_LARGE_FIRST)
+    if (scaleDiff !== 0) return scaleDiff
+
+    const catDiff = compareCategoryIndices(
+      categoryIndices(a.category),
+      categoryIndices(b.category)
+    )
+    if (catDiff !== 0) return catDiff
+
+    return a.title.localeCompare(b.title)
+  })
 
   return {
     records: allRecords,

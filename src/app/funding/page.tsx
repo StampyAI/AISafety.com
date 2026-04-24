@@ -49,13 +49,13 @@ export default async function FundingPage() {
             href="https://survivalandflourishing.fund/"
             tagline="Best for mid- to large-scale projects"
             name="Survival and Flourishing Fund (SFF)"
-            description="Funds organizations working on humanity's long-term survival and flourishing. Speculation Grants are rolling; the full S-Process runs annually and is currently open."
+            description="Provides financial support to organizations working to improve humanity's long-term prospects for survival and flourishing. Speculation Grants are rolling; full S-Process runs annually."
             logo="/images/sff-white.svg"
             metadata={[
               { label: 'Type', value: 'Fund' },
               {
                 label: 'Accepting applications',
-                value: 'Yes – closes 22 April 2026',
+                value: 'Yes – rolling basis',
               },
             ]}
             trackingPage="Funding"

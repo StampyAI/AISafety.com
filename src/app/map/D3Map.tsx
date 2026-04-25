@@ -120,7 +120,9 @@ export default function D3Map({ orgs }: D3MapProps) {
     // Clear any existing SVG
     d3.select(containerRef.current).select('svg').remove()
 
-    // Create SVG
+    // translateZ + backface-visibility promote the SVG to its own
+    // compositor layer in WebKit, avoiding tile re-rasterization flicker
+    // during pinch/wheel zoom on macOS.
     const svg = d3
       .select(containerRef.current)
       .append('svg')
@@ -128,6 +130,8 @@ export default function D3Map({ orgs }: D3MapProps) {
       .attr('height', '100%')
       .attr('viewBox', `0 0 ${PADDED_WIDTH} ${PADDED_HEIGHT}`)
       .attr('preserveAspectRatio', 'xMidYMin meet')
+      .style('transform', 'translateZ(0)')
+      .style('backface-visibility', 'hidden')
 
     // Create main group with offset
     const offsetX = (PADDED_WIDTH - MAP_WIDTH) / 2
@@ -140,24 +144,18 @@ export default function D3Map({ orgs }: D3MapProps) {
     const isMobile = window.innerWidth < 768
     const maxZoom = isMobile ? 25 : 8
 
-    // Set up zoom behavior
-    let firstZoom = true
+    // Gates the hover handlers below. Mutating `pointer-events` on
+    // svgGroup (the previous approach) invalidates its compositor layer
+    // in Mac WebKit and causes visible flicker mid-zoom.
+    let isZooming = false
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.5, maxZoom])
-      .on('start', () => {
-        firstZoom = true
-      })
       .on('zoom', event => {
-        if (firstZoom) {
-          // First real movement — now it's definitely a gesture, not a
-          // click. Block hover on items so logos sliding under the cursor
-          // don't flash tooltips / :hover scale mid-zoom, and hide the
-          // tooltip once per gesture (not per tick). Done here (not in
-          // `start`) because `start` fires on mousedown — disabling
-          // pointer-events there would break link clicks.
-          firstZoom = false
-          svgGroup.style('pointer-events', 'none')
+        if (!isZooming) {
+          // First real movement — set in `zoom`, not `start`, because
+          // `start` fires on mousedown and would suppress link clicks.
+          isZooming = true
           if (tooltipRef.current) {
             tooltipRef.current.style.visibility = 'hidden'
             tooltipRef.current.style.opacity = '0'
@@ -171,7 +169,7 @@ export default function D3Map({ orgs }: D3MapProps) {
         )
       })
       .on('end', () => {
-        svgGroup.style('pointer-events', null)
+        isZooming = false
       })
 
     svg.call(zoom)
@@ -397,6 +395,7 @@ export default function D3Map({ orgs }: D3MapProps) {
       // Tooltip events with smart edge-detection positioning
       linkEl
         .on('mouseenter', event => {
+          if (isZooming) return
           const tt = tooltipRef.current
           const container = containerRef.current
           if (!tt || !container) return
@@ -409,6 +408,7 @@ export default function D3Map({ orgs }: D3MapProps) {
           positionTooltip(event, tt, container)
         })
         .on('mousemove', event => {
+          if (isZooming) return
           const tt = tooltipRef.current
           const container = containerRef.current
           if (!tt || !container) return

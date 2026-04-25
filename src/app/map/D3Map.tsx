@@ -1,5 +1,7 @@
 'use client'
 
+// @refresh reset — d3 pipeline is inside useEffect; force remount on edit.
+
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { trackListingClick } from '@/lib/analytics'
@@ -69,7 +71,6 @@ const AREA_LABELS = [
 
 export default function D3Map({ orgs }: D3MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const svgRef = useRef<SVGSVGElement | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
 
   // Position tooltip with edge detection (matches communities map)
@@ -128,8 +129,6 @@ export default function D3Map({ orgs }: D3MapProps) {
       .attr('viewBox', `0 0 ${PADDED_WIDTH} ${PADDED_HEIGHT}`)
       .attr('preserveAspectRatio', 'xMidYMin meet')
 
-    svgRef.current = svg.node()
-
     // Create main group with offset
     const offsetX = (PADDED_WIDTH - MAP_WIDTH) / 2
     const offsetY = (PADDED_HEIGHT - MAP_HEIGHT) / 20
@@ -142,21 +141,37 @@ export default function D3Map({ orgs }: D3MapProps) {
     const maxZoom = isMobile ? 25 : 8
 
     // Set up zoom behavior
+    let firstZoom = true
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.5, maxZoom])
+      .on('start', () => {
+        firstZoom = true
+      })
       .on('zoom', event => {
+        if (firstZoom) {
+          // First real movement — now it's definitely a gesture, not a
+          // click. Block hover on items so logos sliding under the cursor
+          // don't flash tooltips / :hover scale mid-zoom, and hide the
+          // tooltip once per gesture (not per tick). Done here (not in
+          // `start`) because `start` fires on mousedown — disabling
+          // pointer-events there would break link clicks.
+          firstZoom = false
+          svgGroup.style('pointer-events', 'none')
+          if (tooltipRef.current) {
+            tooltipRef.current.style.visibility = 'hidden'
+            tooltipRef.current.style.opacity = '0'
+          }
+        }
         const newX = event.transform.x + offsetX
         const newY = event.transform.y + offsetY
         svgGroup.attr(
           'transform',
           `translate(${newX}, ${newY}) scale(${event.transform.k})`
         )
-        // Hide tooltip on zoom/pan
-        if (tooltipRef.current) {
-          tooltipRef.current.style.visibility = 'hidden'
-          tooltipRef.current.style.opacity = '0'
-        }
+      })
+      .on('end', () => {
+        svgGroup.style('pointer-events', null)
       })
 
     svg.call(zoom)
@@ -167,6 +182,19 @@ export default function D3Map({ orgs }: D3MapProps) {
     const svgNode = svg.node()!
     const preventPageZoom = (e: WheelEvent) => e.preventDefault()
     svgNode.addEventListener('wheel', preventPageZoom, { passive: false })
+
+    // Shared clip-path for all logo circles. Using objectBoundingBox units so
+    // a single definition works for every logo regardless of its size.
+    const LOGO_CLIP_ID = 'logo-circle-clip'
+    svg
+      .append('defs')
+      .append('clipPath')
+      .attr('id', LOGO_CLIP_ID)
+      .attr('clipPathUnits', 'objectBoundingBox')
+      .append('circle')
+      .attr('cx', 0.5)
+      .attr('cy', 0.5)
+      .attr('r', 0.5)
 
     // Add background image
     svgGroup
@@ -264,6 +292,7 @@ export default function D3Map({ orgs }: D3MapProps) {
         linkEl
           .attr('xlink:href', org.link)
           .attr('target', '_blank')
+          .attr('rel', 'noopener noreferrer')
           .style('cursor', 'pointer')
           .on('click', () => {
             trackListingClick('Map', org.title, org.link)
@@ -278,54 +307,30 @@ export default function D3Map({ orgs }: D3MapProps) {
         .attr('cy', 0)
         .attr('fill', '#fff')
 
-      // Logo image - copied directly from WebFlow implementation
+      // Logo image — single SVG <image> clipped to a circle. The browser
+      // fetches/decodes the logo exactly once; preserveAspectRatio handles
+      // the aspect-fit math that used to require a separate `new Image()`.
       if (org.mapLogo) {
-        const uniqueId = `logo-pattern-${Math.random().toString(36).substring(2, 11)}`
-        const patternId = `pattern-${uniqueId}`
-        const img = new Image()
-        img.src = org.mapLogo
+        const logoImg = linkEl
+          .append('image')
+          .attr('href', org.mapLogo)
+          .attr('width', contentSize)
+          .attr('height', contentSize)
+          .attr('x', -contentSize / 2)
+          .attr('y', -contentSize / 2)
+          .attr('preserveAspectRatio', 'xMidYMid meet')
+          .attr('clip-path', `url(#${LOGO_CLIP_ID})`)
 
-        img.onload = function () {
-          const { width, height } = img
-          const scaleFactor = contentSize / Math.max(width, height)
-          const finalWidth = width * scaleFactor
-          const finalHeight = height * scaleFactor
-          const offsetX = (contentSize - finalWidth) / 2
-          const offsetY = (contentSize - finalHeight) / 2
-
-          // Create defs inside linkEl (as per WebFlow)
-          const localDefs = linkEl.append('defs')
-          const pattern = localDefs
-            .append('pattern')
-            .attr('id', patternId)
-            .attr('patternUnits', 'objectBoundingBox')
-            .attr('width', 1)
-            .attr('height', 1)
-
-          pattern
-            .append('image')
-            .attr('xlink:href', org.mapLogo)
-            .attr('width', finalWidth)
-            .attr('height', finalHeight)
-            .attr('x', offsetX)
-            .attr('y', offsetY)
-
-          linkEl
-            .append('circle')
-            .attr('r', contentSize / 2)
-            .attr('cx', 0)
-            .attr('cy', 0)
-            .attr('fill', `url(#${patternId})`)
-        }
-
-        img.onerror = function () {
+        // On load failure, swap in the orange fallback circle.
+        logoImg.on('error', () => {
+          logoImg.remove()
           linkEl
             .append('circle')
             .attr('r', contentSize / 2)
             .attr('cx', 0)
             .attr('cy', 0)
             .attr('fill', '#f70')
-        }
+        })
       } else {
         linkEl
           .append('circle')
@@ -375,32 +380,17 @@ export default function D3Map({ orgs }: D3MapProps) {
 
         textEl.attr('y', bbox.height * 0.35)
 
-        // QA: Add invisible rect filling the gap between circle and label pill.
-        // Without this, moving the mouse through the empty gap fires mouseleave,
-        // causing the tooltip to flicker. This matches the live site's gapRect.
+        // QA: Add an invisible bridge rect for a more forgiving hover zone so the
+        // tooltip doesn't disappear when the cursor is between logo and label.
+        const bridgeW = Math.max(iconSize, rectW)
+        const bridgeH = (iconSize + rectH) / 2 + labelOffset
         linkEl
           .append('rect')
-          .attr('x', -iconSize / 2)
-          .attr('y', iconSize / 2)
-          .attr('width', iconSize)
-          .attr('height', labelOffset)
-          .attr('fill', 'rgba(0,0,0,0)')
-          .style('pointer-events', 'all')
-
-        // QA: Add a wider invisible bridge rect that slightly overlaps both the
-        // circle and the pill. This provides a more forgiving hover zone so the
-        // tooltip doesn't disappear when the cursor drifts slightly outside the
-        // narrow gap. Pushed to the back so it doesn't block clicks on other items.
-        // Matches the live site's addUnifiedHoverArea.
-        const bridgeWidth = iconSize * 0.8
-        linkEl
-          .append('rect')
-          .attr('x', -bridgeWidth / 2)
-          .attr('y', iconSize / 2 - 2)
-          .attr('width', bridgeWidth)
-          .attr('height', labelOffset + 4)
-          .attr('fill', 'rgba(0,0,0,0)')
-          .style('pointer-events', 'all')
+          .attr('x', -bridgeW / 2)
+          .attr('y', 0)
+          .attr('width', bridgeW)
+          .attr('height', bridgeH)
+          .attr('fill', 'transparent')
           .lower()
       }
 

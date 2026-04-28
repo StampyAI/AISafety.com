@@ -4,7 +4,7 @@ import { fetchAirtableRecords } from './airtable'
 // adjust: manual correction for counts that don't match the live site exactly.
 const resources = [
   {
-    path: '/events-and-training',
+    path: '/events',
     tableId: 'tblx0L8qJEaLBxJFS',
     viewId: 'viwHl72bJxCb2SfrL',
     field: 'Name',

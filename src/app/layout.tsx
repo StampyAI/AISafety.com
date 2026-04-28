@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import Script from 'next/script'
 import { Suspense } from 'react'
+import { Agentation } from 'agentation'
 import './globals.css'
 import LayoutShell from '@/components/LayoutShell'
 import MatomoRouteTracker from '@/components/MatomoRouteTracker'
@@ -76,6 +77,9 @@ export default async function RootLayout({
           <MatomoRouteTracker />
         </Suspense>
         <LayoutShell counts={counts}>{children}</LayoutShell>
+        {process.env.NODE_ENV === 'development' && (
+          <Agentation endpoint="http://localhost:4747" />
+        )}
       </body>
     </html>
   )

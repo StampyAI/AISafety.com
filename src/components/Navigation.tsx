@@ -13,8 +13,8 @@ import styles from './Navigation.module.css'
 
 const navItems = [
   {
-    href: '/events-and-training',
-    label: 'Events & training',
+    href: '/events',
+    label: 'Events',
     icon: 'calendar.svg',
   },
   { href: '/map', label: 'Field map', icon: 'map.svg' },

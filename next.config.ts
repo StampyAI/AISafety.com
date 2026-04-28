@@ -21,8 +21,8 @@ const nextConfig: NextConfig = {
       { source: '/donating', destination: '/donation-guide', permanent: true },
       { source: '/database', destination: '/communities', permanent: true },
       {
-        source: '/events',
-        destination: '/events-and-training',
+        source: '/events-and-training',
+        destination: '/events',
         permanent: true,
       },
       { source: '/talk-to-a-human', destination: '/advisors', permanent: true },

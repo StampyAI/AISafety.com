@@ -71,13 +71,12 @@ export default async function FoundersPage() {
               individuals
             </p>
           </Link>
-          <Link href="/events-and-training" className="block hover-opacity-80">
+          <Link href="/events" className="block hover-opacity-80">
             <h3 className="padding-bottom-16px">
-              Events &amp; Training{' '}
-              <span className="color-teal-400">&rarr;</span>
+              Events <span className="color-teal-400">&rarr;</span>
             </h3>
             <p className="paragraph-small color-teal-300">
-              Upcoming fellowships, conferences, facilitated courses etc.
+              Upcoming conferences, competitions, meetups, talks, and workshops
             </p>
           </Link>
         </aside>

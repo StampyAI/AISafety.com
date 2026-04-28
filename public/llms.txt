@@ -8,7 +8,7 @@ The site does not publish articles or research. It is a directory and discovery 
 
 ## Resource Pages
 
-- [Events and Training](https://aisafety.com/events-and-training): Upcoming events, workshops, conferences, and training programs in AI safety — both online and in-person
+- [Events](https://aisafety.com/events): Upcoming conferences, competitions, meetups, talks, and workshops in AI safety — both online and in-person
 - [Field Map](https://aisafety.com/map): An interactive visual overview of key organizations, programs, and projects in AI safety
 - [Communities](https://aisafety.com/communities): Online and in-person groups dedicated to discussing and contributing to AI safety
 - [Self-Study](https://aisafety.com/self-study): Courses, curricula, and study guides for learning AI safety independently

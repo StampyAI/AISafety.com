@@ -79,13 +79,12 @@ export default async function AdvisorsPage() {
               Video overview of career paths in AI safety
             </p>
           </a>
-          <Link href="/events-and-training" className="block hover-opacity-80">
+          <Link href="/events" className="block hover-opacity-80">
             <h3 className="padding-bottom-16px">
-              Events &amp; training{' '}
-              <span className="color-teal-400">&rarr;</span>
+              Events <span className="color-teal-400">&rarr;</span>
             </h3>
             <p className="paragraph-small color-teal-300">
-              AI safety events and training programs, both online and in-person
+              AI safety events, both online and in-person
             </p>
           </Link>
         </aside>

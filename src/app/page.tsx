@@ -47,10 +47,7 @@ export default async function Home() {
             Events and programs to build skills, meet others, and explore
             opportunities in AI safety – online and in person
           </h2>
-          <Link
-            href="/events-and-training"
-            className="button-primary drop-shadow"
-          >
+          <Link href="/events" className="button-primary drop-shadow">
             View all events and programs
           </Link>
           {dates.events && (

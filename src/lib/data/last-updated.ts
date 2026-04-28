@@ -111,8 +111,12 @@ export async function fetchLastUpdated(
 
   const token = process.env.AIRTABLE_TOKEN
   const baseId = process.env.AIRTABLE_BASE_ID
-  if (!token || !baseId)
-    throw new Error('Missing AIRTABLE_TOKEN or AIRTABLE_BASE_ID')
+  if (!token || !baseId) {
+    console.warn(
+      `Airtable credentials not configured; skipping lastUpdated for '${resource}'`
+    )
+    return { lastUpdated: null, formattedDate: null }
+  }
 
   if (config.type === 'record') {
     const response = await fetch(

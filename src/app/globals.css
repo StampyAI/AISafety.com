@@ -807,6 +807,7 @@ label {
 .button-secondary {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   height: 48px;
   padding: 0 18px;
   background-color: transparent;

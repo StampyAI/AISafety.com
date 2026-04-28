@@ -67,15 +67,14 @@ export default async function SelfStudyPage() {
             Related resources
           </p>
           <Link
-            href="/events-and-training"
+            href="/events"
             className="block padding-bottom-40px hover-opacity-80"
           >
             <h3 className="padding-bottom-16px">
-              Events &amp; training{' '}
-              <span className="color-teal-400">&rarr;</span>
+              Events <span className="color-teal-400">&rarr;</span>
             </h3>
             <p className="paragraph-small color-teal-300">
-              Upcoming fellowships, conferences, facilitated courses etc.
+              Upcoming conferences, competitions, meetups, talks, and workshops
             </p>
           </Link>
           <a

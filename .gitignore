@@ -42,3 +42,9 @@ next-env.d.ts
 
 # generated at build time
 /public/images/airtable-cache/
+
+# claude code (per-machine state and locally-installed skills)
+.claude/settings.local.json
+.claude/skills/
+.agents/
+skills-lock.json

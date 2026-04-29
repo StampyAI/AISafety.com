@@ -18,9 +18,7 @@ const typeOptions = [
   'Fund',
   'Grant program',
   'Grant-based fellowship',
-  'Incubator',
   'Platform',
-  'Venture capitalist',
 ]
 
 export default function FundingClient({ funders }: FundingClientProps) {

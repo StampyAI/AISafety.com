@@ -51,26 +51,34 @@
 
 .hero-title {
   margin: 0;
-  padding-bottom: 24px;
-}
-
-.hero-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--teal-850);
-  border: 1px solid var(--teal-700);
-  border-radius: 999px;
-  color: var(--teal-200);
-  font-size: 13px;
-  margin-left: 12px;
-  vertical-align: middle;
+  padding-bottom: 0;
 }
 
 .hero-subtitle {
   margin: 0;
   padding-bottom: 16px;
+}
+
+.hero-last-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: -0.3px;
+  line-height: 1;
+  color: var(--bright-teal-300);
+  opacity: 0.8;
+}
+
+.hero-last-updated::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--bright-teal-300);
 }
 
 .training-link {
@@ -122,6 +130,55 @@
 
 .search-field-icon-right {
   right: 16px;
+}
+
+.city-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px 0;
+  border: 1px solid var(--teal-700);
+  border-radius: 12px;
+  background: var(--teal-900);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.city-dropdown-section + .city-dropdown-section {
+  margin-top: 8px;
+  border-top: 1px solid var(--teal-800);
+  padding-top: 8px;
+}
+
+.city-dropdown-header {
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--teal-400);
+}
+
+.city-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--white);
+  font-size: 15px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: background-color var(--hover-transition);
+}
+
+.city-dropdown-item:hover,
+.city-dropdown-item[aria-selected='true'] {
+  background-color: rgba(166, 218, 217, 0.1);
 }
 
 /* ----- Newsletter signup card (right side of hero) ----- */

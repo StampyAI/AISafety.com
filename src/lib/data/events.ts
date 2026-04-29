@@ -1,4 +1,5 @@
 import { fetchAirtableRecords } from './airtable'
+import { MOCK_EVENTS } from './mock-events'
 
 const TABLE_ID = 'tblx0L8qJEaLBxJFS'
 const VIEW_ID = 'viwHl72bJxCb2SfrL'
@@ -51,6 +52,16 @@ export async function getEvents(): Promise<EventListing[]> {
     tableId: TABLE_ID,
     viewId: VIEW_ID,
   })
+
+  // TODO(remove-mock): Drop this dev fallback (and src/lib/data/mock-events.ts)
+  // once AIRTABLE_TOKEN is wired up locally. Real data should be fetched
+  // from Airtable in all envs.
+  if (raw.length === 0 && process.env.NODE_ENV !== 'production') {
+    console.warn(
+      '[events] No Airtable data; falling back to mock events for dev. Set AIRTABLE_TOKEN to use real data.'
+    )
+    return MOCK_EVENTS
+  }
 
   const results: EventListing[] = []
   for (const record of raw) {

@@ -112,6 +112,15 @@ export async function fetchLastUpdated(
   const token = process.env.AIRTABLE_TOKEN
   const baseId = process.env.AIRTABLE_BASE_ID
   if (!token || !baseId) {
+    // TODO(remove-mock): Drop this dev fallback once AIRTABLE_TOKEN is wired
+    // up locally. Real data should be fetched from Airtable in all envs.
+    if (process.env.NODE_ENV !== 'production') {
+      const date = new Date('2026-04-05')
+      return {
+        lastUpdated: date.toISOString(),
+        formattedDate: formatDate(date),
+      }
+    }
     console.warn(
       `Airtable credentials not configured; skipping lastUpdated for '${resource}'`
     )

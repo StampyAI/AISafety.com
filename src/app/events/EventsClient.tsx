@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
@@ -53,7 +53,62 @@ export default function EventsClient({
   const [selectedFormat, setSelectedFormat] = useState<string[]>([])
   const [selectedCost, setSelectedCost] = useState<string[]>([])
   const [selectedType, setSelectedType] = useState<string[]>([])
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false)
+  const searchWrapRef = useRef<HTMLDivElement>(null)
   const savedScrollY = useRef<number | null>(null)
+
+  const cityGroups = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const e of events) {
+      const raw = e.location?.trim()
+      if (!raw || raw.toLowerCase() === 'online') continue
+      const city = raw.split(',')[0].trim()
+      if (!city) continue
+      counts.set(city, (counts.get(city) || 0) + 1)
+    }
+    const entries = Array.from(counts.entries())
+    const popular = [...entries]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 5)
+      .map(([c]) => c)
+    const popularSet = new Set(popular)
+    const rest = entries
+      .map(([c]) => c)
+      .filter(c => !popularSet.has(c))
+      .sort((a, b) => a.localeCompare(b))
+    return { popular, rest }
+  }, [events])
+
+  const filteredCityGroups = useMemo(() => {
+    if (!searchQuery) return cityGroups
+    const q = searchQuery.toLowerCase()
+    return {
+      popular: cityGroups.popular.filter(c => c.toLowerCase().includes(q)),
+      rest: cityGroups.rest.filter(c => c.toLowerCase().includes(q)),
+    }
+  }, [cityGroups, searchQuery])
+
+  const cityDropdownHasResults =
+    filteredCityGroups.popular.length > 0 || filteredCityGroups.rest.length > 0
+
+  useEffect(() => {
+    if (!isCityDropdownOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        searchWrapRef.current &&
+        !searchWrapRef.current.contains(e.target as Node)
+      ) {
+        setIsCityDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isCityDropdownOpen])
+
+  function selectCity(city: string) {
+    setSearchQuery(city)
+    setIsCityDropdownOpen(false)
+  }
 
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
@@ -162,16 +217,9 @@ export default function EventsClient({
       {/* ----- Hero ----- */}
       <section className={styles.hero}>
         <div className={styles['hero-left']}>
-          <h1 className={styles['hero-title']}>
-            Events
-            {events.length > 0 && (
-              <span className={styles['hero-count']}>
-                {events.length} listings
-              </span>
-            )}
-          </h1>
+          <h1 className={styles['hero-title']}>Events</h1>
           {lastUpdated && (
-            <p className="paragraph-small color-teal-300 margin-bottom-24px">
+            <p className={styles['hero-last-updated']}>
               Last updated: {lastUpdated}
             </p>
           )}
@@ -186,7 +234,7 @@ export default function EventsClient({
           <p className={styles['hero-search-label']}>
             Find events in your city
           </p>
-          <div className={styles['search-field-wrap']}>
+          <div className={styles['search-field-wrap']} ref={searchWrapRef}>
             <span className={styles['search-field-icon-left']}>
               <Image
                 src="/images/location-pin.svg"
@@ -201,11 +249,68 @@ export default function EventsClient({
               placeholder="Search by location, e.g. San Francisco"
               maxLength={256}
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => {
+                setSearchQuery(e.target.value)
+                setIsCityDropdownOpen(true)
+              }}
+              onFocus={() => setIsCityDropdownOpen(true)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') setIsCityDropdownOpen(false)
+              }}
             />
             <span className={styles['search-field-icon-right']}>
               <Image src="/images/search.svg" alt="" width={20} height={20} />
             </span>
+            {isCityDropdownOpen && cityDropdownHasResults && (
+              <div className={styles['city-dropdown']} role="listbox">
+                {filteredCityGroups.popular.length > 0 && (
+                  <div className={styles['city-dropdown-section']}>
+                    <div className={styles['city-dropdown-header']}>
+                      Popular
+                    </div>
+                    {filteredCityGroups.popular.map(city => (
+                      <button
+                        key={city}
+                        type="button"
+                        role="option"
+                        aria-selected={searchQuery === city}
+                        className={styles['city-dropdown-item']}
+                        onMouseDown={e => {
+                          e.preventDefault()
+                          selectCity(city)
+                        }}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {filteredCityGroups.rest.length > 0 && (
+                  <div className={styles['city-dropdown-section']}>
+                    {filteredCityGroups.popular.length > 0 && (
+                      <div className={styles['city-dropdown-header']}>
+                        All cities
+                      </div>
+                    )}
+                    {filteredCityGroups.rest.map(city => (
+                      <button
+                        key={city}
+                        type="button"
+                        role="option"
+                        aria-selected={searchQuery === city}
+                        className={styles['city-dropdown-item']}
+                        onMouseDown={e => {
+                          e.preventDefault()
+                          selectCity(city)
+                        }}
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className={styles['hero-right']}>

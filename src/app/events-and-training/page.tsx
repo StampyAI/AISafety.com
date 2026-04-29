@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import EventsEmbeds from './EventsEmbeds'
+import { getEvents } from '@/lib/data/events'
+import EventsTimeline from './EventsTimeline'
 import styles from './page.module.css'
 
 export const metadata = {
@@ -17,94 +18,83 @@ export const metadata = {
 }
 
 export default async function EventsAndTrainingPage() {
-  const lastUpdated = await fetchLastUpdated('events')
+  const [events, lastUpdated] = await Promise.all([
+    getEvents(),
+    fetchLastUpdated('events'),
+  ])
 
   return (
-    <div>
-      {/* Preconnect to Airtable so embeds load faster */}
-      <link rel="preconnect" href="https://airtable.com" />
-      <link rel="dns-prefetch" href="https://airtable.com" />
-      {/* Main Content */}
-      <div className="container-default">
-        <PageHeader
-          title="Events & training"
-          lastUpdated={lastUpdated.formattedDate}
-          description={
-            <>
-              There&apos;s a wide range of events and training programs in AI
-              safety, both online and in-person. These can help you{' '}
-              <span className="color-light-teal">
-                build skills, make connections, and discover opportunities.
-              </span>
-            </>
-          }
-        />
+    <div className="container-default">
+      <PageHeader
+        title="Events & training"
+        lastUpdated={lastUpdated.formattedDate}
+        description={
+          <>
+            There&apos;s a wide range of events and training programs in AI
+            safety, both online and in-person. These can help you{' '}
+            <span className="color-light-teal">
+              build skills, make connections, and discover opportunities.
+            </span>
+          </>
+        }
+      />
 
-        <div className={styles['action-links-grid']}>
-          <Link
-            href="https://aisafetyeventsandtraining.substack.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles['action-link']}
-          >
-            <p className="paragraph-default-bold padding-bottom-16px">
-              Subscribe to newsletter{' '}
-              <span className="color-teal-400">&rarr;</span>
-            </p>
-            <p className={styles['action-description']}>
-              Receive a weekly email summarizing all new events and training
-              programs
-            </p>
-          </Link>
+      <div className={styles['action-links-grid']}>
+        <Link
+          href="https://aisafetyeventsandtraining.substack.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles['action-link']}
+        >
+          <p className="paragraph-default-bold padding-bottom-16px">
+            Subscribe to newsletter{' '}
+            <span className="color-teal-400">&rarr;</span>
+          </p>
+          <p className={styles['action-description']}>
+            Receive a weekly email summarizing all new events and training
+            programs
+          </p>
+        </Link>
 
-          <Link
-            href="https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${styles['action-link']} hide-mobile`}
-          >
-            <p className="paragraph-default-bold padding-bottom-16px">
-              Suggest listing <span className="color-teal-400">&rarr;</span>
-            </p>
-            <p className={styles['action-description']}>
-              Suggest a resource to be published here
-            </p>
-          </Link>
+        <Link
+          href="https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${styles['action-link']} hide-mobile`}
+        >
+          <p className="paragraph-default-bold padding-bottom-16px">
+            Suggest listing <span className="color-teal-400">&rarr;</span>
+          </p>
+          <p className={styles['action-description']}>
+            Suggest a resource to be published here
+          </p>
+        </Link>
 
-          <Link
-            href="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${styles['action-link']} hide-mobile`}
-          >
-            <p className="paragraph-default-bold padding-bottom-16px">
-              Suggest correction <span className="color-teal-400">&rarr;</span>
-            </p>
-            <p className={styles['action-description']}>
-              Let us know of any updates that should be made to the database
-            </p>
-          </Link>
-        </div>
-
-        <h2 className="padding-bottom-24px">
-          All upcoming events and training programs
-        </h2>
-      </div>
-
-      {/* Airtable Embeds – load on view, then sequentially in background */}
-      <EventsEmbeds />
-
-      {/* Link to self-study */}
-      <div className="container-default">
-        <Link href="/self-study">
-          <h3 className="padding-bottom-8px">
-            Self-study courses <span className="color-teal-400">→</span>
-          </h3>
-          <p className={styles['self-study-description']}>
-            Courses with freely available materials for independent learning
+        <Link
+          href="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${styles['action-link']} hide-mobile`}
+        >
+          <p className="paragraph-default-bold padding-bottom-16px">
+            Suggest correction <span className="color-teal-400">&rarr;</span>
+          </p>
+          <p className={styles['action-description']}>
+            Let us know of any updates that should be made to the database
           </p>
         </Link>
       </div>
+
+      <EventsTimeline events={events} />
+
+      <Link href="/self-study" className="block padding-top-40px">
+        <h3 className="padding-bottom-8px">
+          Self-study courses <span className="color-teal-400">→</span>
+        </h3>
+        <p className={styles['self-study-description']}>
+          Courses with freely available materials for independent learning
+        </p>
+      </Link>
     </div>
   )
 }

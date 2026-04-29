@@ -22,22 +22,297 @@
   color: var(--teal-300);
 }
 
-.airtable-embed {
-  width: 100%;
-  border: none;
-  display: block;
-}
-
-.self-study-link {
-  display: block;
-  margin: 56px 0;
-  text-decoration: none;
-  color: inherit;
-}
-
 .self-study-description {
   line-height: 160%;
   color: var(--teal-300);
+}
+
+/* ===============================
+   FILTER BAR
+   =============================== */
+
+.filterBar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 48px;
+}
+
+.filterNav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filterLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 0;
+}
+
+.filterLink {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  margin: 0;
+  color: var(--teal-400);
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: -0.3px;
+  cursor: pointer;
+  transition: color var(--hover-transition);
+}
+
+.filterLink::after {
+  content: '·';
+  padding: 0 10px;
+  color: var(--teal-700);
+  pointer-events: none;
+}
+
+.filterLink:last-child::after {
+  display: none;
+}
+
+.filterLink:hover {
+  color: var(--white);
+}
+
+.filterLinkActive {
+  color: var(--white);
+  font-weight: 400;
+}
+
+/* ===============================
+   TIMELINE
+   =============================== */
+
+.timeline {
+  padding-bottom: 80px;
+}
+
+.monthSection {
+  padding-top: 48px;
+}
+
+.monthSection:first-child {
+  padding-top: 16px;
+}
+
+.monthHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+.monthTitle {
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 110%;
+  letter-spacing: -2px;
+  color: var(--white);
+  margin: 0;
+}
+
+.monthYear {
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: -0.3px;
+  color: var(--teal-400);
+}
+
+.monthRule {
+  flex: 1;
+  height: 1px;
+  background-color: var(--teal-700);
+  align-self: center;
+}
+
+.eventList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.eventItem {
+  border-bottom: 1px solid var(--teal-800);
+}
+
+.eventItem:last-child {
+  border-bottom: none;
+}
+
+/* ---- Event row ---- */
+
+.eventRow {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 40px;
+  padding: 24px 16px;
+  margin: 0 -16px;
+  border-radius: 12px;
+  transition: background-color var(--hover-transition);
+}
+
+.eventRow:hover {
+  background-color: var(--teal-850);
+}
+
+/* Date column */
+.eventDate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: 4px;
+}
+
+.eventDay {
+  font-size: 48px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -2.5px;
+  color: var(--white);
+  font-feature-settings: 'tnum';
+}
+
+.eventWeekday {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--teal-400);
+}
+
+/* Body column */
+.eventBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--teal-400);
+  padding-bottom: 6px;
+}
+
+.eventTitle {
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 130%;
+  letter-spacing: -0.88px;
+  color: var(--white);
+  margin: 0;
+  padding-bottom: 6px;
+}
+
+.eventTitleLink {
+  text-decoration: none;
+  color: inherit;
+  transition: color var(--hover-transition);
+}
+
+.eventTitleLink:hover {
+  color: var(--bright-teal-300);
+}
+
+.eventTitleLink:hover .eventArrow {
+  opacity: 1;
+  transform: translate(1px, -1px);
+}
+
+.eventArrow {
+  display: inline-block;
+  margin-left: 4px;
+  vertical-align: middle;
+  color: var(--teal-400);
+  opacity: 0;
+  transition:
+    transform var(--hover-transition),
+    opacity var(--hover-transition);
+}
+
+/* Host row with favicon / monogram + deadline */
+.hostRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.hostFavicon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.hostMonogram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background-color: var(--teal-750);
+  border: 1px solid var(--teal-700);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--bright-teal-300);
+  flex-shrink: 0;
+}
+
+.hostSeparator {
+  color: var(--teal-700);
+  font-size: 13px;
+}
+
+.closedText {
+  color: var(--teal-500);
+  font-style: italic;
+}
+
+/* Description — fades out, reveals on hover (desktop) or click (mobile) */
+.eventDescription {
+  position: relative;
+  color: var(--teal-200);
+  max-width: 680px;
+  margin: 0;
+  max-height: 3.3em;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black 40%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+  transition: max-height 0.2s ease-out;
+}
+
+.eventDescriptionExpanded {
+  max-height: 10em;
+  -webkit-mask-image: none;
+  mask-image: none;
+  transition: max-height 0.45s ease-in;
+}
+
+/* Desktop: hover on description itself reveals it */
+@media (hover: hover) {
+  .eventDescription:hover {
+    max-height: 10em;
+    -webkit-mask-image: none;
+    mask-image: none;
+    transition: max-height 0.45s ease-in;
+  }
 }
 
 /* ===============================
@@ -45,19 +320,61 @@
    =============================== */
 
 @media (max-width: 991px) {
-  .intro-paragraph {
-    max-width: 100%;
-  }
-
   .action-links-grid {
     flex-direction: column;
     gap: 24px;
     padding-bottom: 32px;
   }
 
-  /* Override inline height on mobile — !important is needed because
-     the height is set inline (data-driven, different per embed) */
-  .airtable-embed-mobile {
-    height: 600px !important;
+  .filterBar {
+    gap: 12px;
+    padding-bottom: 28px;
+  }
+
+  .filterLink {
+    font-size: 13px;
+  }
+
+  .monthSection {
+    padding-top: 36px;
+  }
+
+  .monthTitle {
+    font-size: 28px;
+    letter-spacing: -1.4px;
+  }
+
+  .monthYear {
+    font-size: 15px;
+  }
+
+  .eventRow {
+    grid-template-columns: 56px 1fr;
+    gap: 16px;
+    padding: 20px 0;
+    margin: 0;
+  }
+
+  .eventDay {
+    font-size: 32px;
+    letter-spacing: -1.5px;
+  }
+
+  .eventWeekday {
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .eventTitle {
+    font-size: 18px;
+    letter-spacing: -0.7px;
+  }
+
+  .eventArrow {
+    opacity: 0.5;
+  }
+
+  .kicker {
+    font-size: 10px;
   }
 }

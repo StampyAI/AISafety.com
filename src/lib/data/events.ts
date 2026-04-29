@@ -1,5 +1,4 @@
 import { fetchAirtableRecords } from './airtable'
-import { MOCK_EVENTS } from './mock-events'
 
 const TABLE_ID = 'tblx0L8qJEaLBxJFS'
 const VIEW_ID = 'viwHl72bJxCb2SfrL'
@@ -12,7 +11,7 @@ interface AirtableRecord {
     Name?: string
     Description?: string
     'Event type'?: string | string[]
-    Location?: string
+    Location?: string | string[]
     Format?: string | string[]
     Cost?: string | string[]
     'Application status'?: string
@@ -53,16 +52,6 @@ export async function getEvents(): Promise<EventListing[]> {
     viewId: VIEW_ID,
   })
 
-  // TODO(remove-mock): Drop this dev fallback (and src/lib/data/mock-events.ts)
-  // once AIRTABLE_TOKEN is wired up locally. Real data should be fetched
-  // from Airtable in all envs.
-  if (raw.length === 0 && process.env.NODE_ENV !== 'production') {
-    console.warn(
-      '[events] No Airtable data; falling back to mock events for dev. Set AIRTABLE_TOKEN to use real data.'
-    )
-    return MOCK_EVENTS
-  }
-
   const results: EventListing[] = []
   for (const record of raw) {
     const fields = record.fields as AirtableRecord['fields']
@@ -78,7 +67,9 @@ export async function getEvents(): Promise<EventListing[]> {
       name: fields.Name,
       description: fields.Description || '',
       type: toArray(fields['Event type']),
-      location: fields.Location || '',
+      location: Array.isArray(fields.Location)
+        ? fields.Location.join(', ')
+        : fields.Location || '',
       format: toArray(fields.Format),
       cost: toArray(fields.Cost),
       applicationStatus: fields['Application status'] || '',

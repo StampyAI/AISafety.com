@@ -48,7 +48,7 @@ export default async function FoundersPage() {
             href="https://www.catalyze-impact.org/"
             tagline="Featured incubator"
             name="Catalyze Impact"
-            description="Brings together co-founders, experts, and mission-oriented funders to help go from pre-idea to scaling an AI safety org. Includes mentorship and seed funding."
+            description="Brings together co-founders, experts, and mission-oriented funders to accelerate founders from pre-idea to scaling an AI safety org. Includes mentorship and seed funding."
             logo="/images/catalyze-impact-logo.png"
             metadata={[{ label: 'Type', value: 'Incubator' }]}
             trackingPage="Founders"

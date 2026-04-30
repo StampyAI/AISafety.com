@@ -77,7 +77,7 @@ export default async function Home() {
             16–18 October 2026
           </p>
           <p className="padding-bottom-40px">
-            3-day conference with talks, workshops, and networking on AI safety
+            3-day conference with talks, workshops, and networking in AI safety
             and other effective altruism cause areas.
           </p>
           <TrackedLink

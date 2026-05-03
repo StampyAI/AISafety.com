@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import https from 'https'
 import http from 'http'
+import { unstable_cache } from 'next/cache'
 
 export interface AirtableRawRecord {
   id: string
@@ -229,7 +230,7 @@ async function downloadAttachments(
   }
 }
 
-export async function fetchAirtableRecords(
+async function fetchAirtableRecordsImpl(
   options: FetchOptions
 ): Promise<AirtableRawRecord[]> {
   const token = process.env.AIRTABLE_TOKEN
@@ -266,9 +267,12 @@ export async function fetchAirtableRecords(
       url.searchParams.set('offset', offset)
     }
 
+    // Pagination iterators expire in minutes, so per-page caching would
+    // serve stale offsets and trigger 422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE.
+    // The aggregated result is cached below via unstable_cache instead.
     let response = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${token}` },
-      next: { revalidate: 3600 }, // Hourly revalidation fetches fresh API responses with valid attachment URLs
+      cache: 'no-store',
     })
 
     if (!response.ok) {
@@ -276,7 +280,7 @@ export async function fetchAirtableRecords(
       await new Promise(r => setTimeout(r, 1000))
       response = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 3600 }, // Retry also uses hourly revalidation
+        cache: 'no-store',
       })
     }
 
@@ -289,8 +293,15 @@ export async function fetchAirtableRecords(
     offset = data.offset || null
   } while (offset)
 
-  // Download all attachments and replace URLs with local paths
   await downloadAttachments(allRecords)
 
   return allRecords
 }
+
+// unstable_cache keys on the stringified arguments automatically; the
+// static keyParts below are just a namespace tag for invalidation.
+export const fetchAirtableRecords = unstable_cache(
+  fetchAirtableRecordsImpl,
+  ['airtable-records'],
+  { revalidate: 3600 }
+)

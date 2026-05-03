@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { SearchButton, SearchProvider } from './SearchTrigger'
 import styles from './Navigation.module.css'
 
 const navItems = [
@@ -65,14 +66,14 @@ export default function Navigation({
     mode: 'top' as 'top' | 'scrolling' | 'hidden' | 'revealed',
   })
 
-  const overflowCount = navItems.length - visibleCount
   const visibleItems = navItems.slice(0, visibleCount)
   const overflowItems = navItems.slice(visibleCount)
 
   const calculateFromCachedWidths = useCallback(() => {
     if (!navRef.current || itemWidths.current.length === 0) return
     const navWidth = navRef.current.offsetWidth
-    const overflowButtonWidth = 60
+    // Reserves space for both the +N pill and the standalone search icon.
+    const overflowButtonWidth = 110
     const gap = 8
     let usedWidth = 0
     let count = 0
@@ -192,7 +193,7 @@ export default function Navigation({
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
   return (
-    <>
+    <SearchProvider>
       <div ref={navOuterRef} className={`${styles.nav} ${styles['nav-fixed']}`}>
         <div className={styles['nav-container']}>
           <Link href="/" className="padding-right-24px">
@@ -237,7 +238,7 @@ export default function Navigation({
               className={styles['nav-item-last']}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <p className="paragraph-small-bold">+{overflowCount}</p>
+              <p className="paragraph-small-bold">+{overflowItems.length}</p>
               {isDropdownOpen && (
                 <div className={styles['nav-dropdown']}>
                   {overflowItems.map(item => (
@@ -267,6 +268,32 @@ export default function Navigation({
                 </div>
               )}
             </div>
+
+            <SearchButton
+              className={`${styles['nav-search-button']} flex items-center justify-center color-white`}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="9"
+                  cy="9"
+                  r="6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M13.5 13.5L17 17"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </SearchButton>
           </nav>
 
           <button
@@ -334,8 +361,17 @@ export default function Navigation({
               )}
             </Link>
           ))}
+          <SearchButton
+            className={styles['nav-item']}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            <div className={styles['nav-item-icon']}>
+              <Image width={16} height={16} alt="" src="/images/search.svg" />
+            </div>
+            <p className="paragraph-default-bold">Search</p>
+          </SearchButton>
         </nav>
       </div>
-    </>
+    </SearchProvider>
   )
 }

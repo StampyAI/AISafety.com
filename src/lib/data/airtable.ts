@@ -230,6 +230,57 @@ async function downloadAttachments(
   }
 }
 
+// Airtable's documented rate limit is 5 req/sec per base. Build-time
+// fan-out across many tables can burst past that, so retry 429s with
+// real backoff (exponential, plus the Retry-After header when present).
+const FETCH_MAX_RETRIES = 5
+const FETCH_RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
+const RATE_LIMIT_BASE_DELAY_MS = 30_000
+const TRANSIENT_BASE_DELAY_MS = 1_000
+
+async function fetchAirtablePage(
+  url: string,
+  token: string
+): Promise<Response> {
+  for (let attempt = 0; attempt <= FETCH_MAX_RETRIES; attempt++) {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+
+    if (response.ok) return response
+    if (!FETCH_RETRYABLE_STATUS.has(response.status)) return response
+    if (attempt === FETCH_MAX_RETRIES) return response
+
+    const base =
+      response.status === 429
+        ? RATE_LIMIT_BASE_DELAY_MS
+        : TRANSIENT_BASE_DELAY_MS
+    const retryAfter = parseRetryAfter(response.headers.get('retry-after'))
+    const backoff = base * Math.pow(2, attempt)
+    // Jitter so parallel workers don't all wake up and slam the API together.
+    const jitter = Math.random() * base
+    const delay = Math.max(retryAfter ?? 0, backoff + jitter)
+
+    console.warn(
+      `Airtable API ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${FETCH_MAX_RETRIES})`
+    )
+    await new Promise(r => setTimeout(r, delay))
+  }
+
+  // Unreachable — the loop returns on the final attempt.
+  throw new Error('fetchAirtablePage exhausted retries without returning')
+}
+
+function parseRetryAfter(header: string | null): number | null {
+  if (!header) return null
+  const seconds = Number(header)
+  if (Number.isFinite(seconds)) return seconds * 1000
+  const date = Date.parse(header)
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now())
+  return null
+}
+
 async function fetchAirtableRecordsImpl(
   options: FetchOptions
 ): Promise<AirtableRawRecord[]> {
@@ -270,22 +321,12 @@ async function fetchAirtableRecordsImpl(
     // Pagination iterators expire in minutes, so per-page caching would
     // serve stale offsets and trigger 422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE.
     // The aggregated result is cached below via unstable_cache instead.
-    let response = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    })
+    const response = await fetchAirtablePage(url.toString(), token)
 
     if (!response.ok) {
-      console.warn(`Airtable API error (${response.status}), retrying...`)
-      await new Promise(r => setTimeout(r, 1000))
-      response = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      })
-    }
-
-    if (!response.ok) {
-      throw new Error(`Airtable API error after retry: ${response.status}`)
+      throw new Error(
+        `Airtable API error: ${response.status} for table ${options.tableId}`
+      )
     }
 
     const data = await response.json()

@@ -8,6 +8,7 @@ export const metadata = {
   title: 'Volunteer Projects – AISafety.com',
   description:
     'Initiatives seeking your volunteer help, focused on supporting and improving the AI safety field.',
+  alternates: { canonical: '/projects' },
 }
 
 export default async function ProjectsPage() {

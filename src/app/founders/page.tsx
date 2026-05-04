@@ -9,6 +9,7 @@ export const metadata = {
   title: 'Founder Toolkit – AISafety.com',
   description:
     'Resources for starting and growing an AI safety organization, including incubators, fiscal sponsors, VCs, and practical tools.',
+  alternates: { canonical: '/founders' },
 }
 
 export default async function FoundersPage() {

@@ -11,6 +11,7 @@ export const metadata = {
   title: 'Communities – AISafety.com',
   description:
     'Groups dedicated to discussing and contributing to AI safety, both online and in-person.',
+  alternates: { canonical: '/communities' },
   openGraph: {
     title: 'Communities – AISafety.com',
     description:

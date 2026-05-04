@@ -7,6 +7,7 @@ export const metadata = {
   title: 'Jobs – AISafety.com',
   description:
     "AI safety career opportunities. Many roles don't require technical skills.",
+  alternates: { canonical: '/jobs' },
 }
 
 export default async function JobsPage() {

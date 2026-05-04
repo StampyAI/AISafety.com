@@ -59,7 +59,7 @@
 
 .filter-chip {
   flex: none;
-  background-color: var(--bright-teal-500);
+  background-color: var(--bright-green);
   color: var(--teal-900);
   border: none;
   border-radius: 999px;
@@ -68,7 +68,7 @@
 }
 
 .filter-chip:hover {
-  background-color: var(--bright-teal-300);
+  background-color: color-mix(in srgb, var(--bright-green) 80%, var(--white));
 }
 
 .filter-chip svg {
@@ -130,7 +130,7 @@
 
 .browse-card-count {
   flex: none;
-  color: var(--bright-teal-300);
+  color: var(--bright-green);
   font-variant-numeric: tabular-nums;
 }
 
@@ -189,7 +189,7 @@
 
 .result-icon-initials {
   background-color: var(--teal-750);
-  color: var(--bright-teal-300);
+  color: var(--bright-green);
 }
 
 .result-body {
@@ -206,7 +206,7 @@
 }
 
 .result-subtitle {
-  color: var(--bright-teal-300);
+  color: var(--bright-green);
 }
 
 .result-description {

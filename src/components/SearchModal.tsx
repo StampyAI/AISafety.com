@@ -113,8 +113,12 @@ export default function SearchModal({
         const target = resultsArrRef.current[activeIndexRef.current]
         if (target) {
           e.preventDefault()
-          openResult(target)
-          onClose()
+          const isExternal = /^https?:|^mailto:/i.test(target.url)
+          if (isExternal) {
+            window.open(target.url, '_blank', 'noopener,noreferrer')
+          } else {
+            window.location.href = target.url
+          }
         }
       } else if (
         e.key === 'Backspace' &&
@@ -297,7 +301,6 @@ export default function SearchModal({
                     href={entry.url}
                     target={isExternal ? '_blank' : undefined}
                     rel={isExternal ? 'noopener noreferrer' : undefined}
-                    onClick={() => onClose()}
                     onMouseMove={() => {
                       if (Date.now() - lastKeyNavRef.current < 300) return
                       setActiveIndex(flatIndex)
@@ -433,14 +436,4 @@ function CloseIcon() {
       />
     </svg>
   )
-}
-
-function openResult(entry: SearchEntry) {
-  if (typeof window === 'undefined') return
-  const isExternal = /^https?:|^mailto:/i.test(entry.url)
-  if (isExternal) {
-    window.open(entry.url, '_blank', 'noopener,noreferrer')
-  } else {
-    window.location.href = entry.url
-  }
 }

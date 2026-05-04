@@ -238,14 +238,15 @@ const FETCH_RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
 const RATE_LIMIT_BASE_DELAY_MS = 30_000
 const TRANSIENT_BASE_DELAY_MS = 1_000
 
-async function fetchAirtablePage(
+export async function fetchAirtableWithRetry(
   url: string,
-  token: string
+  token: string,
+  init?: RequestInit
 ): Promise<Response> {
   for (let attempt = 0; attempt <= FETCH_MAX_RETRIES; attempt++) {
     const response = await fetch(url, {
+      ...init,
       headers: { Authorization: `Bearer ${token}` },
-      cache: 'no-store',
     })
 
     if (response.ok) return response
@@ -269,7 +270,7 @@ async function fetchAirtablePage(
   }
 
   // Unreachable — the loop returns on the final attempt.
-  throw new Error('fetchAirtablePage exhausted retries without returning')
+  throw new Error('fetchAirtableWithRetry exhausted retries without returning')
 }
 
 function parseRetryAfter(header: string | null): number | null {
@@ -321,7 +322,9 @@ async function fetchAirtableRecordsImpl(
     // Pagination iterators expire in minutes, so per-page caching would
     // serve stale offsets and trigger 422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE.
     // The aggregated result is cached below via unstable_cache instead.
-    const response = await fetchAirtablePage(url.toString(), token)
+    const response = await fetchAirtableWithRetry(url.toString(), token, {
+      cache: 'no-store',
+    })
 
     if (!response.ok) {
       throw new Error(

@@ -36,6 +36,7 @@
   top: auto !important;
   bottom: 16px !important;
   right: 8px !important;
+  z-index: 2 !important;
 }
 
 @media (max-width: 991px) {

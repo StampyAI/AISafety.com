@@ -31,6 +31,44 @@
   box-shadow: 0 12px 24px rgba(0, 25, 27, 0.5);
 }
 
+.mapLoading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 12px;
+  color: var(--teal-300);
+  box-shadow: 0 12px 24px rgba(0, 25, 27, 0.5);
+  pointer-events: none;
+}
+
+.mapLoading p {
+  margin: 0;
+}
+
+.mapSpinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--teal-700);
+  border-top-color: var(--bright-teal-300);
+  border-radius: 50%;
+  animation: mapSpin 0.8s linear infinite;
+}
+
+@keyframes mapSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Mapbox controls position - bottom-right on both desktop and mobile */
 :global(.mapboxgl-ctrl-top-right) {
   top: auto !important;

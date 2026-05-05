@@ -23,6 +23,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   const tooltipRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
   const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [pinsLoaded, setPinsLoaded] = useState(false)
 
   function initMap() {
     if (!mapContainerRef.current || !tooltipRef.current || !window.mapboxgl)
@@ -237,6 +238,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           'icon-allow-overlap': true,
         },
       })
+
+      // `idle` fires after tiles + pins have actually painted — much more
+      // accurate than hiding the loader when the layer is merely registered.
+      map.once('idle', () => setPinsLoaded(true))
 
       function updateTooltipPosition(
         e: any,
@@ -513,6 +518,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         onLoad={handleScriptLoad}
       />
       <div ref={mapContainerRef} className={styles.mapContainer}>
+        {!pinsLoaded && (
+          <div className={styles.mapLoading} aria-live="polite">
+            <div className={styles.mapSpinner} aria-hidden="true" />
+            <p className="paragraph-small">Loading map…</p>
+          </div>
+        )}
         <button
           onClick={handleViewOnline}
           className={`button-primary ${styles.mapButton}`}

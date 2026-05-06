@@ -20,9 +20,13 @@
   height: 375px;
   padding: 56px 56px 0 56px;
   overflow: hidden;
-  background-image: url('/images/TAIS.webp');
-  background-position: 50% 0;
-  background-size: cover;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0) 75%),
+    url('/images/EAG-NYC.webp');
+  background-position:
+    0 0,
+    50% 18%;
+  background-size: cover, cover;
   border-radius: 16px;
   gap: 64px;
 }

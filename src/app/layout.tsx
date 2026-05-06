@@ -50,8 +50,13 @@ export default async function RootLayout({
   const counts = await fetchAllCounts()
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(performance.getEntriesByType('navigation')[0]?.type==='reload')document.documentElement.classList.add('is-reload')}catch(e){}`,
+          }}
+        />
         <Script id="matomo" strategy="afterInteractive">
           {`
             var _paq = window._paq = window._paq || [];

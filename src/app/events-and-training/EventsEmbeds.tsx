@@ -6,7 +6,7 @@ import styles from './page.module.css'
 const EMBEDS = [
   {
     src: 'https://airtable.com/embed/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc?viewControls=on',
-    height: 2800,
+    height: 1860,
     className: `${styles['airtable-embed']} ${styles['airtable-embed-mobile']} margin-bottom-40px`,
   },
   {
@@ -16,7 +16,7 @@ const EMBEDS = [
   },
   {
     src: 'https://airtable.com/embed/appF8XfZUGXtfi40E/shrbap2hy8Yd3xojA',
-    height: 1350,
+    height: 1395,
     className: `${styles['airtable-embed']} margin-bottom-40px`,
   },
 ]
@@ -90,11 +90,15 @@ export default function EventsEmbeds() {
   return (
     <>
       <div className="container-wide">{renderEmbed(0)}</div>
+
+      <div className="container-default hide-mobile">
+        <h2 className="padding-bottom-24px">Calendar view</h2>
+      </div>
       <div className="container-wide hide-mobile">{renderEmbed(1)}</div>
 
       <div className="container-default hide-mobile">
         <h2 className="padding-bottom-24px">
-          Open for application/registration
+          By application/registration deadline
         </h2>
       </div>
 

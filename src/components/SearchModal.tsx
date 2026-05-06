@@ -350,8 +350,6 @@ export default function SearchModal({
   )
 }
 
-// Logo tiles default to dark — most directory logos are white-stroke SVGs
-// designed for the live site's dark theme and vanish on white.
 function ResultIcon({ entry }: { entry: SearchEntry }) {
   const [errored, setErrored] = useState(false)
 

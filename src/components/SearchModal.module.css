@@ -166,9 +166,7 @@
   flex: none;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  /* Dark default — most directory logos are white-stroke SVGs. */
-  background-color: var(--teal-700);
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -176,20 +174,21 @@
   object-fit: contain;
 }
 
-/* Logos fill the tile; page icons keep their natural size. */
 .result-icon-logo img {
   width: 100%;
   height: 100%;
 }
 
-/* Page icons are dark-stroke and need a white tile. */
+/* Page icons are dark-stroke and need a white circle, matching the nav. */
 .result-icon-page {
   background-color: var(--white);
+  border-radius: 50%;
 }
 
 .result-icon-initials {
   background-color: var(--teal-750);
   color: var(--bright-green);
+  border-radius: 50%;
 }
 
 .result-body {

@@ -42,9 +42,8 @@ export default function MediaChannelsClient({
       }
 
       if (selectedTypes.length > 0) {
-        const hasMatch = selectedTypes.some(t =>
-          channel.type.toLowerCase().includes(t.toLowerCase())
-        )
+        const channelTypes = channel.type.split(',').map(t => t.trim())
+        const hasMatch = selectedTypes.some(t => channelTypes.includes(t))
         if (!hasMatch) return false
       }
 
@@ -55,8 +54,9 @@ export default function MediaChannelsClient({
   const typeCounts = useMemo(() => {
     return channels.reduce(
       (counts, channel) => {
+        const channelTypes = channel.type.split(',').map(t => t.trim())
         for (const option of typeOptions) {
-          if (channel.type.toLowerCase().includes(option.toLowerCase())) {
+          if (channelTypes.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }

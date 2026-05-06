@@ -128,7 +128,7 @@ export default function Navigation({
     return () => document.removeEventListener('click', handleClickOutside)
   }, [isDropdownOpen])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleScroll = () => {
       const el = navOuterRef.current
       if (!el) return
@@ -187,6 +187,8 @@ export default function Navigation({
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    document.documentElement.classList.remove('is-reload')
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
   return (

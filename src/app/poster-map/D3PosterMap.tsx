@@ -331,7 +331,7 @@ export default function D3PosterMap({ orgs }: D3PosterMapProps) {
             .attr('transform', `translate(${qrX}, 0)`)
 
           // Use short URL if available, fall back to full URL
-          const urlForQR = org.link
+          const urlForQR = org.shortUrl || org.link
 
           // Generate QR code as data URL
           QRCode.toDataURL(urlForQR, {

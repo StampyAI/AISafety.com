@@ -13,5 +13,10 @@ export default function PosterLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  return <>{children}</>
+  return (
+    <>
+      <style>{`body { background-image: none !important; background-color: #000 !important; }`}</style>
+      {children}
+    </>
+  )
 }

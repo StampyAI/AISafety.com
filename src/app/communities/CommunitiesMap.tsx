@@ -5,6 +5,7 @@ import Script from 'next/script'
 import Image from 'next/image'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
+import { positionTooltip } from '@/lib/mapTooltip'
 
 interface CommunitiesMapProps {
   communities: Community[]
@@ -23,6 +24,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   const tooltipRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
   const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [pinsLoaded, setPinsLoaded] = useState(false)
 
   function initMap() {
     if (!mapContainerRef.current || !tooltipRef.current || !window.mapboxgl)
@@ -238,49 +240,22 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         },
       })
 
+      // `idle` fires after tiles + pins have actually painted — much more
+      // accurate than hiding the loader when the layer is merely registered.
+      map.once('idle', () => setPinsLoaded(true))
+
       function updateTooltipPosition(
         e: any,
         tt: HTMLDivElement,
         container: HTMLDivElement
       ) {
-        const mapRect = container.getBoundingClientRect()
-        const cursorX = e.originalEvent.clientX
-        const cursorY = e.originalEvent.clientY
-        const tooltipWidth = tt.offsetWidth
-        const tooltipHeight = tt.offsetHeight
-        const offset = 15
-
-        let finalY: number
-        const spaceBelow = mapRect.bottom - (cursorY + offset)
-        const spaceAbove = cursorY - offset - mapRect.top
-        if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
-          finalY = cursorY + offset
-          if (finalY + tooltipHeight > mapRect.bottom)
-            finalY = mapRect.bottom - tooltipHeight - 2
-        } else {
-          finalY = cursorY - offset - tooltipHeight
-          if (finalY < mapRect.top) finalY = mapRect.top + 2
-        }
-
-        let finalX: number
-        const spaceRight = mapRect.right - (cursorX + offset)
-        const spaceLeft = cursorX - offset - mapRect.left
-        if (spaceRight >= tooltipWidth || spaceRight >= spaceLeft) {
-          finalX = cursorX + offset
-          if (finalX + tooltipWidth > mapRect.right)
-            finalX = mapRect.right - tooltipWidth - 2
-        } else {
-          finalX = cursorX - offset - tooltipWidth
-          if (finalX < mapRect.left) finalX = mapRect.left + 2
-        }
-
-        tt.style.left = finalX + 'px'
-        tt.style.top = finalY + 'px'
-
-        if (isMobile()) {
-          const minLeftMargin = 20
-          if (finalX < minLeftMargin) tt.style.left = minLeftMargin + 'px'
-        }
+        positionTooltip(
+          e.originalEvent.clientX,
+          e.originalEvent.clientY,
+          tt,
+          container,
+          isMobile() ? { minLeftMargin: 20 } : {}
+        )
       }
 
       function setData(data: any) {
@@ -513,6 +488,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         onLoad={handleScriptLoad}
       />
       <div ref={mapContainerRef} className={styles.mapContainer}>
+        {!pinsLoaded && (
+          <div className={styles.mapLoading} aria-live="polite">
+            <div className={styles.mapSpinner} aria-hidden="true" />
+            <p className="paragraph-small">Loading map…</p>
+          </div>
+        )}
         <button
           onClick={handleViewOnline}
           className={`button-primary ${styles.mapButton}`}

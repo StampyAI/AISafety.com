@@ -8,6 +8,7 @@ export const metadata = {
   title: 'Events & training – AISafety.com',
   description:
     'AI safety events and training programs, both online and in-person.',
+  alternates: { canonical: '/events-and-training' },
   openGraph: {
     title: 'Events & training – AISafety.com',
     description:
@@ -86,9 +87,7 @@ export default async function EventsAndTrainingPage() {
           </Link>
         </div>
 
-        <h2 className="padding-bottom-24px">
-          All upcoming events and training programs
-        </h2>
+        <h2 className="padding-bottom-24px">Table view</h2>
       </div>
 
       {/* Airtable Embeds – load on view, then sequentially in background */}

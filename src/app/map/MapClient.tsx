@@ -123,12 +123,9 @@ export default function MapClient({
       }
 
       if (selectedCategories.length > 0) {
-        const orgCategories = org.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const orgCategories = org.category.split(',').map(c => c.trim())
         const hasMatchingCategory = selectedCategories.some(cat =>
-          orgCategories.some(orgCat => orgCat.includes(cat.toLowerCase()))
+          orgCategories.includes(cat)
         )
         if (!hasMatchingCategory) return false
       }
@@ -151,13 +148,9 @@ export default function MapClient({
     return orgs.reduce(
       (counts, org) => {
         if (org.isMagic) return counts
-        const orgCategories = org.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const orgCategories = org.category.split(',').map(c => c.trim())
         for (const category of categories) {
-          const catLower = category.toLowerCase()
-          if (orgCategories.some(orgCat => orgCat.includes(catLower))) {
+          if (orgCategories.includes(category)) {
             counts[category] = (counts[category] || 0) + 1
           }
         }

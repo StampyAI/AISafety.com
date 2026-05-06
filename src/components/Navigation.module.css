@@ -163,6 +163,10 @@
   top: 0;
 }
 
+:global(html.is-reload) .nav-fixed {
+  visibility: hidden;
+}
+
 .nav-blur {
   background-color: rgba(0, 25, 27, 0.4);
   backdrop-filter: blur(16px);

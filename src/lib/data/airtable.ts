@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import https from 'https'
 import http from 'http'
+import { unstable_cache } from 'next/cache'
 
 export interface AirtableRawRecord {
   id: string
@@ -25,6 +26,9 @@ interface FetchOptions {
 
 const CACHE_DIR = path.join(process.cwd(), 'public', 'images', 'airtable-cache')
 const CONCURRENCY = 20
+const DOWNLOAD_MAX_RETRIES = 3
+const DOWNLOAD_RETRY_DELAY_MS = 2000
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504])
 
 function isAttachmentArray(value: unknown): value is AirtableAttachment[] {
   return (
@@ -37,7 +41,15 @@ function isAttachmentArray(value: unknown): value is AirtableAttachment[] {
   )
 }
 
-const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif']
+const ALLOWED_EXTENSIONS = [
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.svg',
+  '.webp',
+  '.gif',
+  '.avif',
+]
 
 function getExtension(url: string, filename: string): string {
   const filenameExt = path.extname(filename).toLowerCase()
@@ -57,7 +69,26 @@ function getExtension(url: string, filename: string): string {
   )
 }
 
-function downloadFile(url: string, dest: string): Promise<void> {
+function parseHttpStatus(message: string): number {
+  const match = message.match(/^HTTP (\d+)$/)
+  return match ? parseInt(match[1], 10) : 0
+}
+
+function isRetryableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  if (RETRYABLE_STATUS_CODES.has(parseHttpStatus(message))) return true
+  const networkErrors = [
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ENOTFOUND',
+    'EPIPE',
+    'EAI_AGAIN',
+    'socket hang up',
+  ]
+  return networkErrors.some(e => message.includes(e))
+}
+
+function downloadFileOnce(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest)
     file.on('error', err => {
@@ -72,7 +103,7 @@ function downloadFile(url: string, dest: string): Promise<void> {
           if (redirectUrl) {
             file.close()
             fs.unlinkSync(dest)
-            downloadFile(redirectUrl, dest).then(resolve).catch(reject)
+            downloadFileOnce(redirectUrl, dest).then(resolve).catch(reject)
             return
           }
         }
@@ -96,6 +127,25 @@ function downloadFile(url: string, dest: string): Promise<void> {
         reject(err)
       })
   })
+}
+
+async function downloadFile(url: string, dest: string): Promise<void> {
+  for (let attempt = 0; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
+    try {
+      await downloadFileOnce(url, dest)
+      return
+    } catch (error) {
+      if (!isRetryableError(error) || attempt === DOWNLOAD_MAX_RETRIES) {
+        throw error
+      }
+      const delay = DOWNLOAD_RETRY_DELAY_MS * Math.pow(2, attempt)
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(
+        `Download failed (${message}), retrying in ${delay}ms... (attempt ${attempt + 1}/${DOWNLOAD_MAX_RETRIES})`
+      )
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
 }
 
 interface DownloadTask {
@@ -180,7 +230,59 @@ async function downloadAttachments(
   }
 }
 
-export async function fetchAirtableRecords(
+// Airtable's documented rate limit is 5 req/sec per base. Build-time
+// fan-out across many tables can burst past that, so retry 429s with
+// real backoff (exponential, plus the Retry-After header when present).
+const FETCH_MAX_RETRIES = 5
+const FETCH_RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504])
+const RATE_LIMIT_BASE_DELAY_MS = 30_000
+const TRANSIENT_BASE_DELAY_MS = 1_000
+
+export async function fetchAirtableWithRetry(
+  url: string,
+  token: string,
+  init?: RequestInit
+): Promise<Response> {
+  for (let attempt = 0; attempt <= FETCH_MAX_RETRIES; attempt++) {
+    const response = await fetch(url, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (response.ok) return response
+    if (!FETCH_RETRYABLE_STATUS.has(response.status)) return response
+    if (attempt === FETCH_MAX_RETRIES) return response
+
+    const base =
+      response.status === 429
+        ? RATE_LIMIT_BASE_DELAY_MS
+        : TRANSIENT_BASE_DELAY_MS
+    const retryAfter = parseRetryAfter(response.headers.get('retry-after'))
+    const backoff = base * Math.pow(2, attempt)
+    // Jitter so parallel workers don't all wake up and slam the API together.
+    const jitter = Math.random() * base
+    const delay = Math.max(retryAfter ?? 0, backoff + jitter)
+
+    console.warn(
+      `Airtable API ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${FETCH_MAX_RETRIES})`
+    )
+    await new Promise(r => setTimeout(r, delay))
+  }
+
+  // Unreachable — the loop returns on the final attempt.
+  throw new Error('fetchAirtableWithRetry exhausted retries without returning')
+}
+
+function parseRetryAfter(header: string | null): number | null {
+  if (!header) return null
+  const seconds = Number(header)
+  if (Number.isFinite(seconds)) return seconds * 1000
+  const date = Date.parse(header)
+  if (!Number.isNaN(date)) return Math.max(0, date - Date.now())
+  return null
+}
+
+async function fetchAirtableRecordsImpl(
   options: FetchOptions
 ): Promise<AirtableRawRecord[]> {
   const token = process.env.AIRTABLE_TOKEN
@@ -217,22 +319,17 @@ export async function fetchAirtableRecords(
       url.searchParams.set('offset', offset)
     }
 
-    let response = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${token}` },
-      next: { revalidate: 3600 }, // Hourly revalidation fetches fresh API responses with valid attachment URLs
+    // Pagination iterators expire in minutes, so per-page caching would
+    // serve stale offsets and trigger 422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE.
+    // The aggregated result is cached below via unstable_cache instead.
+    const response = await fetchAirtableWithRetry(url.toString(), token, {
+      cache: 'no-store',
     })
 
     if (!response.ok) {
-      console.warn(`Airtable API error (${response.status}), retrying...`)
-      await new Promise(r => setTimeout(r, 1000))
-      response = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${token}` },
-        next: { revalidate: 3600 }, // Retry also uses hourly revalidation
-      })
-    }
-
-    if (!response.ok) {
-      throw new Error(`Airtable API error after retry: ${response.status}`)
+      throw new Error(
+        `Airtable API error: ${response.status} for table ${options.tableId}`
+      )
     }
 
     const data = await response.json()
@@ -240,8 +337,15 @@ export async function fetchAirtableRecords(
     offset = data.offset || null
   } while (offset)
 
-  // Download all attachments and replace URLs with local paths
   await downloadAttachments(allRecords)
 
   return allRecords
 }
+
+// unstable_cache keys on the stringified arguments automatically; the
+// static keyParts below are just a namespace tag for invalidation.
+export const fetchAirtableRecords = unstable_cache(
+  fetchAirtableRecordsImpl,
+  ['airtable-records'],
+  { revalidate: 3600 }
+)

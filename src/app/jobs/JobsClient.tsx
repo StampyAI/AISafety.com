@@ -65,39 +65,27 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       }
 
       if (selectedSkills.length > 0) {
-        const jobSkills = job.skillSet
-          .toLowerCase()
-          .split(',')
-          .map(s => s.trim())
-        const hasMatch = selectedSkills.some(s =>
-          jobSkills.some(js => js.includes(s.toLowerCase()))
-        )
+        const jobSkills = job.skillSet.split(',').map(s => s.trim())
+        const hasMatch = selectedSkills.some(s => jobSkills.includes(s))
         if (!hasMatch) return false
       }
 
       if (selectedExperience.length > 0) {
-        const hasMatch = selectedExperience.some(e =>
-          job.minimumExperience.toLowerCase().includes(e.toLowerCase())
-        )
+        const jobExperience = job.minimumExperience
+          .split(',')
+          .map(e => e.trim())
+        const hasMatch = selectedExperience.some(e => jobExperience.includes(e))
         if (!hasMatch) return false
       }
 
       if (selectedRoles.length > 0) {
-        const jobRoles = job.roleType
-          .toLowerCase()
-          .split(',')
-          .map(r => r.trim())
-        const hasMatch = selectedRoles.some(r =>
-          jobRoles.some(jr => jr.includes(r.toLowerCase()))
-        )
+        const jobRoles = job.roleType.split(',').map(r => r.trim())
+        const hasMatch = selectedRoles.some(r => jobRoles.includes(r))
         if (!hasMatch) return false
       }
 
       if (selectedWorkLocation.length > 0) {
-        const hasMatch = selectedWorkLocation.some(w =>
-          job.workLocation.toLowerCase().includes(w.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedWorkLocation.includes(job.workLocation)) return false
       }
 
       return true
@@ -114,12 +102,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const skillCounts = useMemo(() => {
     return jobs.reduce(
       (counts, job) => {
-        const skills = job.skillSet
-          .toLowerCase()
-          .split(',')
-          .map(s => s.trim())
+        const skills = job.skillSet.split(',').map(s => s.trim())
         for (const option of skillSetOptions) {
-          if (skills.some(s => s.includes(option.toLowerCase()))) {
+          if (skills.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -132,10 +117,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const experienceCounts = useMemo(() => {
     return jobs.reduce(
       (counts, job) => {
+        const jobExperience = job.minimumExperience
+          .split(',')
+          .map(e => e.trim())
         for (const option of experienceOptions) {
-          if (
-            job.minimumExperience.toLowerCase().includes(option.toLowerCase())
-          ) {
+          if (jobExperience.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -148,12 +134,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const roleCounts = useMemo(() => {
     return jobs.reduce(
       (counts, job) => {
-        const roles = job.roleType
-          .toLowerCase()
-          .split(',')
-          .map(r => r.trim())
+        const roles = job.roleType.split(',').map(r => r.trim())
         for (const option of roleTypeOptions) {
-          if (roles.some(r => r.includes(option.toLowerCase()))) {
+          if (roles.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -167,8 +150,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     return jobs.reduce(
       (counts, job) => {
         for (const option of workLocationOptions) {
-          if (job.workLocation.toLowerCase().includes(option.toLowerCase())) {
+          if (job.workLocation === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts

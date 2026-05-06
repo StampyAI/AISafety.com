@@ -1,8 +1,11 @@
 'use client'
 
+// @refresh reset — d3 pipeline is inside useEffect; force remount on edit.
+
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { trackListingClick } from '@/lib/analytics'
+import { positionTooltip } from '@/lib/mapTooltip'
 import styles from './page.module.css'
 
 interface MapOrg {
@@ -69,49 +72,7 @@ const AREA_LABELS = [
 
 export default function D3Map({ orgs }: D3MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const svgRef = useRef<SVGSVGElement | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
-
-  // Position tooltip with edge detection (matches communities map)
-  function positionTooltip(
-    event: MouseEvent,
-    tt: HTMLDivElement,
-    container: HTMLDivElement
-  ) {
-    const mapRect = container.getBoundingClientRect()
-    const cursorX = event.clientX
-    const cursorY = event.clientY
-    const tooltipWidth = tt.offsetWidth
-    const tooltipHeight = tt.offsetHeight
-    const offset = 15
-
-    let finalY: number
-    const spaceBelow = mapRect.bottom - (cursorY + offset)
-    const spaceAbove = cursorY - offset - mapRect.top
-    if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
-      finalY = cursorY + offset
-      if (finalY + tooltipHeight > mapRect.bottom)
-        finalY = mapRect.bottom - tooltipHeight - 2
-    } else {
-      finalY = cursorY - offset - tooltipHeight
-      if (finalY < mapRect.top) finalY = mapRect.top + 2
-    }
-
-    let finalX: number
-    const spaceRight = mapRect.right - (cursorX + offset)
-    const spaceLeft = cursorX - offset - mapRect.left
-    if (spaceRight >= tooltipWidth || spaceRight >= spaceLeft) {
-      finalX = cursorX + offset
-      if (finalX + tooltipWidth > mapRect.right)
-        finalX = mapRect.right - tooltipWidth - 2
-    } else {
-      finalX = cursorX - offset - tooltipWidth
-      if (finalX < mapRect.left) finalX = mapRect.left + 2
-    }
-
-    tt.style.left = finalX + 'px'
-    tt.style.top = finalY + 'px'
-  }
 
   useEffect(() => {
     if (!containerRef.current || orgs.length === 0) return
@@ -119,7 +80,9 @@ export default function D3Map({ orgs }: D3MapProps) {
     // Clear any existing SVG
     d3.select(containerRef.current).select('svg').remove()
 
-    // Create SVG
+    // translateZ + backface-visibility promote the SVG to its own
+    // compositor layer in WebKit, avoiding tile re-rasterization flicker
+    // during pinch/wheel zoom on macOS.
     const svg = d3
       .select(containerRef.current)
       .append('svg')
@@ -127,8 +90,8 @@ export default function D3Map({ orgs }: D3MapProps) {
       .attr('height', '100%')
       .attr('viewBox', `0 0 ${PADDED_WIDTH} ${PADDED_HEIGHT}`)
       .attr('preserveAspectRatio', 'xMidYMin meet')
-
-    svgRef.current = svg.node()
+      .style('transform', 'translateZ(0)')
+      .style('backface-visibility', 'hidden')
 
     // Create main group with offset
     const offsetX = (PADDED_WIDTH - MAP_WIDTH) / 2
@@ -137,26 +100,48 @@ export default function D3Map({ orgs }: D3MapProps) {
       .append('g')
       .attr('transform', `translate(${offsetX}, ${offsetY})`)
 
-    // Check if on mobile
-    const isMobile = window.innerWidth < 768
-    const maxZoom = isMobile ? 25 : 8
+    // Read live so behavior adapts when the viewport is resized (e.g.
+    // dev tools mobile mode toggled after load).
+    const isMobile = () => window.innerWidth < 768
+    const maxZoom = isMobile() ? 25 : 8
 
-    // Set up zoom behavior
+    // Tracks which org's tooltip is currently shown from a mobile tap, so
+    // the next tap can switch to a different pin or dismiss on outside tap.
+    let tappedOrgId: string | null = null
+
+    function hideTooltip() {
+      if (tooltipRef.current) {
+        tooltipRef.current.style.visibility = 'hidden'
+        tooltipRef.current.style.opacity = '0'
+        tooltipRef.current.removeAttribute('data-link-url')
+        tooltipRef.current.removeAttribute('data-link-title')
+      }
+      tappedOrgId = null
+    }
+
+    // Gates the hover handlers below. Mutating `pointer-events` on
+    // svgGroup (the previous approach) invalidates its compositor layer
+    // in Mac WebKit and causes visible flicker mid-zoom.
+    let isZooming = false
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.5, maxZoom])
       .on('zoom', event => {
+        if (!isZooming) {
+          // First real movement — set in `zoom`, not `start`, because
+          // `start` fires on mousedown and would suppress link clicks.
+          isZooming = true
+          hideTooltip()
+        }
         const newX = event.transform.x + offsetX
         const newY = event.transform.y + offsetY
         svgGroup.attr(
           'transform',
           `translate(${newX}, ${newY}) scale(${event.transform.k})`
         )
-        // Hide tooltip on zoom/pan
-        if (tooltipRef.current) {
-          tooltipRef.current.style.visibility = 'hidden'
-          tooltipRef.current.style.opacity = '0'
-        }
+      })
+      .on('end', () => {
+        isZooming = false
       })
 
     svg.call(zoom)
@@ -167,6 +152,19 @@ export default function D3Map({ orgs }: D3MapProps) {
     const svgNode = svg.node()!
     const preventPageZoom = (e: WheelEvent) => e.preventDefault()
     svgNode.addEventListener('wheel', preventPageZoom, { passive: false })
+
+    // Shared clip-path for all logo circles. Using objectBoundingBox units so
+    // a single definition works for every logo regardless of its size.
+    const LOGO_CLIP_ID = 'logo-circle-clip'
+    svg
+      .append('defs')
+      .append('clipPath')
+      .attr('id', LOGO_CLIP_ID)
+      .attr('clipPathUnits', 'objectBoundingBox')
+      .append('circle')
+      .attr('cx', 0.5)
+      .attr('cy', 0.5)
+      .attr('r', 0.5)
 
     // Add background image
     svgGroup
@@ -264,8 +262,29 @@ export default function D3Map({ orgs }: D3MapProps) {
         linkEl
           .attr('xlink:href', org.link)
           .attr('target', '_blank')
+          .attr('rel', 'noopener noreferrer')
           .style('cursor', 'pointer')
-          .on('click', () => {
+          .on('click', event => {
+            // Mobile: first tap shows the tooltip instead of opening the
+            // link. Second tap of the tooltip itself opens it. Matches the
+            // pattern used on the /communities map.
+            if (isMobile()) {
+              event.preventDefault()
+              const tt = tooltipRef.current
+              const container = containerRef.current
+              if (!tt || !container) return
+              tt.querySelector('strong')!.textContent = org.tooltipTitle
+              tt.querySelector('span')!.textContent = org.description
+              tt.setAttribute('data-link-url', org.link)
+              tt.setAttribute('data-link-title', org.title)
+              tt.style.visibility = 'visible'
+              tt.style.opacity = '1'
+              positionTooltip(event.clientX, event.clientY, tt, container, {
+                minLeftMargin: 20,
+              })
+              tappedOrgId = org.id
+              return
+            }
             trackListingClick('Map', org.title, org.link)
           })
       }
@@ -278,54 +297,30 @@ export default function D3Map({ orgs }: D3MapProps) {
         .attr('cy', 0)
         .attr('fill', '#fff')
 
-      // Logo image - copied directly from WebFlow implementation
+      // Logo image — single SVG <image> clipped to a circle. The browser
+      // fetches/decodes the logo exactly once; preserveAspectRatio handles
+      // the aspect-fit math that used to require a separate `new Image()`.
       if (org.mapLogo) {
-        const uniqueId = `logo-pattern-${Math.random().toString(36).substring(2, 11)}`
-        const patternId = `pattern-${uniqueId}`
-        const img = new Image()
-        img.src = org.mapLogo
+        const logoImg = linkEl
+          .append('image')
+          .attr('href', org.mapLogo)
+          .attr('width', contentSize)
+          .attr('height', contentSize)
+          .attr('x', -contentSize / 2)
+          .attr('y', -contentSize / 2)
+          .attr('preserveAspectRatio', 'xMidYMid meet')
+          .attr('clip-path', `url(#${LOGO_CLIP_ID})`)
 
-        img.onload = function () {
-          const { width, height } = img
-          const scaleFactor = contentSize / Math.max(width, height)
-          const finalWidth = width * scaleFactor
-          const finalHeight = height * scaleFactor
-          const offsetX = (contentSize - finalWidth) / 2
-          const offsetY = (contentSize - finalHeight) / 2
-
-          // Create defs inside linkEl (as per WebFlow)
-          const localDefs = linkEl.append('defs')
-          const pattern = localDefs
-            .append('pattern')
-            .attr('id', patternId)
-            .attr('patternUnits', 'objectBoundingBox')
-            .attr('width', 1)
-            .attr('height', 1)
-
-          pattern
-            .append('image')
-            .attr('xlink:href', org.mapLogo)
-            .attr('width', finalWidth)
-            .attr('height', finalHeight)
-            .attr('x', offsetX)
-            .attr('y', offsetY)
-
-          linkEl
-            .append('circle')
-            .attr('r', contentSize / 2)
-            .attr('cx', 0)
-            .attr('cy', 0)
-            .attr('fill', `url(#${patternId})`)
-        }
-
-        img.onerror = function () {
+        // On load failure, swap in the orange fallback circle.
+        logoImg.on('error', () => {
+          logoImg.remove()
           linkEl
             .append('circle')
             .attr('r', contentSize / 2)
             .attr('cx', 0)
             .attr('cy', 0)
             .attr('fill', '#f70')
-        }
+        })
       } else {
         linkEl
           .append('circle')
@@ -375,38 +370,25 @@ export default function D3Map({ orgs }: D3MapProps) {
 
         textEl.attr('y', bbox.height * 0.35)
 
-        // QA: Add invisible rect filling the gap between circle and label pill.
-        // Without this, moving the mouse through the empty gap fires mouseleave,
-        // causing the tooltip to flicker. This matches the live site's gapRect.
+        // QA: Add an invisible bridge rect for a more forgiving hover zone so the
+        // tooltip doesn't disappear when the cursor is between logo and label.
+        const bridgeW = Math.max(iconSize, rectW)
+        const bridgeH = (iconSize + rectH) / 2 + labelOffset
         linkEl
           .append('rect')
-          .attr('x', -iconSize / 2)
-          .attr('y', iconSize / 2)
-          .attr('width', iconSize)
-          .attr('height', labelOffset)
-          .attr('fill', 'rgba(0,0,0,0)')
-          .style('pointer-events', 'all')
-
-        // QA: Add a wider invisible bridge rect that slightly overlaps both the
-        // circle and the pill. This provides a more forgiving hover zone so the
-        // tooltip doesn't disappear when the cursor drifts slightly outside the
-        // narrow gap. Pushed to the back so it doesn't block clicks on other items.
-        // Matches the live site's addUnifiedHoverArea.
-        const bridgeWidth = iconSize * 0.8
-        linkEl
-          .append('rect')
-          .attr('x', -bridgeWidth / 2)
-          .attr('y', iconSize / 2 - 2)
-          .attr('width', bridgeWidth)
-          .attr('height', labelOffset + 4)
-          .attr('fill', 'rgba(0,0,0,0)')
-          .style('pointer-events', 'all')
+          .attr('x', -bridgeW / 2)
+          .attr('y', 0)
+          .attr('width', bridgeW)
+          .attr('height', bridgeH)
+          .attr('fill', 'transparent')
           .lower()
       }
 
       // Tooltip events with smart edge-detection positioning
       linkEl
         .on('mouseenter', event => {
+          if (isMobile()) return
+          if (isZooming) return
           const tt = tooltipRef.current
           const container = containerRef.current
           if (!tt || !container) return
@@ -416,15 +398,18 @@ export default function D3Map({ orgs }: D3MapProps) {
           tt.querySelector('span')!.textContent = org.description
           tt.style.visibility = 'visible'
           tt.style.opacity = '1'
-          positionTooltip(event, tt, container)
+          positionTooltip(event.clientX, event.clientY, tt, container)
         })
         .on('mousemove', event => {
+          if (isMobile()) return
+          if (isZooming) return
           const tt = tooltipRef.current
           const container = containerRef.current
           if (!tt || !container) return
-          positionTooltip(event, tt, container)
+          positionTooltip(event.clientX, event.clientY, tt, container)
         })
         .on('mouseleave', () => {
+          if (isMobile()) return
           if (tooltipRef.current) {
             tooltipRef.current.style.visibility = 'hidden'
             tooltipRef.current.style.opacity = '0'
@@ -453,9 +438,39 @@ export default function D3Map({ orgs }: D3MapProps) {
       }
     }
 
+    // Mobile: tapping the tooltip opens the stashed link in a new tab.
+    const handleTooltipClick = (e: MouseEvent) => {
+      const tt = tooltipRef.current
+      if (!tt) return
+      const link = tt.getAttribute('data-link-url')
+      const title = tt.getAttribute('data-link-title')
+      if (link && link !== '#') {
+        if (title) trackListingClick('Map', title, link)
+        hideTooltip()
+        window.open(link, '_blank')
+      }
+      e.stopPropagation()
+    }
+
+    // Mobile: tapping outside any pin or the tooltip dismisses the tooltip.
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (tappedOrgId === null) return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('.mapItem')) return
+      if (tooltipRef.current && tooltipRef.current.contains(target)) return
+      hideTooltip()
+    }
+
+    const tooltipEl = tooltipRef.current
+    if (tooltipEl) tooltipEl.addEventListener('click', handleTooltipClick)
+    document.addEventListener('click', handleDocumentClick)
+
     const container = containerRef.current
     return () => {
       svgNode.removeEventListener('wheel', preventPageZoom)
+      if (tooltipEl) tooltipEl.removeEventListener('click', handleTooltipClick)
+      document.removeEventListener('click', handleDocumentClick)
       if (container) {
         d3.select(container).select('svg').remove()
       }

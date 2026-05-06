@@ -55,6 +55,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           location: c.location || '',
           url: c.website || '',
           link: c.joinLink,
+          logo: c.logo || '',
         }
       })
 
@@ -205,6 +206,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             url: community.url,
             link: community.link,
             location: community.location,
+            logo: community.logo,
             baseSize:
               community.type === 'city'
                 ? 0.25
@@ -242,6 +244,28 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       // `idle` fires after tiles + pins have actually painted — much more
       // accurate than hiding the loader when the layer is merely registered.
       map.once('idle', () => setPinsLoaded(true))
+
+      function escapeAttr(value: string) {
+        return value
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+      }
+
+      function buildTooltipHTML(props: any) {
+        const name = props?.name ?? ''
+        const description = props?.description ?? ''
+        const location = props?.location
+        const logo = props?.logo
+        const headerImage = logo
+          ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" onerror="this.style.display='none'" /></div>`
+          : ''
+        let html = `<div class="tooltip-header">${headerImage}<strong class="paragraph-small-bold">${name}</strong></div>`
+        if (location) html += `<span class="location-text">${location}</span>`
+        html += `${description}`
+        return html
+      }
 
       function updateTooltipPosition(
         e: any,
@@ -317,14 +341,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           })
           setData(geojsonData)
           hoveredPinId = currentFeatureId
-          const name = feature.properties?.name
-          const description = feature.properties?.description
-          const location = feature.properties?.location
-          let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
-          if (location)
-            tooltipHTML += `<span class="location-text">${location}</span>`
-          tooltipHTML += `${description}`
-          tooltip.innerHTML = tooltipHTML
+          tooltip.innerHTML = buildTooltipHTML(feature.properties)
           tooltip.style.display = 'block'
         }
         updateTooltipPosition(e, tooltip, mapContainer)
@@ -361,14 +378,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           setData(geojsonData)
           tappedPinId = currentFeatureId
 
-          const name = feature.properties?.name
-          const description = feature.properties?.description
-          const location = feature.properties?.location
-          let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
-          if (location)
-            tooltipHTML += `<span class="location-text">${location}</span>`
-          tooltipHTML += `${description}`
-          tooltip.innerHTML = tooltipHTML
+          tooltip.innerHTML = buildTooltipHTML(feature.properties)
 
           const link = feature.properties?.link || feature.properties?.url
           tooltip.setAttribute('data-link-url', link || '')

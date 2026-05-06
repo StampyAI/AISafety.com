@@ -115,6 +115,31 @@
   display: block;
 }
 
+:global(#mapbox-tooltip .tooltip-header) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+:global(#mapbox-tooltip .tooltip-img) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 40px;
+  max-width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+:global(#mapbox-tooltip .tooltip-image) {
+  max-width: 40px;
+  max-height: 40px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
 :global(#mapbox-tooltip .location-text) {
   display: block;
   margin-bottom: 8px;

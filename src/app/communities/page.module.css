@@ -126,24 +126,36 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 40px;
-  max-width: 40px;
-  height: 40px;
+  min-width: 56px;
+  max-width: 56px;
+  height: 56px;
   border-radius: 4px;
   flex-shrink: 0;
 }
 
 :global(#mapbox-tooltip .tooltip-image) {
-  max-width: 40px;
-  max-height: 40px;
+  max-width: 56px;
+  max-height: 56px;
   border-radius: 4px;
   object-fit: contain;
 }
 
+:global(#mapbox-tooltip .tooltip-title-block) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 :global(#mapbox-tooltip .location-text) {
-  display: block;
-  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--teal-300);
+}
+
+:global(#mapbox-tooltip .location-icon) {
+  flex-shrink: 0;
 }
 
 /* Mapbox control overrides */

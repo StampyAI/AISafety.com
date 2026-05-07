@@ -261,10 +261,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         const headerImage = logo
           ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" onerror="this.style.display='none'" /></div>`
           : ''
-        let html = `<div class="tooltip-header">${headerImage}<strong class="paragraph-small-bold">${name}</strong></div>`
-        if (location) html += `<span class="location-text">${location}</span>`
-        html += `${description}`
-        return html
+        const locationLine = location
+          ? `<span class="location-text"><svg class="location-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 1a3.5 3.5 0 0 0-3.5 3.5c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5A3.5 3.5 0 0 0 6 1Zm0 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>${location}</span>`
+          : ''
+        return `<div class="tooltip-header">${headerImage}<div class="tooltip-title-block"><strong class="paragraph-small-bold">${name}</strong>${locationLine}</div></div>${description}`
       }
 
       function updateTooltipPosition(

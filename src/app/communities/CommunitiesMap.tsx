@@ -384,6 +384,21 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         }
       })
 
+      // Open the URL in a new tab via a synthetic anchor click. Some
+      // browser/extension popup blockers stop `window.open(url, '_blank')`
+      // from a Mapbox click handler because they treat it as a popup
+      // rather than a link click. Programmatically clicking a real <a>
+      // bypasses that — it's what `target="_blank"` links already do.
+      function openInNewTab(url: string) {
+        const a = document.createElement('a')
+        a.href = url
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
+
       // Click handler — desktop opens the listing directly. Mobile shows
       // the tooltip first so users can preview the info; tapping the
       // tooltip then opens the listing (handled below).
@@ -393,7 +408,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
         if (!isMobile()) {
           const link = feature.properties?.link || feature.properties?.url
-          if (link && link !== '#') window.open(link, '_blank')
+          if (link && link !== '#') openInNewTab(link)
           return
         }
 
@@ -425,7 +440,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
               resetHover()
               tappedPinId = null
             }
-            window.open(lnk, '_blank')
+            openInNewTab(lnk)
           }
           e.stopPropagation()
         }

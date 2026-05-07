@@ -22,6 +22,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   const mapRef = useRef<any>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  // Keeps preloaded logo images alive after their bytes + decoded bitmaps are
+  // ready. Without these refs the browser may garbage-collect the decoded
+  // bitmap and the first tooltip hover still pays the decode cost.
+  const preloadedLogosRef = useRef<HTMLImageElement[]>([])
   const [scriptLoaded, setScriptLoaded] = useState(false)
   const [pinsLoaded, setPinsLoaded] = useState(false)
 
@@ -247,13 +251,18 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         setPinsLoaded(true)
         // Warm the browser cache for every tooltip logo so the first hover
         // doesn't show an empty image slot. Runs during idle time so it
-        // doesn't compete with the initial page render.
+        // doesn't compete with the initial page render. We also call
+        // `.decode()` on each image and hold the reference — that forces
+        // the browser to decode the bitmap during preload (instead of on
+        // first hover) and prevents GC from evicting it.
         const preloadLogos = () => {
           mapCommunities.forEach(c => {
             if (!c.logo) return
             const img = new window.Image()
             img.decoding = 'async'
             img.src = c.logo
+            img.decode().catch(() => {})
+            preloadedLogosRef.current.push(img)
           })
         }
         if ('requestIdleCallback' in window) {
@@ -277,7 +286,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         const location = props?.location
         const logo = props?.logo
         const headerImage = logo
-          ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" fetchpriority="high" decoding="async" onerror="this.style.display='none'" /></div>`
+          ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" fetchpriority="high" decoding="sync" onerror="this.style.display='none'" /></div>`
           : ''
         const locationLine = location
           ? `<span class="location-text"><svg class="location-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 1a3.5 3.5 0 0 0-3.5 3.5c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5A3.5 3.5 0 0 0 6 1Zm0 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>${location}</span>`

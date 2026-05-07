@@ -243,7 +243,25 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
       // `idle` fires after tiles + pins have actually painted — much more
       // accurate than hiding the loader when the layer is merely registered.
-      map.once('idle', () => setPinsLoaded(true))
+      map.once('idle', () => {
+        setPinsLoaded(true)
+        // Warm the browser cache for every tooltip logo so the first hover
+        // doesn't show an empty image slot. Runs during idle time so it
+        // doesn't compete with the initial page render.
+        const preloadLogos = () => {
+          mapCommunities.forEach(c => {
+            if (!c.logo) return
+            const img = new window.Image()
+            img.decoding = 'async'
+            img.src = c.logo
+          })
+        }
+        if ('requestIdleCallback' in window) {
+          ;(window as any).requestIdleCallback(preloadLogos, { timeout: 2000 })
+        } else {
+          setTimeout(preloadLogos, 200)
+        }
+      })
 
       function escapeAttr(value: string) {
         return value
@@ -259,7 +277,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         const location = props?.location
         const logo = props?.logo
         const headerImage = logo
-          ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" onerror="this.style.display='none'" /></div>`
+          ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" fetchpriority="high" decoding="async" onerror="this.style.display='none'" /></div>`
           : ''
         const locationLine = location
           ? `<span class="location-text"><svg class="location-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 1a3.5 3.5 0 0 0-3.5 3.5c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5A3.5 3.5 0 0 0 6 1Zm0 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>${location}</span>`

@@ -179,7 +179,6 @@ export default function CommunitiesClient({
                         height={64}
                         className="card-image"
                         unoptimized
-                        loading="eager"
                         onError={e => {
                           ;(e.target as HTMLImageElement).style.display = 'none'
                         }}

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import { Job } from '@/lib/data/jobs'
 import { trackListingClick } from '@/lib/analytics'
+import { setPageContext } from '@/lib/assistant/page-context'
 
 interface JobsClientProps {
   jobs: Job[]
@@ -196,6 +197,27 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       savedScrollY.current = null
     }
   }, [filteredJobs])
+
+  // Publish current filter + search state for the assistant to read
+  useEffect(() => {
+    const state: Record<string, unknown> = {}
+    if (selectedSkills.length) state.skills = selectedSkills
+    if (selectedExperience.length) state.experience = selectedExperience
+    if (selectedRoles.length) state.roleTypes = selectedRoles
+    if (selectedWorkLocation.length) state.workLocation = selectedWorkLocation
+    if (searchQuery) state.search = searchQuery
+    setPageContext({
+      page: '/jobs',
+      filters: Object.keys(state).length > 0 ? state : undefined,
+    })
+    return () => setPageContext(null)
+  }, [
+    selectedSkills,
+    selectedExperience,
+    selectedRoles,
+    selectedWorkLocation,
+    searchQuery,
+  ])
 
   return (
     <div className="database-outer-grid">

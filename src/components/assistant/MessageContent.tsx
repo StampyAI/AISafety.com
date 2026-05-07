@@ -1,0 +1,367 @@
+'use client'
+
+import { Fragment, ReactNode, useMemo } from 'react'
+import type { CitationRef } from '@/lib/assistant/types'
+import CitationCard from './CitationCard'
+import styles from './Assistant.module.css'
+
+interface Props {
+  text: string
+  citations: CitationRef[]
+  onSuggest?: (query: string) => void
+  onCitationClick?: (citation: CitationRef) => void
+  isStreaming?: boolean
+}
+
+// Card and id tokens accept either the canonical `type:recXXX` form or a
+// bare `recXXX` (the model occasionally drops the type prefix). Resolution
+// in resolveCitation falls back to a scan across all citations by raw rec id.
+const INLINE_REGEX =
+  /(\[\[id:(?:[a-z][a-z-]*:)?rec[A-Za-z0-9]+\]\])|(\[\[suggest:[^\]\n]*\]\])|(\[\[chip:[^\]\n]*\]\])|(\[\[card:(?:[a-z][a-z-]*:)?rec[A-Za-z0-9]+(?:\|[^\]\n]*)?\]\])|(\[[^\]\n]+\]\([^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/g
+
+const CARD_LINE =
+  /^\s*\[\[card:((?:[a-z][a-z-]*:)?rec[A-Za-z0-9]+)(?:\|([^\]\n]*))?\]\]\s*$/
+
+/** Look up a citation by its full id (e.g. "community:recXXX") or bare rec id. */
+function resolveCitation(
+  rawId: string,
+  citationsById: Map<string, CitationRef>
+): CitationRef | undefined {
+  const direct = citationsById.get(rawId)
+  if (direct) return direct
+  if (rawId.startsWith('rec')) {
+    for (const cit of citationsById.values()) {
+      if (cit.id.endsWith(`:${rawId}`)) return cit
+    }
+  }
+  return undefined
+}
+
+/** While streaming, hide any in-progress `[[...]]` directive token at the
+ *  end of the buffer so users don't see raw `[[card:` / `[[chip:` /
+ *  `[[/think...` flicker before the renderer can replace them with UI. */
+function maskStreamingTail(text: string): string {
+  const lastDouble = text.lastIndexOf('[[')
+  if (lastDouble !== -1 && !text.slice(lastDouble).includes(']]')) {
+    return text.slice(0, lastDouble)
+  }
+  if (text.endsWith('[')) return text.slice(0, -1)
+  return text
+}
+
+interface CardSpec {
+  id: string
+  note?: string
+}
+
+function parseCardLine(line: string): CardSpec | null {
+  const m = CARD_LINE.exec(line)
+  if (!m) return null
+  return { id: m[1], note: m[2]?.trim() || undefined }
+}
+
+function renderInline(
+  text: string,
+  citationsById: Map<string, CitationRef>,
+  onSuggest?: (query: string) => void,
+  onCitationClick?: (c: CitationRef) => void
+): ReactNode[] {
+  const parts: ReactNode[] = []
+  let lastIndex = 0
+  let key = 0
+  let match: RegExpExecArray | null
+  INLINE_REGEX.lastIndex = 0
+
+  while ((match = INLINE_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index))
+    }
+    const token = match[0]
+
+    if (token.startsWith('[[id:')) {
+      const id = token.slice(5, -2)
+      const cit = resolveCitation(id, citationsById)
+      if (cit) {
+        const isExt = /^https?:\/\//.test(cit.url)
+        parts.push(
+          <a
+            key={`c-${key++}`}
+            href={cit.url}
+            target={isExt ? '_blank' : undefined}
+            rel={isExt ? 'noopener noreferrer' : undefined}
+            className={styles.inlineCitation}
+            title={`Open ${cit.name}`}
+            aria-label={`Open ${cit.name}`}
+            onClick={() => onCitationClick?.(cit)}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M7 17L17 7" />
+              <path d="M8 7h9v9" />
+            </svg>
+          </a>
+        )
+      }
+    } else if (token.startsWith('[[card:')) {
+      // Cards inside a paragraph are rendered as just an inline reference.
+      // Block-level card lines are handled by the block parser separately.
+      const inner = token.slice(7, -2)
+      const pipe = inner.indexOf('|')
+      const id = pipe >= 0 ? inner.slice(0, pipe) : inner
+      const cit = resolveCitation(id, citationsById)
+      if (cit) {
+        const isExt = /^https?:\/\//.test(cit.url)
+        parts.push(
+          <a
+            key={`c-${key++}`}
+            href={cit.url}
+            target={isExt ? '_blank' : undefined}
+            rel={isExt ? 'noopener noreferrer' : undefined}
+            className={styles.inlineCitation}
+            title={`Open ${cit.name}`}
+            aria-label={`Open ${cit.name}`}
+            onClick={() => onCitationClick?.(cit)}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M7 17L17 7" />
+              <path d="M8 7h9v9" />
+            </svg>
+          </a>
+        )
+      }
+    } else if (token.startsWith('[[chip:')) {
+      // Chip tokens are stripped from visible text; rendered separately
+    } else if (token.startsWith('[[suggest:')) {
+      const query = token.slice(10, -2)
+      parts.push(
+        <SuggestInline key={`s-${key++}`} query={query} onSuggest={onSuggest} />
+      )
+    } else if (token.startsWith('[')) {
+      const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
+      if (linkMatch) {
+        const href = linkMatch[2]
+        const isExternal = /^https?:\/\//.test(href)
+        parts.push(
+          <a
+            key={`l-${key++}`}
+            href={href}
+            target={isExternal ? '_blank' : undefined}
+            rel={isExternal ? 'noopener noreferrer' : undefined}
+          >
+            {linkMatch[1]}
+          </a>
+        )
+      } else {
+        parts.push(token)
+      }
+    } else if (token.startsWith('**')) {
+      parts.push(<strong key={`b-${key++}`}>{token.slice(2, -2)}</strong>)
+    } else if (token.startsWith('*')) {
+      parts.push(<em key={`i-${key++}`}>{token.slice(1, -1)}</em>)
+    }
+
+    lastIndex = match.index + token.length
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex))
+  return parts
+}
+
+function SuggestInline({
+  query,
+  onSuggest,
+}: {
+  query: string
+  onSuggest?: (query: string) => void
+}) {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    onSuggest?.(query)
+  }
+  return (
+    <span className={styles.suggest}>
+      <span className={styles.suggestText}>
+        Nothing matched in our catalog. You can suggest one. We curate listings
+        from community submissions.
+      </span>
+      <a href="#" className={styles.suggestButton} onClick={handleClick}>
+        Suggest a listing
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M7 17L17 7" />
+          <path d="M8 7h9v9" />
+        </svg>
+      </a>
+    </span>
+  )
+}
+
+type Block =
+  | { kind: 'paragraph'; lines: string[] }
+  | { kind: 'ul'; lines: string[] }
+  | { kind: 'ol'; lines: string[] }
+  | { kind: 'cards'; cards: CardSpec[] }
+
+function parseBlocks(text: string): Block[] {
+  const lines = text.split('\n')
+  const blocks: Block[] = []
+  let current: Block | null = null
+
+  const flush = () => {
+    if (current) {
+      if (current.kind === 'cards' && current.cards.length === 0) {
+        // skip empty
+      } else if (
+        (current.kind === 'paragraph' ||
+          current.kind === 'ul' ||
+          current.kind === 'ol') &&
+        current.lines.length === 0
+      ) {
+        // skip empty
+      } else {
+        blocks.push(current)
+      }
+    }
+    current = null
+  }
+
+  for (const raw of lines) {
+    const line = raw.trimEnd()
+    const cardSpec = parseCardLine(line)
+    const ulMatch = /^\s*[-•]\s+(.+)$/.exec(line)
+    const olMatch = /^\s*\d+\.\s+(.+)$/.exec(line)
+
+    if (line === '') {
+      flush()
+      continue
+    }
+    if (cardSpec) {
+      if (!current || current.kind !== 'cards') {
+        flush()
+        current = { kind: 'cards', cards: [] }
+      }
+      current.cards.push(cardSpec)
+    } else if (ulMatch) {
+      if (!current || current.kind !== 'ul') {
+        flush()
+        current = { kind: 'ul', lines: [] }
+      }
+      current.lines.push(ulMatch[1])
+    } else if (olMatch) {
+      if (!current || current.kind !== 'ol') {
+        flush()
+        current = { kind: 'ol', lines: [] }
+      }
+      current.lines.push(olMatch[1])
+    } else {
+      if (!current || current.kind !== 'paragraph') {
+        flush()
+        current = { kind: 'paragraph', lines: [] }
+      }
+      current.lines.push(line)
+    }
+  }
+  flush()
+  return blocks
+}
+
+export default function MessageContent({
+  text,
+  citations,
+  onSuggest,
+  onCitationClick,
+  isStreaming,
+}: Props) {
+  const citationsById = useMemo(
+    () => new Map(citations.map(c => [c.id, c])),
+    [citations]
+  )
+  const visibleText = isStreaming ? maskStreamingTail(text) : text
+  const blocks = useMemo(() => parseBlocks(visibleText), [visibleText])
+
+  return (
+    <div className={styles.assistantMessage}>
+      {blocks.map((block, i) => {
+        if (block.kind === 'cards') {
+          return (
+            <div key={i} className={styles.citationStack}>
+              {block.cards.map((spec, j) => {
+                const cit = resolveCitation(spec.id, citationsById)
+                if (!cit) return null
+                return (
+                  <CitationCard
+                    key={`${spec.id}-${j}`}
+                    citation={cit}
+                    note={spec.note}
+                    onClick={onCitationClick}
+                  />
+                )
+              })}
+            </div>
+          )
+        }
+        if (block.kind === 'paragraph') {
+          const paragraphText = block.lines.join(' ')
+          return (
+            <p key={i}>
+              {renderInline(
+                paragraphText,
+                citationsById,
+                onSuggest,
+                onCitationClick
+              )}
+              {isStreaming && i === blocks.length - 1 && (
+                <span className={styles.cursor} />
+              )}
+            </p>
+          )
+        }
+        const Tag = block.kind === 'ul' ? 'ul' : 'ol'
+        return (
+          <Tag key={i}>
+            {block.lines.map((item, j) => (
+              <li key={j}>
+                <Fragment>
+                  {renderInline(
+                    item,
+                    citationsById,
+                    onSuggest,
+                    onCitationClick
+                  )}
+                </Fragment>
+              </li>
+            ))}
+          </Tag>
+        )
+      })}
+      {isStreaming && blocks.length === 0 && (
+        <p>
+          <span className={styles.cursor} />
+        </p>
+      )}
+    </div>
+  )
+}

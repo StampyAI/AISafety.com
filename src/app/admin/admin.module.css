@@ -1,0 +1,771 @@
+/* Admin: utilitarian. Same dark teal palette as the site, plain Inter,
+   simple labels, square corners. Zero decoration. */
+
+.adminWrap {
+  min-height: 100vh;
+  background-color: var(--teal-900);
+  color: var(--white);
+}
+
+/* ─── Top bar ─────────────────────────────────────────────────────────── */
+
+.adminHeader {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--teal-850);
+  border-bottom: 1px solid var(--teal-800);
+}
+
+.adminHeaderInner {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 14px 24px;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.adminBrand {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--white);
+  text-decoration: none;
+}
+
+.adminNav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.adminNavLink {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--teal-300);
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.adminNavLink:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.adminNavLinkActive {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.adminHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminBackLink {
+  font-size: 12px;
+  color: var(--teal-300);
+  text-decoration: none;
+}
+
+.adminBackLink:hover {
+  color: var(--white);
+}
+
+.adminLogoutButton {
+  background: transparent;
+  border: 1px solid var(--teal-700);
+  color: var(--white);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.adminLogoutButton:hover {
+  background-color: var(--teal-800);
+}
+
+/* ─── Login ───────────────────────────────────────────────────────────── */
+
+.loginWrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.loginCard {
+  width: 100%;
+  max-width: 360px;
+  padding: 28px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+}
+
+.loginTitle {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-left: 0;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loginInput {
+  height: 40px;
+  padding: 0 12px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+
+.loginInput:focus {
+  border-color: var(--teal-500);
+}
+
+.loginButton {
+  height: 40px;
+  padding: 0 12px;
+  background-color: var(--bright-teal-300);
+  color: var(--teal-900);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.loginButton:hover:not(:disabled) {
+  background-color: var(--bright-teal-500);
+}
+
+.loginButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.loginError {
+  font-size: 12px;
+  color: #ff8b8b;
+  padding: 8px 10px;
+  background-color: rgba(255, 100, 100, 0.08);
+  border: 1px solid rgba(255, 100, 100, 0.2);
+  border-radius: 6px;
+}
+
+/* ─── Page wrap + heading ─────────────────────────────────────────────── */
+
+.consoleWrap {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.pageHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin-left: 0;
+  line-height: 1.2;
+}
+
+.pageMeta {
+  font-size: 12px;
+  color: var(--teal-400);
+}
+
+.pageMetaValue {
+  color: var(--bright-teal-300);
+}
+
+/* ─── Playground split ───────────────────────────────────────────────── */
+
+.consoleSplit {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 991px) {
+  .consoleSplit {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Inline chat host (production chrome inline) ────────────────────── */
+
+.chatHost {
+  position: relative;
+  height: min(76vh, 720px);
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chatHostHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--teal-800);
+}
+
+.chatHostBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.chatHostBadgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--bright-green);
+  box-shadow: 0 0 6px rgba(122, 255, 178, 0.5);
+}
+
+.chatHostClear {
+  background: transparent;
+  border: 1px solid var(--teal-700);
+  color: var(--teal-300);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chatHostClear:hover {
+  background-color: var(--teal-800);
+  color: var(--white);
+}
+
+/* ─── Editor column ───────────────────────────────────────────────────── */
+
+.editorColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.editorBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+}
+
+.editorBlockHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editorBlockTitle {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-left: 0;
+  line-height: 1.2;
+}
+
+.sectionHint {
+  font-size: 12px;
+  color: var(--teal-300);
+  letter-spacing: -0.1px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sectionHint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background-color: var(--teal-900);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--bright-teal-300);
+}
+
+.editorRow {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.editorRowLabel {
+  font-size: 12px;
+  color: var(--teal-400);
+}
+
+.editorInput,
+.editorSelect {
+  height: 32px;
+  padding: 0 10px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.editorInput:focus,
+.editorSelect:focus {
+  border-color: var(--teal-500);
+}
+
+.editorTextarea {
+  width: 100%;
+  min-height: 320px;
+  padding: 12px 14px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  outline: none;
+  resize: vertical;
+}
+
+.editorTextarea:focus {
+  border-color: var(--teal-500);
+}
+
+.editorToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editorButton,
+.editorButtonPrimary {
+  border: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.editorButton {
+  background-color: transparent;
+  border: 1px solid var(--teal-700);
+  color: var(--white);
+}
+
+.editorButton:hover {
+  background-color: var(--teal-800);
+}
+
+.editorButtonPrimary {
+  background-color: var(--bright-teal-300);
+  color: var(--teal-900);
+}
+
+.editorButtonPrimary:hover {
+  background-color: var(--bright-teal-500);
+}
+
+.editorStatus {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.editorStatusSaving {
+  color: var(--bright-teal-300);
+}
+
+/* ─── Saved versions list ────────────────────────────────────────────── */
+
+.editorVersionList {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--teal-800);
+}
+
+.editorVersionListToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  color: var(--teal-300);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.editorVersionListToggle:hover {
+  color: var(--white);
+}
+
+.editorVersionListBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.editorVersionRow {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.editorVersionPick {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition:
+    border-color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.editorVersionPick:hover {
+  border-color: var(--teal-600);
+}
+
+.editorVersionRowActive .editorVersionPick {
+  background-color: var(--teal-800);
+  border-color: var(--bright-teal-500);
+}
+
+.editorVersionName {
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editorVersionActiveDot {
+  font-size: 9px;
+  color: var(--bright-teal-300);
+  line-height: 1;
+}
+
+.editorVersionMeta {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.editorVersionDelete {
+  background: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--teal-400);
+  font-size: 16px;
+  min-width: 30px;
+  padding: 0 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color var(--hover-transition),
+    background-color var(--hover-transition),
+    color var(--hover-transition);
+}
+
+.editorVersionDelete:hover {
+  background-color: var(--teal-800);
+  color: var(--white);
+}
+
+.editorVersionDeleteArmed,
+.editorVersionDeleteArmed:hover {
+  background-color: rgba(255, 100, 100, 0.12);
+  border-color: #ff8b8b;
+  color: #ff8b8b;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* ─── Conversations ─────────────────────────────────────────────────── */
+
+.conversationsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.convFilters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.convFilters label {
+  font-size: 12px;
+  color: var(--teal-300);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.convList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.convRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--white);
+}
+
+.convRow:hover {
+  border-color: var(--teal-700);
+}
+
+.convRowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.convRowZero {
+  color: #ffb87a;
+  font-weight: 600;
+}
+
+.convRowQuery {
+  font-size: 14px;
+  color: var(--white);
+}
+
+.convRowResponse {
+  font-size: 12px;
+  color: var(--teal-300);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.convDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  margin-top: -2px;
+}
+
+.convDetailField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.convDetailLabel {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.convDetailValue {
+  font-size: 13px;
+  color: var(--white);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.convDetailValueMono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--bright-teal-300);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.convTranscript {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.convTurnUser,
+.convTurnAssistant {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--teal-800);
+}
+
+.convTurnUser {
+  background-color: var(--teal-850);
+}
+
+.convTurnAssistant {
+  background-color: var(--teal-900);
+}
+
+.convTurnRole {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--teal-400);
+  margin-bottom: 4px;
+}
+
+.convTurnContent {
+  font-size: 13px;
+  color: var(--white);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.convNotes {
+  width: 100%;
+  min-height: 70px;
+  padding: 8px 10px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+}
+
+.convNotes:focus {
+  border-color: var(--teal-500);
+}
+
+.convTagInput {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.convTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  background-color: var(--teal-800);
+  border: 1px solid var(--teal-700);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--white);
+}
+
+.convTag button {
+  background: none;
+  border: none;
+  color: var(--teal-400);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+
+.convTagAdd {
+  height: 22px;
+  padding: 0 8px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 999px;
+  color: var(--white);
+  font-size: 11px;
+  outline: none;
+  min-width: 100px;
+  font-family: inherit;
+}
+
+.convTagAdd:focus {
+  border-color: var(--teal-500);
+}
+
+.convStatus {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+/* ─── Empty / disabled state notice ───────────────────────────────────── */
+
+.notice {
+  padding: 14px 16px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--teal-300);
+}

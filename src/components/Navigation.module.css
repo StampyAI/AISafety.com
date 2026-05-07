@@ -93,8 +93,10 @@
   border-radius: 20px;
   flex: none;
   max-width: 100%;
-  /* Reset for <button> use of this class. */
+  /* Resets for <button> use — iOS Safari otherwise paints button text
+     in its system blue. */
   background: transparent;
+  color: inherit;
   cursor: pointer;
   transition: all var(--hover-transition);
 }

@@ -96,6 +96,8 @@
   border: 1px solid var(--teal-750);
   border-radius: 12px;
   text-align: left;
+  /* iOS Safari renders <button> text in its system blue by default. */
+  color: inherit;
   transition:
     background-color var(--hover-transition),
     border-color var(--hover-transition);

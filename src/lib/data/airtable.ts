@@ -159,8 +159,21 @@ interface DownloadTask {
 async function downloadAttachments(
   records: AirtableRawRecord[]
 ): Promise<void> {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true })
+  // The cache lives under public/ so it can be served as static assets.
+  // That works at build time (writable filesystem) but not at request time
+  // on Vercel serverless (read-only). When the cache dir isn't writable,
+  // skip caching and leave the original Airtable signed URLs in place —
+  // they're valid long enough for an interactive request.
+  try {
+    if (!fs.existsSync(CACHE_DIR)) {
+      fs.mkdirSync(CACHE_DIR, { recursive: true })
+    }
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'EROFS' || code === 'EACCES' || code === 'ENOENT') {
+      return
+    }
+    throw err
   }
 
   const tasks: DownloadTask[] = []

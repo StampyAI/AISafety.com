@@ -29,10 +29,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
       }
 
       if (selectedStatus.length > 0) {
-        const hasMatch = selectedStatus.some(s =>
-          project.status.toLowerCase().includes(s.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedStatus.includes(project.status)) return false
       }
 
       return true
@@ -43,8 +40,9 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
     return projects.reduce(
       (counts, project) => {
         for (const option of statusOptions) {
-          if (project.status.toLowerCase().includes(option.toLowerCase())) {
+          if (project.status === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts

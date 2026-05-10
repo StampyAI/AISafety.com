@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fetchAirtableWithRetry } from '@/lib/data/airtable'
 
 // Force dynamic - this endpoint must run fresh on every cron invocation
 export const dynamic = 'force-dynamic'
@@ -70,8 +71,7 @@ async function hasChangesSince(
   url.searchParams.set('filterByFormula', formula)
   url.searchParams.set('maxRecords', '1')
 
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await fetchAirtableWithRetry(url.toString(), token, {
     cache: 'no-store',
   })
 

@@ -5,6 +5,10 @@ import TrackedLink from '@/components/TrackedLink'
 import { fetchAllLastUpdated } from '@/lib/data/last-updated'
 import styles from './page.module.css'
 
+export const metadata = {
+  alternates: { canonical: '/' },
+}
+
 export default async function Home() {
   const dates = await fetchAllLastUpdated()
 

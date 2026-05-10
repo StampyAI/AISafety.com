@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { trackListingClick } from '@/lib/analytics'
+import { positionTooltip } from '@/lib/mapTooltip'
 import styles from './page.module.css'
 
 interface MapOrg {
@@ -73,47 +74,6 @@ export default function D3Map({ orgs }: D3MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
 
-  // Position tooltip with edge detection (matches communities map)
-  function positionTooltip(
-    event: MouseEvent,
-    tt: HTMLDivElement,
-    container: HTMLDivElement
-  ) {
-    const mapRect = container.getBoundingClientRect()
-    const cursorX = event.clientX
-    const cursorY = event.clientY
-    const tooltipWidth = tt.offsetWidth
-    const tooltipHeight = tt.offsetHeight
-    const offset = 15
-
-    let finalY: number
-    const spaceBelow = mapRect.bottom - (cursorY + offset)
-    const spaceAbove = cursorY - offset - mapRect.top
-    if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
-      finalY = cursorY + offset
-      if (finalY + tooltipHeight > mapRect.bottom)
-        finalY = mapRect.bottom - tooltipHeight - 2
-    } else {
-      finalY = cursorY - offset - tooltipHeight
-      if (finalY < mapRect.top) finalY = mapRect.top + 2
-    }
-
-    let finalX: number
-    const spaceRight = mapRect.right - (cursorX + offset)
-    const spaceLeft = cursorX - offset - mapRect.left
-    if (spaceRight >= tooltipWidth || spaceRight >= spaceLeft) {
-      finalX = cursorX + offset
-      if (finalX + tooltipWidth > mapRect.right)
-        finalX = mapRect.right - tooltipWidth - 2
-    } else {
-      finalX = cursorX - offset - tooltipWidth
-      if (finalX < mapRect.left) finalX = mapRect.left + 2
-    }
-
-    tt.style.left = finalX + 'px'
-    tt.style.top = finalY + 'px'
-  }
-
   useEffect(() => {
     if (!containerRef.current || orgs.length === 0) return
 
@@ -140,9 +100,24 @@ export default function D3Map({ orgs }: D3MapProps) {
       .append('g')
       .attr('transform', `translate(${offsetX}, ${offsetY})`)
 
-    // Check if on mobile
-    const isMobile = window.innerWidth < 768
-    const maxZoom = isMobile ? 25 : 8
+    // Read live so behavior adapts when the viewport is resized (e.g.
+    // dev tools mobile mode toggled after load).
+    const isMobile = () => window.innerWidth < 768
+    const maxZoom = isMobile() ? 25 : 8
+
+    // Tracks which org's tooltip is currently shown from a mobile tap, so
+    // the next tap can switch to a different pin or dismiss on outside tap.
+    let tappedOrgId: string | null = null
+
+    function hideTooltip() {
+      if (tooltipRef.current) {
+        tooltipRef.current.style.visibility = 'hidden'
+        tooltipRef.current.style.opacity = '0'
+        tooltipRef.current.removeAttribute('data-link-url')
+        tooltipRef.current.removeAttribute('data-link-title')
+      }
+      tappedOrgId = null
+    }
 
     // Gates the hover handlers below. Mutating `pointer-events` on
     // svgGroup (the previous approach) invalidates its compositor layer
@@ -156,10 +131,7 @@ export default function D3Map({ orgs }: D3MapProps) {
           // First real movement — set in `zoom`, not `start`, because
           // `start` fires on mousedown and would suppress link clicks.
           isZooming = true
-          if (tooltipRef.current) {
-            tooltipRef.current.style.visibility = 'hidden'
-            tooltipRef.current.style.opacity = '0'
-          }
+          hideTooltip()
         }
         const newX = event.transform.x + offsetX
         const newY = event.transform.y + offsetY
@@ -292,7 +264,27 @@ export default function D3Map({ orgs }: D3MapProps) {
           .attr('target', '_blank')
           .attr('rel', 'noopener noreferrer')
           .style('cursor', 'pointer')
-          .on('click', () => {
+          .on('click', event => {
+            // Mobile: first tap shows the tooltip instead of opening the
+            // link. Second tap of the tooltip itself opens it. Matches the
+            // pattern used on the /communities map.
+            if (isMobile()) {
+              event.preventDefault()
+              const tt = tooltipRef.current
+              const container = containerRef.current
+              if (!tt || !container) return
+              tt.querySelector('strong')!.textContent = org.tooltipTitle
+              tt.querySelector('span')!.textContent = org.description
+              tt.setAttribute('data-link-url', org.link)
+              tt.setAttribute('data-link-title', org.title)
+              tt.style.visibility = 'visible'
+              tt.style.opacity = '1'
+              positionTooltip(event.clientX, event.clientY, tt, container, {
+                minLeftMargin: 20,
+              })
+              tappedOrgId = org.id
+              return
+            }
             trackListingClick('Map', org.title, org.link)
           })
       }
@@ -395,6 +387,7 @@ export default function D3Map({ orgs }: D3MapProps) {
       // Tooltip events with smart edge-detection positioning
       linkEl
         .on('mouseenter', event => {
+          if (isMobile()) return
           if (isZooming) return
           const tt = tooltipRef.current
           const container = containerRef.current
@@ -405,16 +398,18 @@ export default function D3Map({ orgs }: D3MapProps) {
           tt.querySelector('span')!.textContent = org.description
           tt.style.visibility = 'visible'
           tt.style.opacity = '1'
-          positionTooltip(event, tt, container)
+          positionTooltip(event.clientX, event.clientY, tt, container)
         })
         .on('mousemove', event => {
+          if (isMobile()) return
           if (isZooming) return
           const tt = tooltipRef.current
           const container = containerRef.current
           if (!tt || !container) return
-          positionTooltip(event, tt, container)
+          positionTooltip(event.clientX, event.clientY, tt, container)
         })
         .on('mouseleave', () => {
+          if (isMobile()) return
           if (tooltipRef.current) {
             tooltipRef.current.style.visibility = 'hidden'
             tooltipRef.current.style.opacity = '0'
@@ -443,9 +438,39 @@ export default function D3Map({ orgs }: D3MapProps) {
       }
     }
 
+    // Mobile: tapping the tooltip opens the stashed link in a new tab.
+    const handleTooltipClick = (e: MouseEvent) => {
+      const tt = tooltipRef.current
+      if (!tt) return
+      const link = tt.getAttribute('data-link-url')
+      const title = tt.getAttribute('data-link-title')
+      if (link && link !== '#') {
+        if (title) trackListingClick('Map', title, link)
+        hideTooltip()
+        window.open(link, '_blank')
+      }
+      e.stopPropagation()
+    }
+
+    // Mobile: tapping outside any pin or the tooltip dismisses the tooltip.
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (tappedOrgId === null) return
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('.mapItem')) return
+      if (tooltipRef.current && tooltipRef.current.contains(target)) return
+      hideTooltip()
+    }
+
+    const tooltipEl = tooltipRef.current
+    if (tooltipEl) tooltipEl.addEventListener('click', handleTooltipClick)
+    document.addEventListener('click', handleDocumentClick)
+
     const container = containerRef.current
     return () => {
       svgNode.removeEventListener('wheel', preventPageZoom)
+      if (tooltipEl) tooltipEl.removeEventListener('click', handleTooltipClick)
+      document.removeEventListener('click', handleDocumentClick)
       if (container) {
         d3.select(container).select('svg').remove()
       }

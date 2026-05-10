@@ -1,5 +1,6 @@
 import { DONATION_GUIDE_LAST_UPDATED } from '@/lib/donation-guide-date'
 import { formatDate } from '@/lib/format-date'
+import { fetchAirtableWithRetry } from './airtable'
 
 type QueryConfig = {
   type: 'query'
@@ -115,11 +116,10 @@ export async function fetchLastUpdated(
     throw new Error('Missing AIRTABLE_TOKEN or AIRTABLE_BASE_ID')
 
   if (config.type === 'record') {
-    const response = await fetch(
+    const response = await fetchAirtableWithRetry(
       `https://api.airtable.com/v0/${baseId}/${config.tableId}/${config.recordId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      token,
+      { next: { revalidate: 3600 } }
     )
     if (!response.ok)
       throw new Error(
@@ -150,8 +150,8 @@ export async function fetchLastUpdated(
   url.searchParams.set('maxRecords', '1')
   url.searchParams.set('fields[]', config.sortField)
 
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await fetchAirtableWithRetry(url.toString(), token, {
+    next: { revalidate: 3600 },
   })
   if (!response.ok)
     throw new Error(

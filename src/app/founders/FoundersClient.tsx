@@ -36,10 +36,8 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
       }
 
       if (selectedTypes.length > 0) {
-        const resourceType = resource.type.toLowerCase().trim()
-        const hasMatch = selectedTypes.some(t =>
-          resourceType.includes(t.toLowerCase())
-        )
+        const resourceTypes = resource.type.split(',').map(t => t.trim())
+        const hasMatch = selectedTypes.some(t => resourceTypes.includes(t))
         if (!hasMatch) return false
       }
 
@@ -50,9 +48,9 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
   const typeCounts = useMemo(() => {
     return resources.reduce(
       (counts, resource) => {
-        const resourceType = resource.type.toLowerCase().trim()
+        const resourceTypes = resource.type.split(',').map(t => t.trim())
         for (const option of typeOptions) {
-          if (resourceType.includes(option.toLowerCase())) {
+          if (resourceTypes.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }

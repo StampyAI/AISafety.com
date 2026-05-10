@@ -8,6 +8,7 @@ export const metadata = {
   title: 'Events & training – AISafety.com',
   description:
     'AI safety events and training programs, both online and in-person.',
+  alternates: { canonical: '/events-and-training' },
   openGraph: {
     title: 'Events & training – AISafety.com',
     description:

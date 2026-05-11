@@ -103,11 +103,19 @@
     border-color var(--hover-transition);
 }
 
-.browse-card:hover:not(:disabled),
 .browse-card:focus-visible:not(:disabled) {
   background-color: var(--teal-800);
   border-color: var(--bright-teal-500);
   outline: none;
+}
+
+/* Hover-only styles. Touch devices skip these so a tap mid-scroll
+   doesn't latch a sticky highlight on the card. */
+@media (hover: hover) {
+  .browse-card:hover:not(:disabled) {
+    background-color: var(--teal-800);
+    border-color: var(--bright-teal-500);
+  }
 }
 
 .browse-card:disabled {
@@ -158,10 +166,15 @@
     border-color var(--hover-transition);
 }
 
-.result:hover,
-.result-active {
-  background-color: var(--teal-800);
-  border-color: var(--teal-700);
+/* Highlight only on devices that actually hover. On touch the synthetic
+   mousemove from a tap would otherwise stick the active highlight on
+   whichever row the finger passed over. */
+@media (hover: hover) {
+  .result:hover,
+  .result-active {
+    background-color: var(--teal-800);
+    border-color: var(--teal-700);
+  }
 }
 
 .result-icon {

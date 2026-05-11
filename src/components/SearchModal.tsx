@@ -200,7 +200,11 @@ export default function SearchModal({
           )}
           <input
             ref={inputRef}
-            type="text"
+            // type=search suppresses iOS's password/contact autofill bar,
+            // which otherwise pops in on refocus and feels like a zoom.
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder={

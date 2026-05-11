@@ -47,6 +47,10 @@
   height: 32px;
   background: transparent;
   border: none;
+  /* iOS Safari zooms inputs with font-size < 16px on focus, even
+     though the rest of the modal uses 15px. The extra pixel is
+     visually unnoticeable here. */
+  font-size: 16px;
   /* :focus-visible matches programmatic focus in Chrome — the global
      teal ring is noise on an already-obvious focus target. */
   outline: none;
@@ -55,6 +59,14 @@
 
 .input::placeholder {
   color: var(--teal-500);
+}
+
+/* Suppress WebKit's built-in clear (×) button for type=search — the
+   component renders its own clear button next to the input. */
+.input::-webkit-search-cancel-button,
+.input::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .filter-chip {
@@ -255,7 +267,11 @@
     padding: 16px 12px 88px;
   }
   .modal {
+    /* dvh shrinks when iOS shows the on-screen keyboard so the modal
+       stays inside the visible viewport, avoiding a brief scroll
+       jump when the input is refocused. vh is the fallback. */
     max-height: calc(100vh - 104px);
+    max-height: calc(100dvh - 104px);
   }
   .browse-grid {
     grid-template-columns: 1fr;

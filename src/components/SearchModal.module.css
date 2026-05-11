@@ -248,6 +248,14 @@
 
 .shortcut-hint {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* iOS WebKit applies its native button shape (capsule) and ignores
+     border-radius unless appearance is reset. */
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 8px;
   border: 1px solid var(--teal-700);
   background: transparent;
   border-radius: 6px;
@@ -260,6 +268,12 @@
 .shortcut-hint:hover {
   border-color: var(--teal-500);
   color: var(--teal-300);
+}
+
+.shortcut-hint-x {
+  display: none;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (max-width: 991px) {
@@ -275,5 +289,26 @@
   }
   .browse-grid {
     grid-template-columns: 1fr;
+  }
+  /* No ESC key on mobile — mimic the global nav close button: square
+     box with a white-ish border for contrast against the dark modal,
+     no fill. Smaller corner radius than the nav so it reads as part
+     of the search row, not as a pill. */
+  .shortcut-hint {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-color: rgba(255, 255, 255, 0.4);
+    color: white;
+  }
+  .shortcut-hint-esc {
+    display: none;
+  }
+  .shortcut-hint-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
   }
 }

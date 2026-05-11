@@ -219,10 +219,27 @@ export default function SearchModal({
           <button
             type="button"
             onClick={onClose}
-            className={`${styles['shortcut-hint']} paragraph-xs color-teal-400 padding-top-4px padding-bottom-4px padding-left-8px padding-right-8px`}
+            className={`${styles['shortcut-hint']} paragraph-xs color-teal-400`}
             aria-label="Close search"
           >
-            esc
+            <span className={styles['shortcut-hint-esc']}>esc</span>
+            <span className={styles['shortcut-hint-x']} aria-hidden="true">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 10 10"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M0.5 0.5L9.5 9.5M0.5 9.5L9.5 0.5"
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            </span>
           </button>
         </div>
 

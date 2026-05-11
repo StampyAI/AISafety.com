@@ -113,9 +113,15 @@ export default function SearchModal({
         const target = resultsArrRef.current[activeIndexRef.current]
         if (target) {
           e.preventDefault()
-          const isExternal = /^https?:|^mailto:/i.test(target.url)
-          if (isExternal) {
-            window.open(target.url, '_blank', 'noopener,noreferrer')
+          // Click the rendered <a> instead of window.open / location.href —
+          // ad blockers (AdGuard et al) silently swallow programmatic
+          // window.open calls. A synthetic anchor click inherits target=_blank
+          // from the link itself and is treated as a real user navigation.
+          const link = resultsRef.current?.querySelector<HTMLAnchorElement>(
+            `[data-result-index="${activeIndexRef.current}"]`
+          )
+          if (link) {
+            link.click()
           } else {
             window.location.href = target.url
           }

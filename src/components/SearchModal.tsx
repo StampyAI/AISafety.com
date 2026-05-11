@@ -110,6 +110,14 @@ export default function SearchModal({
         lastKeyNavRef.current = Date.now()
         setActiveIndex(i => Math.max(i - 1, 0))
       } else if (e.key === 'Enter') {
+        // On touch devices the soft keyboard's Go/Return key fires Enter.
+        // Dismiss the keyboard instead of opening the active result —
+        // mobile users tap to navigate, not Enter.
+        if (!window.matchMedia('(hover: hover)').matches) {
+          e.preventDefault()
+          inputRef.current?.blur()
+          return
+        }
         const target = resultsArrRef.current[activeIndexRef.current]
         if (target) {
           e.preventDefault()

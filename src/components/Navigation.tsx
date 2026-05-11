@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   useCallback,
   useEffect,
@@ -56,6 +57,15 @@ export default function Navigation({
   const [visibleCount, setVisibleCount] = useState(
     navItems.length - MIN_OVERFLOW
   )
+  const pathname = usePathname()
+
+  // Close the mobile menu only once the new route is actually active.
+  // Closing on link click instead snaps the overlay shut before the new
+  // page has rendered, producing a flash of the previous page.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: react to route change driven by Link clicks outside this component
+    setIsMenuOpen(false)
+  }, [pathname])
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLElement>(null)
   const navOuterRef = useRef<HTMLDivElement>(null)
@@ -316,7 +326,7 @@ export default function Navigation({
         className={`${styles['mobile-menu']} ${isMenuOpen ? styles['mobile-menu-visible'] : ''}`}
       >
         <div className={styles['mobile-menu-header']}>
-          <Link href="/" onClick={() => setIsMenuOpen(false)}>
+          <Link href="/">
             <Image
               src="/images/logo.svg"
               alt="AI Safety logo"
@@ -343,7 +353,6 @@ export default function Navigation({
               key={item.href}
               href={item.href}
               className={styles['nav-item']}
-              onClick={() => setIsMenuOpen(false)}
             >
               <div className={styles['nav-item-icon']}>
                 <Image

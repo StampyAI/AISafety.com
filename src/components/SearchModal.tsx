@@ -10,7 +10,6 @@ import {
   TYPE_LABEL,
   countsByType,
   groupByType,
-  indexCounts,
   search,
   type LoadState,
 } from '@/lib/search'
@@ -59,16 +58,14 @@ export default function SearchModal({
     [index, query, activeType]
   )
   const grouped = useMemo(() => groupByType(results), [results])
-  const fallbackCounts = useMemo(
+  // Use the same server-rendered counts the nav shows so the two
+  // always agree. The search-index counts drift by ±1-2 vs the nav
+  // because of view filters; that mismatch is more confusing than
+  // a perfectly-accurate-but-different number is useful.
+  const counts = useMemo(
     () =>
       pathCounts ? countsByType(pathCounts) : new Map<SearchType, number>(),
     [pathCounts]
-  )
-  // Server-rendered counts let the browse grid render with numbers
-  // immediately; the heavier search index replaces them once it loads.
-  const counts = useMemo(
-    () => (index ? indexCounts(index) : fallbackCounts),
-    [index, fallbackCounts]
   )
 
   useEffect(() => {
@@ -220,7 +217,7 @@ export default function SearchModal({
             placeholder={
               activeType
                 ? `Search in ${TYPE_LABEL[activeType]}…`
-                : 'Search advisors, jobs, funders, communities…'
+                : 'Search all resource pages…'
             }
             className={`${styles.input} color-white`}
             autoComplete="off"

@@ -152,7 +152,7 @@
 
 .browse-card-count {
   flex: none;
-  color: var(--bright-green);
+  color: var(--teal-300);
   font-variant-numeric: tabular-nums;
 }
 

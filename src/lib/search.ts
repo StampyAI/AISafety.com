@@ -6,18 +6,19 @@ export type LoadState =
   | { status: 'ready'; index: SearchEntry[] }
   | { status: 'error'; message: string }
 
-// 'page' omitted — already in the nav.
+// Order matches the global nav (Events first, etc.). 'page' omitted —
+// the nav links themselves are pages, so listing them again is noise.
 export const BROWSE_TYPES: SearchType[] = [
-  'map',
   'event',
-  'advisor',
-  'funder',
+  'map',
   'community',
   'course',
+  'job',
+  'funder',
   'media',
+  'advisor',
   'project',
   'founder',
-  'job',
 ]
 
 export const TYPE_LABEL: Record<SearchType, string> = {
@@ -206,12 +207,4 @@ export function groupByType(
     }
   }
   return groups
-}
-
-export function indexCounts(index: SearchEntry[]): Map<SearchType, number> {
-  const counts = new Map<SearchType, number>()
-  for (const entry of index) {
-    counts.set(entry.type, (counts.get(entry.type) ?? 0) + 1)
-  }
-  return counts
 }

@@ -8,6 +8,7 @@ export const metadata = {
   title: 'Media Channels – AISafety.com',
   description:
     'Information sources to help you learn more about AI safety and stay up to date.',
+  alternates: { canonical: '/media-channels' },
 }
 
 export default async function MediaChannelsPage() {

@@ -73,6 +73,9 @@
 /* Map tooltip — matches communities mapbox-tooltip */
 .map-tooltip {
   position: fixed;
+  /* Desktop: pointer-events disabled so the tooltip doesn't catch the
+     cursor and cause hover flicker. Mobile overrides this below so the
+     tooltip can be tapped to open the listing. */
   pointer-events: none;
   background-color: var(--teal-850);
   border: 1px solid var(--teal-700);
@@ -82,6 +85,13 @@
   box-shadow: 0 12px 24px rgba(0, 25, 27, 0.5);
   z-index: 1000;
   text-align: left;
+}
+
+@media (max-width: 767px) {
+  .map-tooltip {
+    pointer-events: auto;
+    cursor: pointer;
+  }
 }
 
 .map-tooltip strong {

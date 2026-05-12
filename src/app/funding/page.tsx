@@ -8,6 +8,7 @@ export const metadata = {
   title: 'Funding – AISafety.com',
   description:
     'Organizations offering financial support to organizations and individuals working on AI safety.',
+  alternates: { canonical: '/funding' },
 }
 
 export default async function FundingPage() {

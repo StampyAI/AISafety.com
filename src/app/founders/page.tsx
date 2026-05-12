@@ -9,6 +9,7 @@ export const metadata = {
   title: 'Founder Toolkit – AISafety.com',
   description:
     'Resources for starting and growing an AI safety organization, including incubators, fiscal sponsors, VCs, and practical tools.',
+  alternates: { canonical: '/founders' },
 }
 
 export default async function FoundersPage() {
@@ -48,7 +49,7 @@ export default async function FoundersPage() {
             href="https://www.catalyze-impact.org/"
             tagline="Featured incubator"
             name="Catalyze Impact"
-            description="Incubating early-stage AI safety research organizations. The program involves co-founder matching, mentorship, and seed funding, culminating in an in-person building phase."
+            description="Brings together co-founders, experts, and mission-oriented funders to accelerate founders from pre-idea to scaling an AI safety org. Includes mentorship and seed funding."
             logo="/images/catalyze-impact-logo.png"
             metadata={[{ label: 'Type', value: 'Incubator' }]}
             trackingPage="Founders"

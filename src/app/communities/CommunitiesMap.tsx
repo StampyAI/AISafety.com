@@ -5,6 +5,7 @@ import Script from 'next/script'
 import Image from 'next/image'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
+import { positionTooltip } from '@/lib/mapTooltip'
 
 interface CommunitiesMapProps {
   communities: Community[]
@@ -22,7 +23,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   const mapRef = useRef<any>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  // Keeps preloaded logo images alive after their bytes + decoded bitmaps are
+  // ready. Without these refs the browser may garbage-collect the decoded
+  // bitmap and the first tooltip hover still pays the decode cost.
+  const preloadedLogosRef = useRef<HTMLImageElement[]>([])
   const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [pinsLoaded, setPinsLoaded] = useState(false)
 
   function initMap() {
     if (!mapContainerRef.current || !tooltipRef.current || !window.mapboxgl)
@@ -54,6 +60,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           location: c.location || '',
           url: c.website || '',
           link: c.joinLink,
+          logo: c.logo || '',
         }
       })
 
@@ -204,6 +211,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             url: community.url,
             link: community.link,
             location: community.location,
+            logo: community.logo,
             baseSize:
               community.type === 'city'
                 ? 0.25
@@ -238,49 +246,67 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         },
       })
 
+      // `idle` fires after tiles + pins have actually painted — much more
+      // accurate than hiding the loader when the layer is merely registered.
+      map.once('idle', () => {
+        setPinsLoaded(true)
+        // Warm the browser cache for every tooltip logo so the first hover
+        // doesn't show an empty image slot. Runs during idle time so it
+        // doesn't compete with the initial page render. We also call
+        // `.decode()` on each image and hold the reference — that forces
+        // the browser to decode the bitmap during preload (instead of on
+        // first hover) and prevents GC from evicting it.
+        const preloadLogos = () => {
+          mapCommunities.forEach(c => {
+            if (!c.logo) return
+            const img = new window.Image()
+            img.decoding = 'async'
+            img.src = c.logo
+            img.decode().catch(() => {})
+            preloadedLogosRef.current.push(img)
+          })
+        }
+        if ('requestIdleCallback' in window) {
+          ;(window as any).requestIdleCallback(preloadLogos, { timeout: 2000 })
+        } else {
+          setTimeout(preloadLogos, 200)
+        }
+      })
+
+      function escapeAttr(value: string) {
+        return value
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+      }
+
+      function buildTooltipHTML(props: any) {
+        const name = props?.name ?? ''
+        const description = props?.description ?? ''
+        const location = props?.location
+        const logo = props?.logo
+        const headerImage = logo
+          ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" fetchpriority="high" decoding="sync" onerror="this.style.display='none'" /></div>`
+          : ''
+        const locationLine = location
+          ? `<span class="location-text"><svg class="location-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 1a3.5 3.5 0 0 0-3.5 3.5c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5A3.5 3.5 0 0 0 6 1Zm0 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>${location}</span>`
+          : ''
+        return `<div class="tooltip-header">${headerImage}<div class="tooltip-title-block"><strong class="paragraph-small-bold">${name}</strong>${locationLine}</div></div>${description}`
+      }
+
       function updateTooltipPosition(
         e: any,
         tt: HTMLDivElement,
         container: HTMLDivElement
       ) {
-        const mapRect = container.getBoundingClientRect()
-        const cursorX = e.originalEvent.clientX
-        const cursorY = e.originalEvent.clientY
-        const tooltipWidth = tt.offsetWidth
-        const tooltipHeight = tt.offsetHeight
-        const offset = 15
-
-        let finalY: number
-        const spaceBelow = mapRect.bottom - (cursorY + offset)
-        const spaceAbove = cursorY - offset - mapRect.top
-        if (spaceBelow >= tooltipHeight || spaceBelow >= spaceAbove) {
-          finalY = cursorY + offset
-          if (finalY + tooltipHeight > mapRect.bottom)
-            finalY = mapRect.bottom - tooltipHeight - 2
-        } else {
-          finalY = cursorY - offset - tooltipHeight
-          if (finalY < mapRect.top) finalY = mapRect.top + 2
-        }
-
-        let finalX: number
-        const spaceRight = mapRect.right - (cursorX + offset)
-        const spaceLeft = cursorX - offset - mapRect.left
-        if (spaceRight >= tooltipWidth || spaceRight >= spaceLeft) {
-          finalX = cursorX + offset
-          if (finalX + tooltipWidth > mapRect.right)
-            finalX = mapRect.right - tooltipWidth - 2
-        } else {
-          finalX = cursorX - offset - tooltipWidth
-          if (finalX < mapRect.left) finalX = mapRect.left + 2
-        }
-
-        tt.style.left = finalX + 'px'
-        tt.style.top = finalY + 'px'
-
-        if (isMobile()) {
-          const minLeftMargin = 20
-          if (finalX < minLeftMargin) tt.style.left = minLeftMargin + 'px'
-        }
+        positionTooltip(
+          e.originalEvent.clientX,
+          e.originalEvent.clientY,
+          tt,
+          container,
+          isMobile() ? { minLeftMargin: 20 } : {}
+        )
       }
 
       function setData(data: any) {
@@ -312,14 +338,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           })
           setData(geojsonData)
           hoveredPinId = currentFeatureId
-          const name = feature.properties?.name
-          const description = feature.properties?.description
-          const location = feature.properties?.location
-          let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
-          if (location)
-            tooltipHTML += `<span class="location-text">${location}</span>`
-          tooltipHTML += `${description}`
-          tooltip.innerHTML = tooltipHTML
+          tooltip.innerHTML = buildTooltipHTML(feature.properties)
           tooltip.style.display = 'block'
         }
         updateTooltipPosition(e, tooltip, mapContainer)
@@ -335,6 +354,21 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         }
       })
 
+      // Open the URL in a new tab via a synthetic anchor click. Some
+      // browser/extension popup blockers stop `window.open(url, '_blank')`
+      // from a Mapbox click handler because they treat it as a popup
+      // rather than a link click. Programmatically clicking a real <a>
+      // bypasses that — it's what `target="_blank"` links already do.
+      function openInNewTab(url: string) {
+        const a = document.createElement('a')
+        a.href = url
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
+
       // Click handler — desktop opens the listing directly. Mobile shows
       // the tooltip first so users can preview the info; tapping the
       // tooltip then opens the listing (handled below).
@@ -344,7 +378,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
         if (!isMobile()) {
           const link = feature.properties?.link || feature.properties?.url
-          if (link && link !== '#') window.open(link, '_blank')
+          if (link && link !== '#') openInNewTab(link)
           return
         }
 
@@ -356,14 +390,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           setData(geojsonData)
           tappedPinId = currentFeatureId
 
-          const name = feature.properties?.name
-          const description = feature.properties?.description
-          const location = feature.properties?.location
-          let tooltipHTML = `<strong class="paragraph-small-bold">${name}</strong>`
-          if (location)
-            tooltipHTML += `<span class="location-text">${location}</span>`
-          tooltipHTML += `${description}`
-          tooltip.innerHTML = tooltipHTML
+          tooltip.innerHTML = buildTooltipHTML(feature.properties)
 
           const link = feature.properties?.link || feature.properties?.url
           tooltip.setAttribute('data-link-url', link || '')
@@ -383,7 +410,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
               resetHover()
               tappedPinId = null
             }
-            window.open(lnk, '_blank')
+            openInNewTab(lnk)
           }
           e.stopPropagation()
         }
@@ -513,6 +540,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         onLoad={handleScriptLoad}
       />
       <div ref={mapContainerRef} className={styles.mapContainer}>
+        {!pinsLoaded && (
+          <div className={styles.mapLoading} aria-live="polite">
+            <div className={styles.mapSpinner} aria-hidden="true" />
+            <p className="paragraph-small">Loading map…</p>
+          </div>
+        )}
         <button
           onClick={handleViewOnline}
           className={`button-primary ${styles.mapButton}`}

@@ -31,6 +31,12 @@ const configs: Record<string, ResourceConfig> = {
     viewId: 'viwHl72bJxCb2SfrL',
     sortField: 'Last modified',
   },
+  training: {
+    type: 'query',
+    tableId: 'tblx0L8qJEaLBxJFS',
+    viewId: 'viwHl72bJxCb2SfrL',
+    sortField: 'Last modified',
+  },
   map: {
     type: 'record',
     tableId: 'tblvzbGL9q9dOO9Nc',

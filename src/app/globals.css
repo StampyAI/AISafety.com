@@ -39,7 +39,9 @@
 
   /* Accent Colors */
   --bright-teal-300: #a6dad9;
+  --bright-teal-400: #a6dad9;
   --bright-teal-500: #6cbdbb;
+  --cool-grey-500: #98a2af;
   --bright-green: #7affb2;
   --white: white;
   --off-white: #f3f3f3;
@@ -209,6 +211,12 @@ label {
 }
 .color-light-teal {
   color: var(--bright-green);
+}
+.color-bright-teal-400 {
+  color: var(--bright-teal-400);
+}
+.color-cool-grey-500 {
+  color: var(--cool-grey-500);
 }
 .color-white {
   color: #fff;
@@ -1083,8 +1091,13 @@ label {
 
   /* Shared layout component overrides */
   .collection-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
+  }
+
+  .database-outer-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
   }
 
   .card {

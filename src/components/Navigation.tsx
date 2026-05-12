@@ -19,6 +19,11 @@ const navItems = [
     label: 'Events',
     icon: 'calendar.svg',
   },
+  {
+    href: '/training',
+    label: 'Training',
+    icon: 'book.svg',
+  },
   { href: '/map', label: 'Field map', icon: 'map.svg' },
   { href: '/communities', label: 'Communities', icon: 'globe.svg' },
   { href: '/self-study', label: 'Self-study', icon: 'book.svg' },

@@ -56,7 +56,7 @@ export const TYPE_PATH: Record<SearchType, string | null> = {
   advisor: '/advisors',
   community: '/communities',
   course: '/self-study',
-  event: '/events-and-training',
+  event: '/events',
   founder: '/founders',
   funder: '/funding',
   job: '/jobs',

@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { trackListingClick } from '@/lib/analytics'
 import { formatDate } from '@/lib/format-date'
-import type { EventListing } from '@/lib/data/events'
+import type { TrainingListing } from '@/lib/data/training'
 import NewsletterSignupCard from './NewsletterSignupCard'
 import styles from './page.module.css'
 
@@ -15,33 +15,36 @@ const SUGGEST_CORRECTION_URL =
 const AIRTABLE_VIEW_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
 
-const eventTypeOptions = [
-  'Competition',
-  'Conference',
-  'Meetup',
-  'Talk',
-  'Workshop',
+const trainingTypeOptions = [
+  'Bootcamp',
+  'Course',
+  'Internship',
+  'Research Program',
 ]
 // TODO: Cost values are placeholders. Confirm with collaborators once the
-// Cost field is added to the events Airtable. See
-// project_events_airtable_schema memory.
+// Cost field is added to the Airtable. See project_events_airtable_schema
+// memory.
 const costOptions = ['Free', 'Paid', 'Paid (Stipend Available)']
 const applicationStatusOptions: ('Open' | 'Closed')[] = ['Open', 'Closed']
 
-interface EventsClientProps {
-  events: EventListing[]
+interface TrainingClientProps {
+  training: TrainingListing[]
   lastUpdated: string | null
 }
 
-function eventDateLabel(event: EventListing): string | null {
-  if (!event.startDate) return null
-  return formatDate(new Date(event.startDate))
+function trainingDateLabel(item: TrainingListing): string | null {
+  if (!item.startDate) return null
+  return formatDate(new Date(item.startDate))
 }
 
-export default function EventsClient({
-  events,
+function typeSlug(label: string): string {
+  return label.toLowerCase().replace(/\s+/g, '-')
+}
+
+export default function TrainingClient({
+  training,
   lastUpdated,
-}: EventsClientProps) {
+}: TrainingClientProps) {
   const [filterType, setFilterType] = useState<string[]>([])
   const [filterCost, setFilterCost] = useState<string[]>([])
   const [filterLocation, setFilterLocation] = useState<string[]>([])
@@ -51,8 +54,8 @@ export default function EventsClient({
 
   const cityGroups = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const e of events) {
-      const raw = e.location?.trim()
+    for (const t of training) {
+      const raw = t.location?.trim()
       if (!raw || raw.toLowerCase() === 'online') continue
       const city = raw.split(',')[0].trim()
       if (!city) continue
@@ -69,26 +72,20 @@ export default function EventsClient({
       .filter(c => !popularSet.has(c))
       .sort((a, b) => a.localeCompare(b))
     return { popular, rest }
-  }, [events])
+  }, [training])
 
   const locationOptions = useMemo(() => {
     return ['Online', ...cityGroups.popular, ...cityGroups.rest]
   }, [cityGroups])
 
-  const filteredEvents = useMemo(() => {
-    return events.filter(event => {
-      if (
-        filterType.length > 0 &&
-        !event.type.some(t => filterType.includes(t))
-      )
+  const filtered = useMemo(() => {
+    return training.filter(item => {
+      if (filterType.length > 0 && !item.type.some(t => filterType.includes(t)))
         return false
-      if (
-        filterCost.length > 0 &&
-        !event.cost.some(c => filterCost.includes(c))
-      )
+      if (filterCost.length > 0 && !item.cost.some(c => filterCost.includes(c)))
         return false
       if (filterLocation.length > 0) {
-        const loc = event.location.toLowerCase()
+        const loc = item.location.toLowerCase()
         const matches = filterLocation.some(l =>
           l === 'Online' ? loc === 'online' : loc.includes(l.toLowerCase())
         )
@@ -96,27 +93,27 @@ export default function EventsClient({
       }
       if (
         filterStatus.length > 0 &&
-        !filterStatus.includes(event.applicationStatus)
+        !filterStatus.includes(item.applicationStatus)
       )
         return false
       return true
     })
-  }, [events, filterType, filterCost, filterLocation, filterStatus])
+  }, [training, filterType, filterCost, filterLocation, filterStatus])
 
-  const featuredEvents = useMemo(() => {
-    // TODO: drop the fallback once the Featured field exists in the events
-    // Airtable. See project_events_airtable_schema memory for details.
-    const explicit = events.filter(e => e.featured).slice(0, 2)
+  const featured = useMemo(() => {
+    // TODO: drop the fallback once the Featured field exists in the Airtable.
+    // See project_events_airtable_schema memory for details.
+    const explicit = training.filter(t => t.featured).slice(0, 2)
     if (explicit.length >= 2) return explicit
-    return events.slice(0, 2)
-  }, [events])
+    return training.slice(0, 2)
+  }, [training])
 
   return (
     <>
       {/* ----- Hero ----- */}
       <section className={styles.hero}>
         <div className={styles['hero-left']}>
-          <h1 className={styles['hero-title']}>Events</h1>
+          <h1 className={styles['hero-title']}>Training</h1>
           {lastUpdated && (
             <p className={`paragraph-small ${styles['hero-last-updated']}`}>
               Last updated: {lastUpdated}
@@ -125,32 +122,32 @@ export default function EventsClient({
           <h2 className={styles['hero-subtitle']}>
             Find{' '}
             <span className="color-teal">
-              conferences, competitions, meetups, talks, and workshops
+              bootcamps, courses, internships, and research programs
             </span>{' '}
-            in AI safety, both online and in-person.
+            in AI safety.
           </h2>
           <a
-            href="/training"
+            href="/events"
             className={`paragraph-small ${styles['training-link']}`}
           >
-            For training opportunities such as bootcamps, courses, internships,
-            and research programs, go to Training →
+            For one-off events such as conferences, competitions, meetups,
+            talks, and workshops, go to Events →
           </a>
         </div>
       </section>
 
-      {/* ----- Featured Events ----- */}
-      {featuredEvents.length > 0 && (
+      {/* ----- Featured Training ----- */}
+      {featured.length > 0 && (
         <section className={styles['featured-section']}>
           <div className={styles['featured-row']}>
-            {featuredEvents.map(event => (
-              <EventCard key={event.id} event={event} featured />
+            {featured.map(item => (
+              <TrainingCard key={item.id} item={item} featured />
             ))}
           </div>
         </section>
       )}
 
-      {/* ----- Main events grid + suggest block ----- */}
+      {/* ----- Main grid + sidebar ----- */}
       <section className="database-outer-grid">
         <div>
           <div className={`${styles['filter-row']} hide-mobile`}>
@@ -169,10 +166,10 @@ export default function EventsClient({
               showAllOption
             />
             <FilterSelect
-              label="Event type"
+              label="Training type"
               values={filterType}
               onChange={setFilterType}
-              options={eventTypeOptions}
+              options={trainingTypeOptions}
               showAllOption
             />
             <FilterSelect
@@ -196,7 +193,7 @@ export default function EventsClient({
                 clear: () => setFilterLocation([]),
               },
               {
-                label: 'Event type',
+                label: 'Training type',
                 values: filterType,
                 clear: () => setFilterType([]),
               },
@@ -231,8 +228,8 @@ export default function EventsClient({
                 showAllOption: true,
               },
               {
-                label: 'Event type',
-                options: eventTypeOptions,
+                label: 'Training type',
+                options: trainingTypeOptions,
                 values: filterType,
                 onChange: setFilterType,
                 showAllOption: true,
@@ -254,10 +251,10 @@ export default function EventsClient({
           />
 
           <div className="collection-list padding-bottom-40px">
-            {filteredEvents.map(event => (
-              <EventCard key={event.id} event={event} />
+            {filtered.map(item => (
+              <TrainingCard key={item.id} item={item} />
             ))}
-            {filteredEvents.length === 0 && (
+            {filtered.length === 0 && (
               <p className="paragraph-small color-teal-300">
                 No results found. Try adjusting the filters.
               </p>
@@ -532,7 +529,7 @@ function MobileFilterPills({
 
   return (
     <>
-      <div className={`${styles['mobile-pills-row']} desktop-hidden`}>
+      <div className={styles['mobile-pills-row']}>
         {hasAnyActive && (
           <button
             type="button"
@@ -720,26 +717,26 @@ function FilterCheckbox({ checked }: { checked: boolean }) {
   )
 }
 
-function EventCard({
-  event,
+function TrainingCard({
+  item,
   featured = false,
 }: {
-  event: EventListing
+  item: TrainingListing
   featured?: boolean
 }) {
-  const dateLabel = eventDateLabel(event)
-  const typeLabel = event.type.length > 0 ? event.type[0] : null
+  const dateLabel = trainingDateLabel(item)
+  const typeLabel = item.type.length > 0 ? item.type[0] : null
   const typeColorClass = typeLabel
-    ? styles[`event-type-${typeLabel.toLowerCase()}`]
+    ? styles[`event-type-${typeSlug(typeLabel)}`]
     : ''
 
   return (
     <a
-      href={event.url}
+      href={item.url}
       target="_blank"
       rel="noopener noreferrer"
       className={styles['event-card']}
-      onClick={() => trackListingClick('Events', event.name, event.url)}
+      onClick={() => trackListingClick('Training', item.name, item.url)}
     >
       {featured && (
         <>
@@ -751,9 +748,9 @@ function EventCard({
             className={styles['event-card-bookmark']}
           />
           <div className={styles['event-card-image']}>
-            {event.image && (
+            {item.image && (
               <Image
-                src={event.image}
+                src={item.image}
                 alt=""
                 fill
                 sizes="(max-width: 991px) 100vw, 500px"
@@ -766,15 +763,15 @@ function EventCard({
       <div className={styles['event-card-head']}>
         {!featured && (
           <div className={styles['event-card-logo']}>
-            {event.logo && (
-              <Image src={event.logo} alt="" fill sizes="48px" unoptimized />
+            {item.logo && (
+              <Image src={item.logo} alt="" fill sizes="48px" unoptimized />
             )}
           </div>
         )}
         <div className={styles['event-card-headtext']}>
-          <h3 className={styles['event-card-title']}>{event.name}</h3>
+          <h3 className={styles['event-card-title']}>{item.name}</h3>
           <div className={styles['event-card-meta']}>
-            {event.location && (
+            {item.location && (
               <span className="paragraph-xs color-teal-300">
                 <Image
                   src="/images/location-pin-muted.svg"
@@ -782,7 +779,7 @@ function EventCard({
                   width={14}
                   height={14}
                 />
-                {event.location}
+                {item.location}
               </span>
             )}
             {dateLabel && (
@@ -805,9 +802,9 @@ function EventCard({
             {featured ? `Featured ${typeLabel}` : typeLabel}
           </p>
         )}
-        {event.description && (
+        {item.description && (
           <p className={`paragraph-small ${styles['event-card-desc']}`}>
-            {event.description}
+            {item.description}
           </p>
         )}
       </div>

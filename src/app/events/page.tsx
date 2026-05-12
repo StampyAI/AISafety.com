@@ -9,7 +9,7 @@ export default async function EventsPage() {
   ])
 
   return (
-    <div className="container-wide">
+    <div className="container-default">
       <EventsClient events={events} lastUpdated={lastUpdated.formattedDate} />
     </div>
   )

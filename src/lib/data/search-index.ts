@@ -52,10 +52,16 @@ function page(
 const STATIC_PAGES: SearchEntry[] = [
   page('Home', '/', null, 'AISafety.com — the hub for AI existential safety.'),
   page(
-    'Events & training',
-    '/events-and-training',
+    'Events',
+    '/events',
     '/images/calendar.svg',
-    'Upcoming events, fellowships, and training programs.'
+    'AI safety events: conferences, competitions, meetups, talks, and workshops.'
+  ),
+  page(
+    'Training',
+    '/training',
+    '/images/calendar.svg',
+    'AI safety training: bootcamps, courses, internships, and research programs.'
   ),
   page(
     'Field map',
@@ -198,7 +204,7 @@ async function getEventEntries(): Promise<SearchEntry[]> {
       ]
         .filter(Boolean)
         .join(' · '),
-      url: url || '/events-and-training',
+      url: url || '/events',
       logo,
     })
   }

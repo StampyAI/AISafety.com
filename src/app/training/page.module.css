@@ -64,6 +64,7 @@
 
 .training-link {
   display: inline-block;
+  max-width: 540px;
   color: var(--teal-100);
   opacity: 0.9;
   text-decoration: none;
@@ -591,20 +592,17 @@
   z-index: 2;
 }
 
-.event-type-conference {
-  color: #e8b86e;
+.event-type-bootcamp {
+  color: #7ce3a8;
 }
-.event-type-meetup {
-  color: #e89bb4;
+.event-type-course {
+  color: #f5d77a;
 }
-.event-type-talk {
-  color: #b89fe0;
+.event-type-internship {
+  color: #f0a868;
 }
-.event-type-workshop {
-  color: #8aa0d6;
-}
-.event-type-competition {
-  color: #f08a8a;
+.event-type-research-program {
+  color: #88c7d4;
 }
 
 .event-card:hover {

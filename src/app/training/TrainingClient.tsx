@@ -21,9 +21,6 @@ const trainingTypeOptions = [
   'Internship',
   'Research Program',
 ]
-// TODO: Cost values are placeholders. Confirm with collaborators once the
-// Cost field is added to the Airtable. See project_events_airtable_schema
-// memory.
 const costOptions = ['Free', 'Paid', 'Paid (Stipend Available)']
 const applicationStatusOptions: ('Open' | 'Closed')[] = ['Open', 'Closed']
 
@@ -101,8 +98,6 @@ export default function TrainingClient({
   }, [training, filterType, filterCost, filterLocation, filterStatus])
 
   const featured = useMemo(() => {
-    // TODO: drop the fallback once the Featured field exists in the Airtable.
-    // See project_events_airtable_schema memory for details.
     const explicit = training.filter(t => t.featured).slice(0, 2)
     if (explicit.length >= 2) return explicit
     return training.slice(0, 2)

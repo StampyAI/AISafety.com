@@ -3,10 +3,6 @@ import { fetchAirtableRecords } from './airtable'
 const TABLE_ID = 'tblx0L8qJEaLBxJFS'
 const VIEW_ID = 'viwHl72bJxCb2SfrL'
 
-// Field names verified against the live Airtable schema.
-// `Cost`, `Image`, `Logo`, and `Featured` do not exist yet — collaborators
-// need to add these for full /events and /training functionality.
-// See project_events_airtable_schema memory for handoff notes.
 interface AirtableRecord {
   fields: {
     Name?: string
@@ -48,9 +44,6 @@ function toArray(value: string | string[] | undefined): string[] {
   return Array.isArray(value) ? value : [value]
 }
 
-// Until Airtable rows are relabeled to the converged taxonomy, the data
-// layer remaps legacy values transparently. Remove these maps once Airtable
-// has been updated (see project_events_airtable_schema memory).
 function applyAliases(
   values: string[],
   aliases: Record<string, string>

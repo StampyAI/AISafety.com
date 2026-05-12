@@ -22,9 +22,6 @@ const eventTypeOptions = [
   'Talk',
   'Workshop',
 ]
-// TODO: Cost values are placeholders. Confirm with collaborators once the
-// Cost field is added to the events Airtable. See
-// project_events_airtable_schema memory.
 const costOptions = ['Free', 'Paid', 'Paid (Stipend Available)']
 const applicationStatusOptions: ('Open' | 'Closed')[] = ['Open', 'Closed']
 
@@ -104,8 +101,6 @@ export default function EventsClient({
   }, [events, filterType, filterCost, filterLocation, filterStatus])
 
   const featuredEvents = useMemo(() => {
-    // TODO: drop the fallback once the Featured field exists in the events
-    // Airtable. See project_events_airtable_schema memory for details.
     const explicit = events.filter(e => e.featured).slice(0, 2)
     if (explicit.length >= 2) return explicit
     return events.slice(0, 2)

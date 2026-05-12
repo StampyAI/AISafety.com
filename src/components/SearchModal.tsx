@@ -8,6 +8,7 @@ import {
   BROWSE_TYPES,
   TYPE_ICON,
   TYPE_LABEL,
+  countsByType,
   groupByType,
   indexCounts,
   search,
@@ -20,6 +21,7 @@ interface SearchModalProps {
   onClose: () => void
   load: LoadState
   onRetry: () => void
+  pathCounts?: Partial<Record<string, number>>
 }
 
 export default function SearchModal({
@@ -27,6 +29,7 @@ export default function SearchModal({
   onClose,
   load,
   onRetry,
+  pathCounts,
 }: SearchModalProps) {
   const [query, setQuery] = useState('')
   const [activeType, setActiveType] = useState<SearchType | null>(null)
@@ -56,9 +59,16 @@ export default function SearchModal({
     [index, query, activeType]
   )
   const grouped = useMemo(() => groupByType(results), [results])
+  const fallbackCounts = useMemo(
+    () =>
+      pathCounts ? countsByType(pathCounts) : new Map<SearchType, number>(),
+    [pathCounts]
+  )
+  // Server-rendered counts let the browse grid render with numbers
+  // immediately; the heavier search index replaces them once it loads.
   const counts = useMemo(
-    () => (index ? indexCounts(index) : new Map<SearchType, number>()),
-    [index]
+    () => (index ? indexCounts(index) : fallbackCounts),
+    [index, fallbackCounts]
   )
 
   useEffect(() => {
@@ -232,7 +242,7 @@ export default function SearchModal({
                 aria-hidden="true"
               >
                 <path
-                  d="M0.5 0.5L9.5 9.5M0.5 9.5L9.5 0.5"
+                  d="M1.5 1.5L8.5 8.5M1.5 8.5L8.5 1.5"
                   stroke="currentColor"
                   strokeWidth="1"
                   strokeLinecap="round"
@@ -275,8 +285,7 @@ export default function SearchModal({
                     type="button"
                     onClick={() => setActiveType(type)}
                     className={`${styles['browse-card']} flex items-center gap-12px padding-top-8px padding-bottom-8px padding-left-8px padding-right-12px cursor-pointer`}
-                    // Clicking during load would enter browse mode with zero items.
-                    disabled={!isReady || count === 0}
+                    disabled={count === 0}
                   >
                     <div
                       className={`${styles['browse-card-icon']} drop-shadow-light flex items-center justify-center`}
@@ -290,7 +299,7 @@ export default function SearchModal({
                     >
                       {TYPE_LABEL[type]}
                     </span>
-                    {isReady && (
+                    {count > 0 && (
                       <span
                         className={`${styles['browse-card-count']} paragraph-xs-bold`}
                       >

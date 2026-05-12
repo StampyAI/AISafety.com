@@ -48,6 +48,34 @@ export const TYPE_ICON: Record<SearchType, string | null> = {
   page: null,
 }
 
+// Maps a browseable search type to the URL path whose server-rendered
+// count we can borrow for an instant browse-grid render before the
+// (heavy) search index has loaded.
+export const TYPE_PATH: Record<SearchType, string | null> = {
+  advisor: '/advisors',
+  community: '/communities',
+  course: '/self-study',
+  event: '/events-and-training',
+  founder: '/founders',
+  funder: '/funding',
+  job: '/jobs',
+  map: '/map',
+  media: '/media-channels',
+  project: '/projects',
+  page: null,
+}
+
+export function countsByType(
+  pathCounts: Partial<Record<string, number>>
+): Map<SearchType, number> {
+  const out = new Map<SearchType, number>()
+  for (const type of BROWSE_TYPES) {
+    const path = TYPE_PATH[type]
+    if (path && pathCounts[path] != null) out.set(type, pathCounts[path]!)
+  }
+  return out
+}
+
 const MAX_RESULTS = 50
 const BROWSE_LIMIT = 50
 

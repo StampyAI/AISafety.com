@@ -295,11 +295,13 @@
      no fill. Smaller corner radius than the nav so it reads as part
      of the search row, not as a pill. */
   .shortcut-hint {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     border-color: rgba(255, 255, 255, 0.4);
-    color: white;
+    /* Same colour as the border so the X reads as part of the box,
+       not as a bright primary action. */
+    color: rgba(255, 255, 255, 0.4);
   }
   .shortcut-hint-esc {
     display: none;
@@ -308,7 +310,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
   }
 }

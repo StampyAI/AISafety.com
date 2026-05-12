@@ -20,7 +20,13 @@ interface SearchContextValue {
 
 const SearchContext = createContext<SearchContextValue | null>(null)
 
-export function SearchProvider({ children }: { children: ReactNode }) {
+export function SearchProvider({
+  children,
+  counts,
+}: {
+  children: ReactNode
+  counts?: Partial<Record<string, number>>
+}) {
   const [open, setOpen] = useState(false)
   const [load, setLoad] = useState<LoadState>({ status: 'idle' })
   const fetchedRef = useRef(false)
@@ -101,6 +107,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         onClose={handleClose}
         load={load}
         onRetry={fetchIndex}
+        pathCounts={counts}
       />
     </SearchContext.Provider>
   )

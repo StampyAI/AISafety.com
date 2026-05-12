@@ -203,7 +203,7 @@ export default function Navigation({
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
   return (
-    <SearchProvider>
+    <SearchProvider counts={counts}>
       <div ref={navOuterRef} className={`${styles.nav} ${styles['nav-fixed']}`}>
         <div className={styles['nav-container']}>
           <Link href="/" className="padding-right-24px">

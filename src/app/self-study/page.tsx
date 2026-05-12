@@ -9,6 +9,7 @@ export const metadata = {
   title: 'Self-study – AISafety.com',
   description:
     'Curricula and reading lists to dive deeper into AI safety through independent learning.',
+  alternates: { canonical: '/self-study' },
 }
 
 export default async function SelfStudyPage() {

@@ -9,6 +9,7 @@ export const metadata = {
   title: 'Advisors – AISafety.com',
   description:
     'Advisors offering free guidance calls to help you most effectively contribute to AI safety.',
+  alternates: { canonical: '/advisors' },
 }
 
 export default async function AdvisorsPage() {

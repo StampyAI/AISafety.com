@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: 'Donation guide – AISafety.com',
   description:
     'A short guide on how to donate most effectively to the AI safety field.',
+  alternates: { canonical: '/donation-guide' },
   openGraph: {
     title: 'Donation guide – AISafety.com',
     description:

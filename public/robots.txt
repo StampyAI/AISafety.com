@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /_next/static/
+Disallow: /api/
+
+Sitemap: https://aisafety.com/sitemap.xml

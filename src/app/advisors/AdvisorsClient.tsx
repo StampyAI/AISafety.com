@@ -33,17 +33,11 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
       }
 
       if (selectedFocus.length > 0) {
-        const hasMatch = selectedFocus.some(f =>
-          advisor.focus.toLowerCase().includes(f.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedFocus.includes(advisor.focus)) return false
       }
 
       if (selectedStatus.length > 0) {
-        const hasMatch = selectedStatus.some(s =>
-          advisor.status.toLowerCase().includes(s.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedStatus.includes(advisor.status)) return false
       }
 
       return true
@@ -54,8 +48,9 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
     return advisors.reduce(
       (counts, advisor) => {
         for (const option of focusOptions) {
-          if (advisor.focus.toLowerCase().includes(option.toLowerCase())) {
+          if (advisor.focus === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts
@@ -68,8 +63,9 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
     return advisors.reduce(
       (counts, advisor) => {
         for (const option of statusOptions) {
-          if (advisor.status.toLowerCase().includes(option.toLowerCase())) {
+          if (advisor.status === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts

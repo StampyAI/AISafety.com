@@ -1,0 +1,316 @@
+/* Spacing, layout, colour and typography live on JSX via globals.css
+   utilities. This file holds only what those can't express. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  /* Kept in sync with mobile-menu backdrop in Navigation.module.css. */
+  background-color: rgba(5, 24, 26, 0.8);
+  overflow-y: auto;
+  /* 88px clears the fixed nav. */
+  padding: 88px 24px 24px;
+}
+
+.modal {
+  width: 100%;
+  max-width: 680px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 20px;
+  overflow: hidden;
+  max-height: calc(100vh - 112px);
+  animation: modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.input-row {
+  border-bottom: 1px solid var(--teal-750);
+}
+
+.input-icon {
+  flex: none;
+}
+
+.input {
+  flex: 1;
+  height: 32px;
+  background: transparent;
+  border: none;
+  /* iOS Safari zooms inputs with font-size < 16px on focus, even
+     though the rest of the modal uses 15px. The extra pixel is
+     visually unnoticeable here. */
+  font-size: 16px;
+  /* :focus-visible matches programmatic focus in Chrome — the global
+     teal ring is noise on an already-obvious focus target. */
+  outline: none;
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: var(--teal-500);
+}
+
+/* Suppress WebKit's built-in clear (×) button for type=search — the
+   component renders its own clear button next to the input. */
+.input::-webkit-search-cancel-button,
+.input::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.filter-chip {
+  flex: none;
+  background-color: var(--bright-green);
+  color: var(--teal-900);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color var(--hover-transition);
+}
+
+.filter-chip:hover {
+  background-color: color-mix(in srgb, var(--bright-green) 80%, var(--white));
+}
+
+.filter-chip svg {
+  opacity: 0.7;
+}
+
+.results {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.empty {
+  text-align: center;
+}
+
+.browse-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 6px;
+}
+
+.browse-card {
+  background-color: transparent;
+  border: 1px solid var(--teal-750);
+  border-radius: 12px;
+  text-align: left;
+  /* iOS Safari renders <button> text in its system blue by default. */
+  color: inherit;
+  transition:
+    background-color var(--hover-transition),
+    border-color var(--hover-transition);
+}
+
+.browse-card:focus-visible:not(:disabled) {
+  background-color: var(--teal-800);
+  border-color: var(--bright-teal-500);
+  outline: none;
+}
+
+/* Hover-only styles. Touch devices skip these so a tap mid-scroll
+   doesn't latch a sticky highlight on the card. */
+@media (hover: hover) {
+  .browse-card:hover:not(:disabled) {
+    background-color: var(--teal-800);
+    border-color: var(--bright-teal-500);
+  }
+}
+
+.browse-card:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.browse-card-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  background-color: var(--white);
+  border-radius: 14px;
+}
+
+.browse-card-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browse-card-count {
+  flex: none;
+  color: var(--teal-300);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Uppercase letter-spacing conflicts with paragraph-* classes. */
+.group-label {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--teal-500);
+}
+
+.group-count {
+  color: var(--teal-600);
+  font-weight: 400;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.result {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition:
+    background-color var(--hover-transition),
+    border-color var(--hover-transition);
+}
+
+/* Highlight only on devices that actually hover. On touch the synthetic
+   mousemove from a tap would otherwise stick the active highlight on
+   whichever row the finger passed over. */
+@media (hover: hover) {
+  .result:hover,
+  .result-active {
+    background-color: var(--teal-800);
+    border-color: var(--teal-700);
+  }
+}
+
+.result-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.result-icon img {
+  object-fit: contain;
+}
+
+.result-icon-logo img {
+  width: 100%;
+  height: 100%;
+}
+
+/* Page icons are dark-stroke and need a white circle, matching the nav. */
+.result-icon-page {
+  background-color: var(--white);
+  border-radius: 50%;
+}
+
+.result-icon-initials {
+  background-color: var(--teal-750);
+  color: var(--bright-green);
+  border-radius: 50%;
+}
+
+.result-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-title,
+.result-subtitle,
+.result-category {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-subtitle {
+  color: var(--bright-green);
+}
+
+.result-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.result-category {
+  color: var(--teal-500);
+}
+
+.shortcut-hint {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* iOS WebKit applies its native button shape (capsule) and ignores
+     border-radius unless appearance is reset. */
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 4px 8px;
+  border: 1px solid var(--teal-700);
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    border-color var(--hover-transition),
+    color var(--hover-transition);
+}
+
+.shortcut-hint:hover {
+  border-color: var(--teal-500);
+  color: var(--teal-300);
+}
+
+.shortcut-hint-x {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 991px) {
+  .overlay {
+    padding: 16px 12px 88px;
+  }
+  .modal {
+    /* dvh shrinks when iOS shows the on-screen keyboard so the modal
+       stays inside the visible viewport, avoiding a brief scroll
+       jump when the input is refocused. vh is the fallback. */
+    max-height: calc(100vh - 104px);
+    max-height: calc(100dvh - 104px);
+  }
+  .browse-grid {
+    grid-template-columns: 1fr;
+  }
+  /* No ESC key on mobile — mimic the global nav close button: square
+     box with a white-ish border for contrast against the dark modal,
+     no fill. Smaller corner radius than the nav so it reads as part
+     of the search row, not as a pill. */
+  .shortcut-hint {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-color: rgba(255, 255, 255, 0.4);
+    /* Same colour as the border so the X reads as part of the box,
+       not as a bright primary action. */
+    color: rgba(255, 255, 255, 0.4);
+  }
+  .shortcut-hint-esc {
+    display: none;
+  }
+  .shortcut-hint-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+  }
+}

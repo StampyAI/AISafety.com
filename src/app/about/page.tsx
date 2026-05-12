@@ -5,6 +5,7 @@ export const metadata = {
   title: 'About – AISafety.com',
   description:
     'We aim to provide a central and comprehensive hub for AI safety, through which individuals can easily discover the most impactful resources for them.',
+  alternates: { canonical: '/about' },
 }
 
 export default function AboutPage() {

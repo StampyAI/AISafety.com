@@ -93,6 +93,11 @@
   border-radius: 20px;
   flex: none;
   max-width: 100%;
+  /* Resets for <button> use — iOS Safari otherwise paints button text
+     in its system blue. */
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   transition: all var(--hover-transition);
 }
 
@@ -131,7 +136,11 @@
   padding-right: 16px;
   border: 1px solid rgba(122, 255, 178, 0.3);
   border-radius: 20px;
+  width: 100%;
   max-width: 100%;
+  /* Reset for <button> use of this class. */
+  background: transparent;
+  cursor: pointer;
   transition: all var(--hover-transition);
 }
 
@@ -145,6 +154,21 @@
   background-color: var(--teal-850);
   box-shadow: 0 12px 24px rgba(0, 25, 27, 0.5);
   cursor: pointer;
+}
+
+.nav-search-button {
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  flex: none;
+  transition: background-color var(--hover-transition);
+}
+
+.nav-search-button:hover {
+  background-color: var(--teal-850);
 }
 
 .nav-item-icon {

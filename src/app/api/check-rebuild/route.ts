@@ -51,6 +51,18 @@ const TABLES: Array<{
   { name: 'events', tableId: 'tblx0L8qJEaLBxJFS' },
 ]
 
+// Module-level cooldowns prevent hammering the Vercel deploy hook. The hook is
+// rate-limited (~1 per 60s) and Vercel will temporarily lock it out under spam.
+// These reset on cold start, which is fine — a new instance means time has
+// passed anyway.
+let lastTriggerAt = 0
+let lastRateLimitedAt = 0
+// After a successful trigger, suppress further triggers for this long so the
+// in-flight build can finish and advance BUILD_TIME.
+const POST_TRIGGER_COOLDOWN_MS = 10 * 60 * 1000
+// After a 429, back off entirely so we stop adding to Vercel's rate-limit count.
+const RATE_LIMIT_COOLDOWN_MS = 15 * 60 * 1000
+
 // Uses LAST_MODIFIED_TIME() (a formula function) rather than any table's
 // "Last modified" field. The field may be configured as date-only, which
 // collapses intra-day edits to midnight UTC and hides same-day changes from
@@ -146,12 +158,48 @@ export async function GET(request: Request) {
     })
   }
 
+  const now = Date.now()
+
+  if (now - lastTriggerAt < POST_TRIGGER_COOLDOWN_MS) {
+    return NextResponse.json({
+      triggered: false,
+      reason: 'recent-trigger-cooldown',
+      buildTime: buildDate.toISOString(),
+      changedTables,
+    })
+  }
+
+  if (now - lastRateLimitedAt < RATE_LIMIT_COOLDOWN_MS) {
+    return NextResponse.json({
+      triggered: false,
+      reason: 'rate-limit-cooldown',
+      buildTime: buildDate.toISOString(),
+      changedTables,
+    })
+  }
+
   const hookResponse = await fetch(deployHookUrl, { method: 'POST' })
+
+  if (hookResponse.status === 429) {
+    lastRateLimitedAt = now
+    console.warn(
+      `Deploy hook rate-limited (429); backing off for ${RATE_LIMIT_COOLDOWN_MS / 60000} min`
+    )
+    return NextResponse.json({
+      triggered: false,
+      reason: 'rate-limited',
+      buildTime: buildDate.toISOString(),
+      changedTables,
+    })
+  }
+
   if (!hookResponse.ok) {
     throw new Error(
       `Deploy hook failed: ${hookResponse.status} ${hookResponse.statusText}`
     )
   }
+
+  lastTriggerAt = now
 
   return NextResponse.json({
     triggered: true,

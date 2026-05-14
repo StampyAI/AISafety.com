@@ -26,7 +26,7 @@ export const MODELS: AssistantModel[] = [
   },
 ]
 
-export const DEFAULT_MODEL_ID = MODELS[0].id
+export const DEFAULT_MODEL_ID = 'claude-sonnet-4-6'
 
 export function modelShortLabel(id: string): string {
   return MODELS.find(m => m.id === id)?.shortLabel ?? id

@@ -824,6 +824,44 @@
   }
 }
 
+/* Collapsing thinking trail — when the [[/thinking]] boundary fires, the
+   previous inline events smoothly collapse to 0 height while the new
+   "Searched N times" pill fades in alongside, so the swap reads as a
+   single smooth gesture instead of an abrupt cut. */
+
+.collapsingThinking {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: collapse-thinking 350ms ease-out forwards;
+  pointer-events: none;
+}
+
+.collapsingThinkingInner {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+@keyframes collapse-thinking {
+  from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsingThinking {
+    animation: none;
+    display: none;
+  }
+}
+
 /* Follow-up chip row (after a response) */
 
 .followUpRow {
@@ -832,36 +870,6 @@
   justify-content: flex-end;
   gap: 6px;
   margin-top: 10px;
-}
-
-/* Jump-to-bottom pill — shown when user scrolled up while streaming */
-
-.jumpButton {
-  position: absolute;
-  left: 50%;
-  bottom: 92px;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background-color: var(--teal-800);
-  border: 1px solid var(--teal-600);
-  border-radius: 999px;
-  color: var(--white);
-  font-size: 12px;
-  letter-spacing: -0.2px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 25, 27, 0.4);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease-out;
-  z-index: 2;
-}
-
-.jumpButtonVisible {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 /* User message — hover state reveals the edit button */

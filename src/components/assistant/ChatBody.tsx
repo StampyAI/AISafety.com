@@ -120,6 +120,127 @@ export interface ChatBodyHandle {
   clear: () => void
 }
 
+const THINKING_COLLAPSE_MS = 350
+
+interface AssistantMessageViewProps {
+  message: UIMessage
+  onSuggest?: (query: string) => void
+  onCitationClick?: (c: CitationRef) => void
+}
+
+/** Renders an assistant message. When the [[/thinking]] boundary first
+ *  appears mid-stream, the previous inline thinking trail keeps rendering
+ *  with a smooth height+opacity collapse for THINKING_COLLAPSE_MS so the
+ *  swap to the "Searched N times" pill isn't a hard cut. */
+function AssistantMessageView({
+  message,
+  onSuggest,
+  onCitationClick,
+}: AssistantMessageViewProps) {
+  const boundary = thinkingDoneIndex(message.events)
+  const hasBoundary = boundary !== -1
+  const hasTools = message.toolCalls.length > 0
+
+  // Cache the pre-boundary events at the moment the boundary first appears
+  // so they can keep rendering with a collapse animation. Initialised to
+  // null so messages hydrated from sessionStorage (where the boundary was
+  // already present) don't trigger a spurious collapse.
+  const [collapsingPre, setCollapsingPre] = useState<MessageEvent[] | null>(
+    null
+  )
+  const [prevHadBoundary, setPrevHadBoundary] = useState(hasBoundary)
+  if (hasBoundary !== prevHadBoundary) {
+    // "Adjust state during render" pattern — react to a prop transition
+    // without an effect (https://react.dev/learn/you-might-not-need-an-effect).
+    setPrevHadBoundary(hasBoundary)
+    if (hasBoundary) {
+      const pre = message.events.slice(0, boundary)
+      if (pre.length > 0 || hasTools) setCollapsingPre(pre)
+    }
+  }
+  // Separate effect just for the dismissal timer.
+  useEffect(() => {
+    if (!collapsingPre) return
+    const t = setTimeout(() => setCollapsingPre(null), THINKING_COLLAPSE_MS)
+    return () => clearTimeout(t)
+  }, [collapsingPre])
+
+  const renderInline = (
+    events: MessageEvent[],
+    keyPrefix: string,
+    streamingTail: boolean
+  ) =>
+    events.map((ev, i) => {
+      if (ev.kind === 'thinking_done') return null
+      if (ev.kind === 'text') {
+        const stripped = stripChipTokens(ev.text)
+        if (!stripped.trim()) return null
+        const isLast = i === events.length - 1
+        return (
+          <MessageContent
+            key={`${keyPrefix}-${i}`}
+            text={stripped}
+            citations={message.citations}
+            isStreaming={streamingTail && isLast}
+            onSuggest={onSuggest}
+            onCitationClick={onCitationClick}
+          />
+        )
+      }
+      const call = message.toolCalls.find(tc => tc.id === ev.toolCallId)
+      if (!call) return null
+      return <ToolCallPill key={`${keyPrefix}-${i}`} call={call} />
+    })
+
+  if (message.events.length === 0 && message.isStreaming) {
+    return (
+      <div className={styles.thinking} aria-label="Thinking">
+        <span className={styles.thinkingDot} />
+        <span className={styles.thinkingDot} />
+        <span className={styles.thinkingDot} />
+      </div>
+    )
+  }
+
+  if (hasBoundary) {
+    const pre = message.events.slice(0, boundary)
+    const post = message.events.slice(boundary + 1)
+    return (
+      <>
+        {collapsingPre && (
+          <div className={styles.collapsingThinking} aria-hidden="true">
+            <div className={styles.collapsingThinkingInner}>
+              {renderInline(collapsingPre, 'collapsing', false)}
+            </div>
+          </div>
+        )}
+        {(pre.length > 0 || hasTools) && (
+          <ThinkingBlock
+            events={pre}
+            toolCalls={message.toolCalls}
+            citations={message.citations}
+            onSuggest={onSuggest}
+            onCitationClick={onCitationClick}
+          />
+        )}
+        {post.length > 0
+          ? renderInline(post, 'post', message.isStreaming)
+          : message.isStreaming && (
+              <div className={styles.thinking} aria-label="Writing">
+                <span className={styles.thinkingDot} />
+                <span className={styles.thinkingDot} />
+                <span className={styles.thinkingDot} />
+              </div>
+            )}
+      </>
+    )
+  }
+
+  // No boundary yet — render events inline (the live thinking trail). If the
+  // stream ended without a boundary, treat the whole thing as the answer.
+  return <>{renderInline(message.events, 'flat', message.isStreaming)}</>
+}
+
 interface Props {
   /** API endpoint to POST messages to. */
   endpoint: string
@@ -167,7 +288,6 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
   const [messages, setMessages] = useState<UIMessage[]>([])
   const [input, setInput] = useState('')
   const [isWaiting, setIsWaiting] = useState(false)
-  const [isAtBottom, setIsAtBottom] = useState(true)
   const abortRef = useRef<AbortController | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
@@ -217,22 +337,6 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     return () => document.removeEventListener('keydown', onKey)
   }, [closeOnEscape, onCloseEscape])
 
-  // Scroll-lock detection
-  const checkAtBottom = useCallback(() => {
-    const el = bodyRef.current
-    if (!el) return
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight
-    setIsAtBottom(distance < SCROLL_LOCK_THRESHOLD)
-  }, [])
-
-  useEffect(() => {
-    const el = bodyRef.current
-    if (!el) return
-    const onScroll = () => checkAtBottom()
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [checkAtBottom])
-
   // Auto-scroll if user is at bottom
   useEffect(() => {
     const el = bodyRef.current
@@ -249,7 +353,6 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     if (!el) return
     const t = setTimeout(() => {
       el.scrollTop = el.scrollHeight
-      setIsAtBottom(true)
     }, 250)
     return () => clearTimeout(t)
   }, [resizeKey])
@@ -313,7 +416,6 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
       setMessages([...baseHistory, asstMsg])
       setInput('')
       setIsWaiting(true)
-      setIsAtBottom(true)
       requestAnimationFrame(() => {
         const el = bodyRef.current
         if (el) el.scrollTop = el.scrollHeight
@@ -506,13 +608,6 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     [messages]
   )
 
-  const jumpToBottom = useCallback(() => {
-    const el = bodyRef.current
-    if (!el) return
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-    setIsAtBottom(true)
-  }, [])
-
   return (
     <>
       <div className={styles.body} ref={bodyRef}>
@@ -566,93 +661,11 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
               </div>
             ) : (
               <div key={m.id} className={styles.message}>
-                {(() => {
-                  if (m.events.length === 0 && m.isStreaming) {
-                    return (
-                      <div className={styles.thinking} aria-label="Thinking">
-                        <span className={styles.thinkingDot} />
-                        <span className={styles.thinkingDot} />
-                        <span className={styles.thinkingDot} />
-                      </div>
-                    )
-                  }
-
-                  const boundary = thinkingDoneIndex(m.events)
-                  const hasBoundary = boundary !== -1
-                  const hasTools = m.toolCalls.length > 0
-
-                  // Helper to render an event sequence inline
-                  const renderInline = (
-                    events: MessageEvent[],
-                    keyPrefix: string,
-                    streamingTail: boolean
-                  ) =>
-                    events.map((ev, i) => {
-                      if (ev.kind === 'thinking_done') return null
-                      if (ev.kind === 'text') {
-                        const stripped = stripChipTokens(ev.text)
-                        if (!stripped.trim()) return null
-                        const isLast = i === events.length - 1
-                        return (
-                          <MessageContent
-                            key={`${keyPrefix}-${i}`}
-                            text={stripped}
-                            citations={m.citations}
-                            isStreaming={streamingTail && isLast}
-                            onSuggest={onSuggest}
-                            onCitationClick={onCitationClick}
-                          />
-                        )
-                      }
-                      const call = m.toolCalls.find(
-                        tc => tc.id === ev.toolCallId
-                      )
-                      if (!call) return null
-                      return (
-                        <ToolCallPill key={`${keyPrefix}-${i}`} call={call} />
-                      )
-                    })
-
-                  if (hasBoundary) {
-                    // Model emitted [[/thinking]] — collapse pre-boundary,
-                    // stream/show post-boundary as the final answer. This
-                    // happens AS SOON as the boundary appears mid-stream, so
-                    // the user sees the transition live.
-                    const pre = m.events.slice(0, boundary)
-                    const post = m.events.slice(boundary + 1)
-                    return (
-                      <>
-                        {(pre.length > 0 || hasTools) && (
-                          <ThinkingBlock
-                            events={pre}
-                            toolCalls={m.toolCalls}
-                            citations={m.citations}
-                            onSuggest={onSuggest}
-                            onCitationClick={onCitationClick}
-                          />
-                        )}
-                        {post.length > 0
-                          ? renderInline(post, 'post', m.isStreaming)
-                          : m.isStreaming && (
-                              <div
-                                className={styles.thinking}
-                                aria-label="Writing"
-                              >
-                                <span className={styles.thinkingDot} />
-                                <span className={styles.thinkingDot} />
-                                <span className={styles.thinkingDot} />
-                              </div>
-                            )}
-                      </>
-                    )
-                  }
-
-                  // No boundary yet — render events inline.
-                  // While streaming, this shows the live thinking trail.
-                  // If streaming has ended without a boundary, the model
-                  // skipped the marker; treat the whole thing as the answer.
-                  return renderInline(m.events, 'flat', m.isStreaming)
-                })()}
+                <AssistantMessageView
+                  message={m}
+                  onSuggest={onSuggest}
+                  onCitationClick={onCitationClick}
+                />
                 {!m.isStreaming && m.followUpChips.length > 0 && (
                   <div className={styles.followUpRow}>
                     {m.followUpChips.map(chip => (
@@ -675,30 +688,6 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
           )
         )}
       </div>
-
-      <button
-        type="button"
-        className={`${styles.jumpButton} ${
-          !isAtBottom ? styles.jumpButtonVisible : ''
-        }`}
-        onClick={jumpToBottom}
-        aria-label="Jump to bottom"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-        <span>Jump to latest</span>
-      </button>
 
       <Composer
         value={input}

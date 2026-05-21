@@ -2,7 +2,9 @@
 // /lib so server, ChatBody, ThinkingBlock, and MessageContent can all share
 // it without forcing a React import path.
 
-const CHIP_TOKEN = /\[\[chip:[^\]\n]*\]\]/g
+// Tolerant of whitespace inside brackets and capitalization on the keyword:
+// matches [[chip:foo]], [[ chip : foo ]], [[Chip:foo]], etc.
+const CHIP_TOKEN = /\[\[\s*chip\s*:([^\]\n]*)\]\]/gi
 
 /** Removes `[[chip:...]]` markers from rendered text and collapses any
  *  blank lines they leave behind. */
@@ -19,7 +21,7 @@ export function extractChips(text: string): string[] {
   let m
   CHIP_TOKEN.lastIndex = 0
   while ((m = CHIP_TOKEN.exec(text)) !== null) {
-    const value = m[0].slice('[[chip:'.length, -']]'.length).trim()
+    const value = m[1].trim()
     if (value) out.push(value)
   }
   return out.slice(0, 3)

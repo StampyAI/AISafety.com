@@ -12,7 +12,7 @@ import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
 // above any realistic response size.
 const MAX_TOKENS = 4096
 const MAX_HISTORY = 14
-const MAX_TOOL_ITERATIONS = 6
+const MAX_TOOL_ITERATIONS = 10
 
 export type SseSend = (event: string, data: unknown) => void
 

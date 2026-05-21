@@ -13,25 +13,50 @@ interface Props {
   isStreaming?: boolean
 }
 
-// Card and id tokens accept either the canonical `type:recXXX` form or a
-// bare `recXXX` (the model occasionally drops the type prefix). Resolution
-// in resolveCitation falls back to a scan across all citations by raw rec id.
+// Token-matching regexes are deliberately tolerant of:
+//   - canonical form `[[card:type:recXXX|note]]`
+//   - bare rec id (missing prefix): `[[card:recXXX]]`
+//   - doubled prefixes (re-prefixing mistake): `[[card:type:type:recXXX]]`
+//   - whitespace inside brackets / around colons / around the pipe
+//   - capitalization on the keyword itself: `[[Card:...]]`
+// resolveCitation handles the actual lookup with suffix matching on the
+// underlying rec id when the full id doesn't resolve directly.
 const INLINE_REGEX =
-  /(\[\[id:(?:[a-z][a-z-]*:)?rec[A-Za-z0-9]+\]\])|(\[\[suggest:[^\]\n]*\]\])|(\[\[chip:[^\]\n]*\]\])|(\[\[card:(?:[a-z][a-z-]*:)?rec[A-Za-z0-9]+(?:\|[^\]\n]*)?\]\])|(\[[^\]\n]+\]\([^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/g
+  /(\[\[\s*id\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+\s*\]\])|(\[\[\s*suggest\s*:[^\]\n]*\]\])|(\[\[\s*chip\s*:[^\]\n]*\]\])|(\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|[^\]\n]*)?\s*\]\])|(\[[^\]\n]+\]\([^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/gi
 
 const CARD_LINE =
-  /^\s*\[\[card:((?:[a-z][a-z-]*:)?rec[A-Za-z0-9]+)(?:\|([^\]\n]*))?\]\]\s*$/
+  /^\s*\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
 
-/** Look up a citation by its full id (e.g. "community:recXXX") or bare rec id. */
+// Per-token regexes used to extract pieces from a matched token. Anchored
+// so they only match if the whole token is well-formed.
+const ID_TOKEN_RE =
+  /^\[\[\s*id\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)\s*\]\]$/i
+const CARD_TOKEN_RE =
+  /^\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|([^\]\n]*))?\s*\]\]$/i
+const SUGGEST_TOKEN_RE = /^\[\[\s*suggest\s*:([^\]\n]*)\]\]$/i
+const CHIP_TOKEN_RE = /^\[\[\s*chip\s*:([^\]\n]*)\]\]$/i
+
+/** Normalises a captured listing id (e.g. " advisor : recXXX ") by removing
+ *  all internal whitespace. */
+function normaliseListingId(rawId: string): string {
+  return rawId.replace(/\s+/g, '')
+}
+
+/** Look up a citation by its full id (e.g. "community:recXXX") with two
+ *  fallbacks for common model slip-ups: bare "recXXX" (missing prefix) and
+ *  doubled prefixes like "advisor:advisor:recXXX". Both fall back to a
+ *  suffix match on the underlying rec id. */
 function resolveCitation(
   rawId: string,
   citationsById: Map<string, CitationRef>
 ): CitationRef | undefined {
   const direct = citationsById.get(rawId)
   if (direct) return direct
-  if (rawId.startsWith('rec')) {
+  const recMatch = rawId.match(/rec[A-Za-z0-9]+$/)
+  if (recMatch) {
+    const rec = recMatch[0]
     for (const cit of citationsById.values()) {
-      if (cit.id.endsWith(`:${rawId}`)) return cit
+      if (cit.id.endsWith(`:${rec}`)) return cit
     }
   }
   return undefined
@@ -57,7 +82,7 @@ interface CardSpec {
 function parseCardLine(line: string): CardSpec | null {
   const m = CARD_LINE.exec(line)
   if (!m) return null
-  return { id: m[1], note: m[2]?.trim() || undefined }
+  return { id: normaliseListingId(m[1]), note: m[2]?.trim() || undefined }
 }
 
 function renderInline(
@@ -78,8 +103,9 @@ function renderInline(
     }
     const token = match[0]
 
-    if (token.startsWith('[[id:')) {
-      const id = token.slice(5, -2)
+    let m: RegExpExecArray | null
+    if ((m = ID_TOKEN_RE.exec(token))) {
+      const id = normaliseListingId(m[1])
       const cit = resolveCitation(id, citationsById)
       if (cit) {
         const isExt = /^https?:\/\//.test(cit.url)
@@ -109,12 +135,10 @@ function renderInline(
           </a>
         )
       }
-    } else if (token.startsWith('[[card:')) {
+    } else if ((m = CARD_TOKEN_RE.exec(token))) {
       // Cards inside a paragraph are rendered as just an inline reference.
       // Block-level card lines are handled by the block parser separately.
-      const inner = token.slice(7, -2)
-      const pipe = inner.indexOf('|')
-      const id = pipe >= 0 ? inner.slice(0, pipe) : inner
+      const id = normaliseListingId(m[1])
       const cit = resolveCitation(id, citationsById)
       if (cit) {
         const isExt = /^https?:\/\//.test(cit.url)
@@ -144,10 +168,10 @@ function renderInline(
           </a>
         )
       }
-    } else if (token.startsWith('[[chip:')) {
+    } else if (CHIP_TOKEN_RE.test(token)) {
       // Chip tokens are stripped from visible text; rendered separately
-    } else if (token.startsWith('[[suggest:')) {
-      const query = token.slice(10, -2)
+    } else if ((m = SUGGEST_TOKEN_RE.exec(token))) {
+      const query = m[1].trim()
       parts.push(
         <SuggestInline key={`s-${key++}`} query={query} onSuggest={onSuggest} />
       )

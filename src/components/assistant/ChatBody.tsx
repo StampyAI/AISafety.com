@@ -22,7 +22,9 @@ import styles from './Assistant.module.css'
 
 const SCROLL_LOCK_THRESHOLD = 60
 
-const THINKING_DONE_MARKER = '[[/thinking]]'
+// Tolerant of whitespace and capitalization so model slip-ups still trip
+// the boundary: matches `[[/thinking]]`, `[[ /thinking ]]`, `[[/Thinking]]`.
+const THINKING_DONE_RE = /\[\[\s*\/\s*thinking\s*\]\]/i
 
 /** Index of the boundary event, or -1. */
 function thinkingDoneIndex(events: MessageEvent[]): number {
@@ -51,17 +53,16 @@ function appendTextDelta(
   const last = events[events.length - 1]
   const lastText = last && last.kind === 'text' ? last.text : ''
   const combined = lastText + delta
-  const markerIdx = combined.indexOf(THINKING_DONE_MARKER)
+  const markerMatch = THINKING_DONE_RE.exec(combined)
 
-  if (markerIdx === -1) {
+  if (!markerMatch) {
     return appendDeltaToLastText(events, delta)
   }
 
   // Split. Pre-marker portion stays in the current text event.
+  const markerIdx = markerMatch.index
   const before = combined.slice(0, markerIdx).trimEnd()
-  const after = combined
-    .slice(markerIdx + THINKING_DONE_MARKER.length)
-    .trimStart()
+  const after = combined.slice(markerIdx + markerMatch[0].length).trimStart()
 
   const next: MessageEvent[] = []
   for (let i = 0; i < events.length; i++) {

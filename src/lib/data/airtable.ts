@@ -3,6 +3,7 @@ import path from 'path'
 import https from 'https'
 import http from 'http'
 import { unstable_cache } from 'next/cache'
+import { getMockAirtableRecords, isMockAirtableMode } from './mock-airtable'
 
 export interface AirtableRawRecord {
   id: string
@@ -298,13 +299,15 @@ function parseRetryAfter(header: string | null): number | null {
 async function fetchAirtableRecordsImpl(
   options: FetchOptions
 ): Promise<AirtableRawRecord[]> {
-  const token = process.env.AIRTABLE_TOKEN
-  const baseId = process.env.AIRTABLE_BASE_ID
-
-  if (!token || !baseId) {
-    console.error('Airtable credentials not configured')
-    return []
+  if (isMockAirtableMode()) {
+    console.warn(
+      `Airtable credentials not configured; using mock data for table ${options.tableId}`
+    )
+    return getMockAirtableRecords(options.tableId)
   }
+
+  const token = process.env.AIRTABLE_TOKEN as string
+  const baseId = process.env.AIRTABLE_BASE_ID as string
 
   const allRecords: AirtableRawRecord[] = []
   let offset: string | null = null

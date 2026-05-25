@@ -6,6 +6,7 @@ import Link from 'next/link'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { Community } from '@/lib/data/communities'
 import { trackListingClick } from '@/lib/analytics'
 
@@ -158,14 +159,11 @@ export default function CommunitiesClient({
   return (
     <div className="database-outer-grid">
       <div>
-        {/* Search Bar */}
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            placeholder="Search communities by title, description, or location"
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="text-field"
+            onChange={setSearchQuery}
+            placeholder="Search communities by title, description, or location"
           />
         </div>
 

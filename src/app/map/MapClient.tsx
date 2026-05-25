@@ -6,6 +6,7 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { trackListingClick } from '@/lib/analytics'
 import styles from './page.module.css'
 
@@ -216,13 +217,10 @@ export default function MapClient({
         <div className="database-outer-grid">
           <div>
             <div className="padding-bottom-40px">
-              <input
-                type="text"
-                className="text-field"
-                placeholder="Search listings by name or description"
-                maxLength={256}
+              <SearchBar
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={setSearchQuery}
+                placeholder="Search listings by name or description"
               />
             </div>
 

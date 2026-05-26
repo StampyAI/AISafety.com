@@ -1,9 +1,11 @@
 .wrapper {
   position: relative;
   width: 100%;
+  min-width: 0;
 }
 
 .input {
+  width: 100%;
   padding-right: 52px;
 }
 

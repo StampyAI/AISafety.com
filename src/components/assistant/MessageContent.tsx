@@ -74,6 +74,27 @@ function maskStreamingTail(text: string): string {
   return text
 }
 
+// Anything that LOOKS like a directive — we use this to detect tokens that
+// failed the strict parsers (e.g. the model fabricated `[[card:community:
+// recAlignment Jams|...]]` with a space in the rec id) and silently strip
+// them, rather than leaking the raw text to the user.
+const MALFORMED_DIRECTIVE_SWEEP =
+  /\[\[\s*(?:card|id|chip|suggest)\b[^\]\n]*?\]\]/gi
+
+function stripMalformedDirectives(text: string): string {
+  return text.replace(MALFORMED_DIRECTIVE_SWEEP, m => {
+    if (
+      CARD_TOKEN_RE.test(m) ||
+      ID_TOKEN_RE.test(m) ||
+      CHIP_TOKEN_RE.test(m) ||
+      SUGGEST_TOKEN_RE.test(m)
+    ) {
+      return m
+    }
+    return ''
+  })
+}
+
 interface CardSpec {
   id: string
   note?: string
@@ -323,7 +344,8 @@ export default function MessageContent({
     () => new Map(citations.map(c => [c.id, c])),
     [citations]
   )
-  const visibleText = isStreaming ? maskStreamingTail(text) : text
+  const masked = isStreaming ? maskStreamingTail(text) : text
+  const visibleText = stripMalformedDirectives(masked)
   const blocks = useMemo(() => parseBlocks(visibleText), [visibleText])
 
   return (

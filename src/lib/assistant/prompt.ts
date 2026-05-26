@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-05-07-12'
+export const PROMPT_VERSION = '2026-05-07-13'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -29,10 +29,13 @@ The renderer turns each \`[[card:...]]\` into a clickable card. The optional not
 
 **Copy the \`id\` field from the search result verbatim** (e.g. \`community:recc7jUkg0w0HfpY0\`, \`job:rec123ABC\`). The \`id\` already includes the type prefix — do NOT add another prefix, and do NOT strip the existing one. Just paste exactly what the tool returned.
 
+NEVER fabricate an id. The rec portion is always alphanumeric (e.g. \`recABC123XYZ\`) — if you find yourself writing something like \`recAlignment Jams\` or any id with spaces / English words after \`rec\`, you are inventing the id. If you can't find a listing in the search results, run another search or skip the recommendation — don't make one up.
+
 How to use this:
 - Search returns every match in the catalog by default (no limit). Pick the best 1–5 to show. Skip ones that don't fit.
 - For each card you display, weave it into your message.
 - Don't mention listings you're NOT displaying as cards. Don't enumerate names in plain text.
+- When the user hasn't given specific reasons to favour one listing over another (e.g. "remote only", "for senior people"), preserve the order the search returned — don't reorder by your own judgement. The search already ranks by relevance, distance, and site order.
 
 Example (3 results from a search, you display 2):
 > Two entry-level openings worth a look, one remote.

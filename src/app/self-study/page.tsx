@@ -37,30 +37,26 @@ export default async function SelfStudyPage() {
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
-          <FeaturedCard
-            href="https://www.alignmentforum.org/library"
-            tagline="Fundamental reading"
-            name="AI Alignment Forum: Curated Sequences"
-            description="List of sequences curated by the AI Alignment Forum team, featuring work from Richard Ngo, Paul Christiano, etc."
-            logo="/images/alignment-forum.png"
-            metadata={[
-              { label: 'Category', value: 'Technical Alignment' },
-              { label: 'Created by', value: 'Various' },
-            ]}
-            trackingPage="Self-study"
-          />
-          <FeaturedCard
-            href="https://bluedot.org/"
-            tagline="Standard introductory courses"
-            name="BlueDot Impact: Technical & Frontier AI Governance"
-            description="Covers key concepts and research perspectives in AI safety, split into two main streams: Technical AI Safety and AI Governance."
-            logo="/images/blue-dot-impact.svg"
-            metadata={[
-              { label: 'Category', value: 'Technical Alignment, Governance' },
-              { label: 'Created by', value: 'BlueDot Impact' },
-            ]}
-            trackingPage="Self-study"
-          />
+          {[
+            courses.find(c => c.featured === '1'),
+            courses.find(c => c.featured === '2'),
+          ]
+            .filter((c): c is NonNullable<typeof c> => c != null)
+            .map(course => (
+              <FeaturedCard
+                key={course.id}
+                href={course.url !== '#' ? course.url : undefined}
+                tagline={course.featuredTagline!}
+                name={course.name}
+                description={course.description}
+                logo={course.image ?? undefined}
+                metadata={[
+                  { label: 'Category', value: course.category },
+                  { label: 'Created by', value: course.organizer },
+                ]}
+                trackingPage="Self-study"
+              />
+            ))}
         </div>
 
         <aside className="hide-mobile">

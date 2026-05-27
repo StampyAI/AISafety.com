@@ -36,24 +36,23 @@ export default async function FoundersPage() {
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
-          <FeaturedCard
-            href="https://www.ashgro.org/"
-            tagline="Featured fiscal sponsor"
-            name="Ashgro"
-            description="Providing fiscal sponsorship to AI safety projects, saving them time and allowing them to access more funding. Fee: 5–10%."
-            logo="/images/ashgro-logo.png"
-            metadata={[{ label: 'Type', value: 'Fiscal sponsor' }]}
-            trackingPage="Founders"
-          />
-          <FeaturedCard
-            href="https://www.catalyze-impact.org/"
-            tagline="Featured incubator"
-            name="Catalyze Impact"
-            description="Brings together co-founders, experts, and mission-oriented funders to accelerate founders from pre-idea to scaling an AI safety org. Includes mentorship and seed funding."
-            logo="/images/catalyze-impact-logo.png"
-            metadata={[{ label: 'Type', value: 'Incubator' }]}
-            trackingPage="Founders"
-          />
+          {[
+            resources.find(r => r.featured === '1'),
+            resources.find(r => r.featured === '2'),
+          ]
+            .filter((r): r is NonNullable<typeof r> => r != null)
+            .map(resource => (
+              <FeaturedCard
+                key={resource.id}
+                href={resource.website !== '#' ? resource.website : undefined}
+                tagline={resource.featuredTagline!}
+                name={resource.name}
+                description={resource.description}
+                logo={resource.image ?? undefined}
+                metadata={[{ label: 'Type', value: resource.type }]}
+                trackingPage="Founders"
+              />
+            ))}
         </div>
 
         <aside className="hide-mobile">

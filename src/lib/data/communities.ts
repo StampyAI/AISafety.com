@@ -20,6 +20,8 @@ interface AirtableRecord {
     Sort?: number
     Latitude?: number
     Longitude?: number
+    Featured?: string
+    'Featured tagline'?: string
   }
 }
 
@@ -40,6 +42,8 @@ export interface Community {
   sort: number
   latitude: number | null
   longitude: number | null
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getCommunities(): Promise<Community[]> {
@@ -77,6 +81,11 @@ export async function getCommunities(): Promise<Community[]> {
       sort: fields.Sort || 9999,
       latitude: fields.Latitude ?? null,
       longitude: fields.Longitude ?? null,
+      featured:
+        fields.Featured === '1' || fields.Featured === '2'
+          ? (fields.Featured as '1' | '2')
+          : null,
+      featuredTagline: fields['Featured tagline'] || null,
     })
   }
 

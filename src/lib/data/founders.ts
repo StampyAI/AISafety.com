@@ -11,6 +11,8 @@ interface AirtableRecord {
     Image?: Array<{ url: string }>
     Description?: string
     Website?: string
+    Featured?: string
+    'Featured tagline'?: string
   }
 }
 
@@ -22,6 +24,8 @@ export interface FounderResource {
   image: string | null
   description: string
   website: string
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getFounderResources(): Promise<FounderResource[]> {
@@ -55,6 +59,11 @@ export async function getFounderResources(): Promise<FounderResource[]> {
       image,
       description: fields.Description || '',
       website: fields.Website || '#',
+      featured:
+        fields.Featured === '1' || fields.Featured === '2'
+          ? (fields.Featured as '1' | '2')
+          : null,
+      featuredTagline: fields['Featured tagline'] || null,
     })
   }
 

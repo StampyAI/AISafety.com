@@ -12,6 +12,8 @@ interface AirtableRecord {
     'Recipient type'?: string | string[]
     'Accepting applications?'?: string | string[]
     Website?: string
+    Featured?: string
+    'Featured tagline'?: string
   }
 }
 
@@ -24,6 +26,8 @@ export interface Funder {
   recipientType: string
   acceptingApplications: string
   url: string
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getFunders(): Promise<Funder[]> {
@@ -59,6 +63,11 @@ export async function getFunders(): Promise<Funder[]> {
         ? fields['Accepting applications?'].join(', ')
         : fields['Accepting applications?'] || '',
       url: fields.Website || '#',
+      featured:
+        fields.Featured === '1' || fields.Featured === '2'
+          ? (fields.Featured as '1' | '2')
+          : null,
+      featuredTagline: fields['Featured tagline'] || null,
     })
   }
 

@@ -20,35 +20,6 @@ export const metadata = {
   },
 }
 
-// Featured communities data (hardcoded as these are special highlights)
-const featuredCommunities = [
-  {
-    id: 'ai-alignment-slack',
-    name: 'AI Alignment Slack',
-    tagline: 'Largest real-time online community',
-    description:
-      'Community of thousands involved in making AI safe. Includes channels dedicated to making introductions, finding study buddies, asking questions, and discovering opportunities.',
-    logo: '/images/ai-alignment-slack.png',
-    platform: 'Slack',
-    activityLevel: 'Very active',
-    focus: 'Main focus is AI safety',
-    joinLink:
-      'https://join.slack.com/t/ai-alignment/shared_invite/zt-3oytsoq2q-nzMwWJqs5fl4H~VXA6FQTA',
-  },
-  {
-    id: 'lesswrong',
-    name: 'LessWrong',
-    tagline: 'Main forum for research and advocacy',
-    description:
-      'Forum dedicated to improving human reasoning and decision-making, and the primary online hub for long-form AI safety discussion and research.',
-    logo: '/images/lesswrong.png',
-    platform: 'Forum',
-    activityLevel: 'Very active',
-    focus: 'Partial focus on AI safety',
-    joinLink: 'https://www.lesswrong.com/w/ai',
-  },
-]
-
 export default async function CommunitiesPage() {
   const [communities, lastUpdated] = await Promise.all([
     getCommunities(),
@@ -82,22 +53,32 @@ export default async function CommunitiesPage() {
         {/* Featured Communities + Related Resources */}
         <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
           <div className="flex flex-col-mobile gap-40px">
-            {featuredCommunities.map(community => (
-              <FeaturedCard
-                key={community.id}
-                href={community.joinLink}
-                tagline={community.tagline}
-                name={community.name}
-                description={community.description}
-                logo={community.logo}
-                metadata={[
-                  { label: 'Platform', value: community.platform },
-                  { label: 'Activity level', value: community.activityLevel },
-                  { label: 'Focus', value: community.focus },
-                ]}
-                trackingPage="Communities"
-              />
-            ))}
+            {[
+              communities.find(c => c.featured === '1'),
+              communities.find(c => c.featured === '2'),
+            ]
+              .filter((c): c is NonNullable<typeof c> => c != null)
+              .map(community => (
+                <FeaturedCard
+                  key={community.id}
+                  href={
+                    community.joinLink !== '#' ? community.joinLink : undefined
+                  }
+                  tagline={community.featuredTagline!}
+                  name={community.name}
+                  description={community.description}
+                  logo={community.logo ?? undefined}
+                  metadata={[
+                    { label: 'Platform', value: community.platformText },
+                    {
+                      label: 'Activity level',
+                      value: community.activityLevel,
+                    },
+                    { label: 'Focus', value: community.focus },
+                  ]}
+                  trackingPage="Communities"
+                />
+              ))}
           </div>
 
           <aside className="hide-mobile">

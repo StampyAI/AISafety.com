@@ -203,6 +203,9 @@ export async function searchCatalog(
       if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm
     }
     if (b.score !== a.score) return b.score - a.score
+    const aFeat = a.listing.featured ? 1 : 0
+    const bFeat = b.listing.featured ? 1 : 0
+    if (bFeat !== aFeat) return bFeat - aFeat
     return (
       (catalogIndex.get(a.listing.id) ?? Infinity) -
       (catalogIndex.get(b.listing.id) ?? Infinity)

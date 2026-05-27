@@ -22,6 +22,7 @@ export interface Listing {
   /** Geographic coordinates if known (currently only communities have these). */
   latitude?: number
   longitude?: number
+  featured?: boolean
 }
 
 export interface Catalog {

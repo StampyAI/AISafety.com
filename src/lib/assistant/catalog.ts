@@ -62,6 +62,10 @@ function deriveFaviconAvoidingJobBoards(
   }
 }
 
+function isFeatured(item: { featured?: string | null }): boolean {
+  return item.featured === '1' || item.featured === '2'
+}
+
 function compact(
   meta: Record<string, string | null | undefined>
 ): Record<string, string> {
@@ -147,6 +151,7 @@ export async function buildCatalog(): Promise<Catalog> {
         recipientType: f.recipientType,
         acceptingApplications: f.acceptingApplications,
       }),
+      featured: isFeatured(f as { featured?: string }),
     })
   }
 
@@ -163,6 +168,7 @@ export async function buildCatalog(): Promise<Catalog> {
         focus: a.focus,
         status: a.status,
       }),
+      featured: isFeatured(a as { featured?: string }),
     })
   }
 
@@ -185,6 +191,7 @@ export async function buildCatalog(): Promise<Catalog> {
         location: c.location,
         size: c.size,
       }),
+      featured: isFeatured(c as { featured?: string }),
     })
   }
 
@@ -202,6 +209,7 @@ export async function buildCatalog(): Promise<Catalog> {
         category: c.category,
         courseType: c.courseType,
       }),
+      featured: isFeatured(c as { featured?: string }),
     })
   }
 
@@ -217,6 +225,7 @@ export async function buildCatalog(): Promise<Catalog> {
       meta: compact({
         type: r.type,
       }),
+      featured: isFeatured(r as { featured?: string }),
     })
   }
 
@@ -232,6 +241,7 @@ export async function buildCatalog(): Promise<Catalog> {
         status: p.status,
         contact: p.contact,
       }),
+      featured: isFeatured(p as { featured?: string }),
     })
   }
 
@@ -247,6 +257,7 @@ export async function buildCatalog(): Promise<Catalog> {
       meta: compact({
         type: m.type,
       }),
+      featured: isFeatured(m as { featured?: string }),
     })
   }
 

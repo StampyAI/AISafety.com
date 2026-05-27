@@ -143,6 +143,9 @@ export async function searchCatalog(
   }
   const radiusKm = options.near?.radiusKm ?? 500
 
+  const catalogIndex = new Map<string, number>()
+  catalog.listings.forEach((l, i) => catalogIndex.set(l.id, i))
+
   const candidates: Array<{ listing: Listing; distanceKm?: number }> = []
   for (const listing of catalog.listings) {
     if (options.type && listing.type !== options.type) continue
@@ -195,12 +198,15 @@ export async function searchCatalog(
   }
 
   hits.sort((a, b) => {
-    // If we have distances, prefer closer first; ties broken by score then name.
+    // If we have distances, prefer closer first; ties broken by score then site order.
     if (typeof a.distanceKm === 'number' && typeof b.distanceKm === 'number') {
       if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm
     }
     if (b.score !== a.score) return b.score - a.score
-    return a.listing.name.localeCompare(b.listing.name)
+    return (
+      (catalogIndex.get(a.listing.id) ?? Infinity) -
+      (catalogIndex.get(b.listing.id) ?? Infinity)
+    )
   })
 
   return hits.slice(0, limit)

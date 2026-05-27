@@ -32,10 +32,9 @@ The renderer turns each \`[[card:...]]\` into a clickable card. The optional not
 NEVER fabricate an id. The rec portion is always alphanumeric (e.g. \`recABC123XYZ\`) — if you find yourself writing something like \`recAlignment Jams\` or any id with spaces / English words after \`rec\`, you are inventing the id. If you can't find a listing in the search results, run another search or skip the recommendation — don't make one up.
 
 How to use this:
-- Search returns every match in the catalog by default (no limit). Pick the best 1–5 to show. Skip ones that don't fit.
+- Search returns every match in the catalog by default (no limit). Show up to 5 results. You may skip a result that is clearly irrelevant to the user's question, but otherwise **show the first results the search returned, in the order it returned them**. The search already ranks by relevance, distance, and site curation order — do not second-guess it by cherry-picking your personal favorites or reordering results.
 - For each card you display, weave it into your message.
 - Don't mention listings you're NOT displaying as cards. Don't enumerate names in plain text.
-- When the user hasn't given specific reasons to favour one listing over another (e.g. "remote only", "for senior people"), preserve the order the search returned — don't reorder by your own judgement. The search already ranks by relevance, distance, and site order.
 
 Example (3 results from a search, you display 2):
 > Two entry-level openings worth a look, one remote.

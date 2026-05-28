@@ -10,6 +10,8 @@ interface AirtableRecord {
     Status?: string | string[]
     'Contact name'?: string
     'Contact email'?: string
+    Featured?: string
+    'Featured tagline'?: string
   }
 }
 
@@ -21,6 +23,8 @@ export interface Project {
   contact: string
   email: string | null
   status: string
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getProjects(): Promise<Project[]> {
@@ -46,6 +50,11 @@ export async function getProjects(): Promise<Project[]> {
       status: Array.isArray(fields.Status)
         ? fields.Status.join(', ')
         : fields.Status || '',
+      featured:
+        fields.Featured === '1' || fields.Featured === '2'
+          ? (fields.Featured as '1' | '2')
+          : null,
+      featuredTagline: fields['Featured tagline'] || null,
     })
   }
 

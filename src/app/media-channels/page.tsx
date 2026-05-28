@@ -36,24 +36,23 @@ export default async function MediaChannelsPage() {
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
-          <FeaturedCard
-            href="https://thezvi.substack.com/"
-            tagline="Top blog recommendation"
-            name="Don't Worry About the Vase"
-            description="Blog by Zvi Mowshowitz on various topics, including AI, offering detailed analysis and personal insights from a rationalist perspective. Posts very often."
-            logo="/images/zvi.webp"
-            metadata={[{ label: 'Type', value: 'Blog' }]}
-            trackingPage="Media channels"
-          />
-          <FeaturedCard
-            href="https://www.youtube.com/playlist?list=PLWQikawCP4UFM_ziLf9X2rcOLCSbqisRE"
-            tagline="Top recommended videos"
-            name="AI Safety Playlist"
-            description="A carefully curated and regularly updated YouTube playlist to help people gain an understanding of what's going on with AI."
-            logo="/images/YouTube.png"
-            metadata={[{ label: 'Type', value: 'YouTube' }]}
-            trackingPage="Media channels"
-          />
+          {[
+            channels.find(c => c.featured === '1'),
+            channels.find(c => c.featured === '2'),
+          ]
+            .filter((c): c is NonNullable<typeof c> => c != null)
+            .map(channel => (
+              <FeaturedCard
+                key={channel.id}
+                href={channel.url !== '#' ? channel.url : undefined}
+                tagline={channel.featuredTagline!}
+                name={channel.name}
+                description={channel.description}
+                logo={channel.logo ?? undefined}
+                metadata={[{ label: 'Type', value: channel.type }]}
+                trackingPage="Media channels"
+              />
+            ))}
         </div>
 
         <aside className="hide-mobile">

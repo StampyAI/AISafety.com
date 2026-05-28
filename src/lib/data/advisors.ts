@@ -11,6 +11,8 @@ interface AirtableRecord {
     Focus?: string | string[]
     Status?: string | string[]
     Link?: string
+    Featured?: string
+    'Featured tagline'?: string
   }
 }
 
@@ -22,6 +24,8 @@ export interface Advisor {
   focus: string
   status: string
   url: string
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getAdvisors(): Promise<Advisor[]> {
@@ -54,6 +58,11 @@ export async function getAdvisors(): Promise<Advisor[]> {
         ? fields.Status.join(', ')
         : fields.Status || '',
       url: fields.Link || '#',
+      featured:
+        fields.Featured === '1' || fields.Featured === '2'
+          ? (fields.Featured as '1' | '2')
+          : null,
+      featuredTagline: fields['Featured tagline'] || null,
     })
   }
 

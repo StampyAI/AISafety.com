@@ -37,32 +37,33 @@ export default async function ProjectsPage() {
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
-          <FeaturedCard
-            tagline="Seeking maintainer"
-            name="Alignment Research Dataset"
-            description="Regularly scrapes all major sources of alignment data for use by the Stampy chatbot and other projects. Currently needs someone to maintain it."
-            metadata={[
-              {
-                label: 'Contact',
-                value: ['Olivier Coutu', 'coutu.olivier@gmail.com'],
-              },
-              { label: 'Status', value: 'Active' },
-            ]}
-            trackingPage="Projects"
-          />
-          <FeaturedCard
-            tagline="Content curation platform"
-            name="AI Safety Feed"
-            description="Curated stream for AI safety content, gathering posts and research from key sources. AI helps summarize, tag, and rate the novelty of content. Site: aisafetyfeed.com"
-            metadata={[
-              {
-                label: 'Contact',
-                value: ['Matt Brooks', 'matthewrbrooks94@gmail.com'],
-              },
-              { label: 'Status', value: 'Active' },
-            ]}
-            trackingPage="Projects"
-          />
+          {[
+            projects.find(p => p.featured === '1'),
+            projects.find(p => p.featured === '2'),
+          ]
+            .filter((p): p is NonNullable<typeof p> => p != null)
+            .map(project => (
+              <FeaturedCard
+                key={project.id}
+                tagline={project.featuredTagline!}
+                name={project.name}
+                description={project.description}
+                metadata={[
+                  ...(project.contact || project.email
+                    ? [
+                        {
+                          label: 'Contact',
+                          value: [project.contact, project.email].filter(
+                            Boolean
+                          ) as string[],
+                        },
+                      ]
+                    : []),
+                  { label: 'Status', value: project.status },
+                ]}
+                trackingPage="Projects"
+              />
+            ))}
         </div>
 
         <aside className="hide-mobile">

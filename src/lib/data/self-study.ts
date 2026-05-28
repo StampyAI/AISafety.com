@@ -12,6 +12,8 @@ interface AirtableRecord {
     'Created by'?: string
     Link?: string
     Logo?: Array<{ url: string }>
+    Featured?: string
+    'Featured tagline'?: string
   }
 }
 
@@ -24,6 +26,8 @@ export interface Course {
   organizer: string
   url: string
   image: string | null
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getCourses(): Promise<Course[]> {
@@ -57,6 +61,11 @@ export async function getCourses(): Promise<Course[]> {
       organizer: fields['Created by'] || '',
       url: fields.Link || '#',
       image,
+      featured:
+        fields.Featured === '1' || fields.Featured === '2'
+          ? (fields.Featured as '1' | '2')
+          : null,
+      featuredTagline: fields['Featured tagline'] || null,
     })
   }
 

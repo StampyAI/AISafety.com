@@ -37,30 +37,26 @@ export default async function AdvisorsPage() {
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
-          <FeaturedCard
-            href="https://successif.org/"
-            tagline="Career transition advice"
-            name="Successif"
-            description="Provides personalized career advising to experienced professionals seeking to transition into AI risk reduction roles, offering expert guidance and practical support."
-            logo="/images/successif.webp"
-            metadata={[
-              { label: 'Focus', value: 'Career/contribution' },
-              { label: 'Status', value: 'Active' },
-            ]}
-            trackingPage="Advisors"
-          />
-          <FeaturedCard
-            href="https://aisafety.quest/#calls"
-            tagline="Impact-focused career advice"
-            name="AI Safety Quest"
-            description="Grassroots volunteer organization helping people contribute to reducing catastrophic risk from AI by directing them to the most relevant resources and communities."
-            logo="/images/ai-safety-quest.png"
-            metadata={[
-              { label: 'Focus', value: 'Career/contribution' },
-              { label: 'Status', value: 'Active' },
-            ]}
-            trackingPage="Advisors"
-          />
+          {[
+            advisors.find(a => a.featured === '1'),
+            advisors.find(a => a.featured === '2'),
+          ]
+            .filter((a): a is NonNullable<typeof a> => a != null)
+            .map(advisor => (
+              <FeaturedCard
+                key={advisor.id}
+                href={advisor.url !== '#' ? advisor.url : undefined}
+                tagline={advisor.featuredTagline!}
+                name={advisor.name}
+                description={advisor.description}
+                logo={advisor.logo ?? undefined}
+                metadata={[
+                  { label: 'Focus', value: advisor.focus },
+                  { label: 'Status', value: advisor.status },
+                ]}
+                trackingPage="Advisors"
+              />
+            ))}
         </div>
 
         <aside className="hide-mobile">

@@ -47,6 +47,7 @@ export default function FeaturedCard({
               width={64}
               height={64}
               className="card-image"
+              unoptimized
             />
           </div>
           <h3>{name}</h3>

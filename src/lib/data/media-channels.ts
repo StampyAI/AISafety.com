@@ -10,6 +10,8 @@ interface AirtableRecord {
     Image?: Array<{ url: string }>
     Type?: string | string[]
     Link?: string
+    Featured?: string
+    'Featured tagline'?: string
   }
 }
 
@@ -20,6 +22,8 @@ export interface MediaChannel {
   logo: string | null
   type: string
   url: string
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getMediaChannels(): Promise<MediaChannel[]> {
@@ -49,6 +53,11 @@ export async function getMediaChannels(): Promise<MediaChannel[]> {
         ? fields.Type.join(', ')
         : fields.Type || '',
       url: fields.Link || '#',
+      featured:
+        fields.Featured === '1' || fields.Featured === '2'
+          ? (fields.Featured as '1' | '2')
+          : null,
+      featuredTagline: fields['Featured tagline'] || null,
     })
   }
 

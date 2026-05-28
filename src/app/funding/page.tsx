@@ -34,33 +34,29 @@ export default async function FundingPage() {
       {/* Featured Cards + Related Resources */}
       <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
         <div className="flex flex-col-mobile gap-40px">
-          <FeaturedCard
-            href="https://coefficientgiving.org/apply-for-funding/"
-            tagline="Largest funder in x-risk reduction"
-            name="Coefficient Giving (CG)"
-            description="Most funding is done via proactive research, but there are frequent requests for proposals in certain areas. Previously called Open Philanthropy."
-            logo="/images/coefficient-giving.webp"
-            metadata={[
-              { label: 'Type', value: 'Fund' },
-              { label: 'Accepting applications', value: 'Yes – rolling basis' },
-            ]}
-            trackingPage="Funding"
-          />
-          <FeaturedCard
-            href="https://survivalandflourishing.fund/"
-            tagline="Best for mid- to large-scale projects"
-            name="Survival and Flourishing Fund (SFF)"
-            description="Provides financial support to organizations working to improve humanity's long-term prospects for survival and flourishing. Speculation Grants are rolling; full S-Process runs annually."
-            logo="/images/sff-white.svg"
-            metadata={[
-              { label: 'Type', value: 'Fund' },
-              {
-                label: 'Accepting applications',
-                value: 'Yes – rolling basis',
-              },
-            ]}
-            trackingPage="Funding"
-          />
+          {[
+            funders.find(f => f.featured === '1'),
+            funders.find(f => f.featured === '2'),
+          ]
+            .filter((f): f is NonNullable<typeof f> => f != null)
+            .map(funder => (
+              <FeaturedCard
+                key={funder.id}
+                href={funder.url !== '#' ? funder.url : undefined}
+                tagline={funder.featuredTagline!}
+                name={funder.name}
+                description={funder.description}
+                logo={funder.logo ?? undefined}
+                metadata={[
+                  { label: 'Type', value: funder.type },
+                  {
+                    label: 'Accepting applications',
+                    value: funder.acceptingApplications,
+                  },
+                ]}
+                trackingPage="Funding"
+              />
+            ))}
         </div>
 
         <aside className="hide-mobile">

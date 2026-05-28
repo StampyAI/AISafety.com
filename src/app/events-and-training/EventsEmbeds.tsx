@@ -6,17 +6,17 @@ import styles from './page.module.css'
 const EMBEDS = [
   {
     src: 'https://airtable.com/embed/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc?viewControls=on',
-    height: 1860,
+    height: 2210,
     className: `${styles['airtable-embed']} ${styles['airtable-embed-mobile']} margin-bottom-40px`,
   },
   {
     src: 'https://airtable.com/embed/appF8XfZUGXtfi40E/shrZ4Uh9OsbUryfjp',
-    height: 3100,
+    height: 3250,
     className: `${styles['airtable-embed']} margin-bottom-40px`,
   },
   {
     src: 'https://airtable.com/embed/appF8XfZUGXtfi40E/shrbap2hy8Yd3xojA',
-    height: 1395,
+    height: 1745,
     className: `${styles['airtable-embed']} margin-bottom-40px`,
   },
 ]

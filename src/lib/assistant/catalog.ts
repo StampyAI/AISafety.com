@@ -151,7 +151,7 @@ export async function buildCatalog(): Promise<Catalog> {
         recipientType: f.recipientType,
         acceptingApplications: f.acceptingApplications,
       }),
-      featured: isFeatured(f as { featured?: string }),
+      featured: isFeatured(f),
     })
   }
 
@@ -168,7 +168,7 @@ export async function buildCatalog(): Promise<Catalog> {
         focus: a.focus,
         status: a.status,
       }),
-      featured: isFeatured(a as { featured?: string }),
+      featured: isFeatured(a),
     })
   }
 
@@ -191,7 +191,7 @@ export async function buildCatalog(): Promise<Catalog> {
         location: c.location,
         size: c.size,
       }),
-      featured: isFeatured(c as { featured?: string }),
+      featured: isFeatured(c),
     })
   }
 
@@ -209,7 +209,7 @@ export async function buildCatalog(): Promise<Catalog> {
         category: c.category,
         courseType: c.courseType,
       }),
-      featured: isFeatured(c as { featured?: string }),
+      featured: isFeatured(c),
     })
   }
 
@@ -225,7 +225,7 @@ export async function buildCatalog(): Promise<Catalog> {
       meta: compact({
         type: r.type,
       }),
-      featured: isFeatured(r as { featured?: string }),
+      featured: isFeatured(r),
     })
   }
 
@@ -241,7 +241,7 @@ export async function buildCatalog(): Promise<Catalog> {
         status: p.status,
         contact: p.contact,
       }),
-      featured: isFeatured(p as { featured?: string }),
+      featured: isFeatured(p),
     })
   }
 
@@ -257,7 +257,7 @@ export async function buildCatalog(): Promise<Catalog> {
       meta: compact({
         type: m.type,
       }),
-      featured: isFeatured(m as { featured?: string }),
+      featured: isFeatured(m),
     })
   }
 

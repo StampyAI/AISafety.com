@@ -135,6 +135,7 @@ function summariseListing(l: Listing, distanceKm?: number): object {
     meta: l.meta,
     url: l.url,
     pageUrl: l.pageUrl,
+    ...(l.featured ? { featured: true } : {}),
     ...(typeof distanceKm === 'number'
       ? { distanceKm: Math.round(distanceKm) }
       : {}),

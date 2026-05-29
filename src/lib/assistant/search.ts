@@ -179,10 +179,17 @@ export async function searchCatalog(
   }
 
   if (queryTokens.length === 0 && !center) {
-    // Filter-only browse — return first N in catalog order
-    return candidates
-      .slice(0, limit)
-      .map(c => ({ listing: c.listing, score: 1 }))
+    // Filter-only browse — featured items first, then catalog order
+    const sorted = [...candidates].sort((a, b) => {
+      const aFeat = a.listing.featured ? 1 : 0
+      const bFeat = b.listing.featured ? 1 : 0
+      if (bFeat !== aFeat) return bFeat - aFeat
+      return (
+        (catalogIndex.get(a.listing.id) ?? Infinity) -
+        (catalogIndex.get(b.listing.id) ?? Infinity)
+      )
+    })
+    return sorted.slice(0, limit).map(c => ({ listing: c.listing, score: 1 }))
   }
 
   const hits: SearchHit[] = []

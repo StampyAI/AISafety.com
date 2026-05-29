@@ -374,17 +374,17 @@ export default async function Home() {
         <div className={styles['card-third-width-2']}>
           <div className={styles['card-half-width-main-text']}>
             <p className="paragraph-small-bold padding-bottom-8px">
-              Volunteer projects
+              Found an organization
             </p>
             <h3 className="padding-bottom-32px">
-              Build online tools to support the AI safety ecosystem
+              Resources for starting and growing an AI safety organization
             </h3>
-            <Link href="/projects" className="button-primary drop-shadow">
-              View all projects
+            <Link href="/founders" className="button-primary drop-shadow">
+              View founder toolkit
             </Link>
-            {dates.projects && (
+            {dates.founders && (
               <RelativeDate
-                iso={dates.projects}
+                iso={dates.founders}
                 className={`${styles['date-alt']} paragraph-xs`}
               />
             )}
@@ -399,19 +399,19 @@ export default async function Home() {
               height={32}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
-              Featured project
+              Featured fiscal sponsor
             </p>
             <div className={`${styles['icon-row']} padding-bottom-24px`}>
-              <h3>AI Safety Feed</h3>
+              <h3>Ashgro</h3>
             </div>
             <div className="block">
               <TrackedLink
-                href="https://aisafetyfeed.com/"
+                href="https://www.ashgro.org/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="button-secondary"
                 trackingPage="Home"
-                trackingName="AI Safety Feed"
+                trackingName="Ashgro"
               >
                 Learn more
               </TrackedLink>

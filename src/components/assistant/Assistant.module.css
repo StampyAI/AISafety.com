@@ -516,7 +516,8 @@
   background-color: transparent;
   border: none;
   color: var(--white);
-  font-size: 14px;
+  /* 16px+ prevents iOS Safari from auto-zooming when the input focuses. */
+  font-size: 16px;
   line-height: 1.4;
   letter-spacing: -0.2px;
   resize: none;

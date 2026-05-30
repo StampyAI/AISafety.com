@@ -60,17 +60,19 @@ export async function POST(req: NextRequest) {
   const ip = getClientIp(req.headers)
   const limit = await checkAssistantRateLimit(ip)
   if (!limit.ok) {
-    const message =
-      limit.window === 'day'
-        ? "You've hit today's message limit. Try again tomorrow."
-        : "You've hit the hourly message limit. Try again in a bit."
-    return new Response(JSON.stringify({ error: 'rate_limited', message }), {
-      status: 429,
-      headers: {
-        'Content-Type': 'application/json',
-        'Retry-After': String(limit.retryAfterSeconds),
-      },
-    })
+    return new Response(
+      JSON.stringify({
+        error: 'rate_limited',
+        message: "You've hit today's message limit. Try again tomorrow.",
+      }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(limit.retryAfterSeconds),
+        },
+      }
+    )
   }
 
   let body: AssistantRequest

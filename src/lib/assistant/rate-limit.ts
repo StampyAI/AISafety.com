@@ -3,7 +3,6 @@ import { Redis } from '@upstash/redis'
 
 /** Per-IP rate limits for the assistant endpoint. Strict by design — we're a
  *  small nonprofit paying for tokens out of a fixed grant. */
-const HOURLY_LIMIT = 10
 const DAILY_LIMIT = 50
 
 // The Vercel-Upstash Marketplace integration provisions KV_REST_API_URL and
@@ -17,15 +16,6 @@ const restToken =
 const redis =
   restUrl && restToken ? new Redis({ url: restUrl, token: restToken }) : null
 
-const hourlyLimit = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(HOURLY_LIMIT, '1 h'),
-      analytics: false,
-      prefix: 'aisafety:assistant:hour',
-    })
-  : null
-
 const dailyLimit = redis
   ? new Ratelimit({
       redis,
@@ -37,12 +27,12 @@ const dailyLimit = redis
 
 export type RateLimitResult =
   | { ok: true }
-  | { ok: false; retryAfterSeconds: number; window: 'hour' | 'day' }
+  | { ok: false; retryAfterSeconds: number; window: 'day' }
 
 export async function checkAssistantRateLimit(
   ip: string
 ): Promise<RateLimitResult> {
-  if (!hourlyLimit || !dailyLimit) {
+  if (!dailyLimit) {
     // Redis not configured (dev or misconfigured prod). Allow the request so
     // local dev still works; production builds without redis will be visible
     // in Vercel env-var diff.
@@ -54,21 +44,7 @@ export async function checkAssistantRateLimit(
     return { ok: true }
   }
 
-  const [hourResult, dayResult] = await Promise.all([
-    hourlyLimit.limit(ip),
-    dailyLimit.limit(ip),
-  ])
-
-  if (!hourResult.success) {
-    return {
-      ok: false,
-      retryAfterSeconds: Math.max(
-        1,
-        Math.ceil((hourResult.reset - Date.now()) / 1000)
-      ),
-      window: 'hour',
-    }
-  }
+  const dayResult = await dailyLimit.limit(ip)
   if (!dayResult.success) {
     return {
       ok: false,

@@ -6,10 +6,16 @@ import { Redis } from '@upstash/redis'
 const HOURLY_LIMIT = 10
 const DAILY_LIMIT = 50
 
+// The Vercel-Upstash Marketplace integration provisions KV_REST_API_URL and
+// KV_REST_API_TOKEN (legacy Vercel KV naming). Also accept UPSTASH_REDIS_*
+// for installs that use the upstream naming.
+const restUrl =
+  process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL
+const restToken =
+  process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN
+
 const redis =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-    ? Redis.fromEnv()
-    : null
+  restUrl && restToken ? new Redis({ url: restUrl, token: restToken }) : null
 
 const hourlyLimit = redis
   ? new Ratelimit({

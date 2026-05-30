@@ -16,6 +16,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.0",
     "@types/d3": "^7.4.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "airtable": "^0.12.2",
     "d3": "^7.9.0",
     "next": "^16.1.6",

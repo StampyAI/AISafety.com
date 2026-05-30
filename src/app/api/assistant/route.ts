@@ -16,6 +16,10 @@ import {
   validateMessages,
 } from '@/lib/assistant/stream'
 import { storeConversationTurn } from '@/lib/assistant/conversation-store'
+import {
+  checkAssistantRateLimit,
+  getClientIp,
+} from '@/lib/assistant/rate-limit'
 import type { AssistantRequest, ChatMessage } from '@/lib/assistant/types'
 
 export const runtime = 'nodejs'
@@ -51,6 +55,22 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }),
       { status: 503, headers: { 'Content-Type': 'application/json' } }
     )
+  }
+
+  const ip = getClientIp(req.headers)
+  const limit = await checkAssistantRateLimit(ip)
+  if (!limit.ok) {
+    const message =
+      limit.window === 'day'
+        ? "You've hit today's message limit. Try again tomorrow."
+        : "You've hit the hourly message limit. Try again in a bit."
+    return new Response(JSON.stringify({ error: 'rate_limited', message }), {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': String(limit.retryAfterSeconds),
+      },
+    })
   }
 
   let body: AssistantRequest

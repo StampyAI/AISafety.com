@@ -445,6 +445,15 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
 
         if (!res.ok) {
           const errText = await res.text().catch(() => '')
+          if (res.status === 429) {
+            try {
+              const parsed = JSON.parse(errText) as { message?: string }
+              if (parsed.message) throw new Error(parsed.message)
+            } catch (e) {
+              if (e instanceof Error && e.message) throw e
+            }
+            throw new Error("You've hit the message limit. Try again later.")
+          }
           throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`)
         }
         if (!res.body) throw new Error('no response body')

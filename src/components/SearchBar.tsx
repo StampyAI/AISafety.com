@@ -6,14 +6,12 @@ import styles from './SearchBar.module.css'
 
 type NativeInputProps = Omit<
   ComponentPropsWithoutRef<'input'>,
-  'value' | 'onChange' | 'placeholder' | 'maxLength'
+  'value' | 'onChange'
 >
 
 interface SearchBarProps extends NativeInputProps {
   value: string
   onChange: (value: string) => void
-  placeholder: string
-  maxLength?: number
   inputRef?: RefObject<HTMLInputElement | null>
   wrapperClassName?: string
   className?: string

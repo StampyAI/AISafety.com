@@ -13,7 +13,6 @@ import {
   search,
   type LoadState,
 } from '@/lib/search'
-import SearchBar from './SearchBar'
 import styles from './SearchModal.module.css'
 
 interface SearchModalProps {
@@ -206,20 +205,21 @@ export default function SearchModal({
               <CloseIcon />
             </button>
           )}
-          <SearchBar
-            inputRef={inputRef}
+          <input
+            ref={inputRef}
+            // type=search suppresses iOS's password/contact autofill bar,
+            // which otherwise pops in on refocus and feels like a zoom.
             type="search"
             inputMode="search"
             enterKeyHint="search"
             value={query}
-            onChange={setQuery}
+            onChange={e => setQuery(e.target.value)}
             placeholder={
               activeType
                 ? `Search in ${TYPE_LABEL[activeType]}…`
                 : 'Search all resource pages…'
             }
             className={`${styles.input} color-white`}
-            clearButtonClassName={styles['input-clear']}
             autoComplete="off"
             spellCheck={false}
           />

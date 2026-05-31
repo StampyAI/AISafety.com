@@ -43,18 +43,14 @@
 }
 
 .input {
+  flex: 1;
   height: 32px;
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-left: 0;
   background: transparent;
   border: none;
-  border-radius: 0;
   /* iOS Safari zooms inputs with font-size < 16px on focus, even
      though the rest of the modal uses 15px. The extra pixel is
      visually unnoticeable here. */
   font-size: 16px;
-  letter-spacing: 0;
   /* :focus-visible matches programmatic focus in Chrome — the global
      teal ring is noise on an already-obvious focus target. */
   outline: none;
@@ -71,10 +67,6 @@
 .input::-webkit-search-decoration {
   appearance: none;
   -webkit-appearance: none;
-}
-
-.input-clear {
-  right: 0;
 }
 
 .filter-chip {

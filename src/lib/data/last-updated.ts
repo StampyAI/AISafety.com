@@ -1,7 +1,6 @@
 import { DONATION_GUIDE_LAST_UPDATED } from '@/lib/donation-guide-date'
 import { formatDate } from '@/lib/format-date'
 import { fetchAirtableWithRetry } from './airtable'
-import { getMockLastUpdated, isMockAirtableMode } from './mock-airtable'
 
 type QueryConfig = {
   type: 'query'
@@ -111,22 +110,10 @@ export async function fetchLastUpdated(
     return { lastUpdated: config.value, formattedDate: formatDate(date) }
   }
 
-  if (isMockAirtableMode()) {
-    const mockDate = getMockLastUpdated(resource)
-    if (!mockDate) return { lastUpdated: null, formattedDate: null }
-
-    const date = new Date(mockDate)
-    if (isNaN(date.getTime())) {
-      throw new Error(
-        `Invalid mock last-updated date for resource '${resource}': "${mockDate}"`
-      )
-    }
-
-    return { lastUpdated: mockDate, formattedDate: formatDate(date) }
-  }
-
-  const token = process.env.AIRTABLE_TOKEN as string
-  const baseId = process.env.AIRTABLE_BASE_ID as string
+  const token = process.env.AIRTABLE_TOKEN
+  const baseId = process.env.AIRTABLE_BASE_ID
+  if (!token || !baseId)
+    throw new Error('Missing AIRTABLE_TOKEN or AIRTABLE_BASE_ID')
 
   if (config.type === 'record') {
     const response = await fetchAirtableWithRetry(

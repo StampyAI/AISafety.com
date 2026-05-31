@@ -155,8 +155,13 @@ function AssistantMessageView({
     // without an effect (https://react.dev/learn/you-might-not-need-an-effect).
     setPrevHadBoundary(hasBoundary)
     if (hasBoundary) {
-      const pre = message.events.slice(0, boundary)
-      if (pre.length > 0 || hasTools) setCollapsingPre(pre)
+      // Only animate the tool pills out — the pre-marker text wasn't visible
+      // during streaming, so collapsing it here would make it briefly flash
+      // into view before disappearing.
+      const pre = message.events
+        .slice(0, boundary)
+        .filter(e => e.kind === 'tool')
+      if (pre.length > 0) setCollapsingPre(pre)
     }
   }
   // Separate effect just for the dismissal timer.
@@ -237,9 +242,24 @@ function AssistantMessageView({
     )
   }
 
-  // No boundary yet — render events inline (the live thinking trail). If the
-  // stream ended without a boundary, treat the whole thing as the answer.
-  return <>{renderInline(message.events, 'flat', message.isStreaming)}</>
+  // No boundary yet. While streaming, hide pre-marker prose (it looks like
+  // an answer that gets erased the moment [[/thinking]] arrives) and only
+  // show tool pills so the user still sees progress. Once the stream ends
+  // without a boundary, treat the whole thing as the answer.
+  if (message.isStreaming) {
+    const toolEvents = message.events.filter(e => e.kind === 'tool')
+    if (toolEvents.length === 0) {
+      return (
+        <div className={styles.thinking} aria-label="Thinking">
+          <span className={styles.thinkingDot} />
+          <span className={styles.thinkingDot} />
+          <span className={styles.thinkingDot} />
+        </div>
+      )
+    }
+    return <>{renderInline(toolEvents, 'tools-only', true)}</>
+  }
+  return <>{renderInline(message.events, 'flat', false)}</>
 }
 
 interface Props {

@@ -1,10 +1,6 @@
 'use client'
 
-import type {
-  ComponentPropsWithoutRef,
-  KeyboardEvent,
-  RefObject,
-} from 'react'
+import type { ComponentPropsWithoutRef, KeyboardEvent, RefObject } from 'react'
 import { useRef } from 'react'
 import styles from './SearchBar.module.css'
 
@@ -89,7 +85,7 @@ export default function SearchBar({
       {showClear ? (
         <button
           type="button"
-          className={`${styles.clearButton}${clearButtonClassName ? ` ${clearButtonClassName}` : ''}`}
+          className={`${styles.clearButton} flex items-center justify-center cursor-pointer color-teal-400${clearButtonClassName ? ` ${clearButtonClassName}` : ''}`}
           aria-label="Clear search"
           onMouseDown={event => event.preventDefault()}
           onClick={clearSearch}

@@ -4,11 +4,13 @@
   min-width: 0;
 }
 
+/* Make room for the clear button; .text-field already sets width: 100%. */
 .input {
-  width: 100%;
   padding-right: 52px;
 }
 
+/* Only the overlay positioning and button reset live here — flex centering,
+   cursor, and color come from globals.css utility classes on the element. */
 .clearButton {
   position: absolute;
   top: 50%;
@@ -18,9 +20,4 @@
   height: 32px;
   border: none;
   background-color: transparent;
-  color: var(--teal-400);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }

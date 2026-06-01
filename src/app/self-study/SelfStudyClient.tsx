@@ -10,6 +10,7 @@ import type { Course } from '@/lib/data/self-study'
 import {
   displayCategory,
   categoryDisplayLabels,
+  typeDisplayLabels,
 } from '@/lib/data/self-study-labels'
 import { trackListingClick } from '@/lib/analytics'
 
@@ -192,6 +193,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
           <FilterGroup
             title="Format"
             options={typeOptions}
+            labels={typeDisplayLabels}
             selected={selectedTypes}
             counts={typeCounts}
             onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}

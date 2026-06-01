@@ -243,6 +243,9 @@ export interface RequestContext {
 
 export function buildContextLine(ctx: RequestContext): string {
   const parts: string[] = []
+  // Today's date, so the assistant can reason about event dates and
+  // application deadlines ("is X open right now / when do applications close").
+  parts.push(`Today's date: ${new Date().toISOString().slice(0, 10)}`)
   parts.push(`Currently viewing: ${ctx.currentPage}`)
   if (ctx.pageState && Object.keys(ctx.pageState).length > 0) {
     parts.push(`Page state: ${JSON.stringify(ctx.pageState)}`)

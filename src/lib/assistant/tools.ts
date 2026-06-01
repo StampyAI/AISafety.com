@@ -11,7 +11,7 @@ You should call this tool LIBERALLY. By default there is NO limit — the tool r
 
 ARGUMENTS:
 
-• \`type\` — listing type. One of: 'job', 'funder', 'advisor', 'community', 'course', 'founder-resource', 'project', 'media-channel', 'org'. Highly recommended.
+• \`type\` — listing type. One of: 'job', 'funder', 'advisor', 'community', 'course', 'founder-resource', 'project', 'media-channel', 'org', 'event'. Highly recommended.
 
 • \`query\` — optional free-text terms. Tokens are matched against name (×5 weight), organization (×3), meta fields (×2), and description (×1). Use the user's words, related keywords, or leave empty to browse by filter alone.
 
@@ -26,6 +26,9 @@ ARGUMENTS:
     founder-resource: type
     media-channel: type ("Podcast"|"Newsletter"|"Blog"|"Video"|"Forum")
     org: category, status
+    event: type ("Bootcamp"|"Competition"|"Conference"|"Course"|"Fellowship"|"Hackathon"|"Meetup"|"Reading Group"|"Talk"|"Unconference"|"Workshop"), location ("Online"|"USA"|"UK"|"Europe"|"Asia"|"Africa"|"Canada"|"Australia/New Zealand"|"Latin America"|"Middle East")
+
+Event meta fields you can read off each result: startDate, endDate, applicationsOpen, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. Use applicationsOpen/applicationsClose to answer "is X open right now / when do applications close" questions — compare them against today's date (provided in your context).
 
 • \`near\` — optional geo filter. Object with \`{city: string, radiusKm?: number}\` or \`{lat, lng, radiusKm?}\`. Default radius is 500km, intentionally wide. Currently only \`community\` listings have coordinates; for other types \`near\` does a fallback substring match on the location meta field. Results within range are ranked by distance ascending. USE THIS for any "near X" / "in X" / "around X" / "close to X" location queries instead of putting the city in the query.
 
@@ -70,6 +73,7 @@ EXAMPLES:
             'project',
             'media-channel',
             'org',
+            'event',
           ],
         },
         query: { type: 'string' },

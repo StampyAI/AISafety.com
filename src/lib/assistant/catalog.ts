@@ -7,6 +7,7 @@ import { getFounderResources } from '@/lib/data/founders'
 import { getProjects } from '@/lib/data/projects'
 import { getMediaChannels } from '@/lib/data/media-channels'
 import { getMapData } from '@/lib/data/map'
+import { getEvents } from '@/lib/data/events'
 import type { Catalog, Listing } from './types'
 
 const STALE_JOB_DAYS = 90
@@ -101,6 +102,7 @@ export async function buildCatalog(): Promise<Catalog> {
     projects,
     mediaChannels,
     mapData,
+    events,
   ] = await Promise.all([
     getJobs(),
     getFunders(),
@@ -111,6 +113,7 @@ export async function buildCatalog(): Promise<Catalog> {
     getProjects(),
     getMediaChannels(),
     getMapData(),
+    getEvents(),
   ])
 
   const listings: Listing[] = []
@@ -275,6 +278,28 @@ export async function buildCatalog(): Promise<Catalog> {
         category: o.category,
         status: o.status,
         scale: o.scale,
+      }),
+    })
+  }
+
+  for (const e of events) {
+    listings.push({
+      id: `event:${e.id}`,
+      type: 'event',
+      name: e.name,
+      description: clamp(e.description, 280),
+      logo: deriveFaviconFromUrl(e.url),
+      url: e.url,
+      pageUrl: '/events-and-training',
+      meta: compact({
+        type: e.type,
+        location: e.location,
+        host: e.host,
+        startDate: e.startDate,
+        endDate: e.endDate,
+        applicationsOpen: e.applicationsOpen,
+        applicationsClose: e.applicationsClose,
+        lengthDays: e.lengthDays != null ? String(e.lengthDays) : null,
       }),
     })
   }

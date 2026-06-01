@@ -8,6 +8,7 @@ export type ListingType =
   | 'project'
   | 'media-channel'
   | 'org'
+  | 'event'
 
 export interface Listing {
   id: string

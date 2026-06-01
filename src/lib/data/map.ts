@@ -131,6 +131,11 @@ export async function getMapData(): Promise<MapData> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
+    // Explicit publish gate so we never depend on the view's filter config to
+    // keep unpublished orgs out of the data (and therefore out of the chatbot
+    // catalog). The page's magic control rows (Last updated, Suggest entry,
+    // etc.) are all published, so they pass this filter unaffected.
+    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
     fields: FIELD_LIST,
   })
 

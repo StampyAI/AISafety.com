@@ -16,7 +16,6 @@ import type {
 import { extractChips, stripChipTokens } from '@/lib/assistant/tokens'
 import Composer from './Composer'
 import MessageContent from './MessageContent'
-import ThinkingBlock from './ThinkingBlock'
 import ToolCallPill from './ToolCallPill'
 import styles from './Assistant.module.css'
 
@@ -121,18 +120,15 @@ export interface ChatBodyHandle {
   clear: () => void
 }
 
-const THINKING_COLLAPSE_MS = 350
-
 interface AssistantMessageViewProps {
   message: UIMessage
   onSuggest?: (query: string) => void
   onCitationClick?: (c: CitationRef) => void
 }
 
-/** Renders an assistant message. When the [[/thinking]] boundary first
- *  appears mid-stream, the previous inline thinking trail keeps rendering
- *  with a smooth height+opacity collapse for THINKING_COLLAPSE_MS so the
- *  swap to the "Searched N times" pill isn't a hard cut. */
+/** Renders an assistant message. The reasoning/tool trail before the
+ *  [[/thinking]] boundary is hidden – users only see a loading indicator
+ *  while the bot is reasoning, then the user-facing answer when it arrives. */
 function AssistantMessageView({
   message,
   onSuggest,
@@ -140,36 +136,6 @@ function AssistantMessageView({
 }: AssistantMessageViewProps) {
   const boundary = thinkingDoneIndex(message.events)
   const hasBoundary = boundary !== -1
-  const hasTools = message.toolCalls.length > 0
-
-  // Cache the pre-boundary events at the moment the boundary first appears
-  // so they can keep rendering with a collapse animation. Initialised to
-  // null so messages hydrated from sessionStorage (where the boundary was
-  // already present) don't trigger a spurious collapse.
-  const [collapsingPre, setCollapsingPre] = useState<MessageEvent[] | null>(
-    null
-  )
-  const [prevHadBoundary, setPrevHadBoundary] = useState(hasBoundary)
-  if (hasBoundary !== prevHadBoundary) {
-    // "Adjust state during render" pattern — react to a prop transition
-    // without an effect (https://react.dev/learn/you-might-not-need-an-effect).
-    setPrevHadBoundary(hasBoundary)
-    if (hasBoundary) {
-      // Only animate the tool pills out — the pre-marker text wasn't visible
-      // during streaming, so collapsing it here would make it briefly flash
-      // into view before disappearing.
-      const pre = message.events
-        .slice(0, boundary)
-        .filter(e => e.kind === 'tool')
-      if (pre.length > 0) setCollapsingPre(pre)
-    }
-  }
-  // Separate effect just for the dismissal timer.
-  useEffect(() => {
-    if (!collapsingPre) return
-    const t = setTimeout(() => setCollapsingPre(null), THINKING_COLLAPSE_MS)
-    return () => clearTimeout(t)
-  }, [collapsingPre])
 
   const renderInline = (
     events: MessageEvent[],
@@ -198,7 +164,30 @@ function AssistantMessageView({
       return <ToolCallPill key={`${keyPrefix}-${i}`} call={call} />
     })
 
-  if (message.events.length === 0 && message.isStreaming) {
+  // While streaming, show a loading indicator until the bot finishes its
+  // reasoning and emits [[/thinking]]. After the boundary, stream only the
+  // user-facing answer. The reasoning/tool trail is never shown.
+  if (hasBoundary) {
+    const post = message.events.slice(boundary + 1)
+    if (post.length > 0) {
+      return <>{renderInline(post, 'post', message.isStreaming)}</>
+    }
+    if (message.isStreaming) {
+      return (
+        <div className={styles.thinking} aria-label="Writing">
+          <span className={styles.thinkingDot} />
+          <span className={styles.thinkingDot} />
+          <span className={styles.thinkingDot} />
+        </div>
+      )
+    }
+    return null
+  }
+
+  // No boundary yet. While streaming, just show the loading indicator. Once
+  // the stream ends without a boundary (rare – short refusals, simple Q&A),
+  // treat the whole thing as the answer.
+  if (message.isStreaming) {
     return (
       <div className={styles.thinking} aria-label="Thinking">
         <span className={styles.thinkingDot} />
@@ -206,58 +195,6 @@ function AssistantMessageView({
         <span className={styles.thinkingDot} />
       </div>
     )
-  }
-
-  if (hasBoundary) {
-    const pre = message.events.slice(0, boundary)
-    const post = message.events.slice(boundary + 1)
-    return (
-      <>
-        {collapsingPre && (
-          <div className={styles.collapsingThinking} aria-hidden="true">
-            <div className={styles.collapsingThinkingInner}>
-              {renderInline(collapsingPre, 'collapsing', false)}
-            </div>
-          </div>
-        )}
-        {(pre.length > 0 || hasTools) && (
-          <ThinkingBlock
-            events={pre}
-            toolCalls={message.toolCalls}
-            citations={message.citations}
-            onSuggest={onSuggest}
-            onCitationClick={onCitationClick}
-          />
-        )}
-        {post.length > 0
-          ? renderInline(post, 'post', message.isStreaming)
-          : message.isStreaming && (
-              <div className={styles.thinking} aria-label="Writing">
-                <span className={styles.thinkingDot} />
-                <span className={styles.thinkingDot} />
-                <span className={styles.thinkingDot} />
-              </div>
-            )}
-      </>
-    )
-  }
-
-  // No boundary yet. While streaming, hide pre-marker prose (it looks like
-  // an answer that gets erased the moment [[/thinking]] arrives) and only
-  // show tool pills so the user still sees progress. Once the stream ends
-  // without a boundary, treat the whole thing as the answer.
-  if (message.isStreaming) {
-    const toolEvents = message.events.filter(e => e.kind === 'tool')
-    if (toolEvents.length === 0) {
-      return (
-        <div className={styles.thinking} aria-label="Thinking">
-          <span className={styles.thinkingDot} />
-          <span className={styles.thinkingDot} />
-          <span className={styles.thinkingDot} />
-        </div>
-      )
-    }
-    return <>{renderInline(toolEvents, 'tools-only', true)}</>
   }
   return <>{renderInline(message.events, 'flat', false)}</>
 }

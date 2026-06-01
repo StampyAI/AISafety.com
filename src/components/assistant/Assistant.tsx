@@ -4,12 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 import { getPageContext } from '@/lib/assistant/page-context'
+import { SUGGEST_FORM_URL } from '@/lib/assistant/constants'
 import type { CitationRef } from '@/lib/assistant/types'
 import ChatBody, { type ChatBodyHandle } from './ChatBody'
 import styles from './Assistant.module.css'
-
-const SUGGEST_FORM_URL =
-  'https://airtable.com/appF8XfZUGXtfi40E/pageXZp18w3Sqm1Z7/form'
 
 const STORAGE_KEY = 'aisafety-assistant-messages-v3'
 const SESSION_KEY = 'aisafety-assistant-session-v1'

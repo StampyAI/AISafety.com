@@ -4,6 +4,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { extractCitations } from './citations'
+import { modelDisplayName } from './models'
 import { TOOL_DEFINITIONS, executeTool } from './tools'
 import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
 
@@ -163,6 +164,10 @@ export async function runAssistantStream(
         system: [
           { type: 'text', text: systemPrompt },
           { type: 'text', text: pagesBlock },
+          {
+            type: 'text',
+            text: `You are currently running on ${modelDisplayName(model)}. If a user asks what model powers you, this is the answer.`,
+          },
         ],
         tools: TOOL_DEFINITIONS,
         messages: apiMessages,

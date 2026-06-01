@@ -36,3 +36,11 @@ export const DEFAULT_MODEL_ID = 'claude-opus-4-8'
 export function modelShortLabel(id: string): string {
   return MODELS.find(m => m.id === id)?.shortLabel ?? id
 }
+
+/** Human-facing model name the assistant can tell users (e.g. "Claude Opus
+ *  4.8"). Falls back to a generic name for unknown ids so we never leak a
+ *  raw API id to a user. */
+export function modelDisplayName(id: string): string {
+  const known = MODELS.find(m => m.id === id)
+  return known ? `Claude ${known.shortLabel}` : "Anthropic's Claude"
+}

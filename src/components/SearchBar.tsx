@@ -36,8 +36,15 @@ export default function SearchBar({
   const showClear = showClearButton && value.length > 0
 
   const clearSearch = () => {
+    // Only restore focus if the input was already focused (e.g. mid-typing on
+    // desktop). On mobile the clear button stays visible after the field has
+    // blurred, so refocusing here would pop the on-screen keyboard back up when
+    // the user is just trying to reset and browse.
+    const wasFocused = resolvedInputRef.current === document.activeElement
     onChange('')
-    resolvedInputRef.current?.focus()
+    if (wasFocused) {
+      resolvedInputRef.current?.focus()
+    }
   }
 
   return (

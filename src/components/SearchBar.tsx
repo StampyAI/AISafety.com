@@ -1,6 +1,10 @@
 'use client'
 
-import type { ComponentPropsWithoutRef, RefObject } from 'react'
+import type {
+  ComponentPropsWithoutRef,
+  KeyboardEvent,
+  RefObject,
+} from 'react'
 import { useRef } from 'react'
 import styles from './SearchBar.module.css'
 
@@ -8,6 +12,12 @@ type NativeInputProps = Omit<
   ComponentPropsWithoutRef<'input'>,
   'value' | 'onChange'
 >
+
+// Touch devices show an on-screen keyboard; we use this to adjust focus
+// behavior so we don't summon or trap that keyboard. Desktop is left as-is.
+const isTouchDevice = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(pointer: coarse)').matches
 
 interface SearchBarProps extends NativeInputProps {
   value: string
@@ -43,11 +53,17 @@ export default function SearchBar({
     // back up when the user is just clearing to browse. (A field still focused
     // mid-typing stays focused either way, via the button's onMouseDown
     // preventDefault.)
-    const isTouchDevice =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(pointer: coarse)').matches
-    if (!isTouchDevice) {
+    if (!isTouchDevice()) {
       resolvedInputRef.current?.focus()
+    }
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    // The search filters live, so there's nothing to submit. On touch devices,
+    // pressing the keyboard's return/search key blurs the input to dismiss the
+    // on-screen keyboard. Desktop keeps the cursor in place.
+    if (event.key === 'Enter' && isTouchDevice()) {
+      resolvedInputRef.current?.blur()
     }
   }
 
@@ -64,6 +80,7 @@ export default function SearchBar({
         maxLength={maxLength}
         value={value}
         onChange={event => onChange(event.target.value)}
+        onKeyDown={handleKeyDown}
       />
       {showClear ? (
         <button

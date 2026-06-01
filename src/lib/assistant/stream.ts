@@ -167,6 +167,14 @@ export async function runAssistantStream(
           {
             type: 'text',
             text: `You are currently running on ${modelDisplayName(model)}. If a user asks what model powers you, this is the answer.`,
+            // Cache the whole static prefix (tools + all system blocks). The
+            // prefix is byte-identical across the up-to-10 tool-use iterations
+            // in a turn and across conversation turns, so after the first
+            // write each request reads it at ~0.1x cost. 5-minute TTL (the
+            // default) comfortably covers both. Render order is
+            // tools -> system -> messages, so this one breakpoint on the last
+            // system block caches the tool definitions too.
+            cache_control: { type: 'ephemeral' },
           },
         ],
         tools: TOOL_DEFINITIONS,
@@ -185,7 +193,15 @@ export async function runAssistantStream(
     let stopReason: string | null = null
 
     for await (const event of response) {
-      if (event.type === 'content_block_start') {
+      if (event.type === 'message_start') {
+        // One-line cache-stats log per API call so we can confirm prompt
+        // caching is working in the Vercel logs. `cache_read_input_tokens > 0`
+        // means the static tools+system prefix was served from cache.
+        const u = event.message.usage
+        console.log(
+          `[assistant] cache iter=${iter} read=${u.cache_read_input_tokens ?? 0} write=${u.cache_creation_input_tokens ?? 0} input=${u.input_tokens}`
+        )
+      } else if (event.type === 'content_block_start') {
         if (event.content_block.type === 'text') {
           currentTextBlock = ''
         } else if (event.content_block.type === 'tool_use') {

@@ -64,6 +64,10 @@ export default function SearchBar({
     // on-screen keyboard. Desktop keeps the cursor in place.
     if (event.key === 'Enter' && isTouchDevice()) {
       resolvedInputRef.current?.blur()
+    } else if (event.key === 'Escape') {
+      // Clear the search but keep the cursor in the box.
+      event.preventDefault()
+      onChange('')
     }
   }
 

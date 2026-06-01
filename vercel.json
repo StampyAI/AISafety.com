@@ -3,6 +3,10 @@
     {
       "path": "/api/check-rebuild",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/check-catalog",
+      "schedule": "0 9 * * *"
     }
   ]
 }

@@ -301,14 +301,7 @@ export default function MapClient({
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}
               noun="listing"
-              suggestEntryDescription="Suggest a resource to be published here"
-              extraLinks={[
-                {
-                  label: 'View raw data',
-                  description: 'See the database in Airtable',
-                  url: 'https://airtable.com/appF8XfZUGXtfi40E/shrLojIEOsNCKg1BL',
-                },
-              ]}
+              airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrLojIEOsNCKg1BL"
             />
           </div>
         </div>

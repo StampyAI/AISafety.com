@@ -1,7 +1,12 @@
 import { fetchAirtableRecords } from './airtable'
+import { getCourses } from './self-study'
 
 // Each resource's table ID, view to count from, and a minimal field to fetch.
 // adjust: manual correction for counts that don't match the live site exactly.
+//
+// Note: redesigned pages derive their nav count from the page's own data
+// function instead (see below), so the badge always matches the on-page total
+// and needs no `adjust` hack. As more pages migrate, move them out of here.
 const resources = [
   {
     path: '/events-and-training',
@@ -21,13 +26,6 @@ const resources = [
     tableId: 'tbluI5Dll697WiSm8',
     viewId: 'viwFIU3lKQHZlpc0b',
     field: 'Name',
-  },
-  {
-    path: '/self-study',
-    tableId: 'tblRNYJ0m1cmJXKKk',
-    viewId: 'viwblgaia3x1gsqBo',
-    field: 'Name',
-    adjust: 1, // View excludes one published record that's shown on the site
   },
   {
     path: '/jobs',
@@ -81,5 +79,10 @@ export async function fetchAllCounts(): Promise<
     })
     counts[r.path] = raw.length + (r.adjust ?? 0)
   }
+
+  // Derive redesigned pages' counts from the same data the page renders, so the
+  // nav badge always matches the on-page total exactly.
+  counts['/self-study'] = (await getCourses()).length
+
   return counts
 }

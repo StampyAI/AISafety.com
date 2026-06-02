@@ -1,15 +1,54 @@
-.wrapper {
-  padding-top: 40px;
-  border-top: 1px solid var(--teal-700);
-  font-size: 16px;
+/* Redesigned right-sidebar contribute section: a "Contribute to this page" card
+   plus a "View data in Airtable" card. Anything with a global utility class
+   (typography, colors, flex, spacing, .border-default/.border-hover/.hover-white)
+   lives in the JSX; this module only holds the bits that don't map to one. */
+
+.card {
+  border-radius: 16px;
+  padding: 12px 16px 16px 16px;
 }
 
-.wrapper a {
-  display: block;
-  padding-bottom: 40px;
+.row {
   text-decoration: none;
 }
 
-.wrapper a:hover {
-  opacity: 0.8;
+/* Circular icon badge. Fill comes from the .bg-teal-bright-850 utility. */
+.badge {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.airtableCard {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 16px;
+  text-decoration: none;
+}
+
+/* The table illustration sits at the top; its baked-in gradient fades to
+   --teal-900 (the page bg) so the label below reads cleanly over it. */
+.airtableImg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+}
+
+.airtableArrow {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+/* Push the label down past the illustration into the faded area. */
+.airtableTextWrap {
+  position: relative;
+  padding-top: 64px;
 }

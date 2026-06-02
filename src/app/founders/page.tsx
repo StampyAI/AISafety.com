@@ -1,7 +1,6 @@
-import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCard'
+import FeaturedCard from '@/components/FeaturedCardLegacy'
 import FoundersClient from './FoundersClient'
 import { getFounderResources } from '@/lib/data/founders'
 
@@ -54,33 +53,6 @@ export default async function FoundersPage() {
               />
             ))}
         </div>
-
-        <aside className="hide-mobile">
-          <p className="paragraph-small-bold padding-bottom-32px">
-            Related resources
-          </p>
-          <Link
-            href="/funding"
-            className="block padding-bottom-40px hover-opacity-80"
-          >
-            <h3 className="padding-bottom-16px">
-              Funding <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              Organizations offering financial support to AI safety projects and
-              individuals
-            </p>
-          </Link>
-          <Link href="/events-and-training" className="block hover-opacity-80">
-            <h3 className="padding-bottom-16px">
-              Events &amp; Training{' '}
-              <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              Upcoming fellowships, conferences, facilitated courses etc.
-            </p>
-          </Link>
-        </aside>
       </div>
 
       {/* Main Content with Search, Cards, and Filters */}

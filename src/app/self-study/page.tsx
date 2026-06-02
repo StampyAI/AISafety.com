@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
@@ -18,15 +17,20 @@ export default async function SelfStudyPage() {
     fetchLastUpdated('self-study'),
   ])
 
+  const featuredCourses = [
+    courses.find(c => c.featured === '1'),
+    courses.find(c => c.featured === '2'),
+  ].filter((c): c is NonNullable<typeof c> => c != null)
+
   return (
     <div className="container-default">
       <PageHeader
         title="Self-study"
-        lastUpdated={lastUpdated.formattedDate}
+        lastUpdatedIso={lastUpdated.lastUpdated}
         description={
           <>
             These curricula and reading lists enable you to{' '}
-            <span className="color-light-teal">
+            <span className="color-teal-bright-300">
               dive deeper into AI safety{' '}
             </span>
             through independent learning.
@@ -34,61 +38,39 @@ export default async function SelfStudyPage() {
         }
       />
 
-      {/* Featured Cards + Related Resources */}
-      <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
-        <div className="flex flex-col-mobile gap-40px">
-          {[
-            courses.find(c => c.featured === '1'),
-            courses.find(c => c.featured === '2'),
-          ]
-            .filter((c): c is NonNullable<typeof c> => c != null)
-            .map(course => (
-              <FeaturedCard
-                key={course.id}
-                href={course.url !== '#' ? course.url : undefined}
-                tagline={course.featuredTagline!}
-                name={course.name}
-                description={course.description}
-                logo={course.image ?? undefined}
-                metadata={[
-                  { label: 'Category', value: course.category },
-                  { label: 'Created by', value: course.organizer },
-                ]}
-                trackingPage="Self-study"
-              />
-            ))}
-        </div>
-
-        <aside className="hide-mobile">
-          <p className="paragraph-small-bold padding-bottom-32px">
-            Related resources
-          </p>
-          <Link
-            href="/events-and-training"
-            className="block padding-bottom-40px hover-opacity-80"
-          >
-            <h3 className="padding-bottom-16px">
-              Events &amp; training{' '}
-              <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              Upcoming fellowships, conferences, facilitated courses etc.
-            </p>
-          </Link>
-          <a
-            href="https://theaidigest.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block hover-opacity-80"
-          >
-            <h3 className="padding-bottom-16px">
-              AI Digest <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              Interactive explainers of AI capabilities and trends
-            </p>
-          </a>
-        </aside>
+      {/* Featured Cards */}
+      <div className="featured-grid padding-bottom-80px">
+        {featuredCourses.map((course, i) => (
+          <FeaturedCard
+            key={course.id}
+            href={course.url !== '#' ? course.url : undefined}
+            tagline={course.featuredTagline!}
+            name={course.name}
+            description={course.description}
+            logo={course.image ?? undefined}
+            titleMeta={
+              course.organizer
+                ? [
+                    {
+                      icon: '/images/author.svg',
+                      value: `By ${course.organizer}`,
+                    },
+                  ]
+                : undefined
+            }
+            meta={[
+              ...(course.category
+                ? [{ icon: '/images/category.svg', value: course.category }]
+                : []),
+              ...(course.courseType
+                ? [{ icon: '/images/type.svg', value: course.courseType }]
+                : []),
+            ]}
+            trackingPage="Self-study"
+            index={i}
+            count={featuredCourses.length}
+          />
+        ))}
       </div>
 
       {/* Main Content with Search, Cards, and Filters */}

@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useMemo, useRef, useLayoutEffect } from 'react'
-import Image from 'next/image'
-import FilterGroup from '@/components/FilterGroup'
-import FilterSidebar from '@/components/FilterSidebar'
+import FilterBar from '@/components/FilterBar'
+import FilterDropdown from '@/components/FilterDropdown'
+import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Course } from '@/lib/data/self-study'
-import { trackListingClick } from '@/lib/analytics'
 
 interface SelfStudyClientProps {
   courses: Course[]
@@ -22,40 +21,28 @@ const categoryOptions = [
 const typeOptions = ['Curriculum', 'Reading List']
 
 export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
   const filteredCourses = useMemo(() => {
     return courses.filter(course => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !course.name.toLowerCase().includes(query) &&
-          !course.description.toLowerCase().includes(query) &&
-          !course.organizer.toLowerCase().includes(query)
-        ) {
+      if (selectedCategories.length > 0) {
+        const courseCategories = course.category.split(',').map(c => c.trim())
+        if (!selectedCategories.some(cat => courseCategories.includes(cat))) {
           return false
         }
       }
 
-      if (selectedCategories.length > 0) {
-        const courseCategories = course.category.split(',').map(c => c.trim())
-        const hasMatchingCategory = selectedCategories.some(cat =>
-          courseCategories.includes(cat)
-        )
-        if (!hasMatchingCategory) return false
-      }
-
       if (selectedTypes.length > 0) {
         const courseTypes = course.courseType.split(',').map(t => t.trim())
-        const hasMatchingType = selectedTypes.some(t => courseTypes.includes(t))
-        if (!hasMatchingType) return false
+        if (!selectedTypes.some(t => courseTypes.includes(t))) {
+          return false
+        }
       }
 
       return true
     })
-  }, [courses, searchQuery, selectedCategories, selectedTypes])
+  }, [courses, selectedCategories, selectedTypes])
 
   const categoryCounts = useMemo(() => {
     return courses.reduce(
@@ -87,6 +74,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
     )
   }, [courses])
 
+  // Preserve scroll position when toggling a filter re-renders the list.
   const savedScrollY = useRef<number | null>(null)
 
   const toggleFilter = (
@@ -95,11 +83,11 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
     setter: (v: string[]) => void
   ) => {
     savedScrollY.current = window.scrollY
-    if (current.includes(value)) {
-      setter(current.filter(v => v !== value))
-    } else {
-      setter([...current, value])
-    }
+    setter(
+      current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+    )
   }
 
   useLayoutEffect(() => {
@@ -112,62 +100,55 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   return (
     <div className="database-outer-grid">
       <div>
-        <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search courses by name, description, or creator"
-            maxLength={256}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+        <FilterBar count={filteredCourses.length} noun="course">
+          <FilterDropdown
+            title="Category"
+            icon="/images/category.svg"
+            options={categoryOptions}
+            selected={selectedCategories}
+            counts={categoryCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedCategories, setSelectedCategories)
+            }
           />
-        </div>
+          <FilterDropdown
+            title="Type"
+            icon="/images/type.svg"
+            options={typeOptions}
+            selected={selectedTypes}
+            counts={typeCounts}
+            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+          />
+        </FilterBar>
 
         <div className="collection-list padding-bottom-40px">
           {filteredCourses.map(course => (
-            <a
+            <ListingCard
               key={course.id}
               href={course.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-              onClick={() =>
-                trackListingClick('Self-study', course.name, course.url)
+              name={course.name}
+              description={course.description}
+              logo={course.image}
+              titleMeta={
+                course.organizer
+                  ? [
+                      {
+                        icon: '/images/author.svg',
+                        value: `By ${course.organizer}`,
+                      },
+                    ]
+                  : undefined
               }
-            >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {course.image && (
-                    <Image
-                      src={course.image}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                      loading="eager"
-                      onError={e => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                </div>
-                <h3>{course.name}</h3>
-              </div>
-              <p className="paragraph-small padding-bottom-24px">
-                {course.description}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Category
-              </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {course.category}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Created by
-              </p>
-              <p className="paragraph-small">{course.organizer}</p>
-            </a>
+              meta={[
+                ...(course.category
+                  ? [{ icon: '/images/category.svg', value: course.category }]
+                  : []),
+                ...(course.courseType
+                  ? [{ icon: '/images/type.svg', value: course.courseType }]
+                  : []),
+              ]}
+              trackingPage="Self-study"
+            />
           ))}
           {filteredCourses.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>
@@ -176,24 +157,6 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
       </div>
 
       <div className="hide-mobile">
-        <FilterSidebar>
-          <FilterGroup
-            title="Category"
-            options={categoryOptions}
-            selected={selectedCategories}
-            counts={categoryCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedCategories, setSelectedCategories)
-            }
-          />
-          <FilterGroup
-            title="Type"
-            options={typeOptions}
-            selected={selectedTypes}
-            counts={typeCounts}
-            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-          />
-        </FilterSidebar>
         <ContributeButtons
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"

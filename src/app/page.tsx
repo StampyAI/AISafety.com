@@ -13,7 +13,7 @@ export default async function Home() {
   const dates = await fetchAllLastUpdated()
 
   return (
-    <div className="container-default">
+    <div className="container-default home-page">
       <div className="flex flex-col-mobile items-start gap-40px padding-top-56px padding-bottom-80px">
         <h1 className="width-8-col">
           Find your place in the AI safety ecosystem

@@ -1,22 +1,30 @@
+/* Redesigned featured card. The JSX uses global utility classes for anything
+   that has one (typography, colors, flex, spacing); this module only holds the
+   bits that don't map to a utility. */
+
 .card {
-  width: 369px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: 40px;
-  background-color: var(--teal-850);
-  border: 1px solid var(--teal-700);
+  padding: 56px;
   border-radius: 16px;
-  position: relative;
+  overflow: hidden;
+  /* Shared radial gradient — sized/positioned per card via inline style so a
+     row of cards reads as one continuous field. See FeaturedCard.tsx. */
+  background-image: radial-gradient(
+    farthest-corner at left top,
+    var(--teal-bright-800) 0%,
+    var(--teal-bright-850) 100%
+  );
+  background-repeat: no-repeat;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
   will-change: transform;
   transform: scale(1);
   backface-visibility: hidden;
-  transition:
-    background-color var(--hover-transition),
-    transform var(--hover-transition);
+  transition: transform var(--hover-transition);
 }
 
 .card:hover {
-  background-color: color-mix(in srgb, var(--teal-850) 60%, var(--teal-800));
   transform: scale(1.015);
 }
 
@@ -30,9 +38,25 @@
   right: 24px;
 }
 
+/* Tagline pill: green-tinted outline, no fill. Padding + typography come from
+   global utility classes in the JSX. */
+.pill {
+  /* Hug contents instead of stretching to full width in the flex-column card. */
+  align-self: flex-start;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--bright-green) 30%, transparent);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--teal-300);
+}
+
 @media (max-width: 991px) {
   .card {
     padding: 32px;
-    width: 100%;
   }
 }

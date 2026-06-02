@@ -1,6 +1,6 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCard'
+import FeaturedCard from '@/components/FeaturedCardLegacy'
 import FundingClient from './FundingClient'
 import { getFunders } from '@/lib/data/funding'
 
@@ -58,41 +58,6 @@ export default async function FundingPage() {
               />
             ))}
         </div>
-
-        <aside className="hide-mobile">
-          <p className="paragraph-small-bold padding-bottom-32px">
-            Related resources
-          </p>
-          <a
-            href="https://aisafetyfunding.substack.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block padding-bottom-40px hover-opacity-80"
-          >
-            <h3 className="padding-bottom-16px">
-              Funding newsletter <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              Receive a regular email summarizing all new funding opportunities
-              in AI safety
-            </p>
-          </a>
-          <a
-            href="https://www.lesswrong.com/posts/WGpFFJo2uFe5ssgEb/an-overview-of-the-ai-safety-funding-situation"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block hover-opacity-80"
-          >
-            <h3 className="padding-bottom-16px">
-              An overview of the funding situation{' '}
-              <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              An analysis of the main funding sources in AI safety over time,
-              last updated early 2025
-            </p>
-          </a>
-        </aside>
       </div>
 
       {/* Main Content with Search, Cards, and Filters */}

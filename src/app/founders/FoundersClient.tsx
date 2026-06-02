@@ -5,6 +5,7 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { FounderResource } from '@/lib/data/founders'
 import { trackListingClick } from '@/lib/analytics'
 
@@ -82,13 +83,10 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search listings by name or description"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search listings by name or description"
           />
         </div>
 

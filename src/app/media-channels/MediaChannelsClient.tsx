@@ -5,6 +5,7 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { MediaChannel } from '@/lib/data/media-channels'
 import { trackListingClick } from '@/lib/analytics'
 
@@ -88,13 +89,10 @@ export default function MediaChannelsClient({
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search sources by name or description"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search sources by name or description"
           />
         </div>
 

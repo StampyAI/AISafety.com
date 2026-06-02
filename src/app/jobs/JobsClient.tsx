@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
+import SearchBar from '@/components/SearchBar'
 import { Job } from '@/lib/data/jobs'
 import { trackListingClick } from '@/lib/analytics'
 
@@ -185,13 +186,10 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search jobs by title, organization, or location"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search jobs by title, organization, or location"
           />
         </div>
 

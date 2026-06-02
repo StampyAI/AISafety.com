@@ -3,6 +3,7 @@ import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import SelfStudyClient from './SelfStudyClient'
 import { getCourses } from '@/lib/data/self-study'
+import { displayCategory } from '@/lib/data/self-study-labels'
 
 export const metadata = {
   title: 'Self-study – AISafety.com',

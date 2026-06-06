@@ -4,7 +4,6 @@ import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import SelfStudyClient from './SelfStudyClient'
 import { getCourses } from '@/lib/data/self-study'
-import { displayCategory } from '@/lib/data/self-study-labels'
 
 export const metadata = {
   title: 'Self-study – AISafety.com',
@@ -52,7 +51,7 @@ export default async function SelfStudyPage() {
                 description={course.description}
                 logo={course.image ?? undefined}
                 metadata={[
-                  { label: 'Focus', value: displayCategory(course.category) },
+                  { label: 'Focus', value: course.category },
                   { label: 'Created by', value: course.organizer },
                 ]}
                 trackingPage="Self-study"

@@ -7,11 +7,6 @@ import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import type { Course } from '@/lib/data/self-study'
-import {
-  displayCategory,
-  categoryDisplayLabels,
-  typeDisplayLabels,
-} from '@/lib/data/self-study-labels'
 import { trackListingClick } from '@/lib/analytics'
 
 interface SelfStudyClientProps {
@@ -19,13 +14,13 @@ interface SelfStudyClientProps {
 }
 
 const categoryOptions = [
-  'Introductory',
-  'Technical Alignment',
+  'General intro',
+  'Technical alignment',
   'Governance',
   'Strategy',
 ]
 
-const typeOptions = ['Curriculum', 'Reading List']
+const typeOptions = ['Curriculum', 'Reading list']
 
 export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -164,7 +159,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
                 Focus
               </p>
               <p className="paragraph-small padding-bottom-16px">
-                {displayCategory(course.category)}
+                {course.category}
               </p>
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
                 Created by
@@ -183,7 +178,6 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
           <FilterGroup
             title="Focus"
             options={categoryOptions}
-            labels={categoryDisplayLabels}
             selected={selectedCategories}
             counts={categoryCounts}
             onToggle={v =>
@@ -193,7 +187,6 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
           <FilterGroup
             title="Format"
             options={typeOptions}
-            labels={typeDisplayLabels}
             selected={selectedTypes}
             counts={typeCounts}
             onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}

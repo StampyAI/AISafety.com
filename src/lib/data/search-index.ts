@@ -2,7 +2,6 @@ import { getAdvisors } from './advisors'
 import { fetchAirtableRecords } from './airtable'
 import { getCommunities } from './communities'
 import { getCourses } from './self-study'
-import { displayCategory, displayType } from './self-study-labels'
 import { getFounderResources } from './founders'
 import { getFunders } from './funding'
 import { getJobs } from './jobs'
@@ -266,9 +265,7 @@ export async function buildSearchIndex(): Promise<SearchEntry[]> {
       title: c.name,
       subtitle: '',
       description: c.description,
-      category: [displayCategory(c.category), displayType(c.courseType)]
-        .filter(Boolean)
-        .join(' · '),
+      category: [c.category, c.courseType].filter(Boolean).join(' · '),
       url: c.url || '/self-study',
       logo: c.image,
     })

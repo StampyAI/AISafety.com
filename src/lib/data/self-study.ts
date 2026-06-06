@@ -7,37 +7,14 @@ interface AirtableRecord {
   fields: {
     Name?: string
     Description?: string
-    // "Focus"/"Format" are the current field names; "Category"/"Type" are read
-    // as a fallback so this works both before and after the Airtable rename.
     Focus?: string | string[]
     Format?: string | string[]
-    Category?: string | string[]
-    Type?: string | string[]
     'Created by'?: string
     Link?: string
     Logo?: Array<{ url: string }>
     Featured?: string
     'Featured tagline'?: string
   }
-}
-
-// Normalise legacy option values to the current names, so filtering/display
-// keep working during the transition window before/after the Airtable rename.
-// Safe to remove once the rename is fully propagated.
-const FOCUS_VALUE_RENAMES: Record<string, string> = {
-  Introductory: 'General intro',
-  'Technical Alignment': 'Technical alignment',
-}
-const FORMAT_VALUE_RENAMES: Record<string, string> = {
-  'Reading List': 'Reading list',
-}
-
-function normalizeMultiSelect(
-  raw: string | string[] | undefined,
-  renames: Record<string, string>
-): string {
-  const values = Array.isArray(raw) ? raw : raw ? [raw] : []
-  return values.map(v => renames[v] ?? v).join(', ')
 }
 
 export interface Course {
@@ -75,14 +52,12 @@ export async function getCourses(): Promise<Course[]> {
       id: record.id,
       name: fields.Name,
       description: fields.Description || '',
-      category: normalizeMultiSelect(
-        fields.Focus ?? fields.Category,
-        FOCUS_VALUE_RENAMES
-      ),
-      courseType: normalizeMultiSelect(
-        fields.Format ?? fields.Type,
-        FORMAT_VALUE_RENAMES
-      ),
+      category: Array.isArray(fields.Focus)
+        ? fields.Focus.join(', ')
+        : fields.Focus || '',
+      courseType: Array.isArray(fields.Format)
+        ? fields.Format.join(', ')
+        : fields.Format || '',
       organizer: fields['Created by'] || '',
       url: fields.Link || '#',
       image,

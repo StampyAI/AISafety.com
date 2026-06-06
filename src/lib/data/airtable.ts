@@ -356,9 +356,12 @@ async function fetchAirtableRecordsImpl(
 }
 
 // unstable_cache keys on the stringified arguments automatically; the
-// static keyParts below are just a namespace tag for invalidation.
+// static keyParts below are just a namespace tag for invalidation. Bump the
+// version segment to force a fresh fetch on deploy after an Airtable schema
+// change (e.g. the self-study Category/Type -> Focus/Format rename), so cached
+// records under the old field shape can't be served to new code.
 export const fetchAirtableRecords = unstable_cache(
   fetchAirtableRecordsImpl,
-  ['airtable-records'],
+  ['airtable-records', 'v2'],
   { revalidate: 3600 }
 )

@@ -25,9 +25,15 @@ const SCROLL_LOCK_THRESHOLD = 60
 // the boundary: matches `[[/thinking]]`, `[[ /thinking ]]`, `[[/Thinking]]`.
 const THINKING_DONE_RE = /\[\[\s*\/\s*thinking\s*\]\]/i
 
-/** Index of the boundary event, or -1. */
-function thinkingDoneIndex(events: MessageEvent[]): number {
-  return events.findIndex(e => e.kind === 'thinking_done')
+/** Index of the LAST boundary event, or -1. Using the last (not first) means
+ *  that if the model re-emits [[/thinking]] mid-answer (e.g. drafts a reply,
+ *  searches, then restarts), only the content after the final marker is shown
+ *  as the answer. */
+function lastThinkingDoneIndex(events: MessageEvent[]): number {
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (events[i].kind === 'thinking_done') return i
+  }
+  return -1
 }
 
 /** Append a text delta to the message events. If the delta (concatenated
@@ -39,16 +45,12 @@ function appendTextDelta(
   events: MessageEvent[],
   delta: string
 ): MessageEvent[] {
-  // If we've already crossed the boundary, just append into the post-boundary
-  // text without re-checking for the marker.
-  const boundaryAt = thinkingDoneIndex(events)
-  if (boundaryAt !== -1) {
-    return appendDeltaToLastText(events, delta)
-  }
-
-  // Otherwise, look for the marker in the combined "pending text" — we may
-  // have a partial marker straddling multiple deltas, so we check the last
-  // text event's content + this delta together.
+  // Always look for the marker in the combined "pending text" — even after a
+  // prior boundary. A misbehaving model can re-emit [[/thinking]] (draft an
+  // answer, then search, then restart the answer); we split again on each one,
+  // and the render uses the LAST boundary, so only the final answer shows and
+  // a second marker never leaks as literal text. A partial marker can straddle
+  // deltas, so we check the last text event's content + this delta together.
   const last = events[events.length - 1]
   const lastText = last && last.kind === 'text' ? last.text : ''
   const combined = lastText + delta
@@ -134,7 +136,7 @@ function AssistantMessageView({
   onSuggest,
   onCitationClick,
 }: AssistantMessageViewProps) {
-  const boundary = thinkingDoneIndex(message.events)
+  const boundary = lastThinkingDoneIndex(message.events)
   const hasBoundary = boundary !== -1
 
   const renderInline = (
@@ -145,7 +147,12 @@ function AssistantMessageView({
     events.map((ev, i) => {
       if (ev.kind === 'thinking_done') return null
       if (ev.kind === 'text') {
-        const stripped = stripChipTokens(ev.text)
+        // Defensive: strip any literal [[/thinking]] that slipped through so
+        // the marker can never render as visible text.
+        const stripped = stripChipTokens(ev.text).replace(
+          /\[\[\s*\/\s*thinking\s*\]\]/gi,
+          ''
+        )
         if (!stripped.trim()) return null
         const isLast = i === events.length - 1
         return (

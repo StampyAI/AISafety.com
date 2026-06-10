@@ -16,6 +16,7 @@ import {
   validateMessages,
 } from '@/lib/assistant/stream'
 import { storeConversationTurn } from '@/lib/assistant/conversation-store'
+import { getDonationGuideText } from '@/lib/assistant/donation-guide'
 import {
   checkAssistantRateLimit,
   getClientIp,
@@ -115,6 +116,7 @@ export async function POST(req: NextRequest) {
       client,
       systemPrompt: PRODUCTION_PROMPT,
       pagesBlock: PAGES_BLOCK,
+      donationGuide: getDonationGuideText(),
       model: DEFAULT_MODEL_ID,
       apiMessages,
       catalog,

@@ -127,6 +127,7 @@ interface RunOptions {
   client: Anthropic
   systemPrompt: string
   pagesBlock: string
+  donationGuide: string
   model: string
   apiMessages: Anthropic.MessageParam[]
   catalog: Catalog
@@ -145,6 +146,7 @@ export async function runAssistantStream(
     client,
     systemPrompt,
     pagesBlock,
+    donationGuide,
     model,
     apiMessages,
     catalog,
@@ -164,6 +166,7 @@ export async function runAssistantStream(
         system: [
           { type: 'text', text: systemPrompt },
           { type: 'text', text: pagesBlock },
+          { type: 'text', text: donationGuide },
           {
             type: 'text',
             text: `You are currently running on ${modelDisplayName(model)}. If a user asks what model powers you, this is the answer.`,

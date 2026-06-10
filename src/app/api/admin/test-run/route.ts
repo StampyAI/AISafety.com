@@ -8,6 +8,7 @@ import {
   type RequestContext,
 } from '@/lib/assistant/prompt'
 import { DEFAULT_MODEL_ID } from '@/lib/assistant/models'
+import { getDonationGuideText } from '@/lib/assistant/donation-guide'
 import {
   buildApiMessages,
   runAssistantStream,
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
       client,
       systemPrompt: prompt,
       pagesBlock: PAGES_BLOCK,
+      donationGuide: getDonationGuideText(),
       model,
       apiMessages,
       catalog,

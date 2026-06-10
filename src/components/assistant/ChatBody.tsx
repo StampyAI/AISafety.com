@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -124,6 +125,10 @@ export interface ChatBodyHandle {
 
 interface AssistantMessageViewProps {
   message: UIMessage
+  // Every listing seen so far in the conversation, so a card for a
+  // previously-shown listing still resolves even if this turn ran no search
+  // (e.g. "show me that fund again").
+  allCitations: CitationRef[]
   onSuggest?: (query: string) => void
   onCitationClick?: (c: CitationRef) => void
 }
@@ -133,6 +138,7 @@ interface AssistantMessageViewProps {
  *  while the bot is reasoning, then the user-facing answer when it arrives. */
 function AssistantMessageView({
   message,
+  allCitations,
   onSuggest,
   onCitationClick,
 }: AssistantMessageViewProps) {
@@ -159,7 +165,7 @@ function AssistantMessageView({
           <MessageContent
             key={`${keyPrefix}-${i}`}
             text={stripped}
-            citations={message.citations}
+            citations={allCitations}
             isStreaming={streamingTail && isLast}
             onSuggest={onSuggest}
             onCitationClick={onCitationClick}
@@ -582,6 +588,17 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     [messages]
   )
 
+  // Union of every listing cited across the whole conversation. Cards resolve
+  // against this (not just the current turn's results), so re-showing a
+  // previously-surfaced listing renders even when this turn ran no search.
+  const allCitations = useMemo(() => {
+    const byId = new Map<string, CitationRef>()
+    for (const m of messages) {
+      for (const c of m.citations) byId.set(c.id, c)
+    }
+    return Array.from(byId.values())
+  }, [messages])
+
   return (
     <>
       <div className={styles.body} ref={bodyRef}>
@@ -637,6 +654,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
               <div key={m.id} className={styles.message}>
                 <AssistantMessageView
                   message={m}
+                  allCitations={allCitations}
                   onSuggest={onSuggest}
                   onCitationClick={onCitationClick}
                 />

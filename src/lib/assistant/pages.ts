@@ -26,7 +26,7 @@ export const PAGES: PageInfo[] = [
     path: '/jobs',
     title: 'Jobs',
     purpose:
-      'AI safety job listings with filters for skill set, minimum experience, role type, and work location.',
+      "Pursuing a career in AI safety can be one of the most impactful ways to contribute. Many roles don't require technical skills.",
     audience:
       'Career-changers, students, and professionals exploring AI safety roles.',
     greeting:
@@ -42,7 +42,7 @@ export const PAGES: PageInfo[] = [
     path: '/funding',
     title: 'Funding',
     purpose:
-      'Funders and grant programs supporting AI safety projects, with filters for type and whether they are accepting applications.',
+      'These organizations offer financial support to organizations and individuals working on AI safety.',
     audience: 'Researchers, organizers, and founders seeking funding.',
     greeting:
       'Looking for funding? I can match funders by what you do, your stage, and whether they are open to applications.',
@@ -56,7 +56,7 @@ export const PAGES: PageInfo[] = [
     path: '/donation-guide',
     title: 'Donation guide',
     purpose:
-      'Tabbed guide that recommends donation strategies based on amount ($1–$1k, $1k–$10k, $10k–$100k, $100k+) and time available (5min–1hr, 1–50hrs, ongoing, major focus).',
+      'This guide can help you determine the most effective way to financially support work on AI safety, given the funds and time you have available.',
     audience: 'Donors trying to give effectively.',
     greeting:
       'Want to give to AI safety effectively? Tell me roughly how much you want to donate and how much time you have.',
@@ -70,7 +70,7 @@ export const PAGES: PageInfo[] = [
     path: '/advisors',
     title: 'Advisors',
     purpose:
-      'Free 1-on-1 career and project advising services, with filters for focus area and accepting status.',
+      'Connecting with human experts can be invaluable. These advisors offer free guidance calls to help you most effectively contribute to AI safety.',
     audience: 'Anyone looking for human guidance on getting into AI safety.',
     greeting:
       'Want a one-on-one chat with someone in the field? Tell me your focus and I can match you to an advisor.',
@@ -84,7 +84,7 @@ export const PAGES: PageInfo[] = [
     path: '/communities',
     title: 'Communities',
     purpose:
-      'Online and in-person AI safety communities, with a world map and filters for platform, type, focus, and activity level.',
+      'There are many groups dedicated to discussing and contributing to AI safety, both online and in-person. We recommend joining a few.',
     audience: 'People wanting to connect with others in AI safety.',
     greeting:
       'Looking for a community? Tell me your platform, focus, or topic and I can find a fit.',
@@ -98,7 +98,7 @@ export const PAGES: PageInfo[] = [
     path: '/self-study',
     title: 'Self-study',
     purpose:
-      'Courses, curricula, and structured study guides for learning AI safety on your own, filterable by category and type.',
+      'These curricula and reading lists enable you to dive deeper into AI safety through independent learning.',
     audience: 'People who want to learn AI safety independently.',
     greeting:
       'Want to learn AI safety on your own? I can suggest a course, curriculum, or reading guide.',
@@ -112,7 +112,7 @@ export const PAGES: PageInfo[] = [
     path: '/events-and-training',
     title: 'Events & training',
     purpose:
-      'Calendar of upcoming AI safety events, conferences, and training programs.',
+      "There's a wide range of events and training programs in AI safety, both online and in-person. These can help you build skills, make connections, and discover opportunities.",
     audience: 'People looking for events to attend or programs to apply to.',
     greeting: 'Looking for an upcoming event or training program in AI safety?',
     chips: ['Upcoming conferences', 'Training programs accepting applications'],
@@ -121,7 +121,7 @@ export const PAGES: PageInfo[] = [
     path: '/founders',
     title: 'Founder toolkit',
     purpose:
-      'Resources for AI safety founders: incubators, fiscal sponsors, legal support, and operational tooling.',
+      'Resources for starting and growing an AI safety organization – including incubators, fiscal sponsors, VCs, and practical tools.',
     audience: 'Founders starting AI safety nonprofits or projects.',
     greeting:
       'Starting an AI safety project or org? I can find incubators, fiscal sponsors, and other founder resources.',
@@ -135,7 +135,7 @@ export const PAGES: PageInfo[] = [
     path: '/projects',
     title: 'Volunteer projects',
     purpose:
-      'AI safety research projects looking for volunteers, with filters for status.',
+      'Initiatives seeking your volunteer help. These projects are focused on supporting and improving the AI safety field.',
     audience: 'People with time to volunteer on AI safety work.',
     greeting:
       'Want to volunteer on AI safety work? I can match you to an active project.',
@@ -145,7 +145,7 @@ export const PAGES: PageInfo[] = [
     path: '/media-channels',
     title: 'Media channels',
     purpose:
-      'Podcasts, blogs, newsletters, and other channels publishing AI safety content, filterable by type.',
+      'The AI safety space is changing rapidly. These information sources can help you learn more and stay up to date.',
     audience: 'People who want to follow the field.',
     greeting:
       'Want to follow AI safety news and ideas? I can suggest podcasts, newsletters, and blogs.',
@@ -155,7 +155,7 @@ export const PAGES: PageInfo[] = [
     path: '/map',
     title: 'Field map',
     purpose:
-      'A visual map of organizations across AI safety: research labs, advocacy groups, funders, training programs, and more.',
+      'An overview of the key organizations, programs, and projects operating in the AI safety space.',
     audience: 'Anyone who wants a bird-eye view of the ecosystem.',
     greeting:
       'Looking for orgs working on a specific area of AI safety? I can find them by category or focus.',

@@ -252,7 +252,7 @@ export default function Assistant() {
             >
               <path d="M12 3C6.48 3 2 6.92 2 11.5c0 2.06.93 3.93 2.46 5.36-.16 1.13-.6 2.7-1.46 3.6-.13.13-.06.34.12.36 1.66.18 3.84-.43 5.4-1.27.95.27 1.95.45 3.48.45 5.52 0 10-3.92 10-8.5S17.52 3 12 3z" />
             </svg>
-            <span>Chatbot</span>
+            <span>Chatbot (beta)</span>
           </div>
           <div className={styles.headerActions}>
             {hasMessages && (

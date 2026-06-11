@@ -142,7 +142,19 @@ function AssistantMessageView({
   onSuggest,
   onCitationClick,
 }: AssistantMessageViewProps) {
-  const boundary = lastThinkingDoneIndex(message.events)
+  let boundary = lastThinkingDoneIndex(message.events)
+  // Fallback: if the model forgot the [[/thinking]] marker but did make tool
+  // calls, treat everything after the last tool call as the answer, so the
+  // search/reasoning trail doesn't leak into the final message. Only applied
+  // once streaming ends (during streaming we show the loading indicator).
+  if (boundary === -1 && !message.isStreaming) {
+    for (let i = message.events.length - 1; i >= 0; i--) {
+      if (message.events[i].kind === 'tool') {
+        boundary = i
+        break
+      }
+    }
+  }
   const hasBoundary = boundary !== -1
 
   const renderInline = (

@@ -215,9 +215,28 @@ function renderInline(
         parts.push(token)
       }
     } else if (token.startsWith('**')) {
-      parts.push(<strong key={`b-${key++}`}>{token.slice(2, -2)}</strong>)
+      // Recurse so markdown inside bold (e.g. a link, `**[Jobs](/jobs)**`) is
+      // processed rather than shown raw. INLINE_REGEX is shared global state,
+      // so save/restore its cursor around the recursive call.
+      const saved = INLINE_REGEX.lastIndex
+      const inner = renderInline(
+        token.slice(2, -2),
+        citationsById,
+        onSuggest,
+        onCitationClick
+      )
+      INLINE_REGEX.lastIndex = saved
+      parts.push(<strong key={`b-${key++}`}>{inner}</strong>)
     } else if (token.startsWith('*')) {
-      parts.push(<em key={`i-${key++}`}>{token.slice(1, -1)}</em>)
+      const saved = INLINE_REGEX.lastIndex
+      const inner = renderInline(
+        token.slice(1, -1),
+        citationsById,
+        onSuggest,
+        onCitationClick
+      )
+      INLINE_REGEX.lastIndex = saved
+      parts.push(<em key={`i-${key++}`}>{inner}</em>)
     }
 
     lastIndex = match.index + token.length

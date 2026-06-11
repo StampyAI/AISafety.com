@@ -22,7 +22,7 @@ interface Props {
 // resolveCitation handles the actual lookup with suffix matching on the
 // underlying rec id when the full id doesn't resolve directly.
 const INLINE_REGEX =
-  /(\[\[\s*id\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+\s*\]\])|(\[\[\s*suggest\s*:[^\]\n]*\]\])|(\[\[\s*chip\s*:[^\]\n]*\]\])|(\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|[^\]\n]*)?\s*\]\])|(\[[^\]\n]+\]\([^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/gi
+  /(\[\[\s*id\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+\s*\]\])|(\[\[\s*suggest\s*:[^\]\n]*\]\])|(\[\[\s*chip\s*:[^\]\n]*\]\])|(\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|[^\]\n]*)?\s*\]\])|(\[[^\]\n]+\]\([^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
 
 const CARD_LINE =
   /^\s*\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
@@ -237,6 +237,19 @@ function renderInline(
       )
       INLINE_REGEX.lastIndex = saved
       parts.push(<em key={`i-${key++}`}>{inner}</em>)
+    } else if (/^aisafety\.info/i.test(token)) {
+      // Auto-linkify bare aisafety.info mentions (the bot writes it as plain
+      // text). Scoped to this one domain to avoid false positives.
+      parts.push(
+        <a
+          key={`u-${key++}`}
+          href={`https://${token}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {token}
+        </a>
+      )
     }
 
     lastIndex = match.index + token.length

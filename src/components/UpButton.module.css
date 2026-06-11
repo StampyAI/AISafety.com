@@ -2,8 +2,11 @@
 
 .up-button {
   position: fixed;
-  bottom: 16px;
-  right: 16px;
+  /* Bottom-left, mirroring the assistant launcher's offsets in the opposite
+     corner so the chat never covers it. */
+  bottom: 24px;
+  left: 24px;
+  z-index: 98; /* under the assistant panel (99) and launcher (100) */
   padding: 9px 15px;
   background: none;
   border: none;
@@ -11,4 +14,12 @@
   font-size: 20px;
   cursor: pointer;
   text-decoration: none;
+}
+
+@media (max-width: 991px) {
+  .up-button {
+    /* Mobile launcher sits at 16px/16px; mirror it */
+    bottom: 16px;
+    left: 16px;
+  }
 }

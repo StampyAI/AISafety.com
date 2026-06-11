@@ -196,6 +196,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="funder"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shr9Mki0gKgHFdcbd"
         />
       </div>
     </div>

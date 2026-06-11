@@ -268,6 +268,7 @@ export default function CommunitiesClient({
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="community"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrA9iDx7G2roYKwq"
         />
       </aside>
     </div>

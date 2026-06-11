@@ -150,6 +150,7 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag1OO5TrQkO96W7R/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="resource"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shr63cQohkMqyzOZv"
         />
       </div>
     </div>

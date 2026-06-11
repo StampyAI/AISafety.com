@@ -181,6 +181,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="advisor"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shr3u6yIAwM9Hi2fL"
           extraLinks={[
             {
               label: 'Review an advisor',

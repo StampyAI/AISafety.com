@@ -121,6 +121,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="project"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrSOZFEW790ANG0Q"
         />
       </div>
     </div>

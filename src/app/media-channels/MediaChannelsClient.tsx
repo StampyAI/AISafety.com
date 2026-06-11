@@ -156,6 +156,7 @@ export default function MediaChannelsClient({
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagSZ7vJj9MHyYmtS/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="media source"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrK0YGL591cGcAE1"
         />
       </div>
     </div>

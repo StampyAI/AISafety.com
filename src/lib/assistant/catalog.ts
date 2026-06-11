@@ -278,6 +278,9 @@ export async function buildCatalog(): Promise<Catalog> {
         category: o.category,
         status: o.status,
         scale: o.scale,
+        // Acronym/short name (e.g. "AED", "MIRI") so users can search the org
+        // by the label shown on the field map. Searchable but not displayed.
+        shortName: o.shortName,
       }),
     })
   }

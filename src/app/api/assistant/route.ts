@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { NextRequest } from 'next/server'
+import { NextRequest, after } from 'next/server'
 import { getCatalog } from '@/lib/assistant/catalog'
 import {
   PRODUCTION_PROMPT,
@@ -128,27 +128,33 @@ export async function POST(req: NextRequest) {
 
     const zeroMatches =
       result.citations.length === 0 && /\[\[suggest:/.test(result.assistantText)
-    void storeConversationTurn({
-      ts: new Date().toISOString(),
-      sessionId: body.sessionId ?? null,
-      currentPage: ctx.currentPage,
-      pageState: ctx.pageState ?? null,
-      referrer: ctx.referrer ?? null,
-      geo: ctx.geo ?? null,
-      utm: ctx.utm ?? null,
-      user: userQuery,
-      // Full conversation including the assistant's just-completed reply,
-      // so the upsert can persist the up-to-date History in one row.
-      history: [
-        ...messages,
-        { role: 'assistant', content: result.assistantText },
-      ],
-      toolCalls: result.toolCalls,
-      response: result.assistantText,
-      citations: result.citations.map(c => c.id),
-      zeroMatches,
-      latencyMs: Date.now() - startedAt,
-      promptVersion: PROMPT_VERSION,
-    })
+    // after() keeps the serverless function alive until the write completes.
+    // A bare fire-and-forget promise gets frozen (and usually lost) the moment
+    // the response stream closes, so conversations were never reaching
+    // Airtable in production.
+    after(() =>
+      storeConversationTurn({
+        ts: new Date().toISOString(),
+        sessionId: body.sessionId ?? null,
+        currentPage: ctx.currentPage,
+        pageState: ctx.pageState ?? null,
+        referrer: ctx.referrer ?? null,
+        geo: ctx.geo ?? null,
+        utm: ctx.utm ?? null,
+        user: userQuery,
+        // Full conversation including the assistant's just-completed reply,
+        // so the upsert can persist the up-to-date History in one row.
+        history: [
+          ...messages,
+          { role: 'assistant', content: result.assistantText },
+        ],
+        toolCalls: result.toolCalls,
+        response: result.assistantText,
+        citations: result.citations.map(c => c.id),
+        zeroMatches,
+        latencyMs: Date.now() - startedAt,
+        promptVersion: PROMPT_VERSION,
+      })
+    )
   })
 }

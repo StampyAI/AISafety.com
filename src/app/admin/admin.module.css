@@ -593,6 +593,26 @@
   color: var(--teal-400);
 }
 
+.convRowMeta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.convRowDate {
+  color: var(--teal-300);
+}
+
+.convRowPage {
+  padding: 1px 7px;
+  background-color: var(--teal-800);
+  border-radius: 999px;
+  color: var(--teal-300);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
 .convRowZero {
   color: #ffb87a;
   font-weight: 600;
@@ -688,6 +708,171 @@
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.5;
+}
+
+/* ─── Rendered assistant message ──────────────────────────────────────── */
+
+.convMsg {
+  font-size: 13px;
+  color: var(--white);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.convMsg p {
+  margin: 0 0 10px;
+}
+
+.convMsg ul,
+.convMsg ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.convMsg li {
+  margin-bottom: 3px;
+}
+
+.convMsg > :last-child {
+  margin-bottom: 0;
+}
+
+.convLink {
+  color: var(--bright-teal-300);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.convLink:hover {
+  color: var(--bright-teal-500);
+}
+
+.convThinking {
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--teal-700);
+  color: var(--teal-400);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.convThinkingLabel {
+  display: block;
+  font-size: 10px;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--teal-500);
+  margin-bottom: 2px;
+}
+
+.convCards {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.convCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--white);
+}
+
+.convCardType {
+  padding: 1px 7px;
+  background-color: var(--teal-800);
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--bright-teal-300);
+}
+
+.convCardInline {
+  display: inline;
+  padding: 0 5px;
+  background-color: var(--teal-800);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--bright-teal-300);
+}
+
+.convChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.convChip {
+  padding: 3px 10px;
+  background-color: var(--teal-800);
+  border: 1px solid var(--teal-700);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--teal-300);
+}
+
+.convSuggestNote {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #ffb87a;
+}
+
+/* ─── Tool calls + citations ──────────────────────────────────────────── */
+
+.convToolCalls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.convToolCall,
+.convToolCallFailed {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 3px 8px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--teal-300);
+}
+
+.convToolCallFailed {
+  border-color: #ff8b8b;
+  color: #ff8b8b;
+}
+
+.convToolCallName {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--bright-teal-300);
+}
+
+.convCitations {
+  max-height: 96px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--teal-400);
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.convError {
+  font-size: 11px;
+  color: #ff8b8b;
 }
 
 .convNotes {

@@ -29,7 +29,7 @@ export default function AdminHeader({ tabs }: Props) {
     <header className={styles.adminHeader}>
       <div className={styles.adminHeaderInner}>
         <Link href="/admin/assistant" className={styles.adminBrand}>
-          AISafety Admin
+          AISafety.com Chatbot Admin
         </Link>
         <nav className={styles.adminNav}>
           {tabs?.map(tab => {

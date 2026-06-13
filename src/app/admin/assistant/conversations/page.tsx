@@ -5,7 +5,7 @@ import styles from '../../admin.module.css'
 export default function ConversationsPage() {
   const configured = isConversationsTableConfigured()
   return (
-    <>
+    <div className={styles.convPage}>
       <div className={styles.pageHeading}>
         <h1 className={styles.pageTitle}>Conversations</h1>
         <div className={styles.pageMeta}>
@@ -20,6 +20,6 @@ export default function ConversationsPage() {
           conversation log.
         </div>
       )}
-    </>
+    </div>
   )
 }

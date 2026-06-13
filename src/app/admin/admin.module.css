@@ -539,6 +539,12 @@
 
 /* ─── Conversations ─────────────────────────────────────────────────── */
 
+/* Readable column on wide screens; the full console width makes the
+   preview lines far too long. */
+.convPage {
+  max-width: 960px;
+}
+
 .conversationsWrap {
   display: flex;
   flex-direction: column;
@@ -564,6 +570,27 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.convDayDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal-300);
+}
+
+.convDayDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--teal-800);
+}
+
+.convList > .convDayDivider:first-child {
+  margin-top: 0;
 }
 
 .convRow {

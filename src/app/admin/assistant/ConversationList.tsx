@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import styles from '../admin.module.css'
 import TranscriptMessage, { plainPreview } from './TranscriptMessage'
 
@@ -39,20 +39,21 @@ function geoString(geo: ConversationData['geo']): string {
   return [geo.city ?? geo.region, geo.country].filter(Boolean).join(', ')
 }
 
-/** "12 June 2026, 17:51" — site-wide DATE MONTH YEAR convention. */
-function formatDateTime(iso: string): string {
+/** "12 June 2026" — site-wide DATE MONTH YEAR convention. */
+function formatDay(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  const date = d.toLocaleDateString('en-GB', {
+  return d.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
-  const time = d.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  return `${date}, ${time}`
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 function formatLatency(ms: number): string {
@@ -161,15 +162,26 @@ export default function ConversationList() {
       </div>
 
       <div className={styles.convList}>
-        {conversations.map(c => (
-          <ConversationRow
-            key={c.id}
-            conv={c}
-            expanded={expandedId === c.id}
-            onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
-            onUpdate={handleUpdate}
-          />
-        ))}
+        {conversations.map((c, i) => {
+          const day = formatDay(c.createdAt)
+          const prevDay =
+            i > 0 ? formatDay(conversations[i - 1].createdAt) : null
+          return (
+            <Fragment key={c.id}>
+              {day !== prevDay && (
+                <div className={styles.convDayDivider}>{day}</div>
+              )}
+              <ConversationRow
+                conv={c}
+                expanded={expandedId === c.id}
+                onToggle={() =>
+                  setExpandedId(expandedId === c.id ? null : c.id)
+                }
+                onUpdate={handleUpdate}
+              />
+            </Fragment>
+          )
+        })}
         {conversations.length === 0 && !loading && (
           <div className={styles.convStatus}>No conversations yet.</div>
         )}
@@ -245,7 +257,7 @@ function ConversationRow({
         <div className={styles.convRowHeader}>
           <span className={styles.convRowMeta}>
             <span className={styles.convRowDate}>
-              {formatDateTime(conv.createdAt)}
+              {formatTime(conv.createdAt)}
             </span>
             <span className={styles.convRowPage}>{conv.page}</span>
             {turnCount > 1 && <span>{turnCount} turns</span>}

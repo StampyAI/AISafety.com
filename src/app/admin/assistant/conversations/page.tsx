@@ -8,9 +8,6 @@ export default function ConversationsPage() {
     <div className={styles.convPage}>
       <div className={styles.pageHeading}>
         <h1 className={styles.pageTitle}>Conversations</h1>
-        <div className={styles.pageMeta}>
-          Newest first · click a row to expand
-        </div>
       </div>
       {configured ? (
         <ConversationList />

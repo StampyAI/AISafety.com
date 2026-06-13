@@ -539,10 +539,11 @@
 
 /* ─── Conversations ─────────────────────────────────────────────────── */
 
-/* Readable column on wide screens; the full console width makes the
-   preview lines far too long. */
+/* Readable centered column on wide screens; the full console width makes
+   the preview lines far too long. */
 .convPage {
   max-width: 960px;
+  margin: 0 auto;
 }
 
 .conversationsWrap {

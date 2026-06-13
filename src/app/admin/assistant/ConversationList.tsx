@@ -142,13 +142,13 @@ export default function ConversationList() {
   return (
     <div>
       <div className={styles.convFilters}>
-        <label title="Only show conversations where the chatbot found no matching listings">
+        <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
             type="checkbox"
             checked={zeroOnly}
             onChange={e => setZeroOnly(e.target.checked)}
           />
-          No-match only
+          Only chats with no results
         </label>
         <button
           type="button"

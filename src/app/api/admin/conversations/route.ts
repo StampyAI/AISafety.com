@@ -55,9 +55,9 @@ export async function GET(req: NextRequest) {
     : conversations
 
   // Card tokens store only the listing id + inline note, not the listing's
-  // name, so the transcript viewer can't tell which listing a card actually
-  // is. Resolve the referenced ids to names from the catalog and ship a
-  // lookup map alongside the conversations.
+  // name or logo, so the transcript viewer can't tell which listing a card
+  // actually is. Resolve the referenced ids against the catalog and ship a
+  // {name, logo} lookup map alongside the conversations.
   const referencedIds = new Set<string>()
   for (const c of filtered) {
     if (!c.data) continue
@@ -68,27 +68,28 @@ export async function GET(req: NextRequest) {
     for (const id of c.data.citations) referencedIds.add(id)
   }
 
-  const listingNames: Record<string, string> = {}
+  const listings: Record<string, { name: string; logo?: string }> = {}
   if (referencedIds.size > 0) {
     const catalog = await getCatalog()
-    const byId = new Map<string, string>()
-    const byRec = new Map<string, string>()
+    const byId = new Map<string, { name: string; logo?: string }>()
+    const byRec = new Map<string, { name: string; logo?: string }>()
     for (const l of catalog.listings) {
-      byId.set(l.id, l.name)
+      const info = { name: l.name, logo: l.logo }
+      byId.set(l.id, info)
       const rec = REC_RE.exec(l.id)?.[0]
-      if (rec) byRec.set(rec, l.name)
+      if (rec) byRec.set(rec, info)
     }
     for (const id of referencedIds) {
       const rec = REC_RE.exec(id)?.[0]
-      const name = byId.get(id) ?? (rec ? byRec.get(rec) : undefined)
-      if (name) {
-        listingNames[id] = name
-        if (rec) listingNames[rec] = name
+      const info = byId.get(id) ?? (rec ? byRec.get(rec) : undefined)
+      if (info) {
+        listings[id] = info
+        if (rec) listings[rec] = info
       }
     }
   }
 
-  return Response.json({ conversations: filtered, listingNames })
+  return Response.json({ conversations: filtered, listings })
 }
 
 export async function PATCH(req: NextRequest) {

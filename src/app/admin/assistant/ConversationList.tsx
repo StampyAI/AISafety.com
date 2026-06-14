@@ -3,7 +3,8 @@
 import { Fragment, useEffect, useState } from 'react'
 import styles from '../admin.module.css'
 import TranscriptMessage, {
-  ListingNamesContext,
+  ListingInfoContext,
+  type ListingInfo,
   plainPreview,
 } from './TranscriptMessage'
 
@@ -122,7 +123,7 @@ function describeToolInput(input: unknown): string {
 
 export default function ConversationList() {
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [listingNames, setListingNames] = useState<Record<string, string>>({})
+  const [listings, setListings] = useState<Record<string, ListingInfo>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [zeroOnly, setZeroOnly] = useState(false)
@@ -144,10 +145,10 @@ export default function ConversationList() {
       }
       const data = (await res.json()) as {
         conversations: Conversation[]
-        listingNames?: Record<string, string>
+        listings?: Record<string, ListingInfo>
       }
       setConversations(data.conversations)
-      setListingNames(data.listingNames ?? {})
+      setListings(data.listings ?? {})
     } catch (err) {
       setError(err instanceof Error ? err.message : 'unknown error')
     } finally {
@@ -164,7 +165,7 @@ export default function ConversationList() {
   }
 
   return (
-    <ListingNamesContext.Provider value={listingNames}>
+    <ListingInfoContext.Provider value={listings}>
       <div className={styles.convFilters}>
         <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
@@ -210,7 +211,7 @@ export default function ConversationList() {
           <div className={styles.convStatus}>No conversations yet.</div>
         )}
       </div>
-    </ListingNamesContext.Provider>
+    </ListingInfoContext.Provider>
   )
 }
 
@@ -233,6 +234,15 @@ function ConversationRow({
   const turnCount = data?.history.filter(t => t.role === 'user').length ?? 0
   const geo = data ? geoString(data.geo) : ''
   const toolCalls = data ? flattenToolCalls(data.tools) : []
+  // Collapsed row previews the conversation's OPENING exchange (how the
+  // visitor first arrived), not the most recent turn. Fall back to the
+  // latest-turn fields for old rows that have no stored history.
+  const firstUser =
+    data?.history.find(t => t.role === 'user')?.content ?? data?.user ?? ''
+  const firstResponse =
+    data?.history.find(t => t.role === 'assistant')?.content ??
+    data?.response ??
+    ''
 
   const persist = async (patch: { notes?: string; tags?: string[] }) => {
     setSaveStatus('saving…')
@@ -302,9 +312,9 @@ function ConversationRow({
             ) : null}
           </span>
         </div>
-        <div className={styles.convRowQuery}>{data?.user ?? ''}</div>
+        <div className={styles.convRowQuery}>{firstUser}</div>
         <div className={styles.convRowResponse}>
-          {data ? plainPreview(data.response) : ''}
+          {firstResponse ? plainPreview(firstResponse) : ''}
         </div>
       </button>
 

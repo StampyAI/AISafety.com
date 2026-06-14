@@ -824,6 +824,14 @@
   color: var(--bright-teal-300);
 }
 
+.convCardLogo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .convCardName {
   font-weight: 600;
   color: var(--white);

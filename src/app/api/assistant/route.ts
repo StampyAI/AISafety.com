@@ -124,10 +124,17 @@ export async function POST(req: NextRequest) {
       signal,
     })
     send('done', {})
-    if (signal.aborted) return
 
     const zeroMatches =
       result.citations.length === 0 && /\[\[suggest:/.test(result.assistantText)
+    // Log the turn even when the visitor has already disconnected. after()
+    // outlives the response by design, so the write still completes. Gating
+    // it on signal.aborted (as we used to) silently dropped every
+    // conversation where the visitor closed the tab the moment the answer
+    // finished streaming — the generation was complete, but it never reached
+    // Airtable. Skip only when generation produced nothing at all, e.g. an
+    // abort before the first token.
+    if (!result.assistantText && result.toolCalls.length === 0) return
     // after() keeps the serverless function alive until the write completes.
     // A bare fire-and-forget promise gets frozen (and usually lost) the moment
     // the response stream closes, so conversations were never reaching

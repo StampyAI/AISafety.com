@@ -34,9 +34,25 @@ interface Conversation {
   data: ConversationData | null
 }
 
+/** "United States" for an ISO-3166 alpha-2 code, US English spelling. */
+const regionNames = new Intl.DisplayNames(['en-US'], { type: 'region' })
+
+/** ISO-3166 alpha-2 → "United States 🇺🇸". Falls back to the raw value when
+ *  it isn't a recognisable two-letter country code. */
+function countryLabel(code: string): string {
+  const cc = code.trim().toUpperCase()
+  if (!/^[A-Z]{2}$/.test(cc)) return code
+  const flag = String.fromCodePoint(
+    ...[...cc].map(c => 0x1f1e6 + c.charCodeAt(0) - 65)
+  )
+  const name = regionNames.of(cc)
+  return `${name && name !== cc ? name : cc} ${flag}`
+}
+
 function geoString(geo: ConversationData['geo']): string {
   if (!geo) return ''
-  return [geo.city ?? geo.region, geo.country].filter(Boolean).join(', ')
+  const country = geo.country ? countryLabel(geo.country) : undefined
+  return [geo.city ?? geo.region, country].filter(Boolean).join(', ')
 }
 
 /** "12 June 2026" — site-wide DATE MONTH YEAR convention. */

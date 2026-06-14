@@ -5,7 +5,6 @@ import styles from '../admin.module.css'
 import TranscriptMessage, {
   ListingInfoContext,
   type ListingInfo,
-  plainPreview,
 } from './TranscriptMessage'
 
 interface HistoryTurn {
@@ -234,15 +233,11 @@ function ConversationRow({
   const turnCount = data?.history.filter(t => t.role === 'user').length ?? 0
   const geo = data ? geoString(data.geo) : ''
   const toolCalls = data ? flattenToolCalls(data.tools) : []
-  // Collapsed row previews the conversation's OPENING exchange (how the
-  // visitor first arrived), not the most recent turn. Fall back to the
-  // latest-turn fields for old rows that have no stored history.
+  // Collapsed row previews the visitor's OPENING message (how they first
+  // arrived), not the most recent turn. Fall back to the latest-turn field
+  // for old rows that have no stored history.
   const firstUser =
     data?.history.find(t => t.role === 'user')?.content ?? data?.user ?? ''
-  const firstResponse =
-    data?.history.find(t => t.role === 'assistant')?.content ??
-    data?.response ??
-    ''
 
   const persist = async (patch: { notes?: string; tags?: string[] }) => {
     setSaveStatus('saving…')
@@ -313,9 +308,6 @@ function ConversationRow({
           </span>
         </div>
         <div className={styles.convRowQuery}>{firstUser}</div>
-        <div className={styles.convRowResponse}>
-          {firstResponse ? plainPreview(firstResponse) : ''}
-        </div>
       </button>
 
       {expanded && data && (

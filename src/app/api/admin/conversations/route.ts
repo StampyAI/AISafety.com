@@ -5,9 +5,22 @@ import {
   listConversations,
   updateConversation,
 } from '@/lib/admin/airtable'
+import { getCatalog } from '@/lib/assistant/catalog'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+/** Pulls the listing ids out of every [[card:ID|note]] token in a reply. */
+const CARD_ID_RE = /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\]\n]*)?\s*\]\]/gi
+function collectCardIds(text: string, into: Set<string>): void {
+  CARD_ID_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = CARD_ID_RE.exec(text)) !== null) {
+    into.add(m[1].replace(/\s+/g, ''))
+  }
+}
+
+const REC_RE = /rec[A-Za-z0-9]+/
 
 async function ensureAuth(): Promise<Response | null> {
   if (!(await isAdmin())) {
@@ -40,7 +53,42 @@ export async function GET(req: NextRequest) {
   const filtered = zeroOnly
     ? conversations.filter(c => c.data?.zeroMatches === true)
     : conversations
-  return Response.json({ conversations: filtered })
+
+  // Card tokens store only the listing id + inline note, not the listing's
+  // name, so the transcript viewer can't tell which listing a card actually
+  // is. Resolve the referenced ids to names from the catalog and ship a
+  // lookup map alongside the conversations.
+  const referencedIds = new Set<string>()
+  for (const c of filtered) {
+    if (!c.data) continue
+    collectCardIds(c.data.response, referencedIds)
+    for (const turn of c.data.history) {
+      if (turn.role === 'assistant') collectCardIds(turn.content, referencedIds)
+    }
+    for (const id of c.data.citations) referencedIds.add(id)
+  }
+
+  const listingNames: Record<string, string> = {}
+  if (referencedIds.size > 0) {
+    const catalog = await getCatalog()
+    const byId = new Map<string, string>()
+    const byRec = new Map<string, string>()
+    for (const l of catalog.listings) {
+      byId.set(l.id, l.name)
+      const rec = REC_RE.exec(l.id)?.[0]
+      if (rec) byRec.set(rec, l.name)
+    }
+    for (const id of referencedIds) {
+      const rec = REC_RE.exec(id)?.[0]
+      const name = byId.get(id) ?? (rec ? byRec.get(rec) : undefined)
+      if (name) {
+        listingNames[id] = name
+        if (rec) listingNames[rec] = name
+      }
+    }
+  }
+
+  return Response.json({ conversations: filtered, listingNames })
 }
 
 export async function PATCH(req: NextRequest) {

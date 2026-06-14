@@ -4,8 +4,25 @@
 // stored history has no resolvable citation objects, so card pills are
 // label-driven (the text after the | in the token).
 
-import { Fragment, ReactNode } from 'react'
+import { createContext, Fragment, ReactNode, useContext } from 'react'
 import styles from '../admin.module.css'
+
+/** id → listing name, supplied by the conversations API so card pills can
+ *  show which listing they are (the stored token only has the id + note). */
+export const ListingNamesContext = createContext<Record<string, string>>({})
+
+/** Resolve a card token's id to its listing name: try the full id, then the
+ *  bare rec id (handles tokens written without a type prefix). */
+function resolveListingName(
+  names: Record<string, string>,
+  id: string
+): string | null {
+  const cleaned = id.replace(/\s+/g, '')
+  if (names[cleaned]) return names[cleaned]
+  const rec = /rec[A-Za-z0-9]+/.exec(cleaned)?.[0]
+  if (rec && names[rec]) return names[rec]
+  return null
+}
 
 const THINKING_RE = /\[\[\s*\/?\s*thinking\s*\]\]/i
 const CHIP_RE = /\[\[\s*chip\s*:([^\]\n]*)\]\]/gi
@@ -23,14 +40,16 @@ function cardType(rawId: string): string | null {
   return m ? m[1].toLowerCase() : null
 }
 
-/** Human label for an inline card/id token: prefer the |label, then the
- *  type prefix, then the bare rec id. */
-function inlineCardLabel(token: string): string {
+/** Human label for an inline card/id token: prefer the resolved listing
+ *  name, then the |label, then the type prefix, then the bare rec id. */
+function inlineCardLabel(token: string, names: Record<string, string>): string {
   const m =
     /^\[\[\s*(?:card|id)\s*:\s*([^\]|\n]+?)(?:\s*\|([^\]\n]*))?\s*\]\]$/i.exec(
       token
     )
   if (!m) return ''
+  const name = resolveListingName(names, m[1])
+  if (name) return name
   if (m[2]?.trim()) return m[2].trim()
   const type = cardType(m[1])
   const rec = /rec[A-Za-z0-9]+/.exec(m[1])?.[0] ?? m[1].trim()
@@ -82,7 +101,10 @@ export function plainPreview(text: string): string {
     .trim()
 }
 
-function renderInline(text: string): ReactNode[] {
+function renderInline(
+  text: string,
+  names: Record<string, string>
+): ReactNode[] {
   const parts: ReactNode[] = []
   let lastIndex = 0
   let key = 0
@@ -98,7 +120,7 @@ function renderInline(text: string): ReactNode[] {
       // directive is malformed or already handled — drop it silently rather
       // than leaking raw brackets.
       const label = /^\[\[\s*(?:card|id)\s*:/i.test(token)
-        ? inlineCardLabel(token)
+        ? inlineCardLabel(token, names)
         : ''
       if (label) {
         parts.push(
@@ -137,7 +159,8 @@ function renderInline(text: string): ReactNode[] {
 
 interface CardSpec {
   type: string | null
-  label: string
+  id: string
+  note: string
 }
 
 type Block =
@@ -176,10 +199,10 @@ function parseBlocks(text: string): Block[] {
         flush()
         current = { kind: 'cards', cards: [] }
       }
-      const rec = /rec[A-Za-z0-9]+/.exec(cardMatch[1])?.[0]
       current.cards.push({
         type: cardType(cardMatch[1]),
-        label: cardMatch[2]?.trim() || rec || cardMatch[1].trim(),
+        id: cardMatch[1].replace(/\s+/g, ''),
+        note: cardMatch[2]?.trim() ?? '',
       })
     } else if (ulMatch) {
       if (current?.kind !== 'ul') {
@@ -207,32 +230,44 @@ function parseBlocks(text: string): Block[] {
 
 function MessageBody({ text }: { text: string }) {
   const blocks = parseBlocks(text)
+  const names = useContext(ListingNamesContext)
   return (
     <>
       {blocks.map((block, i) => {
         if (block.kind === 'cards') {
           return (
             <div key={i} className={styles.convCards}>
-              {block.cards.map((card, j) => (
-                <span key={j} className={styles.convCard}>
-                  {card.type && (
-                    <span className={styles.convCardType}>{card.type}</span>
-                  )}
-                  {card.label}
-                </span>
-              ))}
+              {block.cards.map((card, j) => {
+                const name = resolveListingName(names, card.id)
+                const rec = /rec[A-Za-z0-9]+/.exec(card.id)?.[0] ?? card.id
+                // Prefer the real listing name; fall back to the note, then
+                // the raw id, so a card is never blank.
+                const primary = name ?? (card.note || rec)
+                const showNote = Boolean(card.note) && card.note !== primary
+                return (
+                  <span key={j} className={styles.convCard}>
+                    {card.type && (
+                      <span className={styles.convCardType}>{card.type}</span>
+                    )}
+                    <span className={styles.convCardName}>{primary}</span>
+                    {showNote && (
+                      <span className={styles.convCardNote}>{card.note}</span>
+                    )}
+                  </span>
+                )
+              })}
             </div>
           )
         }
         if (block.kind === 'paragraph') {
-          return <p key={i}>{renderInline(block.lines.join(' '))}</p>
+          return <p key={i}>{renderInline(block.lines.join(' '), names)}</p>
         }
         const Tag = block.kind === 'ul' ? 'ul' : 'ol'
         return (
           <Tag key={i}>
             {block.lines.map((item, j) => (
               <li key={j}>
-                <Fragment>{renderInline(item)}</Fragment>
+                <Fragment>{renderInline(item, names)}</Fragment>
               </li>
             ))}
           </Tag>

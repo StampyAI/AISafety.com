@@ -2,7 +2,10 @@
 
 import { Fragment, useEffect, useState } from 'react'
 import styles from '../admin.module.css'
-import TranscriptMessage, { plainPreview } from './TranscriptMessage'
+import TranscriptMessage, {
+  ListingNamesContext,
+  plainPreview,
+} from './TranscriptMessage'
 
 interface HistoryTurn {
   role: 'user' | 'assistant'
@@ -119,6 +122,7 @@ function describeToolInput(input: unknown): string {
 
 export default function ConversationList() {
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [listingNames, setListingNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [zeroOnly, setZeroOnly] = useState(false)
@@ -138,8 +142,12 @@ export default function ConversationList() {
           (data as { error?: string }).error ?? `HTTP ${res.status}`
         )
       }
-      const data = (await res.json()) as { conversations: Conversation[] }
+      const data = (await res.json()) as {
+        conversations: Conversation[]
+        listingNames?: Record<string, string>
+      }
       setConversations(data.conversations)
+      setListingNames(data.listingNames ?? {})
     } catch (err) {
       setError(err instanceof Error ? err.message : 'unknown error')
     } finally {
@@ -156,7 +164,7 @@ export default function ConversationList() {
   }
 
   return (
-    <div>
+    <ListingNamesContext.Provider value={listingNames}>
       <div className={styles.convFilters}>
         <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
@@ -202,7 +210,7 @@ export default function ConversationList() {
           <div className={styles.convStatus}>No conversations yet.</div>
         )}
       </div>
-    </div>
+    </ListingNamesContext.Provider>
   )
 }
 

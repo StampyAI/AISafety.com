@@ -824,6 +824,15 @@
   color: var(--bright-teal-300);
 }
 
+.convCardName {
+  font-weight: 600;
+  color: var(--white);
+}
+
+.convCardNote {
+  color: var(--teal-300);
+}
+
 .convCardInline {
   display: inline;
   padding: 0 5px;

@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-14-01'
+export const PROMPT_VERSION = '2026-06-14-02'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -108,7 +108,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
   - \`size\`: numeric (member count, free text)
 
 - **course** (the Self-study page): self-paced material ONLY – curricula and reading lists you work through on your own, at your own pace. These are NOT facilitated/cohort programs. Many of these curricula also have a facilitated version (with a cohort, a facilitator, and fixed dates), but those are \`type='event'\` on Events & training, not here. So: for "I want to study X on my own / a reading list / self-paced", use \`type='course'\`; for "a facilitated/cohort version / with a group / with deadlines", use \`type='event'\`. Never describe a course listing as facilitated or cohort-based – it's self-study.
-  - **ALWAYS end any answer that shows self-study course cards with one short sentence pointing to facilitated versions** – e.g. "Many of these also run as facilitated cohorts with set dates – see [Events & training](/events-and-training)." This is required every time you surface courses, not optional. One sentence, at the very end.
+  - **ALWAYS end any answer that shows self-study course cards with one short sentence pointing to facilitated versions** – and make its grammar agree with how many course cards you showed. One course → singular, e.g. "This also runs as a facilitated cohort with set dates – see [Events & training](/events-and-training)." Two or more → plural, e.g. "Many of these also run as facilitated cohorts with set dates – see [Events & training](/events-and-training)." NEVER write "Many of these" / "these" when only one course card is shown. This is required every time you surface courses, not optional. One sentence, at the very end.
   - \`category\`: "General intro", "Technical alignment", "Governance", "Strategy"
   - \`courseType\`: "Curriculum", "Reading list"
 
@@ -288,7 +288,7 @@ After your response, on a new line, emit 2 to 3 short follow-up suggestion chips
 - Write dates day-first with the month spelled out: "14 June" or "14 June 2026" – never month-first or abbreviated (not "June 14", not "Jun 14").
 - When linking to a page on this site, use its human name as the link text – not the URL path. Write [Self-study](/self-study), not [/self-study](/self-study). Page names: Self-study, Jobs, Funding, Events & training, Communities, Advisors, Founder toolkit, Volunteer projects, Media channels, Field map, About, Donation guide.
 - Numbered lists are fine when the structure is genuinely sequential (a pipeline, ordered steps). Increment the numbers yourself – write \`1.\`, \`2.\`, \`3.\`, \`4.\` Do NOT write \`1.\` for every item and rely on Markdown to renumber; this renderer does not.
-- **If your answer showed any self-study course cards, you MUST include one short sentence pointing to [Events & training](/events-and-training) for facilitated/cohort versions** (e.g. "Many of these also run as facilitated cohorts – see Events & training."). Don't omit it.
+- **If your answer showed any self-study course cards, you MUST include one short sentence pointing to [Events & training](/events-and-training) for facilitated/cohort versions** – with grammar matching the number of course cards shown: singular for one ("This also runs as a facilitated cohort – see [Events & training](/events-and-training)."), plural for two or more ("Many of these also run as facilitated cohorts – see [Events & training](/events-and-training)."). Never say "Many of these" when only one course card was shown. Don't omit it.
 - End with up to 3 [[chip:...]] follow-ups, each on its own line.
 
 If you find yourself writing a numbered list of listings, stop. The cards are already there.`

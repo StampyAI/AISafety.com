@@ -10,8 +10,6 @@ import { getMapData } from '@/lib/data/map'
 import { getEvents } from '@/lib/data/events'
 import type { Catalog, Listing } from './types'
 
-const STALE_JOB_DAYS = 90
-
 // Known job-board domains. Their favicons are the platform logo, not the
 // hiring org, so don't derive a favicon from job URLs that hit them.
 const JOB_BOARD_HOSTS = new Set([
@@ -83,14 +81,6 @@ function clamp(text: string, max: number): string {
   return t.slice(0, max - 1).trimEnd() + '…'
 }
 
-function isJobFresh(datePublished: string | null): boolean {
-  if (!datePublished) return true
-  const published = new Date(datePublished + 'T00:00:00Z').getTime()
-  if (Number.isNaN(published)) return true
-  const ageMs = Date.now() - published
-  return ageMs <= STALE_JOB_DAYS * 24 * 60 * 60 * 1000
-}
-
 export async function buildCatalog(): Promise<Catalog> {
   const [
     jobs,
@@ -118,8 +108,10 @@ export async function buildCatalog(): Promise<Catalog> {
 
   const listings: Listing[] = []
 
+  // No freshness filter: the bot's catalog mirrors the live /jobs page (every
+  // published, non-hidden job), so counts and lookups match what visitors see.
+  // datePublished stays in meta so the model can weigh recency itself.
   for (const j of jobs) {
-    if (!isJobFresh(j.datePublished)) continue
     listings.push({
       id: `job:${j.id}`,
       type: 'job',

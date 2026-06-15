@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-14-04'
+export const PROMPT_VERSION = '2026-06-14-05'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -93,6 +93,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
   - \`roleType\`: "Full-time", "Part-time", "Internship", "Volunteering", "Funding". Do NOT filter by "Fellowship" – fellowships live on /events-and-training and /map, not /jobs. See the fellowship rule below.
   - \`workLocation\`: "Remote", "On-site"
   - \`location\`: free-text city or country (substring match)
+  - Each job result carries a \`datePublished\` meta field. Results come newest-first, so for a vague "show me jobs" take them in order. When you surface an older posting (several months old) as a specific match, lean toward more recent ones where the fit is comparable, and you may note an old one was "posted a while ago" since it's likelier to be filled – don't present a months-old listing as freshly opened.
 
 - **funder**:
   - \`type\`: "Fund", "Grant program", "Grant-based fellowship", "Platform"

@@ -821,6 +821,21 @@
   flex-shrink: 0;
 }
 
+/* Cards that resolved to a listing become links to it. */
+.convCardLink {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.convCardLink:hover {
+  border-color: var(--bright-teal-300);
+  background-color: var(--teal-800);
+}
+
 .convCardName {
   font-weight: 600;
   color: var(--white);

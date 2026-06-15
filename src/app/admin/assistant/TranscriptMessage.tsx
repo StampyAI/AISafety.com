@@ -10,6 +10,10 @@ import styles from '../admin.module.css'
 export interface ListingInfo {
   name: string
   logo?: string
+  /** External listing URL (the live card's destination). */
+  url?: string
+  /** AISafety.com resource-page link, used when there's no external URL. */
+  pageUrl?: string
 }
 
 /** id → listing {name, logo}, supplied by the conversations API so card pills
@@ -252,10 +256,13 @@ function CardPill({ card }: { card: CardSpec }) {
   const showNote = Boolean(card.note) && card.note !== primary
   const showLogo = Boolean(info?.logo) && !imgFailed
   const wasClicked = clicked.has(card.id) || clicked.has(rec)
-  return (
-    <span
-      className={`${styles.convCard}${wasClicked ? ` ${styles.convCardClickedRow}` : ''}`}
-    >
+  // Link to the listing's external URL (what the live card opens); fall back
+  // to its AISafety.com resource page when there's no usable external URL.
+  const href =
+    info?.url && /^https?:\/\//.test(info.url) ? info.url : info?.pageUrl
+  const className = `${styles.convCard}${wasClicked ? ` ${styles.convCardClickedRow}` : ''}${href ? ` ${styles.convCardLink}` : ''}`
+  const inner = (
+    <>
       {showLogo ? (
         // Plain <img>: logos are tiny favicons/cdn URLs from third-party
         // hosts, so next/image's pipeline buys us nothing here.
@@ -273,7 +280,19 @@ function CardPill({ card }: { card: CardSpec }) {
       <span className={styles.convCardName}>{primary}</span>
       {showNote && <span className={styles.convCardNote}>{card.note}</span>}
       {wasClicked && <span className={styles.convCardClicked}>✓ clicked</span>}
-    </span>
+    </>
+  )
+  return href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+    >
+      {inner}
+    </a>
+  ) : (
+    <span className={className}>{inner}</span>
   )
 }
 

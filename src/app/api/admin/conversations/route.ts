@@ -69,13 +69,24 @@ export async function GET(req: NextRequest) {
     for (const id of c.clickedCitations) referencedIds.add(id)
   }
 
-  const listings: Record<string, { name: string; logo?: string }> = {}
+  type ListingInfo = {
+    name: string
+    logo?: string
+    url?: string
+    pageUrl?: string
+  }
+  const listings: Record<string, ListingInfo> = {}
   if (referencedIds.size > 0) {
     const catalog = await getCatalog()
-    const byId = new Map<string, { name: string; logo?: string }>()
-    const byRec = new Map<string, { name: string; logo?: string }>()
+    const byId = new Map<string, ListingInfo>()
+    const byRec = new Map<string, ListingInfo>()
     for (const l of catalog.listings) {
-      const info = { name: l.name, logo: l.logo }
+      const info = {
+        name: l.name,
+        logo: l.logo,
+        url: l.url,
+        pageUrl: l.pageUrl,
+      }
       byId.set(l.id, info)
       const rec = REC_RE.exec(l.id)?.[0]
       if (rec) byRec.set(rec, info)

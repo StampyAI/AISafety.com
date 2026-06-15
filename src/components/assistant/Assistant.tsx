@@ -150,6 +150,7 @@ export default function Assistant() {
         citationId: c.id,
         url: c.url,
         currentPage,
+        sessionId: getSessionId(),
       })
     },
     [currentPage, fireLog]

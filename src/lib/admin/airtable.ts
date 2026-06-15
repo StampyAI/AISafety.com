@@ -111,6 +111,9 @@ interface ConversationFields {
   Notes?: string
   Tags?: string[]
   Data?: string
+  /** JSON array of listing ids whose cards the visitor clicked. Kept in its
+   *  own field (not Data) so a click write never clobbers a turn write. */
+  Clicked?: string
 }
 
 export interface ConversationRow {
@@ -123,6 +126,8 @@ export interface ConversationRow {
   notes: string
   tags: string[]
   data: ConversationData | null
+  /** Listing ids whose cards the visitor clicked during this conversation. */
+  clickedCitations: string[]
 }
 
 const EMPTY_DATA: ConversationData = {
@@ -148,6 +153,19 @@ function parseData(raw: string | undefined): ConversationData | null {
   }
 }
 
+/** The Clicked field holds a JSON array of listing-id strings. */
+function parseClicked(raw: string | undefined): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed)
+      ? parsed.filter((x): x is string => typeof x === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
+
 function rowToConversation(
   row: AirtableRow<ConversationFields>
 ): ConversationRow {
@@ -161,6 +179,7 @@ function rowToConversation(
     notes: row.fields.Notes ?? '',
     tags: row.fields.Tags ?? [],
     data: parseData(row.fields.Data),
+    clickedCitations: parseClicked(row.fields.Clicked),
   }
 }
 
@@ -279,6 +298,34 @@ export async function upsertConversation(input: {
     const verb = existing ? 'update' : 'append'
     throw new Error(
       `Airtable ${verb} failed: ${res.status} ${await res.text()}`
+    )
+  }
+}
+
+/** Records that the visitor clicked a listing's card during a conversation.
+ *  Reads-modifies-writes only the Clicked field (disjoint from the turn
+ *  upsert's fields, so concurrent writes don't clobber each other). No-ops if
+ *  the conversation row doesn't exist yet or the click is already recorded. */
+export async function recordCitationClick(
+  session: string,
+  citationId: string
+): Promise<void> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  const existing = await findConversationBySession(session)
+  // The turn write (via after()) usually lands before the visitor can click,
+  // but if the row isn't there yet we simply drop the click rather than
+  // creating a dataless row.
+  if (!existing) return
+  const current = parseClicked(existing.fields.Clicked)
+  if (current.includes(citationId)) return
+  const next = [...current, citationId]
+  const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ fields: { Clicked: JSON.stringify(next) } }),
+  })
+  if (!res.ok) {
+    throw new Error(
+      `Airtable click update failed: ${res.status} ${await res.text()}`
     )
   }
 }

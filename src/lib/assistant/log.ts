@@ -1,3 +1,8 @@
+import {
+  isConversationsTableConfigured,
+  recordCitationClick,
+} from '@/lib/admin/airtable'
+
 export interface AssistantTurnEvent {
   kind: 'turn'
   query: string
@@ -13,6 +18,8 @@ export interface AssistantClickEvent {
   citationId: string
   url: string
   currentPage: string
+  /** Conversation this click belongs to, so it can be recorded on the row. */
+  sessionId?: string | null
 }
 
 export interface AssistantOpenEvent {
@@ -39,6 +46,22 @@ export async function logAssistantEvent(event: AssistantEvent): Promise<void> {
     ...event,
   })
   console.log(`[assistant] ${line}`)
+
+  // Persist card clicks onto the conversation row so the admin viewer can
+  // show which cards the visitor actually opened.
+  if (
+    event.kind === 'click' &&
+    event.sessionId &&
+    isConversationsTableConfigured()
+  ) {
+    try {
+      await recordCitationClick(event.sessionId, event.citationId)
+    } catch (err) {
+      console.warn(
+        `[assistant] click persist failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+    }
+  }
 
   const sinkUrl = process.env.ASSISTANT_LOG_WEBHOOK
   if (!sinkUrl) return

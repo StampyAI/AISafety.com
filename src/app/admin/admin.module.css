@@ -830,6 +830,23 @@
   color: var(--teal-300);
 }
 
+/* Card the visitor actually clicked: brighter border + a small badge. */
+.convCardClickedRow {
+  border-color: var(--bright-teal-300);
+}
+
+.convCardClicked {
+  padding: 1px 7px;
+  background-color: var(--bright-teal-300);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--teal-900);
+  white-space: nowrap;
+}
+
 .convCardInline {
   display: inline;
   padding: 0 5px;

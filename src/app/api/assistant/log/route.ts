@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, after } from 'next/server'
 import { logAssistantEvent } from '@/lib/assistant/log'
 import type { AssistantEvent } from '@/lib/assistant/log'
 
@@ -23,6 +23,9 @@ export async function POST(req: NextRequest) {
   if (!isValidEvent(body)) {
     return new Response('invalid event', { status: 400 })
   }
-  void logAssistantEvent(body)
+  // after() keeps the function alive until the (now Airtable-writing) log
+  // call finishes; a bare fire-and-forget promise gets frozen once the 204
+  // returns, which would drop click writes in production.
+  after(() => logAssistantEvent(body))
   return new Response(null, { status: 204 })
 }

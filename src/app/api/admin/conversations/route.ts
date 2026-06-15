@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       if (turn.role === 'assistant') collectCardIds(turn.content, referencedIds)
     }
     for (const id of c.data.citations) referencedIds.add(id)
+    for (const id of c.clickedCitations) referencedIds.add(id)
   }
 
   const listings: Record<string, { name: string; logo?: string }> = {}

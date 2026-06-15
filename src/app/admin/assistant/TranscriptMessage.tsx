@@ -16,6 +16,10 @@ export interface ListingInfo {
  *  can show which listing they are (the stored token only has the id + note). */
 export const ListingInfoContext = createContext<Record<string, ListingInfo>>({})
 
+/** Set of listing ids (full and bare-rec forms) whose cards the visitor
+ *  clicked in this conversation, so the viewer can badge them. */
+export const ClickedCardsContext = createContext<Set<string>>(new Set())
+
 /** Resolve a card token's id to its listing info: try the full id, then the
  *  bare rec id (handles tokens written without a type prefix). */
 function resolveListing(
@@ -238,6 +242,7 @@ function parseBlocks(text: string): Block[] {
 
 function CardPill({ card }: { card: CardSpec }) {
   const listings = useContext(ListingInfoContext)
+  const clicked = useContext(ClickedCardsContext)
   const [imgFailed, setImgFailed] = useState(false)
   const info = resolveListing(listings, card.id)
   const rec = /rec[A-Za-z0-9]+/.exec(card.id)?.[0] ?? card.id
@@ -246,8 +251,11 @@ function CardPill({ card }: { card: CardSpec }) {
   const primary = info?.name ?? (card.note || rec)
   const showNote = Boolean(card.note) && card.note !== primary
   const showLogo = Boolean(info?.logo) && !imgFailed
+  const wasClicked = clicked.has(card.id) || clicked.has(rec)
   return (
-    <span className={styles.convCard}>
+    <span
+      className={`${styles.convCard}${wasClicked ? ` ${styles.convCardClickedRow}` : ''}`}
+    >
       {showLogo ? (
         // Plain <img>: logos are tiny favicons/cdn URLs from third-party
         // hosts, so next/image's pipeline buys us nothing here.
@@ -264,6 +272,7 @@ function CardPill({ card }: { card: CardSpec }) {
       {card.type && <span className={styles.convCardType}>{card.type}</span>}
       <span className={styles.convCardName}>{primary}</span>
       {showNote && <span className={styles.convCardNote}>{card.note}</span>}
+      {wasClicked && <span className={styles.convCardClicked}>✓ clicked</span>}
     </span>
   )
 }

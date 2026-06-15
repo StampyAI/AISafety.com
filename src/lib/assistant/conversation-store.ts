@@ -20,6 +20,7 @@ export interface StoredTurn {
   toolCalls: { name: string; input: unknown; ok: boolean }[]
   response: string
   citations: string[]
+  citationRefs: { id: string; name: string; url: string; logo?: string }[]
   zeroMatches: boolean
   latencyMs: number
   promptVersion: string
@@ -47,6 +48,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
         history: turn.history,
         tools: turn.toolCalls,
         citations: turn.citations,
+        citationRefs: turn.citationRefs,
         geo: turn.geo,
         referrer: turn.referrer,
         utm: turn.utm,

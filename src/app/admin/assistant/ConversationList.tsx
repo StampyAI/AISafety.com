@@ -19,6 +19,7 @@ interface ConversationData {
   history: HistoryTurn[]
   tools: unknown[]
   citations: string[]
+  citationRefs?: { id: string; name: string; url: string; logo?: string }[]
   geo: { city?: string; region?: string; country?: string } | null
   referrer: string | null
   utm: Record<string, string> | null

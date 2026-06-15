@@ -101,6 +101,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Fall back to the name/url snapshot stored at log time for any listing the
+  // live catalog no longer has (e.g. an event deleted after it ended). Only
+  // fills gaps – the live catalog wins when the listing still exists.
+  for (const c of filtered) {
+    for (const ref of c.data?.citationRefs ?? []) {
+      if (listings[ref.id]) continue
+      const info: ListingInfo = { name: ref.name, logo: ref.logo, url: ref.url }
+      listings[ref.id] = info
+      const rec = REC_RE.exec(ref.id)?.[0]
+      if (rec && !listings[rec]) listings[rec] = info
+    }
+  }
+
   return Response.json({ conversations: filtered, listings })
 }
 

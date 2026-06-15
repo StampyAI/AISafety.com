@@ -89,6 +89,16 @@ export interface HistoryTurn {
   content: string
 }
 
+/** Name/url snapshot of a cited listing, captured at log time so the viewer
+ *  can still render a card after the listing is deleted from the catalog
+ *  (events especially get cycled out once they end). */
+export interface StoredCitation {
+  id: string
+  name: string
+  url: string
+  logo?: string
+}
+
 /** Shape of the JSON stored in the `Data` column. */
 export interface ConversationData {
   user: string
@@ -96,6 +106,8 @@ export interface ConversationData {
   history: HistoryTurn[]
   tools: unknown[]
   citations: string[]
+  /** Resolved name/url for each cited listing, so cards survive deletion. */
+  citationRefs: StoredCitation[]
   geo: { city?: string; region?: string; country?: string } | null
   referrer: string | null
   utm: Record<string, string> | null
@@ -136,6 +148,7 @@ const EMPTY_DATA: ConversationData = {
   history: [],
   tools: [],
   citations: [],
+  citationRefs: [],
   geo: null,
   referrer: null,
   utm: null,
@@ -151,6 +164,14 @@ function parseData(raw: string | undefined): ConversationData | null {
   } catch {
     return null
   }
+}
+
+/** Dedupe citation snapshots by id, keeping the last occurrence (most recent
+ *  turn's name/url wins if a listing was cited more than once). */
+function dedupeCitationRefs(refs: StoredCitation[]): StoredCitation[] {
+  const byId = new Map<string, StoredCitation>()
+  for (const r of refs) byId.set(r.id, r)
+  return [...byId.values()]
 }
 
 /** The Clicked field holds a JSON array of listing-id strings. */
@@ -244,6 +265,7 @@ export async function upsertConversation(input: {
   history: HistoryTurn[]
   tools: unknown
   citations: string[]
+  citationRefs: StoredCitation[]
   geo: ConversationData['geo']
   referrer: string | null
   utm: Record<string, string> | null
@@ -268,6 +290,11 @@ export async function upsertConversation(input: {
     citations: previous
       ? Array.from(new Set([...previous.citations, ...input.citations]))
       : input.citations,
+    // Accumulate name/url snapshots across turns, deduped by id (latest wins).
+    citationRefs: dedupeCitationRefs([
+      ...(previous?.citationRefs ?? []),
+      ...input.citationRefs,
+    ]),
     geo: input.geo,
     referrer: input.referrer,
     utm: input.utm,

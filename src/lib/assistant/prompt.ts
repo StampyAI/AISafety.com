@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-16-11'
+export const PROMPT_VERSION = '2026-06-16-12'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -205,6 +205,8 @@ Workflow:
   5. Write the user-facing response.
 
 **Search first, then answer once.** Do ALL your searching BEFORE you emit \`[[/thinking]]\`. Decide what listings you'll need (including any you'll card) and search for them up front. NEVER write user-facing answer prose, then search, then rewrite the answer – that produces a duplicate. Once you emit \`[[/thinking]]\`, the answer that follows is final: write it exactly once, emit the marker exactly once, and do not call any more tools or re-emit the marker after the answer has begun. If mid-answer you realize you need a listing you haven't searched, you searched too late – but still finish the single answer rather than restarting.
+
+**The answer shows only your confirmed picks – never visibly correct yourself in it.** Before \`[[/thinking]]\`, decide whether each listing actually fits, including any frame you set up: if you introduce a group of options as "UK-based", "open now", or anything similar, every card under that frame must genuinely match – read each result's \`location\`, \`applicationsStatus\`, and stated audience and confirm it, rather than assuming from the name or your own knowledge. (A USA program presented under "UK-based options" is exactly the mistake to avoid.) Never card a listing and then walk it back in the answer: no "Sorry", no "let me point you to X instead", no apologising or switching picks where the user can see it. If while drafting you realise a listing doesn't fit, drop it before you send – the user should see only the clean final set, never the discarded option or the correction.
 
 Concrete examples of useful follow-ups (do these by default, not as last resort):
 - "Junior policy roles" → also search type='org' for governance orgs, type='community' for policy-focused communities, type='advisor' for career-change advisors.

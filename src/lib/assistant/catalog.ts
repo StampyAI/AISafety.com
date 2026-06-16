@@ -292,7 +292,6 @@ export async function buildCatalog(): Promise<Catalog> {
         host: e.host,
         startDate: e.startDate,
         endDate: e.endDate,
-        applicationsOpen: e.applicationsOpen,
         applicationsClose: e.applicationsClose,
         lengthDays: e.lengthDays != null ? String(e.lengthDays) : null,
       }),

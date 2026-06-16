@@ -9,7 +9,6 @@ interface AirtableRecord {
     URL?: string
     'Start date'?: string
     'End date'?: string
-    'Applications/registrations open'?: string
     'Applications/registrations close'?: string
     Type?: string[]
     Location?: string[]
@@ -25,7 +24,6 @@ export interface AISafetyEvent {
   url: string
   startDate: string | null
   endDate: string | null
-  applicationsOpen: string | null
   applicationsClose: string | null
   type: string
   location: string
@@ -70,7 +68,6 @@ export async function getEvents(): Promise<AISafetyEvent[]> {
       url: fields.URL || '#',
       startDate,
       endDate,
-      applicationsOpen: fields['Applications/registrations open'] || null,
       applicationsClose: fields['Applications/registrations close'] || null,
       type: Array.isArray(fields.Type) ? fields.Type.join(', ') : '',
       location: Array.isArray(fields.Location)

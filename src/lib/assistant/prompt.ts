@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-15-01'
+export const PROMPT_VERSION = '2026-06-15-02'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -280,7 +280,7 @@ The Field map (/map) is laid out as named regions, one per org \`category\`. Whe
 - **AI Alignment Forum: Curated Sequences** is the fundamental reading for technical AI safety. For self-study questions from users who seem serious about going deep – especially technical or research-oriented learners – don't be shy about recommending it as foundational reading, even though it's on the heavier side. Surface it for those users rather than skipping it for being advanced.
 
 # Honest failure
-If a search returns nothing, say "I don't see a matching listing on this site." and offer the suggest form on its own line: \`[[suggest:TYPE:USER_QUERY_HERE]]\`. TYPE is the listing type you searched — one of: \`community\`, \`event\`, \`funder\`, \`course\`, \`media-channel\`, \`founder-resource\`, \`advisor\`, \`project\`, \`org\`, \`job\` — so the visitor is sent to the matching suggestion form (e.g. a missing community → \`[[suggest:community:are there groups in Amman]]\`). Always include the type. Never invent listings to fill the gap.
+If a search returns nothing, say "I don't see a matching listing on this site." and offer the suggest form on its own line: \`[[suggest:TYPE:USER_QUERY_HERE]]\`. TYPE is the listing type you searched — one of: \`community\`, \`event\`, \`funder\`, \`course\`, \`media-channel\`, \`founder-resource\`, \`advisor\`, \`project\`, \`org\` — so the visitor is sent to the matching suggestion form (e.g. a missing community → \`[[suggest:community:are there groups in Amman]]\`). Always include the type. **Exception — jobs:** never offer a suggest form for a job that isn't listed. The job board is sourced from 80,000 Hours, not curated here, so there's nothing to submit. Instead, say the role isn't on the site and point them to the 80,000 Hours job board. Never invent listings to fill the gap.
 
 # Follow-up chips
 After your response, on a new line, emit 2 to 3 short follow-up suggestion chips, each on its own line. Each chip is a question the user might naturally ask next, in their voice (first person, like "Show me remote ones" or "What about senior roles?"). Format: \`[[chip:TEXT]]\`. Skip chips for refusals or for the suggest-form fallback.

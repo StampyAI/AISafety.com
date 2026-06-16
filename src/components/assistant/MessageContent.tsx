@@ -212,14 +212,18 @@ function renderInline(
       // Chip tokens are stripped from visible text; rendered separately
     } else if ((m = SUGGEST_TOKEN_RE.exec(token))) {
       const { type, query } = parseSuggestToken(m[1])
-      parts.push(
-        <SuggestInline
-          key={`s-${key++}`}
-          query={query}
-          type={type}
-          onSuggest={onSuggest}
-        />
-      )
+      // Jobs come from 80,000 Hours, not curated here — never offer to submit
+      // one, even if the bot emits the token against instructions.
+      if (type !== 'job') {
+        parts.push(
+          <SuggestInline
+            key={`s-${key++}`}
+            query={query}
+            type={type}
+            onSuggest={onSuggest}
+          />
+        )
+      }
     } else if (token.startsWith('[')) {
       const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
       if (linkMatch) {

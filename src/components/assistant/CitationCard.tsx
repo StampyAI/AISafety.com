@@ -108,13 +108,20 @@ function metaSummary(c: CitationRef): string {
 
 export default function CitationCard({ citation, note, onClick }: Props) {
   const isExternal = /^https?:\/\//.test(citation.url)
+  // A listing with no link of its own (e.g. a community with no website or join
+  // link) has url "#". Send the card to its resource page instead, so the click
+  // lands somewhere useful rather than doing nothing. Real links — including
+  // mailto: — are left untouched. The assistant is also prompted to tell the
+  // user the listing has no direct link and to find it on that page.
+  const hasOwnLink = Boolean(citation.url) && citation.url !== '#'
+  const href = hasOwnLink ? citation.url : citation.pageUrl || citation.url
   const summary = metaSummary(citation)
   const [imgFailed, setImgFailed] = useState(false)
   const showLogo = citation.logo && !imgFailed
 
   return (
     <a
-      href={citation.url}
+      href={href}
       target={isExternal ? '_blank' : undefined}
       rel={isExternal ? 'noopener noreferrer' : undefined}
       className={styles.citationCard}

@@ -28,7 +28,7 @@ ARGUMENTS:
     org: category, status
     event: type ("Bootcamp"|"Competition"|"Conference"|"Course"|"Fellowship"|"Hackathon"|"Meetup"|"Reading Group"|"Talk"|"Unconference"|"Workshop"), location ("Online"|"USA"|"UK"|"Europe"|"Asia"|"Africa"|"Canada"|"Australia/New Zealand"|"Latin America"|"Middle East")
 
-Event meta fields you can read off each result: startDate, endDate, applicationsOpen, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. NOTE: an event's date being in the future does NOT mean you can still apply — its application window may already be closed. For every event result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'opens_later') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Only card/recommend events with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program); for 'opens_later' say when it opens. Events with no \`applicationsStatus\` have no formal window and are fine to surface.
+Event meta fields you can read off each result: startDate, endDate, applicationsOpen, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. NOTE: an event's date being in the future does NOT mean you can still apply — its application window may already be closed. For every event result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'opens_later' | 'unknown') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Card/recommend events with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program); for 'opens_later' say when it opens. 'unknown' means there's no deadline on file (rolling, walk-in, not yet announced, or not yet open) — you may surface it, but never assert it's open or closed; tell the user to check the link.
 
 • \`near\` — optional geo filter. Object with \`{city: string, radiusKm?: number}\` or \`{lat, lng, radiusKm?}\`. Default radius is 500km, intentionally wide. Currently only \`community\` listings have coordinates; for other types \`near\` does a fallback substring match on the location meta field. Results within range are ranked by distance ascending. USE THIS for any "near X" / "in X" / "around X" / "close to X" location queries instead of putting the city in the query.
 
@@ -129,16 +129,24 @@ interface GetListingInput {
   id?: string
 }
 
-/** Pre-computed application-window status for an event, derived from its ISO
- *  dates so the model never has to do date arithmetic itself (it gets this
+/** Pre-computed application-window status for an event, derived from its two ISO
+ *  date fields so the model never has to do date arithmetic itself (it gets this
  *  wrong often — e.g. calling a program "open" then noting its deadline has
  *  passed in the same breath). ISO date strings (YYYY-MM-DD) compare correctly
  *  with </>= lexicographically, sidestepping timezone parsing. A deadline that
- *  falls on today still counts as open (you can apply through the last day). */
+ *  falls on today still counts as open (you can apply through the last day).
+ *
+ *  The close date is the source of truth for open/closed; an EMPTY close date is
+ *  deliberately 'unknown' (could be rolling, not yet announced, walk-in, or not
+ *  yet open) — never assume an empty deadline means "open". A concrete future
+ *  open date is reported as 'opens_later'. */
 function eventApplicationStatus(
   meta: Record<string, unknown>,
   today: string
-): { applicationsStatus: 'open' | 'closed' | 'opens_later'; applicationsNote: string } | null {
+): {
+  applicationsStatus: 'open' | 'closed' | 'opens_later' | 'unknown'
+  applicationsNote: string
+} {
   const open =
     typeof meta.applicationsOpen === 'string'
       ? meta.applicationsOpen.slice(0, 10)
@@ -147,25 +155,28 @@ function eventApplicationStatus(
     typeof meta.applicationsClose === 'string'
       ? meta.applicationsClose.slice(0, 10)
       : null
-  // No formal window on file — nothing to compute; the model treats it as open.
-  if (!open && !close) return null
-  if (close && close < today) {
-    return {
-      applicationsStatus: 'closed',
-      applicationsNote: `Applications closed ${close} — do NOT recommend applying or card this as something to apply to.`,
-    }
-  }
   if (open && open > today) {
     return {
       applicationsStatus: 'opens_later',
       applicationsNote: `Applications open ${open}${close ? `, close ${close}` : ''} — not open yet; say when it opens.`,
     }
   }
+  if (close && close < today) {
+    return {
+      applicationsStatus: 'closed',
+      applicationsNote: `Applications closed ${close} — do NOT recommend applying or card this as something to apply to.`,
+    }
+  }
+  if (close) {
+    return {
+      applicationsStatus: 'open',
+      applicationsNote: `Open now, applications close ${close}.`,
+    }
+  }
   return {
-    applicationsStatus: 'open',
-    applicationsNote: close
-      ? `Open now, applications close ${close}.`
-      : 'Open now, no posted deadline.',
+    applicationsStatus: 'unknown',
+    applicationsNote:
+      'No application deadline on file — could be rolling, walk-in, not yet announced, or not yet open. Do NOT state it is open or closed; point the user to the link to check.',
   }
 }
 

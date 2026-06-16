@@ -37,7 +37,28 @@ function resolveListing(
   return null
 }
 
-const THINKING_RE = /\[\[\s*\/?\s*thinking\s*\]\]/i
+// Boundary between the model's reasoning (the dimmed "search trail") and its
+// answer. Require the slash and use the LAST occurrence, mirroring the live
+// streaming renderer (ChatBody): if the model drafts a reply, searches again,
+// and restarts, everything up to the final [[/thinking]] is reasoning and only
+// the text after it is the answer — so an abandoned first draft doesn't double
+// up in the body.
+const THINKING_DONE_RE = /\[\[\s*\/\s*thinking\s*\]\]/gi
+
+function lastThinkingDone(
+  text: string
+): { index: number; length: number } | null {
+  THINKING_DONE_RE.lastIndex = 0
+  let last: RegExpExecArray | null = null
+  for (
+    let m = THINKING_DONE_RE.exec(text);
+    m;
+    m = THINKING_DONE_RE.exec(text)
+  ) {
+    last = m
+  }
+  return last ? { index: last.index, length: last[0].length } : null
+}
 const CHIP_RE = /\[\[\s*chip\s*:([^\]\n]*)\]\]/gi
 const SUGGEST_RE = /\[\[\s*suggest\s*:[^\]\n]*\]\]/gi
 const CARD_LINE_RE =
@@ -80,13 +101,9 @@ interface ParsedMessage {
 }
 
 function parseMessage(text: string): ParsedMessage {
-  const thinkingMatch = THINKING_RE.exec(text)
-  const thinking = thinkingMatch
-    ? text.slice(0, thinkingMatch.index).trim() || null
-    : null
-  let body = thinkingMatch
-    ? text.slice(thinkingMatch.index + thinkingMatch[0].length)
-    : text
+  const marker = lastThinkingDone(text)
+  const thinking = marker ? text.slice(0, marker.index).trim() || null : null
+  let body = marker ? text.slice(marker.index + marker.length) : text
 
   const chips: string[] = []
   body = body.replace(CHIP_RE, (_, label: string) => {

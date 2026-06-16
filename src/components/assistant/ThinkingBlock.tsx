@@ -15,7 +15,7 @@ interface Props {
   events: MessageEvent[]
   toolCalls: UIToolCall[]
   citations: CitationRef[]
-  onSuggest?: (query: string) => void
+  onSuggest?: (query: string, type?: string) => void
   onCitationClick?: (c: CitationRef) => void
 }
 

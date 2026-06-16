@@ -1,34 +1,51 @@
-/** Per-resource-page "Suggest a listing" Airtable forms. The assistant's
- *  suggest button (shown when a catalog search comes back empty) opens the
- *  form for the page the visitor is on, so the suggestion lands in the right
- *  table — a community goes to the communities form, an event to the events
- *  form, and so on. These mirror the "Suggest listing" button on each resource
- *  page. Shared by the public widget and the admin playground so both behave
- *  identically. */
+/** "Suggest a listing" Airtable forms, keyed by the listing TYPE the bot is
+ *  inviting the visitor to submit — i.e. the type it just searched and found
+ *  nothing for, NOT the page the visitor happens to be on. So a bot suggesting
+ *  a community opens the communities form, one suggesting a funder opens the
+ *  funding form, and so on. These mirror the "Suggest listing" button on each
+ *  resource page. The type strings match search_listings' `type` values.
+ *  Shared by the public widget and the admin playground.
+ *
+ *  Not mapped (fall back to the default below): `org` (field map, whose form is
+ *  managed dynamically in Airtable) and `job` (listings come from external
+ *  sources, no public submission form). */
 const SUGGEST_FORMS: Record<string, string> = {
-  '/communities':
-    'https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form',
-  '/events-and-training':
-    'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form',
-  '/funding': 'https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form',
-  '/self-study':
-    'https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form',
-  '/media-channels':
+  community: 'https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form',
+  event: 'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form',
+  funder: 'https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form',
+  course: 'https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form',
+  'media-channel':
     'https://airtable.com/appF8XfZUGXtfi40E/pagSZ7vJj9MHyYmtS/form',
-  '/founders': 'https://airtable.com/appF8XfZUGXtfi40E/pag1OO5TrQkO96W7R/form',
-  '/advisors': 'https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form',
-  '/projects': 'https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form',
+  'founder-resource':
+    'https://airtable.com/appF8XfZUGXtfi40E/pag1OO5TrQkO96W7R/form',
+  advisor: 'https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form',
+  project: 'https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form',
 }
 
-/** Fallback for pages without their own listing form (homepage, /about,
- *  /jobs, /map, …). Communities is the most common community-submission
- *  target. */
-const DEFAULT_SUGGEST_FORM = SUGGEST_FORMS['/communities']
+/** Every listing type the bot may name in a [[suggest:TYPE:query]] token — the
+ *  search_listings `type` values. The two without their own form (`org`, `job`)
+ *  are still listed so the parser recognises them; they resolve to the default
+ *  form below. */
+export const SUGGEST_TYPES = [
+  'community',
+  'event',
+  'funder',
+  'course',
+  'media-channel',
+  'founder-resource',
+  'advisor',
+  'project',
+  'org',
+  'job',
+] as const
 
-/** The "Suggest a listing" Airtable form to open for the page the visitor is
- *  currently on. Strips any query/hash and trailing slash before matching. */
-export function suggestFormUrl(currentPage: string | null | undefined): string {
-  if (!currentPage) return DEFAULT_SUGGEST_FORM
-  const path = currentPage.split(/[?#]/)[0].replace(/\/+$/, '') || '/'
-  return SUGGEST_FORMS[path] ?? DEFAULT_SUGGEST_FORM
+/** Fallback when the bot named no type, an unrecognised one, or one without
+ *  its own form (`org`, `job`). Communities is the most common submission. */
+const DEFAULT_SUGGEST_FORM = SUGGEST_FORMS.community
+
+/** The "Suggest a listing" Airtable form for the listing type the bot is
+ *  inviting the visitor to submit. */
+export function suggestFormUrl(type: string | null | undefined): string {
+  if (!type) return DEFAULT_SUGGEST_FORM
+  return SUGGEST_FORMS[type.trim().toLowerCase()] ?? DEFAULT_SUGGEST_FORM
 }

@@ -136,9 +136,9 @@ export default function Assistant() {
   }, [])
 
   const handleSuggest = useCallback(
-    (query: string) => {
+    (query: string, type?: string) => {
       void fireLog({ kind: 'suggest', query, currentPage })
-      window.open(suggestFormUrl(currentPage), '_blank', 'noopener')
+      window.open(suggestFormUrl(type), '_blank', 'noopener')
     },
     [currentPage, fireLog]
   )

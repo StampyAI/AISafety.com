@@ -56,9 +56,9 @@ export default function AdminChatHost({ prompt, model, context }: Props) {
     setHasMessages(false)
   }, [])
 
-  const handleSuggest = useCallback(() => {
-    window.open(suggestFormUrl(context.currentPage), '_blank', 'noopener')
-  }, [context.currentPage])
+  const handleSuggest = useCallback((_query: string, type?: string) => {
+    window.open(suggestFormUrl(type), '_blank', 'noopener')
+  }, [])
 
   return (
     <div className={styles.chatHost}>

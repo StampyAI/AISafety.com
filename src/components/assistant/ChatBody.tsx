@@ -129,7 +129,7 @@ interface AssistantMessageViewProps {
   // previously-shown listing still resolves even if this turn ran no search
   // (e.g. "show me that fund again").
   allCitations: CitationRef[]
-  onSuggest?: (query: string) => void
+  onSuggest?: (query: string, type?: string) => void
   onCitationClick?: (c: CitationRef) => void
 }
 
@@ -238,7 +238,7 @@ interface Props {
   greeting?: string
   /** sessionStorage key for persisting messages (omit to disable). */
   storageKey?: string
-  onSuggest?: (query: string) => void
+  onSuggest?: (query: string, type?: string) => void
   onCitationClick?: (c: CitationRef) => void
   /** Fires whenever the message count transitions between 0 and >0, so the
    *  parent can show/hide a clear button without polling. */

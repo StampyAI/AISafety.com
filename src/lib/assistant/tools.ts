@@ -171,7 +171,7 @@ async function executeSearch(
       ok: true,
       content: JSON.stringify({
         matches: 0,
-        note: 'Nothing matched. BEFORE giving up, try broader: drop a filter, expand radiusKm, drop the type, try synonyms. Only after a couple of broader retries should you tell the user nothing matched and offer [[suggest:USER_QUERY]].',
+        note: 'Nothing matched. BEFORE giving up, try broader: drop a filter, expand radiusKm, drop the type, try synonyms. Only after a couple of broader retries should you tell the user nothing matched and offer [[suggest:TYPE:USER_QUERY]], where TYPE is the listing type you searched (community, event, funder, course, media-channel, founder-resource, advisor, project, org, job).',
       }),
       listings: [],
     }

@@ -2,13 +2,32 @@
 
 import { Fragment, ReactNode, useMemo } from 'react'
 import type { CitationRef } from '@/lib/assistant/types'
+import { SUGGEST_TYPES } from '@/lib/assistant/constants'
 import CitationCard from './CitationCard'
 import styles from './Assistant.module.css'
+
+const SUGGEST_TYPE_SET = new Set<string>(SUGGEST_TYPES)
+
+/** `community:are there groups in Amman` → {type:'community', query:'are…'}.
+ *  Only treats the leading segment as a type when it's a known listing type, so
+ *  a query containing a colon — or an older type-less token — still parses as a
+ *  plain query (type undefined → default form). */
+function parseSuggestToken(raw: string): { type?: string; query: string } {
+  const text = raw.trim()
+  const colon = text.indexOf(':')
+  if (colon > -1) {
+    const head = text.slice(0, colon).trim().toLowerCase()
+    if (SUGGEST_TYPE_SET.has(head)) {
+      return { type: head, query: text.slice(colon + 1).trim() }
+    }
+  }
+  return { query: text }
+}
 
 interface Props {
   text: string
   citations: CitationRef[]
-  onSuggest?: (query: string) => void
+  onSuggest?: (query: string, type?: string) => void
   onCitationClick?: (citation: CitationRef) => void
   isStreaming?: boolean
 }
@@ -109,7 +128,7 @@ function parseCardLine(line: string): CardSpec | null {
 function renderInline(
   text: string,
   citationsById: Map<string, CitationRef>,
-  onSuggest?: (query: string) => void,
+  onSuggest?: (query: string, type?: string) => void,
   onCitationClick?: (c: CitationRef) => void
 ): ReactNode[] {
   const parts: ReactNode[] = []
@@ -192,9 +211,14 @@ function renderInline(
     } else if (CHIP_TOKEN_RE.test(token)) {
       // Chip tokens are stripped from visible text; rendered separately
     } else if ((m = SUGGEST_TOKEN_RE.exec(token))) {
-      const query = m[1].trim()
+      const { type, query } = parseSuggestToken(m[1])
       parts.push(
-        <SuggestInline key={`s-${key++}`} query={query} onSuggest={onSuggest} />
+        <SuggestInline
+          key={`s-${key++}`}
+          query={query}
+          type={type}
+          onSuggest={onSuggest}
+        />
       )
     } else if (token.startsWith('[')) {
       const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
@@ -260,14 +284,16 @@ function renderInline(
 
 function SuggestInline({
   query,
+  type,
   onSuggest,
 }: {
   query: string
-  onSuggest?: (query: string) => void
+  type?: string
+  onSuggest?: (query: string, type?: string) => void
 }) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
-    onSuggest?.(query)
+    onSuggest?.(query, type)
   }
   return (
     <span className={styles.suggest}>

@@ -1,6 +1,6 @@
 /* Horizontal dropdown filter pill + its popover. */
 
-/* Fill + border come from the global .surface class. */
+/* Fill + border come from the global .border-plus-fill class. */
 .pill {
   display: flex;
   height: 40px;
@@ -38,12 +38,12 @@
   transform: rotate(180deg);
 }
 
-/* Fill + border come from the global .surface class; shadow from
+/* Fill + border come from the global .border-plus-fill class; shadow from
    the global .drop-shadow-dark class. */
+/* position: fixed (placed via JS in FilterDropdown.tsx) so it isn't clipped by
+   the filter bar's horizontal-scroll overflow on mobile. */
 .popover {
-  position: absolute;
-  top: 48px;
-  left: 0;
+  position: fixed;
   z-index: 10;
   width: max-content;
   border-radius: 16px;

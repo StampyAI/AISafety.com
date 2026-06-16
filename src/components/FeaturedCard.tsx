@@ -23,11 +23,13 @@ interface FeaturedCardProps {
   index: number
   /** Total featured cards in the row. */
   count: number
+  /** Extra classes for the card root (e.g. a width utility). */
+  className?: string
 }
 
-// Gap between featured cards — must match the .featured-grid gap so the shared
-// gradient lines up across cards.
-const GRID_GAP = 40
+// Gap between featured cards — must match the row's gap-56px utility so the
+// shared gradient lines up across cards.
+const GRID_GAP = 56
 
 function MetaRows({ rows }: { rows: FeaturedCardMeta[] }) {
   return (
@@ -54,6 +56,7 @@ export default function FeaturedCard({
   trackingPage,
   index,
   count,
+  className,
 }: FeaturedCardProps) {
   // One radial gradient shared across the whole row: each card paints its own
   // slice of a background sized to span every card plus the gaps between them
@@ -121,7 +124,7 @@ export default function FeaturedCard({
   if (!href) {
     return (
       <div
-        className={`${styles.card} ${styles.cardStatic}`}
+        className={`${styles.card} ${styles.cardStatic} ${className ?? ''}`}
         style={gradientStyle}
       >
         {inner}
@@ -134,7 +137,7 @@ export default function FeaturedCard({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={styles.card}
+      className={`${styles.card} ${className ?? ''}`}
       style={gradientStyle}
       trackingPage={trackingPage}
       trackingName={name}

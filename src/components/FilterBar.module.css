@@ -1,0 +1,96 @@
+/* Sticky filter bar that stacks just below the pinned nav (88px tall, see
+   Navigation.tsx) on every breakpoint. Same 88px height and the same
+   semi-transparent blurred-teal background as the nav.
+
+   The 40px pills are vertically centered in the 88px bar, leaving 24px above
+   them — matching the nav's 24px top padding. */
+.bar {
+  position: sticky;
+  top: 88px; /* sit below the pinned nav */
+  z-index: 2;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  /* 24px below the pills + this 16px = a 40px gap to the cards below. */
+  margin-bottom: 16px;
+  /* Pills scroll horizontally when they don't fit (e.g. on mobile) rather than
+     wrapping. The dropdown popovers are position: fixed so they aren't clipped.
+     Scrollbar hidden — the count at the end signals there's more. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* The pills sit in one no-wrap row; they keep their natural width and overflow
+   into the horizontal scroll instead of shrinking or wrapping. */
+.pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.pills > * {
+  flex: none;
+}
+
+/* The result count trails the pills. margin-left: auto pins it to the right when
+   everything fits (desktop); when the row overflows (mobile) the auto margin
+   collapses, so it sits one gap (16px) after the last pill — scroll right to
+   reach it. */
+.count {
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Full-viewport-width blurred background, pinned behind the pills once stuck.
+   position: fixed lets it bleed edge-to-edge regardless of the bar's nesting in
+   the content column, while the pills/count keep their normal in-column
+   position. left/right: 0 (rather than 100vw) avoids overflowing the scrollbar.
+   Sits at the nav's bottom edge. Matches .nav-blur. */
+.background {
+  position: fixed;
+  top: 88px;
+  left: 0;
+  right: 0;
+  height: 88px;
+  z-index: -1;
+  background-color: rgba(0, 25, 27, 0.4);
+  backdrop-filter: blur(16px);
+  /* 1px divider along the top edge (the nav's bottom). Because the background
+     only appears once the bar is stuck against the nav, the divider shows
+     exactly when the two bars are smooshed together. */
+  border-top: 1px solid color-mix(in srgb, var(--bright-green) 20%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  /* Fades in only once stuck, mirroring the nav's blur-on-scroll. */
+  transition: opacity var(--hover-transition);
+}
+
+.stuck .background {
+  opacity: 1;
+}
+
+/* Mobile: the bar no longer needs to match the nav's 88px height (it sits below
+   the nav, not in its place), so make it compact. Same top: 88px pin keeps it
+   lined up directly under the nav, and sticky positioning means no layout shift
+   when it pins. */
+@media (max-width: 991px) {
+  .bar {
+    height: 56px;
+    /* Full-bleed: cancel the container's 24px side padding so the pills scroll
+       edge-to-edge with no dead side margins. The matching inner padding keeps
+       the resting pills (and the trailing count) aligned with the page content. */
+    margin-left: -24px;
+    margin-right: -24px;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .background {
+    height: 56px;
+  }
+}

@@ -157,8 +157,8 @@ export default function CommunitiesClient({
   }, [filteredCommunities])
 
   return (
-    <div className="database-outer-grid">
-      <div>
+    <div className="flex gap-56px">
+      <div className="width-9-col">
         <div className="padding-bottom-40px">
           <SearchBar
             value={searchQuery}
@@ -233,7 +233,7 @@ export default function CommunitiesClient({
       </div>
 
       {/* Filters Sidebar */}
-      <aside className="hide-mobile">
+      <aside className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
             title="Type"

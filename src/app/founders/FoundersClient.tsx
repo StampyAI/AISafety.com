@@ -80,8 +80,8 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
   }, [filteredResources])
 
   return (
-    <div className="database-outer-grid">
-      <div>
+    <div className="flex gap-56px">
+      <div className="width-9-col">
         <div className="padding-bottom-40px">
           <SearchBar
             value={searchQuery}
@@ -136,7 +136,7 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
         </div>
       </div>
 
-      <div className="hide-mobile">
+      <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
             title="Type"

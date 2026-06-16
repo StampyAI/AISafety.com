@@ -1,6 +1,6 @@
 /* Redesigned right-sidebar contribute section: a "Contribute to this page" card
    plus a "View data in Airtable" card. Anything with a global utility class
-   (typography, colors, flex, spacing, .border-default/.border-hover/.hover-white)
+   (typography, colors, flex, spacing, .border-only/.border-hover/.hover-white)
    lives in the JSX; this module only holds the bits that don't map to one. */
 
 .card {

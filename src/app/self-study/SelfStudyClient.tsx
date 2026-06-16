@@ -11,14 +11,15 @@ interface SelfStudyClientProps {
   courses: Course[]
 }
 
+// Must match the raw values stored in Airtable's Focus/Format fields.
 const categoryOptions = [
-  'Introductory',
-  'Technical Alignment',
+  'General intro',
+  'Technical alignment',
   'Governance',
   'Strategy',
 ]
 
-const typeOptions = ['Curriculum', 'Reading List']
+const typeOptions = ['Curriculum', 'Reading list']
 
 export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -98,30 +99,32 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   }, [filteredCourses])
 
   return (
-    <div className="database-outer-grid">
-      <div>
-        <FilterBar count={filteredCourses.length} noun="course">
-          <FilterDropdown
-            title="Category"
-            icon="/images/category.svg"
-            options={categoryOptions}
-            selected={selectedCategories}
-            counts={categoryCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedCategories, setSelectedCategories)
-            }
-          />
-          <FilterDropdown
-            title="Type"
-            icon="/images/type.svg"
-            options={typeOptions}
-            selected={selectedTypes}
-            counts={typeCounts}
-            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-          />
-        </FilterBar>
+    <>
+      {/* FilterBar lives above the grid (not inside the left column) so the
+          cards and the Contribute/Airtable column both start at the same top. */}
+      <FilterBar count={filteredCourses.length} noun="course">
+        <FilterDropdown
+          title="Focus"
+          icon="/images/category.svg"
+          options={categoryOptions}
+          selected={selectedCategories}
+          counts={categoryCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedCategories, setSelectedCategories)
+          }
+        />
+        <FilterDropdown
+          title="Format"
+          icon="/images/type.svg"
+          options={typeOptions}
+          selected={selectedTypes}
+          counts={typeCounts}
+          onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+        />
+      </FilterBar>
 
-        <div className="collection-list padding-bottom-40px">
+      <div className="flex gap-56px">
+        <div className="collection-list padding-bottom-40px width-9-col">
           {filteredCourses.map(course => (
             <ListingCard
               key={course.id}
@@ -154,16 +157,16 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
             <p className="paragraph-small color-teal-300">Nothing found.</p>
           )}
         </div>
-      </div>
 
-      <div className="hide-mobile">
-        <ContributeButtons
-          suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
-          suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-          noun="course"
-          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrOkWNUJKcfgCSiB"
-        />
+        <div className="hide-mobile width-3-col">
+          <ContributeButtons
+            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
+            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
+            noun="course"
+            airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrOkWNUJKcfgCSiB"
+          />
+        </div>
       </div>
-    </div>
+    </>
   )
 }

@@ -3,7 +3,6 @@ import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import SelfStudyClient from './SelfStudyClient'
 import { getCourses } from '@/lib/data/self-study'
-import { displayCategory } from '@/lib/data/self-study-labels'
 
 export const metadata = {
   title: 'Self-study – AISafety.com',
@@ -39,11 +38,15 @@ export default async function SelfStudyPage() {
         }
       />
 
-      {/* Featured Cards */}
-      <div className="featured-grid padding-bottom-80px">
+      {/* Featured Cards: two width-6-col cards tile to the full row with the
+          56px column gutter (gap-56px), and stack on mobile (width-6-col goes
+          full-width there). gap-56px must match GRID_GAP in FeaturedCard so the
+          shared gradient lines up. */}
+      <div className="flex flex-wrap gap-56px padding-bottom-80px">
         {featuredCourses.map((course, i) => (
           <FeaturedCard
             key={course.id}
+            className="width-6-col"
             href={course.url !== '#' ? course.url : undefined}
             tagline={course.featuredTagline!}
             name={course.name}

@@ -7,8 +7,9 @@ interface AirtableRecord {
   fields: {
     Name?: string
     Description?: string
-    Category?: string | string[]
-    Type?: string | string[]
+    // Renamed in Airtable: category is now "Focus", type is now "Format".
+    Focus?: string | string[]
+    Format?: string | string[]
     'Created by'?: string
     Link?: string
     Logo?: Array<{ url: string }>
@@ -52,12 +53,12 @@ export async function getCourses(): Promise<Course[]> {
       id: record.id,
       name: fields.Name,
       description: fields.Description || '',
-      category: Array.isArray(fields.Category)
-        ? fields.Category.join(', ')
-        : fields.Category || '',
-      courseType: Array.isArray(fields.Type)
-        ? fields.Type.join(', ')
-        : fields.Type || '',
+      category: Array.isArray(fields.Focus)
+        ? fields.Focus.join(', ')
+        : fields.Focus || '',
+      courseType: Array.isArray(fields.Format)
+        ? fields.Format.join(', ')
+        : fields.Format || '',
       organizer: fields['Created by'] || '',
       url: fields.Link || '#',
       image,

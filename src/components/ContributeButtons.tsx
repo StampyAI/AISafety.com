@@ -55,9 +55,9 @@ export default function ContributeButtons({
   extraLinks,
 }: ContributeButtonsProps) {
   return (
-    <div className="flex flex-col gap-16px margin-top-80px">
+    <div className="flex flex-col gap-16px">
       {/* Contribute card */}
-      <div className={`border-default ${styles.card}`}>
+      <div className={`border-only ${styles.card}`}>
         <p className="paragraph-xs color-teal-300 padding-bottom-16px">
           Contribute to this page
         </p>
@@ -89,7 +89,7 @@ export default function ContributeButtons({
         href={airtableUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={`border-default border-hover color-teal-bright-300 hover-white ${styles.airtableCard}`}
+        className={`border-only border-hover color-teal-bright-300 hover-white ${styles.airtableCard}`}
       >
         <Image
           src="/images/airtable-vector.svg"

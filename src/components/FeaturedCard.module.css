@@ -17,7 +17,7 @@
     var(--teal-bright-850) 100%
   );
   background-repeat: no-repeat;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 56px rgba(0, 0, 0, 0.3);
   will-change: transform;
   transform: scale(1);
   backface-visibility: hidden;

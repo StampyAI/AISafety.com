@@ -271,10 +271,6 @@ function SuggestInline({
   }
   return (
     <span className={styles.suggest}>
-      <span className={styles.suggestText}>
-        Nothing matched in our catalog. You can suggest one. We curate listings
-        from community submissions.
-      </span>
       <a href="#" className={styles.suggestButton} onClick={handleClick}>
         Suggest a listing
         <svg

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import ChatBody, { type ChatBodyHandle } from '@/components/assistant/ChatBody'
 import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 import { modelShortLabel } from '@/lib/assistant/models'
-import { SUGGEST_FORM_URL } from '@/lib/assistant/constants'
+import { suggestFormUrl } from '@/lib/assistant/constants'
 import styles from '../admin.module.css'
 import type { ContextOverrides } from './EditorPanel'
 
@@ -57,8 +57,8 @@ export default function AdminChatHost({ prompt, model, context }: Props) {
   }, [])
 
   const handleSuggest = useCallback(() => {
-    window.open(SUGGEST_FORM_URL, '_blank', 'noopener')
-  }, [])
+    window.open(suggestFormUrl(context.currentPage), '_blank', 'noopener')
+  }, [context.currentPage])
 
   return (
     <div className={styles.chatHost}>

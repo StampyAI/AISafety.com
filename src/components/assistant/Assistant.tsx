@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 import { getPageContext } from '@/lib/assistant/page-context'
-import { SUGGEST_FORM_URL } from '@/lib/assistant/constants'
+import { suggestFormUrl } from '@/lib/assistant/constants'
 import type { CitationRef } from '@/lib/assistant/types'
 import ChatBody, { type ChatBodyHandle } from './ChatBody'
 import styles from './Assistant.module.css'
@@ -138,7 +138,7 @@ export default function Assistant() {
   const handleSuggest = useCallback(
     (query: string) => {
       void fireLog({ kind: 'suggest', query, currentPage })
-      window.open(SUGGEST_FORM_URL, '_blank', 'noopener')
+      window.open(suggestFormUrl(currentPage), '_blank', 'noopener')
     },
     [currentPage, fireLog]
   )

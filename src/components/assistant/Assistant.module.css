@@ -450,13 +450,6 @@
   border-radius: 12px;
 }
 
-.suggestText {
-  font-size: 13px;
-  color: var(--teal-200);
-  line-height: 1.5;
-  letter-spacing: -0.2px;
-}
-
 /* Doubled selector + scope inside .assistantMessage to win against the
    generic `.assistantMessage a { color: var(--bright-teal-300) }` rule. */
 

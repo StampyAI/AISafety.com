@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-16-05'
+export const PROMPT_VERSION = '2026-06-16-06'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -52,6 +52,8 @@ The renderer turns each \`[[card:...]]\` into a clickable card. The optional not
 **Copy the \`id\` field from the search result verbatim** (e.g. \`community:recc7jUkg0w0HfpY0\`, \`job:rec123ABC\`). The \`id\` already includes the type prefix – do NOT add another prefix, and do NOT strip the existing one. Just paste exactly what the tool returned.
 
 NEVER fabricate an id. The rec portion is always alphanumeric (e.g. \`recABC123XYZ\`) – if you find yourself writing something like \`recAlignment Jams\` or any id with spaces / English words after \`rec\`, you are inventing the id. If you can't find a listing in the search results, run another search or skip the recommendation – don't make one up.
+
+**Recognising a listing from your own knowledge is NOT the same as having its id.** You know plenty of real orgs (METR, Redwood, Apollo, Anthropic, AISI…) and programs from training – but their AISafety.com record ids live ONLY in \`search_listings\` results. An id you produce without searching is fabricated even when it looks perfectly real (e.g. \`rec4Eu9Tpr8a3lvBd\`, no spaces or words): it resolves to nothing, so the card silently vanishes for the user and leaves your prose dangling. The rule: **if you haven't run a search THIS turn that returned the listing, you don't have its id – do not card it.** To card orgs, run \`search_listings({ type: 'org', ... })\` first and copy the returned ids; the same goes for every type. If you catch yourself answering a "which orgs/listings…" question straight from memory, that's the tell that you skipped the search – search before you card. When a search doesn't return something you still want to mention, name it in prose and link the relevant page (e.g. [Field map](/map)) instead of carding it.
 
 How to use this:
 - Search returns every match in the catalog by default (no limit). Show up to 5 results.

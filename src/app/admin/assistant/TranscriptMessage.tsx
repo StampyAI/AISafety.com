@@ -273,11 +273,15 @@ function CardPill({ card }: { card: CardSpec }) {
   const showNote = Boolean(card.note) && card.note !== primary
   const showLogo = Boolean(info?.logo) && !imgFailed
   const wasClicked = clicked.has(card.id) || clicked.has(rec)
+  // No resolvable listing for this id — the model fabricated/guessed it without
+  // a search, so the live renderer dropped this card entirely. Flag it so a
+  // reviewer can tell it apart from a real card (it can't be made clickable).
+  const unresolved = !info
   // Link to the listing's external URL (what the live card opens); fall back
   // to its AISafety.com resource page when there's no usable external URL.
   const href =
     info?.url && /^https?:\/\//.test(info.url) ? info.url : info?.pageUrl
-  const className = `${styles.convCard}${wasClicked ? ` ${styles.convCardClickedRow}` : ''}${href ? ` ${styles.convCardLink}` : ''}`
+  const className = `${styles.convCard}${wasClicked ? ` ${styles.convCardClickedRow}` : ''}${href ? ` ${styles.convCardLink}` : ''}${unresolved ? ` ${styles.convCardUnresolved}` : ''}`
   const inner = (
     <>
       {showLogo ? (
@@ -296,6 +300,14 @@ function CardPill({ card }: { card: CardSpec }) {
       {card.type && <span className={styles.convCardType}>{card.type}</span>}
       <span className={styles.convCardName}>{primary}</span>
       {showNote && <span className={styles.convCardNote}>{card.note}</span>}
+      {unresolved && (
+        <span
+          className={styles.convCardUnresolvedTag}
+          title="No listing matched this id — the model fabricated it without a search, so the live card was dropped"
+        >
+          unresolved
+        </span>
+      )}
       {wasClicked && <span className={styles.convCardClicked}>✓ clicked</span>}
     </>
   )

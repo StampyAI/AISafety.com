@@ -14,6 +14,7 @@ import {
   runAssistantStream,
   sseResponse,
   validateMessages,
+  type AssistantRunResult,
 } from '@/lib/assistant/stream'
 import { storeConversationTurn } from '@/lib/assistant/conversation-store'
 import { getDonationGuideText } from '@/lib/assistant/donation-guide'
@@ -112,73 +113,96 @@ export async function POST(req: NextRequest) {
   const startedAt = Date.now()
 
   return sseResponse(async ({ send, signal }) => {
-    const result = await runAssistantStream({
-      client,
-      systemPrompt: PRODUCTION_PROMPT,
-      pagesBlock: PAGES_BLOCK,
-      donationGuide: getDonationGuideText(),
-      model: DEFAULT_MODEL_ID,
-      apiMessages,
-      catalog,
-      send,
-      signal,
-    })
-    send('done', {})
+    // Persist a turn to the conversation log. Called on success AND on
+    // failure: even when the model returned nothing — the visitor closed the
+    // tab before the first token, or generation errored — the question they
+    // typed is still useful signal. It shows what people asked when the bot
+    // failed them, so we keep it instead of dropping the whole turn. `status`
+    // marks the no-reply turns so the admin viewer can flag them: 'abandoned'
+    // (visitor left before/without an answer) or 'error' (generation failed).
+    const logTurn = (
+      result: AssistantRunResult | null,
+      status?: 'abandoned' | 'error'
+    ) => {
+      const assistantText = result?.assistantText ?? ''
+      const toolCalls = result?.toolCalls ?? []
+      const citations = result?.citations ?? []
+      const zeroMatches =
+        citations.length === 0 && /\[\[suggest:/.test(assistantText)
 
-    const zeroMatches =
-      result.citations.length === 0 && /\[\[suggest:/.test(result.assistantText)
+      // Snapshot name/url ONLY for listings actually carded in the reply (a
+      // handful), not every searched listing – citations can be the whole
+      // result set (e.g. 400+ jobs), which would blow past Airtable's cell
+      // limit. The viewer only needs refs for [[card:...]] ids anyway.
+      const citedById = new Map(citations.map(c => [c.id, c]))
+      const cardedIds = new Set<string>()
+      const cardRe = /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\]\n]*)?\s*\]\]/gi
+      let cardMatch: RegExpExecArray | null
+      while ((cardMatch = cardRe.exec(assistantText)) !== null) {
+        cardedIds.add(cardMatch[1].replace(/\s+/g, ''))
+      }
+      const citationRefs = [...cardedIds]
+        .map(id => citedById.get(id))
+        .filter((c): c is (typeof citations)[number] => Boolean(c))
+        .map(c => ({ id: c.id, name: c.name, url: c.url, logo: c.logo }))
 
-    // Snapshot name/url ONLY for listings actually carded in the reply (a
-    // handful), not every searched listing – result.citations can be the whole
-    // result set (e.g. 400+ jobs), which would blow past Airtable's cell limit.
-    // The viewer only needs refs for [[card:...]] ids anyway.
-    const citedById = new Map(result.citations.map(c => [c.id, c]))
-    const cardedIds = new Set<string>()
-    const cardRe = /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\]\n]*)?\s*\]\]/gi
-    let cardMatch: RegExpExecArray | null
-    while ((cardMatch = cardRe.exec(result.assistantText)) !== null) {
-      cardedIds.add(cardMatch[1].replace(/\s+/g, ''))
+      // after() keeps the serverless function alive until the write completes.
+      // A bare fire-and-forget promise gets frozen (and usually lost) the
+      // moment the response stream closes, so conversations were never
+      // reaching Airtable in production.
+      after(() =>
+        storeConversationTurn({
+          ts: new Date().toISOString(),
+          sessionId: body.sessionId ?? null,
+          currentPage: ctx.currentPage,
+          pageState: ctx.pageState ?? null,
+          referrer: ctx.referrer ?? null,
+          geo: ctx.geo ?? null,
+          utm: ctx.utm ?? null,
+          user: userQuery,
+          // Full conversation including the assistant's just-finished reply
+          // (empty when generation produced nothing), so the upsert persists
+          // the up-to-date History in one row.
+          history: [...messages, { role: 'assistant', content: assistantText }],
+          toolCalls,
+          response: assistantText,
+          citations: citations.map(c => c.id),
+          citationRefs,
+          zeroMatches,
+          status,
+          latencyMs: Date.now() - startedAt,
+          promptVersion: PROMPT_VERSION,
+        })
+      )
     }
-    const citationRefs = [...cardedIds]
-      .map(id => citedById.get(id))
-      .filter((c): c is (typeof result.citations)[number] => Boolean(c))
-      .map(c => ({ id: c.id, name: c.name, url: c.url, logo: c.logo }))
-    // Log the turn even when the visitor has already disconnected. after()
-    // outlives the response by design, so the write still completes. Gating
-    // it on signal.aborted (as we used to) silently dropped every
-    // conversation where the visitor closed the tab the moment the answer
-    // finished streaming — the generation was complete, but it never reached
-    // Airtable. Skip only when generation produced nothing at all, e.g. an
-    // abort before the first token.
-    if (!result.assistantText && result.toolCalls.length === 0) return
-    // after() keeps the serverless function alive until the write completes.
-    // A bare fire-and-forget promise gets frozen (and usually lost) the moment
-    // the response stream closes, so conversations were never reaching
-    // Airtable in production.
-    after(() =>
-      storeConversationTurn({
-        ts: new Date().toISOString(),
-        sessionId: body.sessionId ?? null,
-        currentPage: ctx.currentPage,
-        pageState: ctx.pageState ?? null,
-        referrer: ctx.referrer ?? null,
-        geo: ctx.geo ?? null,
-        utm: ctx.utm ?? null,
-        user: userQuery,
-        // Full conversation including the assistant's just-completed reply,
-        // so the upsert can persist the up-to-date History in one row.
-        history: [
-          ...messages,
-          { role: 'assistant', content: result.assistantText },
-        ],
-        toolCalls: result.toolCalls,
-        response: result.assistantText,
-        citations: result.citations.map(c => c.id),
-        citationRefs,
-        zeroMatches,
-        latencyMs: Date.now() - startedAt,
-        promptVersion: PROMPT_VERSION,
+
+    let result: AssistantRunResult
+    try {
+      result = await runAssistantStream({
+        client,
+        systemPrompt: PRODUCTION_PROMPT,
+        pagesBlock: PAGES_BLOCK,
+        donationGuide: getDonationGuideText(),
+        model: DEFAULT_MODEL_ID,
+        apiMessages,
+        catalog,
+        send,
+        signal,
       })
-    )
+    } catch (err) {
+      // Generation threw (API/model error, or the stream aborted mid-flight).
+      // This turn used to vanish entirely; still log the visitor's query so we
+      // can see what was asked, then re-throw so sseResponse emits the error
+      // event (or handles the abort) exactly as before. A client disconnect is
+      // an abandonment, not a bug, so flag it accordingly.
+      logTurn(null, signal.aborted ? 'abandoned' : 'error')
+      throw err
+    }
+    send('done', {})
+    // Log every completed turn — including ones where the visitor left before
+    // the first token streamed (empty reply), which we used to drop. An empty
+    // completion means nothing streamed, so flag it as abandoned.
+    const empty = !result.assistantText && result.toolCalls.length === 0
+    logTurn(result, empty ? 'abandoned' : undefined)
   })
 }

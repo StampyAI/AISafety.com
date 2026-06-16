@@ -113,6 +113,10 @@ export interface ConversationData {
   utm: Record<string, string> | null
   pageState: Record<string, unknown> | null
   zeroMatches: boolean
+  /** Set when the latest turn produced no usable reply: 'abandoned' (visitor
+   *  left before/without an answer) or 'error' (generation failed). Absent on
+   *  normal turns. */
+  status?: 'abandoned' | 'error'
 }
 
 interface ConversationFields {
@@ -272,6 +276,7 @@ export async function upsertConversation(input: {
   pageState: Record<string, unknown> | null
   latencyMs: number
   zeroMatches: boolean
+  status?: 'abandoned' | 'error'
   promptVersion: string
 }): Promise<void> {
   ensureConfig(CONVERSATIONS_TABLE)
@@ -301,6 +306,10 @@ export async function upsertConversation(input: {
     pageState: input.pageState,
     // Sticky once any turn returned no matches.
     zeroMatches: (previous?.zeroMatches ?? false) || input.zeroMatches,
+    // Reflects the latest turn only (unlike zeroMatches): if a visitor
+    // abandoned or errored a turn and then asked again successfully, the row
+    // is no longer flagged. Omitted entirely on a normal turn.
+    ...(input.status ? { status: input.status } : {}),
   }
 
   const fields: ConversationFields = {

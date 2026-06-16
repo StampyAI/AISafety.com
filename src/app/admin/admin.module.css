@@ -646,6 +646,16 @@
   font-weight: 600;
 }
 
+.convRowAbandoned {
+  color: #ffb87a;
+  font-weight: 600;
+}
+
+.convRowError {
+  color: #ff8b8b;
+  font-weight: 600;
+}
+
 .convRowQuery {
   font-size: 14px;
   color: var(--white);

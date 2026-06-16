@@ -22,6 +22,10 @@ export interface StoredTurn {
   citations: string[]
   citationRefs: { id: string; name: string; url: string; logo?: string }[]
   zeroMatches: boolean
+  /** Set when the turn produced no usable reply: 'abandoned' (visitor left
+   *  before/without an answer) or 'error' (generation failed). Absent on
+   *  normal turns. */
+  status?: 'abandoned' | 'error'
   latencyMs: number
   promptVersion: string
 }
@@ -34,6 +38,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
     citations: turn.citations.length,
     tools: turn.toolCalls.map(t => t.name),
     zero: turn.zeroMatches,
+    status: turn.status,
     ms: turn.latencyMs,
   }
   console.log(`[assistant:turn] ${JSON.stringify(summary)}`)
@@ -55,6 +60,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
         pageState: turn.pageState,
         latencyMs: turn.latencyMs,
         zeroMatches: turn.zeroMatches,
+        status: turn.status,
         promptVersion: turn.promptVersion,
       })
     } catch (err) {

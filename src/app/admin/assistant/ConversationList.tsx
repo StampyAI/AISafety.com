@@ -25,6 +25,7 @@ interface ConversationData {
   utm: Record<string, string> | null
   pageState: Record<string, unknown> | null
   zeroMatches: boolean
+  status?: 'abandoned' | 'error'
 }
 
 interface Conversation {
@@ -307,6 +308,22 @@ function ConversationRow({
             {geo && <span>{geo}</span>}
             {data?.zeroMatches && (
               <span className={styles.convRowZero}>NO MATCH</span>
+            )}
+            {data?.status === 'abandoned' && (
+              <span
+                className={styles.convRowAbandoned}
+                title="The visitor left before (or without) an answer streamed — only their question was logged"
+              >
+                NO REPLY
+              </span>
+            )}
+            {data?.status === 'error' && (
+              <span
+                className={styles.convRowError}
+                title="Generation failed for this turn — only the visitor's question was logged"
+              >
+                ERROR
+              </span>
             )}
           </span>
           <span className={styles.convRowMeta}>

@@ -1016,6 +1016,13 @@
   color: var(--teal-400);
 }
 
+.convTzNote {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--teal-400);
+  cursor: default;
+}
+
 /* ─── Empty / disabled state notice ───────────────────────────────────── */
 
 .notice {

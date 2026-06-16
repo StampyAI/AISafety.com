@@ -134,6 +134,10 @@ export default function ConversationList() {
   // Airtable cursor for the next, older batch — null once we've reached the
   // very first conversation. Drives the "Load more" button.
   const [offset, setOffset] = useState<string | null>(null)
+  // Label for the viewer's local timezone (e.g. "America/Bogota (GMT-5)").
+  // Resolved on the client so it matches the row times, which also render in
+  // the browser's local zone. Empty until mounted to avoid an SSR mismatch.
+  const [tzLabel, setTzLabel] = useState('')
 
   const PAGE_SIZE = 200
 
@@ -206,6 +210,14 @@ export default function ConversationList() {
     void load(zeroOnly)
   }, [zeroOnly])
 
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const abbr = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+      .formatToParts(new Date())
+      .find(p => p.type === 'timeZoneName')?.value
+    setTzLabel([tz, abbr && `(${abbr})`].filter(Boolean).join(' '))
+  }, [])
+
   const handleUpdate = (updated: Conversation) => {
     setConversations(prev => prev.map(c => (c.id === updated.id ? updated : c)))
   }
@@ -230,6 +242,14 @@ export default function ConversationList() {
         </button>
         {loading && <span className={styles.convStatus}>loading…</span>}
         {error && <span className={styles.convError}>{error}</span>}
+        {tzLabel && (
+          <span
+            className={styles.convTzNote}
+            title="Times below are shown in your browser's local timezone"
+          >
+            times in {tzLabel}
+          </span>
+        )}
       </div>
 
       <div className={styles.convList}>

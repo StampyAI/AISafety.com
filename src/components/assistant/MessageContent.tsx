@@ -351,16 +351,38 @@ function parseBlocks(text: string): Block[] {
     current = null
   }
 
+  let pendingBlank = false
   for (const raw of lines) {
     const line = raw.trimEnd()
+
+    if (line === '') {
+      // A blank line between two items of the same list is a loose-list
+      // separator (normal Markdown), not a list break — defer the decision
+      // until we see the next line. Any other blank line ends the block as
+      // before. Without this, blank-separated `1.`/`2.` items each became
+      // their own single-item <ol> and every item restarted numbering at 1.
+      if (current && (current.kind === 'ul' || current.kind === 'ol')) {
+        pendingBlank = true
+      } else {
+        flush()
+      }
+      continue
+    }
+
     const cardSpec = parseCardLine(line)
     const ulMatch = /^\s*[-•]\s+(.+)$/.exec(line)
     const olMatch = /^\s*\d+\.\s+(.+)$/.exec(line)
 
-    if (line === '') {
-      flush()
-      continue
+    // Resolve a deferred blank: keep the list open only if it continues with
+    // another item of the same kind; otherwise the blank really did end it.
+    if (pendingBlank) {
+      const continues =
+        (!!ulMatch && current?.kind === 'ul') ||
+        (!!olMatch && current?.kind === 'ol')
+      if (!continues) flush()
+      pendingBlank = false
     }
+
     if (cardSpec) {
       if (!current || current.kind !== 'cards') {
         flush()

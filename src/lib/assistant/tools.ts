@@ -28,7 +28,7 @@ ARGUMENTS:
     org: category, status
     event: type ("Bootcamp"|"Competition"|"Conference"|"Course"|"Fellowship"|"Hackathon"|"Meetup"|"Reading Group"|"Talk"|"Unconference"|"Workshop"), location ("Online"|"USA"|"UK"|"Europe"|"Asia"|"Africa"|"Canada"|"Australia/New Zealand"|"Latin America"|"Middle East")
 
-Event meta fields you can read off each result: startDate, endDate, applicationsOpen, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. Use applicationsOpen/applicationsClose to answer "is X open right now / when do applications close" questions — compare them against today's date (provided in your context).
+Event meta fields you can read off each result: startDate, endDate, applicationsOpen, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. NOTE: an event's date being in the future does NOT mean you can still apply — its application window may already be closed. For every event result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'opens_later') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Only card/recommend events with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program); for 'opens_later' say when it opens. Events with no \`applicationsStatus\` have no formal window and are fine to surface.
 
 • \`near\` — optional geo filter. Object with \`{city: string, radiusKm?: number}\` or \`{lat, lng, radiusKm?}\`. Default radius is 500km, intentionally wide. Currently only \`community\` listings have coordinates; for other types \`near\` does a fallback substring match on the location meta field. Results within range are ranked by distance ascending. USE THIS for any "near X" / "in X" / "around X" / "close to X" location queries instead of putting the city in the query.
 
@@ -129,7 +129,55 @@ interface GetListingInput {
   id?: string
 }
 
-function summariseListing(l: Listing, distanceKm?: number): object {
+/** Pre-computed application-window status for an event, derived from its ISO
+ *  dates so the model never has to do date arithmetic itself (it gets this
+ *  wrong often — e.g. calling a program "open" then noting its deadline has
+ *  passed in the same breath). ISO date strings (YYYY-MM-DD) compare correctly
+ *  with </>= lexicographically, sidestepping timezone parsing. A deadline that
+ *  falls on today still counts as open (you can apply through the last day). */
+function eventApplicationStatus(
+  meta: Record<string, unknown>,
+  today: string
+): { applicationsStatus: 'open' | 'closed' | 'opens_later'; applicationsNote: string } | null {
+  const open =
+    typeof meta.applicationsOpen === 'string'
+      ? meta.applicationsOpen.slice(0, 10)
+      : null
+  const close =
+    typeof meta.applicationsClose === 'string'
+      ? meta.applicationsClose.slice(0, 10)
+      : null
+  // No formal window on file — nothing to compute; the model treats it as open.
+  if (!open && !close) return null
+  if (close && close < today) {
+    return {
+      applicationsStatus: 'closed',
+      applicationsNote: `Applications closed ${close} — do NOT recommend applying or card this as something to apply to.`,
+    }
+  }
+  if (open && open > today) {
+    return {
+      applicationsStatus: 'opens_later',
+      applicationsNote: `Applications open ${open}${close ? `, close ${close}` : ''} — not open yet; say when it opens.`,
+    }
+  }
+  return {
+    applicationsStatus: 'open',
+    applicationsNote: close
+      ? `Open now, applications close ${close}.`
+      : 'Open now, no posted deadline.',
+  }
+}
+
+function summariseListing(
+  l: Listing,
+  today: string,
+  distanceKm?: number
+): object {
+  const eventStatus =
+    l.type === 'event'
+      ? eventApplicationStatus(l.meta as Record<string, unknown>, today)
+      : null
   return {
     id: l.id,
     type: l.type,
@@ -137,6 +185,7 @@ function summariseListing(l: Listing, distanceKm?: number): object {
     organization: l.organization ?? null,
     description: l.description,
     meta: l.meta,
+    ...(eventStatus ?? {}),
     url: l.url,
     pageUrl: l.pageUrl,
     ...(l.featured ? { featured: true } : {}),
@@ -176,11 +225,12 @@ async function executeSearch(
       listings: [],
     }
   }
+  const today = new Date().toISOString().slice(0, 10)
   return {
     ok: true,
     content: JSON.stringify({
       matches: hits.length,
-      results: hits.map(h => summariseListing(h.listing, h.distanceKm)),
+      results: hits.map(h => summariseListing(h.listing, today, h.distanceKm)),
     }),
     listings: hits.map(h => h.listing),
   }
@@ -200,9 +250,10 @@ function executeGetListing(
       listings: [],
     }
   }
+  const today = new Date().toISOString().slice(0, 10)
   return {
     ok: true,
-    content: JSON.stringify(summariseListing(listing)),
+    content: JSON.stringify(summariseListing(listing, today)),
     listings: [listing],
   }
 }

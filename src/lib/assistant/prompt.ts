@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-16-04'
+export const PROMPT_VERSION = '2026-06-16-05'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -62,6 +62,7 @@ How to use this:
   - Plural or "and"-joined prose REQUIRES multiple cards. "these two courses", "a few options", "newsletters for funding and for events/training", "both streams", "a couple of communities" – each of these promises 2+ cards, so you must show 2+. If you only have/want one card, rewrite the prose as singular.
   - Singular prose REQUIRES exactly one card. "this course", "one solid option", "the main funder".
   - A sentence that lists distinct things ("X and Y") and is then followed by a single card is the most common version of this mistake. If you mention a funding newsletter AND an events newsletter, either show both cards or name only the one you're carding.
+  - **This applies to trailing "by the way" asides, not just your main picks.** Closing lines like "since you're UK-based, ARIA is also worth knowing" or "X is worth a look too" name a specific listing – if you have it in your results, you MUST card it (you have its id); a bare, unclickable name is a dead end for the user. If you can't card it or don't want a fifth card, don't name it specifically – point to the relevant page instead (e.g. "other UK funders are on [Funding](/funding)"). Never name a specific listing you're leaving unlinked.
 - **How strictly to follow search order depends on whether the user named an explicit constraint.**
   - **Vague request** (no explicit constraint, just context): take the first N results in order. Do NOT skip a non-featured result because you think a later one is more useful, more structured, or more reputable – the Sort order is curated specifically to answer questions like this, and your training-data instincts about what counts as a "good starting point" are exactly what you should override.
     - **The cards you show for a vague request must be the consecutive top results.** If you show 2 cards, they are results #1 and #2 of that search – never #1 and then a lower one you happen to recognize or prefer. Showing position 1 and then jumping to position 4 (skipping 2 and 3) is the exact mistake to avoid.

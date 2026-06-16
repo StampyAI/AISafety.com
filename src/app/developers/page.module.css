@@ -1,0 +1,150 @@
+.page {
+  padding-bottom: 96px;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.baseUrl {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--teal-400);
+  font-size: 15px;
+}
+
+.section {
+  margin-top: 64px;
+}
+
+.section h2 {
+  margin-bottom: 8px;
+}
+
+.sectionLead {
+  max-width: 720px;
+  color: var(--teal-300);
+  margin: 0 0 24px;
+}
+
+/* Code blocks (applied to <pre>) and inline code, themed to the teal palette. */
+.code {
+  display: block;
+  overflow-x: auto;
+  margin: 0;
+  padding: 20px 24px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 16px;
+  color: var(--bright-teal-300);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.inline {
+  padding: 2px 7px;
+  background-color: var(--teal-800);
+  border: 1px solid var(--teal-700);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--bright-teal-300);
+}
+
+/* Endpoint tiles: reuse the global .card visual, override its padding here. */
+.endpointGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+a.endpointCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.method {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: rgba(122, 255, 178, 0.12);
+  color: var(--bright-green);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  color: var(--white);
+  overflow-wrap: anywhere;
+}
+
+.cardDesc {
+  margin: 0;
+  color: var(--teal-300);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.tag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--teal-700);
+  color: var(--teal-400);
+  font-size: 12px;
+}
+
+.filterList {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  color: var(--teal-300);
+}
+
+.license {
+  max-width: 760px;
+  color: var(--teal-300);
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .endpointGrid {
+    grid-template-columns: 1fr;
+  }
+}

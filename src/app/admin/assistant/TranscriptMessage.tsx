@@ -64,7 +64,7 @@ const SUGGEST_RE = /\[\[\s*suggest\s*:[^\]\n]*\]\]/gi
 const CARD_LINE_RE =
   /^\s*\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
 const INLINE_RE =
-  /(\[\[[^\]\n]*\]\])|(\[[^\]\n]+\]\(\/?[^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)/g
+  /(\[\[[^\]\n]*\]\])|(\[[^\]\n]+\]\(\/?[^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
 const ANY_DIRECTIVE_RE = /\[\[[^\]]*\]\]/g
 
 /** "job:recXXX" → "job"; bare rec ids have no type. */
@@ -181,6 +181,20 @@ function renderInline(
       }
     } else if (token.startsWith('**')) {
       parts.push(<strong key={`b-${key++}`}>{token.slice(2, -2)}</strong>)
+    } else if (/^aisafety\.info/i.test(token)) {
+      // Auto-linkify bare aisafety.info mentions, matching the live renderer
+      // (the bot writes it as plain text rather than a markdown link).
+      parts.push(
+        <a
+          key={`u-${key++}`}
+          href={`https://${token}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.convLink}
+        >
+          {token}
+        </a>
+      )
     } else {
       parts.push(<em key={`i-${key++}`}>{token.slice(1, -1)}</em>)
     }

@@ -204,18 +204,41 @@ function rowToConversation(
   }
 }
 
-export async function listConversations(
-  opts: {
-    limit?: number
-  } = {}
-): Promise<ConversationRow[]> {
+/** One batch of conversations, newest first, plus an opaque cursor for the
+ *  next batch (null when there are no older conversations left). Used by the
+ *  admin viewer's "Load more" button so it only fetches what it shows rather
+ *  than the whole — ever-growing — log on every load. */
+export async function listConversationsPage(opts: {
+  pageSize?: number
+  /** Airtable cursor returned by a previous call; omit for the first page. */
+  offset?: string
+}): Promise<{ conversations: ConversationRow[]; offset: string | null }> {
   ensureConfig(CONVERSATIONS_TABLE)
-  const params = new URLSearchParams()
-  params.set('pageSize', String(Math.min(opts.limit ?? 50, 100)))
-  params.set('sort[0][field]', 'Created at')
-  params.set('sort[0][direction]', 'desc')
-  const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
-  return rows.slice(0, opts.limit ?? 50).map(rowToConversation)
+  const want = Math.max(1, opts.pageSize ?? 200)
+  const out: AirtableRow<ConversationFields>[] = []
+  // Airtable caps a single request at 100 records, so loop until we've
+  // gathered `want` (or run out), carrying Airtable's offset between requests.
+  let cursor: string | undefined = opts.offset
+  do {
+    const params = new URLSearchParams()
+    params.set('pageSize', String(Math.min(100, want - out.length)))
+    params.set('sort[0][field]', 'Created at')
+    params.set('sort[0][direction]', 'desc')
+    if (cursor) params.set('offset', cursor)
+    const res = await airtableRequest(
+      `${CONVERSATIONS_TABLE}?${params.toString()}`
+    )
+    if (!res.ok) {
+      throw new Error(`Airtable list failed: ${res.status} ${await res.text()}`)
+    }
+    const data = (await res.json()) as AirtableListResponse<ConversationFields>
+    out.push(...data.records)
+    cursor = data.offset
+  } while (cursor && out.length < want)
+  return {
+    conversations: out.map(rowToConversation),
+    offset: cursor ?? null,
+  }
 }
 
 export async function updateConversation(

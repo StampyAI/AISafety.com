@@ -594,6 +594,12 @@
   margin-top: 0;
 }
 
+.convLoadMore {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
 .convRow {
   display: flex;
   flex-direction: column;

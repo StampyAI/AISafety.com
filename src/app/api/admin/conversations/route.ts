@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { isAdmin } from '@/lib/admin/auth'
 import {
   isConversationsTableConfigured,
-  listConversations,
+  listConversationsPage,
   updateConversation,
 } from '@/lib/admin/airtable'
 import { getCatalog } from '@/lib/assistant/catalog'
@@ -42,12 +42,16 @@ export async function GET(req: NextRequest) {
   const auth = await ensureAuth()
   if (auth) return auth
   const url = new URL(req.url)
-  const rawLimit = Number(url.searchParams.get('limit') ?? '50')
-  const limit = Number.isFinite(rawLimit)
+  const rawLimit = Number(url.searchParams.get('limit') ?? '200')
+  const pageSize = Number.isFinite(rawLimit)
     ? Math.max(1, Math.min(Math.floor(rawLimit), 200))
-    : 50
+    : 200
+  const offsetParam = url.searchParams.get('offset') || undefined
   const zeroOnly = url.searchParams.get('zeroOnly') === '1'
-  const conversations = await listConversations({ limit })
+  const { conversations, offset } = await listConversationsPage({
+    pageSize,
+    offset: offsetParam,
+  })
   // zeroMatches now lives inside Data; filter client-side here so the API
   // contract stays the same for the admin viewer.
   const filtered = zeroOnly
@@ -114,7 +118,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return Response.json({ conversations: filtered, listings })
+  return Response.json({ conversations: filtered, listings, offset })
 }
 
 export async function PATCH(req: NextRequest) {

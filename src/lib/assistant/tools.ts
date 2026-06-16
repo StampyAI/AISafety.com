@@ -28,7 +28,7 @@ ARGUMENTS:
     org: category, status
     event: type ("Bootcamp"|"Competition"|"Conference"|"Course"|"Fellowship"|"Hackathon"|"Meetup"|"Reading Group"|"Talk"|"Unconference"|"Workshop"), location ("Online"|"USA"|"UK"|"Europe"|"Asia"|"Africa"|"Canada"|"Australia/New Zealand"|"Latin America"|"Middle East")
 
-Event meta fields you can read off each result: startDate, endDate, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. NOTE: an event's date being in the future does NOT mean you can still apply — its application window may already be closed. For every event result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'unknown') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Card/recommend events with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program). 'unknown' means there's no deadline on file (rolling, walk-in, not yet announced, or not yet open) — you may surface it, but never assert it's open or closed; tell the user to check the link.
+Event meta fields you can read off each result: startDate, endDate, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. NOTE: an event's date being in the future does NOT mean you can still apply — its application window may already be closed. For every event result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'unknown') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Card/recommend events with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program). 'unknown' means there's no closing date on file (rolling, walk-in, not yet announced, or not yet open) — you may surface it, but never assert it's open or closed; just say the application deadline is unknown. Do NOT tell the user to check the link (if the deadline were findable there, we'd already have it on the site).
 
 • \`near\` — optional geo filter. Object with \`{city: string, radiusKm?: number}\` or \`{lat, lng, radiusKm?}\`. Default radius is 500km, intentionally wide. Currently only \`community\` listings have coordinates; for other types \`near\` does a fallback substring match on the location meta field. Results within range are ranked by distance ascending. USE THIS for any "near X" / "in X" / "around X" / "close to X" location queries instead of putting the city in the query.
 
@@ -153,7 +153,7 @@ function eventApplicationStatus(
     return {
       applicationsStatus: 'unknown',
       applicationsNote:
-        'No application deadline on file — could be rolling, walk-in, not yet announced, or not yet open. Do NOT state it is open or closed; point the user to the link to check.',
+        'No closing date on file — tell the user the application deadline is unknown. Do NOT state it is open or closed, and do NOT tell them to check the link (if the deadline were findable there, we would already have it on the site).',
     }
   }
   if (close < today) {

@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-16-08'
+export const PROMPT_VERSION = '2026-06-16-09'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -116,7 +116,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
   - \`activityLevel\`: "Very active", "Active", "Semi-active", "Inactive"
   - \`focus\`: "Main focus is AI safety", "Partial focus on AI safety"
   - \`location\`: free-text city or country (prefer \`near\` over this)
-  - **Language matters – match it to the user.** Most AI safety communities run in English, but some are language- or country-specific, which the description makes clear (e.g. "Russian group…", "German-speaking", or a localised \`.ru\`/\`.de\` site). Do NOT recommend a community that operates in a language the user hasn't shown they read – it's no use to them. Default to English-language communities and ones in the language the user is writing to you in; only surface a non-English-language community when the user writes in that language, says they speak it, or explicitly asks about that country/language. (A Russian-language hub recommended to someone messaging you in English from Germany is exactly the mistake to avoid.)
+  - **Language matters – match it to the user.** Most AI safety communities run in English, but some are language- or country-specific, which the description makes clear (e.g. "Russian group…", "German-speaking", or a localised \`.ru\`/\`.de\` site). A community is fine to recommend when it runs in: English; the language the user is writing to you in; OR an official/common language of the user's location (e.g. a German-language community for someone in Germany). Otherwise do NOT recommend it – a community in a language the user is unlikely to read is no use to them. Only surface an off-language community if the user writes in that language, says they speak it, or explicitly asks about that country/language. (A Russian-language hub recommended to someone messaging you in English from Germany is exactly the mistake to avoid – though a German-language one for that same user would be fine.)
   - \`size\`: numeric (member count, free text)
 
 - **course** (the Self-study page): self-paced material ONLY – curricula and reading lists you work through on your own, at your own pace. These are NOT facilitated/cohort programs. Many of these curricula also have a facilitated version (with a cohort, a facilitator, and fixed dates), but those are \`type='event'\` on Events & training, not here. So: for "I want to study X on my own / a reading list / self-paced", use \`type='course'\`; for "a facilitated/cohort version / with a group / with deadlines", use \`type='event'\`. Never describe a course listing as facilitated or cohort-based – it's self-study.

@@ -5,7 +5,9 @@ import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
 import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
-import { Course } from '@/lib/data/self-study'
+import SearchBar from '@/components/SearchBar'
+import type { Course } from '@/lib/data/self-study'
+import { trackListingClick } from '@/lib/analytics'
 
 interface SelfStudyClientProps {
   courses: Course[]

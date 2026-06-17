@@ -1,6 +1,6 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCard'
+import FeaturedCard from '@/components/FeaturedCardLegacy'
 import ProjectsClient from './ProjectsClient'
 import { getProjects } from '@/lib/data/projects'
 
@@ -65,26 +65,6 @@ export default async function ProjectsPage() {
               />
             ))}
         </div>
-
-        <aside className="hide-mobile">
-          <p className="paragraph-small-bold padding-bottom-32px">
-            Related resources
-          </p>
-          <a
-            href="https://discord.com/invite/BfwQq2FTqE"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block hover-opacity-80"
-          >
-            <h3 className="padding-bottom-16px">
-              Alignment Ecosystem Development (AED) Discord{' '}
-              <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              A hub connecting AI safety volunteers and projects
-            </p>
-          </a>
-        </aside>
       </div>
 
       {/* Main Content with Search, Cards, and Filters */}

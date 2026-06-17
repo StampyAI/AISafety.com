@@ -71,8 +71,8 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
   }, [filteredProjects])
 
   return (
-    <div className="database-outer-grid">
-      <div>
+    <div className="flex gap-56px">
+      <div className="width-9-col">
         <div className="padding-bottom-40px">
           <SearchBar
             value={searchQuery}
@@ -107,7 +107,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
         </div>
       </div>
 
-      <div className="hide-mobile">
+      <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
             title="Status"
@@ -121,7 +121,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="project"
-          suggestCorrectionDescription="Propose changes to a project listing"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrSOZFEW790ANG0Q"
         />
       </div>
     </div>

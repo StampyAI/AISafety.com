@@ -2,9 +2,10 @@ import Image from 'next/image'
 import TrackedLink from './TrackedLink'
 import styles from './FeaturedCard.module.css'
 
-interface MetadataField {
-  label: string
-  value: string | string[]
+export interface FeaturedCardMeta {
+  /** Path to a 16×16 svg icon in /images (already teal-300 tinted). */
+  icon: string
+  value: string
 }
 
 interface FeaturedCardProps {
@@ -12,34 +13,87 @@ interface FeaturedCardProps {
   tagline: string
   name: string
   description: string
-  logo?: string
-  metadata: MetadataField[]
+  logo?: string | null
+  /** Metadata rows shown directly under the title (e.g. the creator). */
+  titleMeta?: FeaturedCardMeta[]
+  /** Metadata rows shown at the bottom of the card. */
+  meta: FeaturedCardMeta[]
   trackingPage: string
+  /** Position among the featured cards in the row (0-based). */
+  index: number
+  /** Total featured cards in the row. */
+  count: number
+  /** Extra classes for the card root (e.g. a width utility). */
+  className?: string
 }
 
+// Gap between featured cards — must match the row's gap-56px utility so the
+// shared gradient lines up across cards.
+const GRID_GAP = 56
+
+function MetaRows({ rows }: { rows: FeaturedCardMeta[] }) {
+  return (
+    <div className="flex flex-col gap-4px">
+      {rows.map((field, i) => (
+        <div key={i} className="flex items-center gap-8px">
+          <Image src={field.icon} alt="" width={16} height={16} unoptimized />
+          <p className="paragraph-xs color-teal-300">{field.value}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// The redesigned featured card used at the top of the data-driven sub-pages.
 export default function FeaturedCard({
   href,
   tagline,
   name,
   description,
   logo,
-  metadata,
+  titleMeta,
+  meta,
   trackingPage,
+  index,
+  count,
+  className,
 }: FeaturedCardProps) {
-  const cardInner = (
-    <div className={`${styles.card} ${href ? '' : styles.cardStatic}`}>
+  // One radial gradient shared across the whole row: each card paints its own
+  // slice of a background sized to span every card plus the gaps between them
+  // (left card → left slice … right card → right slice). A single card just
+  // uses the gradient at its natural size.
+  const gradientStyle =
+    count > 1
+      ? {
+          backgroundSize: `calc(${count * 100}% + ${(count - 1) * GRID_GAP}px) 100%`,
+          backgroundPosition: `${(index / (count - 1)) * 100}% top`,
+        }
+      : undefined
+
+  const inner = (
+    <>
       <Image
         src="/images/bookmark-small.svg"
         alt=""
         className={styles.bookmark}
         width={16}
         height={24}
+        unoptimized
       />
-      <p className="paragraph-small-bold color-teal-300 padding-bottom-16px">
+
+      <span
+        className={`${styles.pill} paragraph-xs-bold color-teal-300 inline-flex items-center gap-8px padding-left-8px padding-right-8px`}
+      >
+        <span className={styles.dot} />
         {tagline}
-      </p>
-      {logo ? (
-        <div className="flex items-center gap-16px padding-bottom-24px">
+      </span>
+
+      <div
+        className={`flex gap-16px padding-top-24px padding-bottom-24px ${
+          titleMeta && titleMeta.length > 0 ? 'items-start' : 'items-center'
+        }`}
+      >
+        {logo && (
           <div className="featured-img">
             <Image
               src={logo}
@@ -50,49 +104,45 @@ export default function FeaturedCard({
               unoptimized
             />
           </div>
+        )}
+        <div>
           <h3>{name}</h3>
+          {titleMeta && titleMeta.length > 0 && (
+            <div className="padding-top-8px">
+              <MetaRows rows={titleMeta} />
+            </div>
+          )}
         </div>
-      ) : (
-        <h3 className="padding-bottom-24px">{name}</h3>
-      )}
-      <p className="padding-bottom-24px">{description}</p>
-      {metadata.map((field, i) => {
-        const values = Array.isArray(field.value) ? field.value : [field.value]
-        return (
-          <div key={field.label}>
-            <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-              {field.label}
-            </p>
-            {values.map((v, vi) => (
-              <p
-                key={vi}
-                className={`paragraph-small${
-                  vi === values.length - 1 && i < metadata.length - 1
-                    ? ' padding-bottom-16px'
-                    : ''
-                }`}
-              >
-                {v}
-              </p>
-            ))}
-          </div>
-        )
-      })}
-    </div>
+      </div>
+
+      <p className="color-white padding-bottom-24px">{description}</p>
+
+      <MetaRows rows={meta} />
+    </>
   )
 
-  if (!href) return cardInner
+  if (!href) {
+    return (
+      <div
+        className={`${styles.card} ${styles.cardStatic} ${className ?? ''}`}
+        style={gradientStyle}
+      >
+        {inner}
+      </div>
+    )
+  }
 
   return (
     <TrackedLink
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex flex-col-mobile"
+      className={`${styles.card} ${className ?? ''}`}
+      style={gradientStyle}
       trackingPage={trackingPage}
       trackingName={name}
     >
-      {cardInner}
+      {inner}
     </TrackedLink>
   )
 }

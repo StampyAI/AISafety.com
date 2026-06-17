@@ -1,7 +1,6 @@
-import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCard'
+import FeaturedCard from '@/components/FeaturedCardLegacy'
 import AdvisorsClient from './AdvisorsClient'
 import { getAdvisors } from '@/lib/data/advisors'
 
@@ -58,34 +57,6 @@ export default async function AdvisorsPage() {
               />
             ))}
         </div>
-
-        <aside className="hide-mobile">
-          <p className="paragraph-small-bold padding-bottom-32px">
-            Related resources
-          </p>
-          <a
-            href="https://youtu.be/OpufM6yK4Go"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block padding-bottom-40px hover-opacity-80"
-          >
-            <h3 className="padding-bottom-16px">
-              Career advice video <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              Video overview of career paths in AI safety
-            </p>
-          </a>
-          <Link href="/events-and-training" className="block hover-opacity-80">
-            <h3 className="padding-bottom-16px">
-              Events &amp; training{' '}
-              <span className="color-teal-400">&rarr;</span>
-            </h3>
-            <p className="paragraph-small color-teal-300">
-              AI safety events and training programs, both online and in-person
-            </p>
-          </Link>
-        </aside>
       </div>
 
       {/* Main Content with Search, Cards, and Filters */}

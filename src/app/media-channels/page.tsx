@@ -1,6 +1,6 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCard'
+import FeaturedCard from '@/components/FeaturedCardLegacy'
 import MediaChannelsClient from './MediaChannelsClient'
 import { getMediaChannels } from '@/lib/data/media-channels'
 

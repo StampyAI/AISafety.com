@@ -86,8 +86,8 @@ export default function MediaChannelsClient({
   }, [filteredChannels])
 
   return (
-    <div className="database-outer-grid">
-      <div>
+    <div className="flex gap-56px">
+      <div className="width-9-col">
         <div className="padding-bottom-40px">
           <SearchBar
             value={searchQuery}
@@ -142,7 +142,7 @@ export default function MediaChannelsClient({
         </div>
       </div>
 
-      <div className="hide-mobile">
+      <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
             title="Type"
@@ -156,8 +156,7 @@ export default function MediaChannelsClient({
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagSZ7vJj9MHyYmtS/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="media source"
-          suggestEntryDescription="Suggest a resource to be published here"
-          suggestCorrectionDescription="Let us know of changes to an entry"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrK0YGL591cGcAE1"
         />
       </div>
     </div>

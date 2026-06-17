@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCard'
+import FeaturedCard from '@/components/FeaturedCardLegacy'
 import CommunitiesClient from './CommunitiesClient'
 import CommunitiesMap from './CommunitiesMap'
 import styles from './page.module.css'

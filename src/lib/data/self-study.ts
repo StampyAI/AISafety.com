@@ -7,6 +7,7 @@ interface AirtableRecord {
   fields: {
     Name?: string
     Description?: string
+    // Renamed in Airtable: category is now "Focus", type is now "Format".
     Focus?: string | string[]
     Format?: string | string[]
     'Created by'?: string

@@ -183,8 +183,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   }, [filteredJobs])
 
   return (
-    <div className="database-outer-grid">
-      <div>
+    <div className="flex gap-56px">
+      <div className="width-9-col">
         <div className="padding-bottom-40px">
           <SearchBar
             value={searchQuery}
@@ -256,7 +256,13 @@ export default function JobsClient({ jobs }: JobsClientProps) {
               </p>
               <p className="paragraph-small">{job.roleType}</p>
               {job.datePublished && (
-                <div className="date-published">
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 'auto 24px 24px auto',
+                    textAlign: 'right',
+                  }}
+                >
                   <span className="paragraph-xs color-teal-300 italic">
                     Posted:{' '}
                     {(() => {
@@ -274,7 +280,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
         </div>
       </div>
 
-      <div className="hide-mobile">
+      <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
             title="Skill set"

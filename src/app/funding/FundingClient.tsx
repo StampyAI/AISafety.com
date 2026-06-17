@@ -111,8 +111,8 @@ export default function FundingClient({ funders }: FundingClientProps) {
   }, [filteredFunders])
 
   return (
-    <div className="database-outer-grid">
-      <div>
+    <div className="flex gap-56px">
+      <div className="width-9-col">
         <div className="padding-bottom-40px">
           <SearchBar
             value={searchQuery}
@@ -173,7 +173,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
         </div>
       </div>
 
-      <div className="hide-mobile">
+      <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
             title="Accepting applications"
@@ -196,7 +196,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="funder"
-          suggestCorrectionDescription="Let us know of any changes that should be made"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shr9Mki0gKgHFdcbd"
         />
       </div>
     </div>

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useMemo, useRef, useLayoutEffect } from 'react'
-import Image from 'next/image'
-import FilterGroup from '@/components/FilterGroup'
-import FilterSidebar from '@/components/FilterSidebar'
+import FilterBar from '@/components/FilterBar'
+import FilterDropdown from '@/components/FilterDropdown'
+import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import type { Course } from '@/lib/data/self-study'
@@ -13,6 +13,7 @@ interface SelfStudyClientProps {
   courses: Course[]
 }
 
+// Must match the raw values stored in Airtable's Focus/Format fields.
 const categoryOptions = [
   'General intro',
   'Technical alignment',
@@ -23,40 +24,28 @@ const categoryOptions = [
 const typeOptions = ['Curriculum', 'Reading list']
 
 export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
   const filteredCourses = useMemo(() => {
     return courses.filter(course => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !course.name.toLowerCase().includes(query) &&
-          !course.description.toLowerCase().includes(query) &&
-          !course.organizer.toLowerCase().includes(query)
-        ) {
+      if (selectedCategories.length > 0) {
+        const courseCategories = course.category.split(',').map(c => c.trim())
+        if (!selectedCategories.some(cat => courseCategories.includes(cat))) {
           return false
         }
       }
 
-      if (selectedCategories.length > 0) {
-        const courseCategories = course.category.split(',').map(c => c.trim())
-        const hasMatchingCategory = selectedCategories.some(cat =>
-          courseCategories.includes(cat)
-        )
-        if (!hasMatchingCategory) return false
-      }
-
       if (selectedTypes.length > 0) {
         const courseTypes = course.courseType.split(',').map(t => t.trim())
-        const hasMatchingType = selectedTypes.some(t => courseTypes.includes(t))
-        if (!hasMatchingType) return false
+        if (!selectedTypes.some(t => courseTypes.includes(t))) {
+          return false
+        }
       }
 
       return true
     })
-  }, [courses, searchQuery, selectedCategories, selectedTypes])
+  }, [courses, selectedCategories, selectedTypes])
 
   const categoryCounts = useMemo(() => {
     return courses.reduce(
@@ -88,6 +77,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
     )
   }, [courses])
 
+  // Preserve scroll position when toggling a filter re-renders the list.
   const savedScrollY = useRef<number | null>(null)
 
   const toggleFilter = (
@@ -96,11 +86,11 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
     setter: (v: string[]) => void
   ) => {
     savedScrollY.current = window.scrollY
-    if (current.includes(value)) {
-      setter(current.filter(v => v !== value))
-    } else {
-      setter([...current, value])
-    }
+    setter(
+      current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+    )
   }
 
   useLayoutEffect(() => {
@@ -111,93 +101,74 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   }, [filteredCourses])
 
   return (
-    <div className="database-outer-grid">
-      <div>
-        <div className="padding-bottom-40px">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search courses by name, description, or creator"
-          />
-        </div>
+    <>
+      {/* FilterBar lives above the grid (not inside the left column) so the
+          cards and the Contribute/Airtable column both start at the same top. */}
+      <FilterBar count={filteredCourses.length} noun="course">
+        <FilterDropdown
+          title="Focus"
+          icon="/images/category.svg"
+          options={categoryOptions}
+          selected={selectedCategories}
+          counts={categoryCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedCategories, setSelectedCategories)
+          }
+        />
+        <FilterDropdown
+          title="Format"
+          icon="/images/type.svg"
+          options={typeOptions}
+          selected={selectedTypes}
+          counts={typeCounts}
+          onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+        />
+      </FilterBar>
 
-        <div className="collection-list padding-bottom-40px">
+      <div className="flex gap-56px">
+        <div className="collection-list padding-bottom-40px width-9-col">
           {filteredCourses.map(course => (
-            <a
+            <ListingCard
               key={course.id}
               href={course.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-              onClick={() =>
-                trackListingClick('Self-study', course.name, course.url)
+              name={course.name}
+              description={course.description}
+              logo={course.image}
+              titleMeta={
+                course.organizer
+                  ? [
+                      {
+                        icon: '/images/author.svg',
+                        value: `By ${course.organizer}`,
+                      },
+                    ]
+                  : undefined
               }
-            >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {course.image && (
-                    <Image
-                      src={course.image}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                      loading="eager"
-                      onError={e => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                </div>
-                <h3>{course.name}</h3>
-              </div>
-              <p className="paragraph-small padding-bottom-24px">
-                {course.description}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Focus
-              </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {course.category}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Created by
-              </p>
-              <p className="paragraph-small">{course.organizer}</p>
-            </a>
+              meta={[
+                ...(course.category
+                  ? [{ icon: '/images/category.svg', value: course.category }]
+                  : []),
+                ...(course.courseType
+                  ? [{ icon: '/images/type.svg', value: course.courseType }]
+                  : []),
+              ]}
+              trackingPage="Self-study"
+            />
           ))}
           {filteredCourses.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>
           )}
         </div>
-      </div>
 
-      <div className="hide-mobile">
-        <FilterSidebar>
-          <FilterGroup
-            title="Focus"
-            options={categoryOptions}
-            selected={selectedCategories}
-            counts={categoryCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedCategories, setSelectedCategories)
-            }
+        <div className="hide-mobile width-3-col">
+          <ContributeButtons
+            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
+            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
+            noun="course"
+            airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrOkWNUJKcfgCSiB"
           />
-          <FilterGroup
-            title="Format"
-            options={typeOptions}
-            selected={selectedTypes}
-            counts={typeCounts}
-            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-          />
-        </FilterSidebar>
-        <ContributeButtons
-          suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
-          suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-          noun="course"
-        />
+        </div>
       </div>
-    </div>
+    </>
   )
 }

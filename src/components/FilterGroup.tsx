@@ -35,7 +35,10 @@ export default function FilterGroup({
             />
             <span className="paragraph-small color-teal-300">
               {labels?.[option] ?? option}
-              <span className="filter-count"> ({counts[option] || 0})</span>
+              <span className="paragraph-xs color-teal-300 margin-left-4px">
+                {' '}
+                ({counts[option] || 0})
+              </span>
             </span>
           </label>
         ))}

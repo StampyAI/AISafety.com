@@ -98,8 +98,8 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
   }, [filteredAdvisors])
 
   return (
-    <div className="database-outer-grid">
-      <div>
+    <div className="flex gap-56px">
+      <div className="width-9-col">
         <div className="padding-bottom-40px">
           <SearchBar
             value={searchQuery}
@@ -160,7 +160,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
         </div>
       </div>
 
-      <div className="hide-mobile">
+      <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
             title="Focus"
@@ -181,13 +181,10 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="advisor"
-          suggestEntryDescription="Suggest a resource to be published here"
-          suggestCorrectionDescription="Let us know of changes that should be made"
+          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shr3u6yIAwM9Hi2fL"
           extraLinks={[
             {
               label: 'Review an advisor',
-              description:
-                'Help determine the inclusion and ranking of advisors on this page',
               url: 'https://airtable.com/appF8XfZUGXtfi40E/pagPIJgReOkrd1kEU/form',
             },
           ]}

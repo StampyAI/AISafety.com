@@ -45,6 +45,8 @@ const navItems = [
 
 const MIN_OVERFLOW = 5
 
+const SCROLL_THRESHOLD_BLUR = 50
+
 export default function Navigation({
   counts,
 }: {
@@ -69,6 +71,10 @@ export default function Navigation({
   const navOuterRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const itemWidths = useRef<number[]>([])
+  const scrollInfo = useRef({
+    lastY: 0,
+    mode: 'top' as 'top' | 'scrolling' | 'hidden' | 'revealed',
+  })
 
   const visibleItems = navItems.slice(0, visibleCount)
   const overflowItems = navItems.slice(visibleCount)
@@ -133,19 +139,68 @@ export default function Navigation({
     return () => document.removeEventListener('click', handleClickOutside)
   }, [isDropdownOpen])
 
-  // The nav stays pinned at the top (position: sticky, see .nav-fixed). It just
-  // gains its blurred background once you scroll off the hero so content reads
-  // underneath. The filter bar (FilterBar.tsx) stacks just below it.
   useLayoutEffect(() => {
-    const el = navOuterRef.current
-    if (!el) return
-    const onScroll = () => {
-      el.classList.toggle(styles['nav-blur'], window.scrollY > 0)
+    const handleScroll = () => {
+      const el = navOuterRef.current
+      if (!el) return
+      const y = window.scrollY
+      const { lastY, mode } = scrollInfo.current
+      const goingDown = y > lastY
+      const goingUp = y < lastY
+
+      if (y <= 0) {
+        // At the very top - reset
+        el.style.transition = 'none'
+        el.style.transform = 'translateY(0)'
+        scrollInfo.current.mode = 'top'
+      } else if (goingDown) {
+        if (mode === 'top' || mode === 'scrolling') {
+          // Scrolling down from top - move naturally with the page
+          const navHeight = el.offsetHeight
+          if (y >= navHeight) {
+            el.style.transition = 'none'
+            el.style.transform = 'translateY(-100%)'
+            scrollInfo.current.mode = 'hidden'
+          } else {
+            el.style.transition = 'none'
+            el.style.transform = `translateY(-${y}px)`
+            scrollInfo.current.mode = 'scrolling'
+          }
+        } else if (mode === 'revealed') {
+          // Was revealed by scroll-up, now scrolling down again - animate away
+          el.style.transition = 'transform 0.3s ease-in-out'
+          el.style.transform = 'translateY(-100%)'
+          scrollInfo.current.mode = 'hidden'
+        }
+        // 'hidden' stays hidden
+      } else if (goingUp) {
+        if (mode === 'hidden' || mode === 'scrolling') {
+          // Scrolling up - reveal with smooth animation
+          el.style.transition = 'transform 0.3s ease-in-out'
+          el.style.transform = 'translateY(0)'
+          scrollInfo.current.mode = 'revealed'
+        }
+        // Near the top, switch back to natural mode
+        if (y <= 5) {
+          scrollInfo.current.mode = 'top'
+        }
+      }
+
+      // Toggle blur class directly on the DOM — no React render delay
+      const blurClass = styles['nav-blur']
+      if (y > SCROLL_THRESHOLD_BLUR) {
+        el.classList.add(blurClass)
+      } else {
+        el.classList.remove(blurClass)
+      }
+
+      scrollInfo.current.lastY = y
     }
-    onScroll()
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
     document.documentElement.classList.remove('is-reload')
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
   return (
     <SearchProvider counts={counts}>

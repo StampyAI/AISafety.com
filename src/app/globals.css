@@ -70,6 +70,12 @@
 
   /* Transitions */
   --hover-transition: 0.1s ease-in-out;
+
+  /* Shadows */
+  --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-dark: 0 16px 40px rgba(0, 0, 0, 0.4);
+  --shadow-extra-dark: 0 16px 40px rgba(0, 0, 0, 0.7);
 }
 
 /* ===============================
@@ -1058,7 +1064,7 @@ label {
   background-image: url('/images/check.svg');
   background-repeat: no-repeat;
   background-position: center;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow);
 }
 
 /* ===============================
@@ -1068,17 +1074,22 @@ label {
 /* Shadows */
 .drop-shadow {
   /* For buttons on the home page */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow);
 }
 
 .drop-shadow-light {
   /* For buttons on the home page on light bgs */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-light);
 }
 
 .drop-shadow-dark {
   /* Most commmon: for elements (e.g. cards) on really dark bgs */
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-dark);
+}
+
+.drop-shadow-extra-dark {
+  /* For some popovers that really need to stand out */
+  box-shadow: var(--shadow-extra-dark);
 }
 
 .shadow-text {
@@ -1118,7 +1129,7 @@ label {
   padding: 40px;
   background-color: var(--teal-bright-850);
   border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-dark);
   will-change: transform;
   transform: scale(1);
   backface-visibility: hidden;
@@ -1127,8 +1138,12 @@ label {
     transform var(--hover-transition);
 }
 
-.card:hover {
-  transform: scale(1.015);
+/* Grow-on-hover only on hover-capable (mouse) devices — on touch screens the
+   hover state otherwise "sticks" enlarged after a tap. */
+@media (hover: hover) {
+  .card:hover {
+    transform: scale(1.015);
+  }
 }
 
 .card-static:hover {

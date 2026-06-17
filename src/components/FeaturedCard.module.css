@@ -17,15 +17,19 @@
     var(--teal-bright-850) 100%
   );
   background-repeat: no-repeat;
-  box-shadow: 0 12px 56px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-dark);
   will-change: transform;
   transform: scale(1);
   backface-visibility: hidden;
   transition: transform var(--hover-transition);
 }
 
-.card:hover {
-  transform: scale(1.015);
+/* Grow-on-hover only on hover-capable (mouse) devices — on touch screens the
+   hover state otherwise "sticks" enlarged after a tap. */
+@media (hover: hover) {
+  .card:hover {
+    transform: scale(1.015);
+  }
 }
 
 .cardStatic:hover {

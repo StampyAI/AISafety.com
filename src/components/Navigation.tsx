@@ -184,11 +184,15 @@ export default function Navigation({
         }
       }
 
-      // Blur background only while the nav is revealed over content (after a
-      // scroll-up). Tying it to scroll position alone made it flash on during
-      // the scroll-down slide-away. Toggled on the DOM — no React render delay.
+      // Blur background while the nav is revealed over content, and keep it on
+      // through 'hidden' so it travels up *with* the nav during the slide-up
+      // hide instead of popping off instantly (it's off-screen, so invisible,
+      // except during that animation). Stays off at the top (over the hero) and
+      // during the initial scroll-down slide-away ('scrolling'), where the nav
+      // is still partly visible. Toggled on the DOM — no React render delay.
       const blurClass = styles['nav-blur']
-      el.classList.toggle(blurClass, scrollInfo.current.mode === 'revealed')
+      const m = scrollInfo.current.mode
+      el.classList.toggle(blurClass, m === 'revealed' || m === 'hidden')
 
       scrollInfo.current.lastY = y
     }
@@ -246,7 +250,7 @@ export default function Navigation({
             >
               <p className="paragraph-small-bold">+{overflowItems.length}</p>
               {isDropdownOpen && (
-                <div className={styles['nav-dropdown']}>
+                <div className={`${styles['nav-dropdown']} border-plus-fill`}>
                   {overflowItems.map(item => (
                     <Link
                       key={item.href}

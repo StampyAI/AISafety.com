@@ -15,9 +15,13 @@
     transform var(--hover-transition);
 }
 
-.card:hover {
-  background-color: color-mix(in srgb, var(--teal-850) 60%, var(--teal-800));
-  transform: scale(1.015);
+/* Hover effects only on hover-capable (mouse) devices — on touch screens the
+   hover state otherwise "sticks" after a tap. */
+@media (hover: hover) {
+  .card:hover {
+    background-color: color-mix(in srgb, var(--teal-850) 60%, var(--teal-800));
+    transform: scale(1.015);
+  }
 }
 
 .cardStatic:hover {

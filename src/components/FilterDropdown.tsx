@@ -107,7 +107,7 @@ export default function FilterDropdown({
       {open && (
         <div
           ref={popoverRef}
-          className={`${styles.popover} border-plus-fill drop-shadow-dark`}
+          className={`${styles.popover} border-plus-fill drop-shadow-extra-dark`}
           style={{ top: pos.top, left: pos.left }}
         >
           <div className="flex flex-col gap-16px">

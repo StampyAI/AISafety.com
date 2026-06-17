@@ -45,8 +45,6 @@ const navItems = [
 
 const MIN_OVERFLOW = 5
 
-const SCROLL_THRESHOLD_BLUR = 50
-
 export default function Navigation({
   counts,
 }: {
@@ -186,13 +184,11 @@ export default function Navigation({
         }
       }
 
-      // Toggle blur class directly on the DOM — no React render delay
+      // Blur background only while the nav is revealed over content (after a
+      // scroll-up). Tying it to scroll position alone made it flash on during
+      // the scroll-down slide-away. Toggled on the DOM — no React render delay.
       const blurClass = styles['nav-blur']
-      if (y > SCROLL_THRESHOLD_BLUR) {
-        el.classList.add(blurClass)
-      } else {
-        el.classList.remove(blurClass)
-      }
+      el.classList.toggle(blurClass, scrollInfo.current.mode === 'revealed')
 
       scrollInfo.current.lastY = y
     }

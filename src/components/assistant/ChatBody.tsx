@@ -131,6 +131,7 @@ interface AssistantMessageViewProps {
   allCitations: CitationRef[]
   onSuggest?: (query: string, type?: string) => void
   onCitationClick?: (c: CitationRef) => void
+  onLinkClick?: (href: string, label: string) => void
 }
 
 /** Renders an assistant message. The reasoning/tool trail before the
@@ -141,6 +142,7 @@ function AssistantMessageView({
   allCitations,
   onSuggest,
   onCitationClick,
+  onLinkClick,
 }: AssistantMessageViewProps) {
   let boundary = lastThinkingDoneIndex(message.events)
   // Fallback: if the model forgot the [[/thinking]] marker but did make tool
@@ -181,6 +183,7 @@ function AssistantMessageView({
             isStreaming={streamingTail && isLast}
             onSuggest={onSuggest}
             onCitationClick={onCitationClick}
+            onLinkClick={onLinkClick}
           />
         )
       }
@@ -240,6 +243,8 @@ interface Props {
   storageKey?: string
   onSuggest?: (query: string, type?: string) => void
   onCitationClick?: (c: CitationRef) => void
+  /** Fires when the visitor clicks an inline markdown link in a reply. */
+  onLinkClick?: (href: string, label: string) => void
   /** Fires whenever the message count transitions between 0 and >0, so the
    *  parent can show/hide a clear button without polling. */
   onHasMessagesChange?: (hasMessages: boolean) => void
@@ -261,6 +266,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     storageKey,
     onSuggest,
     onCitationClick,
+    onLinkClick,
     onHasMessagesChange,
     closeOnEscape,
     onCloseEscape,
@@ -669,6 +675,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                   allCitations={allCitations}
                   onSuggest={onSuggest}
                   onCitationClick={onCitationClick}
+                  onLinkClick={onLinkClick}
                 />
                 {!m.isStreaming && m.followUpChips.length > 0 && (
                   <div className={styles.followUpRow}>

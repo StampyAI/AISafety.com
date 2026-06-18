@@ -780,6 +780,25 @@
   color: var(--bright-teal-500);
 }
 
+/* Inline link the visitor actually clicked: brighter, with a small ✓ badge. */
+.convLinkClicked {
+  color: var(--bright-teal-300);
+  font-weight: 600;
+}
+
+.convLinkClickedTag {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-radius: 999px;
+  padding: 0 4px;
+  text-decoration: none;
+  vertical-align: 1px;
+}
+
 .convThinking {
   margin-bottom: 10px;
   padding: 6px 10px;

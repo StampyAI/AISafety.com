@@ -156,6 +156,20 @@ export default function Assistant() {
     [currentPage, fireLog]
   )
 
+  const handleLinkClick = useCallback(
+    (href: string, label: string) => {
+      void fireLog({
+        kind: 'click',
+        target: 'link',
+        url: href,
+        label,
+        currentPage,
+        sessionId: getSessionId(),
+      })
+    },
+    [currentPage, fireLog]
+  )
+
   const handleClear = useCallback(() => {
     chatRef.current?.clear()
     setHasMessages(false)
@@ -358,6 +372,7 @@ export default function Assistant() {
           storageKey={STORAGE_KEY}
           onSuggest={handleSuggest}
           onCitationClick={handleCitationClick}
+          onLinkClick={handleLinkClick}
           onHasMessagesChange={setHasMessages}
           resizeKey={`${isOpen}-${isExpanded}`}
         />

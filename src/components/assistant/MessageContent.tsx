@@ -29,6 +29,7 @@ interface Props {
   citations: CitationRef[]
   onSuggest?: (query: string, type?: string) => void
   onCitationClick?: (citation: CitationRef) => void
+  onLinkClick?: (href: string, label: string) => void
   isStreaming?: boolean
 }
 
@@ -129,7 +130,8 @@ function renderInline(
   text: string,
   citationsById: Map<string, CitationRef>,
   onSuggest?: (query: string, type?: string) => void,
-  onCitationClick?: (c: CitationRef) => void
+  onCitationClick?: (c: CitationRef) => void,
+  onLinkClick?: (href: string, label: string) => void
 ): ReactNode[] {
   const parts: ReactNode[] = []
   let lastIndex = 0
@@ -228,6 +230,7 @@ function renderInline(
       const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
       if (linkMatch) {
         const href = linkMatch[2]
+        const label = linkMatch[1]
         const isExternal = /^https?:\/\//.test(href)
         parts.push(
           <a
@@ -235,8 +238,9 @@ function renderInline(
             href={href}
             target={isExternal ? '_blank' : undefined}
             rel={isExternal ? 'noopener noreferrer' : undefined}
+            onClick={() => onLinkClick?.(href, label)}
           >
-            {linkMatch[1]}
+            {label}
           </a>
         )
       } else {
@@ -251,7 +255,8 @@ function renderInline(
         token.slice(2, -2),
         citationsById,
         onSuggest,
-        onCitationClick
+        onCitationClick,
+        onLinkClick
       )
       INLINE_REGEX.lastIndex = saved
       parts.push(<strong key={`b-${key++}`}>{inner}</strong>)
@@ -261,19 +266,22 @@ function renderInline(
         token.slice(1, -1),
         citationsById,
         onSuggest,
-        onCitationClick
+        onCitationClick,
+        onLinkClick
       )
       INLINE_REGEX.lastIndex = saved
       parts.push(<em key={`i-${key++}`}>{inner}</em>)
     } else if (/^aisafety\.info/i.test(token)) {
       // Auto-linkify bare aisafety.info mentions (the bot writes it as plain
       // text). Scoped to this one domain to avoid false positives.
+      const href = `https://${token}`
       parts.push(
         <a
           key={`u-${key++}`}
-          href={`https://${token}`}
+          href={href}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => onLinkClick?.(href, token)}
         >
           {token}
         </a>
@@ -418,6 +426,7 @@ export default function MessageContent({
   citations,
   onSuggest,
   onCitationClick,
+  onLinkClick,
   isStreaming,
 }: Props) {
   const citationsById = useMemo(
@@ -488,7 +497,8 @@ export default function MessageContent({
                 paragraphText,
                 citationsById,
                 onSuggest,
-                onCitationClick
+                onCitationClick,
+                onLinkClick
               )}
               {isStreaming && i === blocks.length - 1 && (
                 <span className={styles.cursor} />
@@ -506,7 +516,8 @@ export default function MessageContent({
                     item,
                     citationsById,
                     onSuggest,
-                    onCitationClick
+                    onCitationClick,
+                    onLinkClick
                   )}
                 </Fragment>
               </li>

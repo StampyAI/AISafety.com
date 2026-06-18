@@ -134,9 +134,40 @@ export function plainPreview(text: string): string {
     .trim()
 }
 
+/** Wraps an inline link with a "clicked" badge when the visitor opened it.
+ *  Link clicks are stored in the same Clicked set as cards, keyed `link:<href>`. */
+function inlineLink(
+  href: string,
+  text: ReactNode,
+  clicked: Set<string>,
+  key: string
+): ReactNode {
+  const wasClicked = clicked.has(`link:${href}`)
+  return (
+    <a
+      key={key}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${styles.convLink}${wasClicked ? ` ${styles.convLinkClicked}` : ''}`}
+    >
+      {text}
+      {wasClicked && (
+        <span
+          className={styles.convLinkClickedTag}
+          title="The visitor clicked this link"
+        >
+          ✓
+        </span>
+      )}
+    </a>
+  )
+}
+
 function renderInline(
   text: string,
-  listings: Record<string, ListingInfo>
+  listings: Record<string, ListingInfo>,
+  clicked: Set<string>
 ): ReactNode[] {
   const parts: ReactNode[] = []
   let lastIndex = 0
@@ -165,17 +196,7 @@ function renderInline(
     } else if (token.startsWith('[')) {
       const m = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
       if (m) {
-        parts.push(
-          <a
-            key={`l-${key++}`}
-            href={m[2]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.convLink}
-          >
-            {m[1]}
-          </a>
-        )
+        parts.push(inlineLink(m[2], m[1], clicked, `l-${key++}`))
       } else {
         parts.push(token)
       }
@@ -184,17 +205,7 @@ function renderInline(
     } else if (/^aisafety\.info/i.test(token)) {
       // Auto-linkify bare aisafety.info mentions, matching the live renderer
       // (the bot writes it as plain text rather than a markdown link).
-      parts.push(
-        <a
-          key={`u-${key++}`}
-          href={`https://${token}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.convLink}
-        >
-          {token}
-        </a>
-      )
+      parts.push(inlineLink(`https://${token}`, token, clicked, `u-${key++}`))
     } else {
       parts.push(<em key={`i-${key++}`}>{token.slice(1, -1)}</em>)
     }
@@ -362,6 +373,7 @@ function CardPill({ card }: { card: CardSpec }) {
 function MessageBody({ text }: { text: string }) {
   const blocks = parseBlocks(text)
   const listings = useContext(ListingInfoContext)
+  const clicked = useContext(ClickedCardsContext)
   return (
     <>
       {blocks.map((block, i) => {
@@ -375,14 +387,16 @@ function MessageBody({ text }: { text: string }) {
           )
         }
         if (block.kind === 'paragraph') {
-          return <p key={i}>{renderInline(block.lines.join(' '), listings)}</p>
+          return (
+            <p key={i}>{renderInline(block.lines.join(' '), listings, clicked)}</p>
+          )
         }
         const Tag = block.kind === 'ul' ? 'ul' : 'ol'
         return (
           <Tag key={i}>
             {block.lines.map((item, j) => (
               <li key={j}>
-                <Fragment>{renderInline(item, listings)}</Fragment>
+                <Fragment>{renderInline(item, listings, clicked)}</Fragment>
               </li>
             ))}
           </Tag>

@@ -31,23 +31,19 @@ function readGeo(
   req: NextRequest,
   fallback: AssistantRequest['geoFallback']
 ): RequestContext['geo'] {
-  const city = req.headers.get('x-vercel-ip-city')
+  const headerCity = req.headers.get('x-vercel-ip-city')
   const region = req.headers.get('x-vercel-ip-country-region')
   const country = req.headers.get('x-vercel-ip-country')
-  if (city || region || country) {
-    return {
-      city: city ? decodeURIComponent(city) : undefined,
-      region: region ?? undefined,
-      country: country ?? undefined,
-    }
+  // Prefer Vercel's edge geo, but fill any field it omits from the client
+  // fallback (ipapi). Vercel often returns region + country but no city; without
+  // this merge the city from the fallback was discarded and the admin row fell
+  // back to the bare region code (e.g. "ENG").
+  const merged = {
+    city: headerCity ? decodeURIComponent(headerCity) : (fallback?.city ?? undefined),
+    region: region ?? fallback?.region ?? undefined,
+    country: country ?? fallback?.country ?? undefined,
   }
-  if (fallback && (fallback.city || fallback.region || fallback.country)) {
-    return {
-      city: fallback.city ?? undefined,
-      region: fallback.region ?? undefined,
-      country: fallback.country ?? undefined,
-    }
-  }
+  if (merged.city || merged.region || merged.country) return merged
   return null
 }
 

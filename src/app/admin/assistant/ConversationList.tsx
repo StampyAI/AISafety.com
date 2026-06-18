@@ -56,10 +56,29 @@ function countryLabel(code: string): string {
   return `${name && name !== cc ? name : cc} ${flag}`
 }
 
+/** ISO 3166-2 subdivision codes that read as opaque abbreviations when Vercel
+ *  has no city for a visitor. Keyed by country so codes stay unambiguous;
+ *  anything unmapped shows as-is. */
+const REGION_NAMES: Record<string, string> = {
+  'GB-ENG': 'England',
+  'GB-SCT': 'Scotland',
+  'GB-WLS': 'Wales',
+  'GB-NIR': 'Northern Ireland',
+}
+
+function regionLabel(region: string, country?: string): string {
+  const cc = country?.trim().toUpperCase() ?? ''
+  return REGION_NAMES[`${cc}-${region.trim().toUpperCase()}`] ?? region
+}
+
 function geoString(geo: ConversationData['geo']): string {
   if (!geo) return ''
   const country = geo.country ? countryLabel(geo.country) : undefined
-  return [geo.city ?? geo.region, country].filter(Boolean).join(', ')
+  // Prefer the city; only when there's none do we show the region (expanded to
+  // a readable name where we have one, e.g. "ENG" → "England").
+  const place =
+    geo.city ?? (geo.region ? regionLabel(geo.region, geo.country) : undefined)
+  return [place, country].filter(Boolean).join(', ')
 }
 
 /** "12 June 2026" — site-wide DATE MONTH YEAR convention. */

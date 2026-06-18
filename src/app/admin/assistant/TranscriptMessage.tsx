@@ -65,7 +65,6 @@ const CARD_LINE_RE =
   /^\s*\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
 const INLINE_RE =
   /(\[\[[^\]\n]*\]\])|(\[[^\]\n]+\]\(\/?[^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
-const ANY_DIRECTIVE_RE = /\[\[[^\]]*\]\]/g
 
 /** "job:recXXX" → "job"; bare rec ids have no type. */
 function cardType(rawId: string): string | null {
@@ -117,21 +116,6 @@ function parseMessage(text: string): ParsedMessage {
   body = body.replace(SUGGEST_RE, '')
 
   return { thinking, body: body.trim(), chips, suggestedListing }
-}
-
-/** Plain-text one-liner for the collapsed row preview: search trail and
- *  directives removed, card tokens replaced by their labels, markdown
- *  markers stripped. */
-export function plainPreview(text: string): string {
-  const { body } = parseMessage(text)
-  return body
-    .replace(/\[\[\s*card\s*:[^\]|\n]*\|([^\]\n]*)\]\]/gi, '$1')
-    .replace(ANY_DIRECTIVE_RE, ' ')
-    .replace(/\[([^\]\n]+)\]\([^)\n]+\)/g, '$1')
-    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
-    .replace(/\*([^*\n]+)\*/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 /** Wraps an inline link with a "clicked" badge when the visitor opened it.
@@ -407,15 +391,13 @@ function MessageBody({ text }: { text: string }) {
 }
 
 export default function TranscriptMessage({ text }: { text: string }) {
-  const { thinking, body, chips, suggestedListing } = parseMessage(text)
+  // The reasoning/search trail before the [[/thinking]] boundary is dropped
+  // here: it's never shown to visitors (the live chat hides it), and it adds
+  // noise to the admin transcript. parseMessage still splits it off so it
+  // stays out of the body below.
+  const { body, chips, suggestedListing } = parseMessage(text)
   return (
     <div className={styles.convMsg}>
-      {thinking && (
-        <div className={styles.convThinking}>
-          <span className={styles.convThinkingLabel}>Search trail</span>
-          {plainPreview(thinking)}
-        </div>
-      )}
       <MessageBody text={body} />
       {suggestedListing && (
         <div className={styles.convSuggestNote}>

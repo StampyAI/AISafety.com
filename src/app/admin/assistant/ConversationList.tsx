@@ -102,47 +102,6 @@ function formatLatency(ms: number): string {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
 }
 
-interface ToolCallEntry {
-  name?: string
-  input?: unknown
-  ok?: boolean
-}
-
-/** The Data column stores one tool-call array per turn; flatten across
- *  turns and drop anything that isn't a call object. */
-function flattenToolCalls(tools: unknown[]): ToolCallEntry[] {
-  const out: ToolCallEntry[] = []
-  for (const entry of tools) {
-    const calls = Array.isArray(entry) ? entry : [entry]
-    for (const call of calls) {
-      if (call && typeof call === 'object' && 'name' in call) {
-        out.push(call as ToolCallEntry)
-      }
-    }
-  }
-  return out
-}
-
-/** {type:"job", filters:{skillSet:"X"}} → "type: job · skillSet: X" */
-function describeToolInput(input: unknown): string {
-  if (!input || typeof input !== 'object') return ''
-  const parts: string[] = []
-  const walk = (obj: Record<string, unknown>) => {
-    for (const [key, value] of Object.entries(obj)) {
-      if (value == null || value === '') continue
-      if (Array.isArray(value)) {
-        parts.push(`${key}: ${value.join(', ')}`)
-      } else if (typeof value === 'object') {
-        walk(value as Record<string, unknown>)
-      } else {
-        parts.push(`${key}: ${String(value)}`)
-      }
-    }
-  }
-  walk(input as Record<string, unknown>)
-  return parts.join(' · ')
-}
-
 export default function ConversationList() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [listings, setListings] = useState<Record<string, ListingInfo>>({})
@@ -350,13 +309,10 @@ function ConversationRow({
   onUpdate: (c: Conversation) => void
 }) {
   const [notes, setNotes] = useState(conv.notes)
-  const [tags, setTags] = useState<string[]>(conv.tags)
-  const [tagInput, setTagInput] = useState('')
   const [saveStatus, setSaveStatus] = useState('')
   const data = conv.data
   const turnCount = data?.history.filter(t => t.role === 'user').length ?? 0
   const geo = data ? geoString(data.geo) : ''
-  const toolCalls = data ? flattenToolCalls(data.tools) : []
   // Collapsed row previews the visitor's OPENING message (how they first
   // arrived), not the most recent turn. Fall back to the latest-turn field
   // for old rows that have no stored history.
@@ -374,7 +330,7 @@ function ConversationRow({
     return s
   }, [conv.clickedCitations])
 
-  const persist = async (patch: { notes?: string; tags?: string[] }) => {
+  const persist = async (patch: { notes?: string }) => {
     setSaveStatus('saving…')
     try {
       const res = await fetch('/api/admin/conversations', {
@@ -393,21 +349,6 @@ function ConversationRow({
     } catch {
       setSaveStatus('save failed')
     }
-  }
-
-  const removeTag = (t: string) => {
-    const next = tags.filter(x => x !== t)
-    setTags(next)
-    void persist({ tags: next })
-  }
-
-  const addTag = (t: string) => {
-    const trimmed = t.trim()
-    if (!trimmed || tags.includes(trimmed)) return
-    const next = [...tags, trimmed]
-    setTags(next)
-    setTagInput('')
-    void persist({ tags: next })
   }
 
   return (
@@ -447,7 +388,6 @@ function ConversationRow({
             )}
           </span>
           <span className={styles.convRowMeta}>
-            {conv.tags.length > 0 && <span>{conv.tags.join(', ')}</span>}
             {conv.promptVersion && (
               <span title="Prompt version">v{conv.promptVersion}</span>
             )}
@@ -497,97 +437,12 @@ function ConversationRow({
               </div>
             </div>
 
-            {toolCalls.length > 0 && (
-              <div className={styles.convDetailField}>
-                <div className={styles.convDetailLabel}>
-                  Searches the chatbot ran ({toolCalls.length})
-                </div>
-                <div className={styles.convToolCalls}>
-                  {toolCalls.map((call, i) => (
-                    <span
-                      key={i}
-                      className={
-                        call.ok === false
-                          ? styles.convToolCallFailed
-                          : styles.convToolCall
-                      }
-                    >
-                      <span className={styles.convToolCallName}>
-                        {call.name ?? 'unknown'}
-                      </span>
-                      {describeToolInput(call.input)}
-                      {call.ok === false && ' — failed'}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {data.citations.length > 0 && (
-              <div className={styles.convDetailField}>
-                <div className={styles.convDetailLabel}>
-                  Listings shown or searched ({data.citations.length})
-                </div>
-                <div className={styles.convCitations}>
-                  {data.citations.join(', ')}
-                </div>
-              </div>
-            )}
-
-            {data.pageState && (
-              <div className={styles.convDetailField}>
-                <div className={styles.convDetailLabel}>Page state</div>
-                <div className={styles.convDetailValueMono}>
-                  {JSON.stringify(data.pageState, null, 2)}
-                </div>
-              </div>
-            )}
-
             {data.referrer && (
               <div className={styles.convDetailField}>
                 <div className={styles.convDetailLabel}>Came from</div>
                 <div className={styles.convDetailValue}>{data.referrer}</div>
               </div>
             )}
-
-            {data.utm && (
-              <div className={styles.convDetailField}>
-                <div className={styles.convDetailLabel}>UTM</div>
-                <div className={styles.convDetailValueMono}>
-                  {JSON.stringify(data.utm, null, 2)}
-                </div>
-              </div>
-            )}
-
-            <div className={styles.convDetailField}>
-              <div className={styles.convDetailLabel}>Tags</div>
-              <div className={styles.convTagInput}>
-                {tags.map(t => (
-                  <span key={t} className={styles.convTag}>
-                    {t}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(t)}
-                      aria-label={`Remove ${t}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <input
-                  className={styles.convTagAdd}
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ',') {
-                      e.preventDefault()
-                      addTag(tagInput)
-                    }
-                  }}
-                  placeholder="Add tag, Enter"
-                />
-              </div>
-            </div>
 
             <div className={styles.convDetailField}>
               <div className={styles.convDetailLabel}>Notes</div>

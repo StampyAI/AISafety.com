@@ -428,9 +428,40 @@ export default function MessageContent({
   const visibleText = stripMalformedDirectives(masked)
   const blocks = useMemo(() => parseBlocks(visibleText), [visibleText])
 
+  // A cards block whose every card fails to resolve (e.g. the model wrote a
+  // card for a listing it never actually retrieved, so the id matches no
+  // citation) renders nothing. That orphans its lead-in — a colon-terminated
+  // sentence like "And this fellowship is open to entry-level applicants:"
+  // pointing at a card that vanished. Hide both the empty cards block and that
+  // dangling lead-in so the visitor never sees a sentence trailing into
+  // nothing. Only applied once streaming has finished, when every citation is
+  // in, so there's no mid-stream flicker.
+  const hiddenBlocks = useMemo(() => {
+    const hidden = new Set<number>()
+    if (isStreaming) return hidden
+    blocks.forEach((block, i) => {
+      if (block.kind !== 'cards') return
+      const anyResolves = block.cards.some(spec =>
+        resolveCitation(spec.id, citationsById)
+      )
+      if (anyResolves) return
+      hidden.add(i)
+      const prev = blocks[i - 1]
+      if (
+        prev?.kind === 'paragraph' &&
+        prev.lines.length > 0 &&
+        prev.lines[prev.lines.length - 1].trimEnd().endsWith(':')
+      ) {
+        hidden.add(i - 1)
+      }
+    })
+    return hidden
+  }, [blocks, citationsById, isStreaming])
+
   return (
     <div className={styles.assistantMessage}>
       {blocks.map((block, i) => {
+        if (hiddenBlocks.has(i)) return null
         if (block.kind === 'cards') {
           return (
             <div key={i} className={styles.citationStack}>

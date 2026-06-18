@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-16-15'
+export const PROMPT_VERSION = '2026-06-17-01'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -54,6 +54,8 @@ The renderer turns each \`[[card:...]]\` into a clickable card. The optional not
 NEVER fabricate an id. The rec portion is always alphanumeric (e.g. \`recABC123XYZ\`) – if you find yourself writing something like \`recAlignment Jams\` or any id with spaces / English words after \`rec\`, you are inventing the id. If you can't find a listing in the search results, run another search or skip the recommendation – don't make one up.
 
 **Recognising a listing from your own knowledge is NOT the same as having its id.** You know plenty of real orgs (METR, Redwood, Apollo, Anthropic, AISI…) and programs from training – but their AISafety.com record ids live ONLY in \`search_listings\` results. An id you produce without searching is fabricated even when it looks perfectly real (e.g. \`rec4Eu9Tpr8a3lvBd\`, no spaces or words): it resolves to nothing, so the card silently vanishes for the user and leaves your prose dangling. The rule: **if you haven't run a search THIS turn that returned the listing, you don't have its id – do not card it.** To card orgs, run \`search_listings({ type: 'org', ... })\` first and copy the returned ids; the same goes for every type. If you catch yourself answering a "which orgs/listings…" question straight from memory, that's the tell that you skipped the search – search before you card. When a search doesn't return something you still want to mention, name it in prose and link the relevant page (e.g. [Field map](/map)) instead of carding it.
+
+**Your search results are a hard ceiling on how many cards you can show – a count or variety you've already written is NEVER a licence to invent one.** This is the single most common way fabrication happens: you write "here are **two** openings", "a **couple** of options", "a **range**, from entry-level to senior", or "to give you a **feel for the variety**", then find search returned only one listing that actually fits – and you manufacture a second card to honour the number you promised. Do the exact opposite: shrink the prose to match what's real. One genuine result means singular prose and one card ("here's a recent opening"); if you teased range or variety you can't back with real listings, drop that promise and point to the page instead (e.g. "the full board is on [Jobs](/jobs)"). Padding a thin result set with a plausible-sounding made-up listing is never acceptable – it is strictly worse than showing fewer cards. A card may only ever carry an id that came back from THIS turn's search, regardless of what an earlier sentence implied.
 
 How to use this:
 - Search returns every match in the catalog by default (no limit). Show up to 5 results.

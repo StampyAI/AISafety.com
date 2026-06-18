@@ -6,7 +6,6 @@ const VIEW_ID = 'viwzMBhPBk1GpQXnn'
 interface AirtableRecord {
   fields: {
     Name?: string
-    Sort?: number
     Type?: string | string[]
     Image?: Array<{ url: string }>
     Description?: string
@@ -17,7 +16,6 @@ interface AirtableRecord {
 export interface FounderResource {
   id: string
   name: string
-  sort: number | null
   type: string
   image: string | null
   description: string
@@ -48,7 +46,6 @@ export async function getFounderResources(): Promise<FounderResource[]> {
     results.push({
       id: record.id,
       name: fields.Name,
-      sort: fields.Sort ?? null,
       type: Array.isArray(fields.Type)
         ? fields.Type.join(', ')
         : fields.Type || '',

@@ -41,7 +41,6 @@ export const ENDPOINTS: EndpointDef[] = [
       'website',
       'location',
       'size',
-      'sort',
       'latitude',
       'longitude',
     ],
@@ -173,7 +172,7 @@ export const ENDPOINTS: EndpointDef[] = [
     title: 'Founder resources',
     description: 'Resources for founders of AI safety projects.',
     filterFields: ['type'],
-    fields: ['id', 'name', 'description', 'image', 'type', 'sort', 'website'],
+    fields: ['id', 'name', 'description', 'image', 'type', 'website'],
     cacheSeconds: 3600,
   },
   {
@@ -181,7 +180,7 @@ export const ENDPOINTS: EndpointDef[] = [
     title: 'Projects',
     description: 'Volunteer and collaboration opportunities.',
     filterFields: ['status'],
-    fields: ['id', 'name', 'description', 'status', 'contact', 'email'],
+    fields: ['id', 'name', 'description', 'status', 'contact'],
     cacheSeconds: 3600,
   },
 ]

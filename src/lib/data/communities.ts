@@ -17,7 +17,6 @@ interface AirtableRecord {
     Website?: string
     'Location (if in-person)'?: string
     Size?: string
-    Sort?: number
     Latitude?: number
     Longitude?: number
   }
@@ -37,7 +36,6 @@ export interface Community {
   website: string | null
   location: string | null
   size: string | null
-  sort: number
   latitude: number | null
   longitude: number | null
 }
@@ -74,7 +72,6 @@ export async function getCommunities(): Promise<Community[]> {
       website: fields.Website || null,
       location: fields['Location (if in-person)'] || null,
       size: fields.Size || null,
-      sort: fields.Sort || 9999,
       latitude: fields.Latitude ?? null,
       longitude: fields.Longitude ?? null,
     })

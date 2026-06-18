@@ -63,10 +63,8 @@ Whitelisted filter fields per endpoint live in `src/lib/api/registry.ts`.
 
 ## Privacy
 
-Endpoints serve only what is already public on the site. Internal and PII fields
-are excluded by allowlist, notably the events table's `Internal notes` and
-`Submitter's email`. (The projects `email` is the publicly-listed contact,
-already shown on `/projects`, so it is included for parity.)
+Endpoints serve only what is already public on the site. Internal and personal
+fields are excluded by allowlist.
 
 ## Code map
 

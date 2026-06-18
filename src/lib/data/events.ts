@@ -3,9 +3,7 @@ import { fetchAirtableRecords } from './airtable'
 const TABLE_ID = 'tblx0L8qJEaLBxJFS'
 const VIEW_ID = 'viwHl72bJxCb2SfrL'
 
-// Public field allowlist. Internal/PII fields present on the table are
-// deliberately excluded: 'Internal notes', "Submitter's email",
-// 'Published to newsletter?', 'Today's date', 'Created date'.
+// Public field allowlist: only fields safe to expose publicly are fetched.
 const FIELDS = [
   'Name',
   'Description',

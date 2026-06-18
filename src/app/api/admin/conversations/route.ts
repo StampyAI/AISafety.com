@@ -48,9 +48,11 @@ export async function GET(req: NextRequest) {
     : 200
   const offsetParam = url.searchParams.get('offset') || undefined
   const zeroOnly = url.searchParams.get('zeroOnly') === '1'
+  const search = url.searchParams.get('search') || undefined
   const { conversations, offset } = await listConversationsPage({
     pageSize,
     offset: offsetParam,
+    search,
   })
   // zeroMatches now lives inside Data; filter client-side here so the API
   // contract stays the same for the admin viewer.

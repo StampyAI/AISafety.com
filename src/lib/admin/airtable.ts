@@ -212,13 +212,32 @@ function rowToConversation(
  *  next batch (null when there are no older conversations left). Used by the
  *  admin viewer's "Load more" button so it only fetches what it shows rather
  *  than the whole — ever-growing — log on every load. */
+/** Airtable filterByFormula that matches rows whose content contains every word
+ *  in `search` (case-insensitive, any order). Searches the conversation JSON
+ *  plus the page and notes. Returns undefined for a blank search. */
+function searchFormula(search: string | undefined): string | undefined {
+  // Strip quotes/backslashes that would break the formula string, then split
+  // into words so "fast grants" matches a chat containing both words anywhere.
+  const words = (search ?? '')
+    .replace(/["\\]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+  if (words.length === 0) return undefined
+  const haystack = 'LOWER({Data} & " " & {Page} & " " & {Notes})'
+  const terms = words.map(w => `SEARCH(LOWER("${w}"), ${haystack})`)
+  return terms.length === 1 ? terms[0] : `AND(${terms.join(', ')})`
+}
+
 export async function listConversationsPage(opts: {
   pageSize?: number
   /** Airtable cursor returned by a previous call; omit for the first page. */
   offset?: string
+  /** Free-text filter across the conversation content (omit for all). */
+  search?: string
 }): Promise<{ conversations: ConversationRow[]; offset: string | null }> {
   ensureConfig(CONVERSATIONS_TABLE)
   const want = Math.max(1, opts.pageSize ?? 200)
+  const formula = searchFormula(opts.search)
   const out: AirtableRow<ConversationFields>[] = []
   // Airtable caps a single request at 100 records, so loop until we've
   // gathered `want` (or run out), carrying Airtable's offset between requests.
@@ -228,6 +247,7 @@ export async function listConversationsPage(opts: {
     params.set('pageSize', String(Math.min(100, want - out.length)))
     params.set('sort[0][field]', 'Created at')
     params.set('sort[0][direction]', 'desc')
+    if (formula) params.set('filterByFormula', formula)
     if (cursor) params.set('offset', cursor)
     const res = await airtableRequest(
       `${CONVERSATIONS_TABLE}?${params.toString()}`

@@ -150,6 +150,10 @@ export default function ConversationList() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [zeroOnly, setZeroOnly] = useState(false)
+  // `searchInput` tracks the box; `search` is the debounced value actually sent
+  // to the server, so we don't refetch on every keystroke.
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   // Airtable cursor for the next, older batch — null once we've reached the
   // very first conversation. Drives the "Load more" button.
@@ -161,13 +165,14 @@ export default function ConversationList() {
 
   const PAGE_SIZE = 200
 
-  const load = async (zo: boolean) => {
+  const load = async (zo: boolean, q: string) => {
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
       params.set('limit', String(PAGE_SIZE))
       if (zo) params.set('zeroOnly', '1')
+      if (q) params.set('search', q)
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -199,6 +204,7 @@ export default function ConversationList() {
       params.set('limit', String(PAGE_SIZE))
       params.set('offset', offset)
       if (zeroOnly) params.set('zeroOnly', '1')
+      if (search) params.set('search', search)
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -226,9 +232,15 @@ export default function ConversationList() {
     }
   }
 
+  // Debounce typing into the committed `search` value (350ms after a pause).
   useEffect(() => {
-    void load(zeroOnly)
-  }, [zeroOnly])
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  useEffect(() => {
+    void load(zeroOnly, search)
+  }, [zeroOnly, search])
 
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -245,6 +257,14 @@ export default function ConversationList() {
   return (
     <ListingInfoContext.Provider value={listings}>
       <div className={styles.convFilters}>
+        <input
+          type="search"
+          className={styles.convSearch}
+          placeholder="Search conversations…"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          title="Searches the whole log — visitor questions, bot replies, listings shown, page and notes"
+        />
         <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
             type="checkbox"
@@ -256,7 +276,7 @@ export default function ConversationList() {
         <button
           type="button"
           className={styles.editorButton}
-          onClick={() => void load(zeroOnly)}
+          onClick={() => void load(zeroOnly, search)}
         >
           Refresh
         </button>
@@ -294,7 +314,11 @@ export default function ConversationList() {
           )
         })}
         {conversations.length === 0 && !loading && (
-          <div className={styles.convStatus}>No conversations yet.</div>
+          <div className={styles.convStatus}>
+            {search || zeroOnly
+              ? 'No conversations match.'
+              : 'No conversations yet.'}
+          </div>
         )}
       </div>
 

@@ -336,7 +336,7 @@ export function SuggestInline({
 type Block =
   | { kind: 'paragraph'; lines: string[] }
   | { kind: 'ul'; lines: string[] }
-  | { kind: 'ol'; lines: string[] }
+  | { kind: 'ol'; lines: string[]; start: number }
   | { kind: 'cards'; cards: CardSpec[] }
 
 function parseBlocks(text: string): Block[] {
@@ -382,7 +382,7 @@ function parseBlocks(text: string): Block[] {
 
     const cardSpec = parseCardLine(line)
     const ulMatch = /^\s*[-•]\s+(.+)$/.exec(line)
-    const olMatch = /^\s*\d+\.\s+(.+)$/.exec(line)
+    const olMatch = /^\s*(\d+)\.\s+(.+)$/.exec(line)
 
     // Resolve a deferred blank: keep the list open only if it continues with
     // another item of the same kind; otherwise the blank really did end it.
@@ -409,9 +409,12 @@ function parseBlocks(text: string): Block[] {
     } else if (olMatch) {
       if (!current || current.kind !== 'ol') {
         flush()
-        current = { kind: 'ol', lines: [] }
+        // Preserve the item's actual number so a list split across cards or
+        // paragraphs (each a separate <ol>) keeps counting up via `start`
+        // instead of restarting at 1.
+        current = { kind: 'ol', lines: [], start: parseInt(olMatch[1], 10) }
       }
-      current.lines.push(olMatch[1])
+      current.lines.push(olMatch[2])
     } else {
       if (!current || current.kind !== 'paragraph') {
         flush()
@@ -509,23 +512,25 @@ export default function MessageContent({
             </p>
           )
         }
-        const Tag = block.kind === 'ul' ? 'ul' : 'ol'
-        return (
-          <Tag key={i}>
-            {block.lines.map((item, j) => (
-              <li key={j}>
-                <Fragment>
-                  {renderInline(
-                    item,
-                    citationsById,
-                    onSuggest,
-                    onCitationClick,
-                    onLinkClick
-                  )}
-                </Fragment>
-              </li>
-            ))}
-          </Tag>
+        const items = block.lines.map((item, j) => (
+          <li key={j}>
+            <Fragment>
+              {renderInline(
+                item,
+                citationsById,
+                onSuggest,
+                onCitationClick,
+                onLinkClick
+              )}
+            </Fragment>
+          </li>
+        ))
+        return block.kind === 'ol' ? (
+          <ol key={i} start={block.start}>
+            {items}
+          </ol>
+        ) : (
+          <ul key={i}>{items}</ul>
         )
       })}
       {isStreaming && blocks.length === 0 && (

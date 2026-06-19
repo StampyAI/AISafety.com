@@ -12,7 +12,10 @@ const SUGGEST_TYPE_SET = new Set<string>(SUGGEST_TYPES)
  *  Only treats the leading segment as a type when it's a known listing type, so
  *  a query containing a colon — or an older type-less token — still parses as a
  *  plain query (type undefined → default form). */
-function parseSuggestToken(raw: string): { type?: string; query: string } {
+export function parseSuggestToken(raw: string): {
+  type?: string
+  query: string
+} {
   const text = raw.trim()
   const colon = text.indexOf(':')
   if (colon > -1) {
@@ -294,7 +297,7 @@ function renderInline(
   return parts
 }
 
-function SuggestInline({
+export function SuggestInline({
   query,
   type,
   onSuggest,

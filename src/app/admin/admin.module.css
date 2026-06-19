@@ -955,12 +955,6 @@
   color: var(--teal-300);
 }
 
-.convSuggestNote {
-  margin-top: 10px;
-  font-size: 11px;
-  color: #ffb87a;
-}
-
 .convError {
   font-size: 11px;
   color: #ff8b8b;

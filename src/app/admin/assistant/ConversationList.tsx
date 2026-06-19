@@ -5,6 +5,7 @@ import styles from '../admin.module.css'
 import TranscriptMessage, {
   ClickedCardsContext,
   ListingInfoContext,
+  hasSuggestButton,
   type ListingInfo,
 } from './TranscriptMessage'
 
@@ -329,6 +330,17 @@ function ConversationRow({
     }
     return s
   }, [conv.clickedCitations])
+  // Once the bot offered a "Suggest a listing" button, the "NO MATCH" badge is
+  // redundant — the no-match was handled gracefully. Keep the badge only for
+  // no-match conversations where no suggest form was offered.
+  const showedSuggest = useMemo(() => {
+    if (!data) return false
+    const replies =
+      data.history.length > 0
+        ? data.history.filter(t => t.role === 'assistant').map(t => t.content)
+        : [data.response]
+    return replies.some(hasSuggestButton)
+  }, [data])
 
   const persist = async (patch: { notes?: string }) => {
     setSaveStatus('saving…')
@@ -367,7 +379,7 @@ function ConversationRow({
             <span className={styles.convRowPage}>{conv.page}</span>
             {turnCount > 1 && <span>{turnCount} turns</span>}
             {geo && <span>{geo}</span>}
-            {data?.zeroMatches && (
+            {data?.zeroMatches && !showedSuggest && (
               <span className={styles.convRowZero}>NO MATCH</span>
             )}
             {data?.status === 'abandoned' && (

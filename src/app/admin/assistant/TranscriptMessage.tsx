@@ -1,10 +1,16 @@
 // Renders a stored assistant reply the way visitors saw it: markdown
 // formatted, [[card:...]] lines as listing pills, [[chip:...]] tokens as
-// suggestion chips, and the pre-[[/thinking]] search trail dimmed. The
-// stored history has no resolvable citation objects, so card pills are
-// label-driven (the text after the | in the token).
+// suggestion chips, [[suggest:...]] tokens as the live "Suggest a listing"
+// button (inline, where the bot offered it), and the pre-[[/thinking]] search
+// trail dimmed. The stored history has no resolvable citation objects, so card
+// pills are label-driven (the text after the | in the token).
 
 import { createContext, Fragment, ReactNode, useContext, useState } from 'react'
+import {
+  SuggestInline,
+  parseSuggestToken,
+} from '@/components/assistant/MessageContent'
+import { suggestFormUrl } from '@/lib/assistant/constants'
 import styles from '../admin.module.css'
 
 export interface ListingInfo {
@@ -60,7 +66,7 @@ function lastThinkingDone(
   return last ? { index: last.index, length: last[0].length } : null
 }
 const CHIP_RE = /\[\[\s*chip\s*:([^\]\n]*)\]\]/gi
-const SUGGEST_RE = /\[\[\s*suggest\s*:[^\]\n]*\]\]/gi
+const SUGGEST_TOKEN_RE = /^\[\[\s*suggest\s*:([^\]\n]*)\]\]$/i
 const CARD_LINE_RE =
   /^\s*\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
 const INLINE_RE =
@@ -96,7 +102,6 @@ interface ParsedMessage {
   thinking: string | null
   body: string
   chips: string[]
-  suggestedListing: boolean
 }
 
 function parseMessage(text: string): ParsedMessage {
@@ -111,11 +116,9 @@ function parseMessage(text: string): ParsedMessage {
     return ''
   })
 
-  const suggestedListing = SUGGEST_RE.test(body)
-  SUGGEST_RE.lastIndex = 0
-  body = body.replace(SUGGEST_RE, '')
-
-  return { thinking, body: body.trim(), chips, suggestedListing }
+  // The [[suggest:...]] token is left in the body so renderInline can render
+  // the real button inline, exactly where the bot offered it.
+  return { thinking, body: body.trim(), chips }
 }
 
 /** Wraps an inline link with a "clicked" badge when the visitor opened it.
@@ -148,6 +151,29 @@ function inlineLink(
   )
 }
 
+/** Open the same submission form the live button would, so a reviewer can
+ *  confirm which form the visitor was offered. */
+function openSuggestForm(_query: string, type?: string) {
+  window.open(suggestFormUrl(type), '_blank', 'noopener')
+}
+
+// Global scan (vs the anchored, per-token SUGGEST_TOKEN_RE) for finding any
+// suggest token within a message.
+const SUGGEST_SCAN_RE = /\[\[\s*suggest\s*:([^\]\n]*)\]\]/gi
+
+/** True when this assistant message renders a "Suggest a listing" button —
+ *  i.e. it carries a [[suggest:...]] token that parses to a type with a form
+ *  (everything except `job`). The conversation list uses this to drop the
+ *  now-redundant "NO MATCH" badge once the visitor was offered a suggest form. */
+export function hasSuggestButton(text: string): boolean {
+  SUGGEST_SCAN_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = SUGGEST_SCAN_RE.exec(text)) !== null) {
+    if (parseSuggestToken(m[1]).type !== 'job') return true
+  }
+  return false
+}
+
 function renderInline(
   text: string,
   listings: Record<string, ListingInfo>,
@@ -164,18 +190,39 @@ function renderInline(
     const token = match[0]
 
     if (/^\[\[/.test(token)) {
-      // Well-formed card/id tokens become inline badges; any other [[...]]
-      // directive is malformed or already handled — drop it silently rather
-      // than leaking raw brackets.
-      const label = /^\[\[\s*(?:card|id)\s*:/i.test(token)
-        ? inlineCardLabel(token, listings)
-        : ''
-      if (label) {
-        parts.push(
-          <span key={`c-${key++}`} className={styles.convCardInline}>
-            {label}
-          </span>
-        )
+      const suggest = SUGGEST_TOKEN_RE.exec(token)
+      if (suggest) {
+        // Render the actual "Suggest a listing" button the visitor saw, inline
+        // where the bot offered it, reusing the live chat's own component so it
+        // looks identical. Clicking opens the same Airtable form the visitor
+        // would have got, so a reviewer can confirm the right form was offered.
+        // `job` has no submission form, so the live renderer shows no button
+        // there — mirror that.
+        const { type, query } = parseSuggestToken(suggest[1])
+        if (type !== 'job') {
+          parts.push(
+            <SuggestInline
+              key={`s-${key++}`}
+              query={query}
+              type={type}
+              onSuggest={openSuggestForm}
+            />
+          )
+        }
+      } else {
+        // Well-formed card/id tokens become inline badges; any other [[...]]
+        // directive is malformed or already handled — drop it silently rather
+        // than leaking raw brackets.
+        const label = /^\[\[\s*(?:card|id)\s*:/i.test(token)
+          ? inlineCardLabel(token, listings)
+          : ''
+        if (label) {
+          parts.push(
+            <span key={`c-${key++}`} className={styles.convCardInline}>
+              {label}
+            </span>
+          )
+        }
       }
     } else if (token.startsWith('[')) {
       const m = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
@@ -372,7 +419,9 @@ function MessageBody({ text }: { text: string }) {
         }
         if (block.kind === 'paragraph') {
           return (
-            <p key={i}>{renderInline(block.lines.join(' '), listings, clicked)}</p>
+            <p key={i}>
+              {renderInline(block.lines.join(' '), listings, clicked)}
+            </p>
           )
         }
         const Tag = block.kind === 'ul' ? 'ul' : 'ol'
@@ -395,16 +444,10 @@ export default function TranscriptMessage({ text }: { text: string }) {
   // here: it's never shown to visitors (the live chat hides it), and it adds
   // noise to the admin transcript. parseMessage still splits it off so it
   // stays out of the body below.
-  const { body, chips, suggestedListing } = parseMessage(text)
+  const { body, chips } = parseMessage(text)
   return (
     <div className={styles.convMsg}>
       <MessageBody text={body} />
-      {suggestedListing && (
-        <div className={styles.convSuggestNote}>
-          Nothing matched — visitor was shown a &ldquo;Suggest a listing&rdquo;
-          button
-        </div>
-      )}
       {chips.length > 0 && (
         <div className={styles.convChips}>
           {chips.map((chip, i) => (

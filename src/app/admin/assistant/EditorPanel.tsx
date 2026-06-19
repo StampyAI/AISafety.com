@@ -363,8 +363,7 @@ export default function EditorPanel({
         </div>
         <p className={styles.sectionHint}>
           Sent with each test message — same shape production uses. Geo is
-          pre-filled from your IP; edit anything to simulate a different
-          visitor.
+          pre-filled from your IP; edit anything to simulate a different user.
         </p>
 
         <div className={styles.editorRow}>

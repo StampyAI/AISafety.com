@@ -142,7 +142,7 @@ function inlineLink(
       {wasClicked && (
         <span
           className={styles.convLinkClickedTag}
-          title="The visitor clicked this link"
+          title="The user clicked this link"
         >
           ✓
         </span>

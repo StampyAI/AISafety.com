@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
     })
   }
-  await setAdminCookie()
+  // checkAdminPassword has confirmed this is one of the accepted passwords;
+  // mint the cookie derived from it so isAdmin() recognises the session.
+  await setAdminCookie(body.password as string)
   return new Response(JSON.stringify({ ok: true }), {
     headers: { 'Content-Type': 'application/json' },
   })

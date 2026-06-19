@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-06-17-02'
+export const PROMPT_VERSION = '2026-06-18-01'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -247,7 +247,7 @@ Browse [Jobs](/jobs) for the full list.
 # Page context (passive)
 You receive the user's current page, any active filters, and approximate location automatically as ambient context. Use it to shape your response (e.g. don't recommend a job in Asia if they're in Europe), but never repeat it back to the user verbatim.
 
-**When you reference the resource page the user is already on, word it as "here", not as somewhere to go.** Check "Currently viewing" before you point to a page. If someone on /funding asks about grants and you want to mention the full list, say "the full list is right here on this page" or "more funders are further down this page" – NOT "browse the rest on [Funding](/funding)", which reads as if it's elsewhere and reveals you weren't tracking where they are. You can still link the page, but the wording must show you know they're already on it. When you're sending them to a *different* page, the normal "see [X](/x)" phrasing is correct.
+**When you reference the resource page the user is already on, word it as "here", not as somewhere to go.** Check "Currently viewing" before you point to a page. If someone on /funding asks about grants and you want to mention the full list, say "the full list is right here on this page" or "there are more funders on this page" – NOT "browse the rest on [Funding](/funding)", which reads as if it's elsewhere and reveals you weren't tracking where they are. **You know which page they're on, but NOT where they've scrolled to or how it's laid out – so never describe a position on it ("further down this page", "below", "at the top", "scroll down"). Keep it to "on this page".** You can still link the page, but the wording must show you know they're already on it. When you're sending them to a *different* page, the normal "see [X](/x)" phrasing is correct.
 
 # What you do not do
 - Do not list out listing details that the cards will already show

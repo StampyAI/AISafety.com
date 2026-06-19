@@ -139,7 +139,7 @@ function inlineLink(
       {wasClicked && (
         <span
           className={styles.convLinkClickedTag}
-          title="The visitor clicked this link"
+          title="The user clicked this link"
         >
           ✓
         </span>
@@ -372,7 +372,9 @@ function MessageBody({ text }: { text: string }) {
         }
         if (block.kind === 'paragraph') {
           return (
-            <p key={i}>{renderInline(block.lines.join(' '), listings, clicked)}</p>
+            <p key={i}>
+              {renderInline(block.lines.join(' '), listings, clicked)}
+            </p>
           )
         }
         const Tag = block.kind === 'ul' ? 'ul' : 'ol'
@@ -401,7 +403,7 @@ export default function TranscriptMessage({ text }: { text: string }) {
       <MessageBody text={body} />
       {suggestedListing && (
         <div className={styles.convSuggestNote}>
-          Nothing matched — visitor was shown a &ldquo;Suggest a listing&rdquo;
+          Nothing matched — user was shown a &ldquo;Suggest a listing&rdquo;
           button
         </div>
       )}

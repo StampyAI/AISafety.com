@@ -222,7 +222,7 @@ export default function ConversationList() {
           placeholder="Search conversations…"
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
-          title="Searches the whole log — visitor questions, bot replies, listings shown, page and notes"
+          title="Searches the whole log — user questions, bot replies, listings shown, page and notes"
         />
         <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
@@ -373,7 +373,7 @@ function ConversationRow({
             {data?.status === 'abandoned' && (
               <span
                 className={styles.convRowAbandoned}
-                title="The visitor left before (or without) an answer streamed — only their question was logged"
+                title="The user left before (or without) an answer streamed — only their question was logged"
               >
                 NO REPLY
               </span>
@@ -381,7 +381,7 @@ function ConversationRow({
             {data?.status === 'error' && (
               <span
                 className={styles.convRowError}
-                title="Generation failed for this turn — only the visitor's question was logged"
+                title="Generation failed for this turn — only the user's question was logged"
               >
                 ERROR
               </span>
@@ -420,7 +420,7 @@ function ConversationRow({
                       }
                     >
                       <div className={styles.convTurnRole}>
-                        {t.role === 'user' ? 'Visitor' : 'Chatbot'}
+                        {t.role === 'user' ? 'User' : 'Chatbot'}
                       </div>
                       {t.role === 'user' ? (
                         <div className={styles.convTurnContent}>

@@ -7,7 +7,7 @@ export default function ConversationsPage() {
   return (
     <div className={styles.convPage}>
       <div className={styles.pageHeading}>
-        <h1 className={styles.pageTitle}>Conversations</h1>
+        <h1 className={styles.pageTitle}>Conversation Log</h1>
       </div>
       {configured ? (
         <ConversationList />

@@ -5,7 +5,7 @@ import styles from '../admin.module.css'
 
 const TABS = [
   { href: '/admin/assistant', label: 'Playground' },
-  { href: '/admin/assistant/conversations', label: 'Conversations' },
+  { href: '/admin/assistant/conversations', label: 'Conversation Log' },
 ]
 
 export default async function AssistantAdminLayout({

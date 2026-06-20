@@ -130,7 +130,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Funding', funder.name, funder.url)
+                trackListingClick('Funding', funder.name, funder.url, funder.id)
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">

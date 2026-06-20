@@ -5,7 +5,7 @@ import { isAdmin } from '@/lib/admin/auth'
 // already authenticated, otherwise the login page.
 export default async function AdminIndexPage() {
   if (await isAdmin()) {
-    redirect('/admin/assistant')
+    redirect('/admin/chatbot/playground')
   }
   redirect('/admin/login')
 }

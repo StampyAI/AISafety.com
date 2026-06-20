@@ -35,6 +35,19 @@ export async function isAdmin(): Promise<boolean> {
   return got != null && accepted.includes(got)
 }
 
+/** True only when the session was authenticated with the PRIMARY owner password
+ *  (ADMIN_PASSWORD) — NOT the shared, revocable ADMIN_PASSWORD_SUCCESSIF. Use
+ *  this to gate owner-only areas (e.g. the analytics dashboard) so a partner
+ *  holding the Successif password can't reach them. Fails closed if the primary
+ *  password isn't configured. */
+export async function isOwner(): Promise<boolean> {
+  const primary = process.env.ADMIN_PASSWORD
+  if (!primary) return false
+  const c = await cookies()
+  const got = c.get(COOKIE_NAME)?.value
+  return got != null && got === cookieValueFor(primary)
+}
+
 export async function setAdminCookie(password: string): Promise<void> {
   // Only mint a cookie for a password we actually accept.
   if (!validPasswords().includes(password)) return

@@ -58,6 +58,14 @@
   background-color: var(--teal-800);
 }
 
+.adminNavDivider {
+  align-self: center;
+  width: 1px;
+  height: 18px;
+  margin: 0 8px;
+  background-color: var(--teal-700);
+}
+
 .adminHeaderRight {
   display: flex;
   align-items: center;

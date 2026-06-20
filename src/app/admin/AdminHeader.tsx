@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import styles from './admin.module.css'
@@ -7,13 +8,21 @@ import styles from './admin.module.css'
 export interface AdminTab {
   href: string
   label: string
+  /** Optional grouping key; a divider is drawn where it changes. */
+  group?: string
 }
 
 interface Props {
   tabs?: AdminTab[]
+  brand?: string
+  brandHref?: string
 }
 
-export default function AdminHeader({ tabs }: Props) {
+export default function AdminHeader({
+  tabs,
+  brand = 'AISafety.com Admin',
+  brandHref = '/admin/chatbot/playground',
+}: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const handleLogout = async () => {
@@ -28,22 +37,27 @@ export default function AdminHeader({ tabs }: Props) {
   return (
     <header className={styles.adminHeader}>
       <div className={styles.adminHeaderInner}>
-        <Link href="/admin/assistant" className={styles.adminBrand}>
-          AISafety.com Chatbot Admin
+        <Link href={brandHref} className={styles.adminBrand}>
+          {brand}
         </Link>
         <nav className={styles.adminNav}>
-          {tabs?.map(tab => {
+          {tabs?.map((tab, i) => {
             const active =
-              pathname === tab.href ||
-              (tab.href !== '/admin/assistant' && pathname.startsWith(tab.href))
+              pathname === tab.href || pathname.startsWith(tab.href + '/')
+            const prev = tabs[i - 1]
+            const divide = prev && prev.group !== tab.group
             return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={`${styles.adminNavLink} ${active ? styles.adminNavLinkActive : ''}`}
-              >
-                {tab.label}
-              </Link>
+              <Fragment key={tab.href}>
+                {divide && (
+                  <span className={styles.adminNavDivider} aria-hidden="true" />
+                )}
+                <Link
+                  href={tab.href}
+                  className={`${styles.adminNavLink} ${active ? styles.adminNavLinkActive : ''}`}
+                >
+                  {tab.label}
+                </Link>
+              </Fragment>
             )
           })}
         </nav>

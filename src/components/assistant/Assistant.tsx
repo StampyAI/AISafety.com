@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 import { getPageContext } from '@/lib/assistant/page-context'
 import { suggestFormUrl } from '@/lib/assistant/constants'
+import { trackEvent } from '@/lib/analytics'
 import type { CitationRef } from '@/lib/assistant/types'
 import ChatBody, { type ChatBodyHandle } from './ChatBody'
 import styles from './Assistant.module.css'
@@ -117,9 +118,18 @@ export default function Assistant() {
     (trigger: 'pill' | 'chip' | 'keyboard') => {
       setIsOpen(true)
       void fireLog({ kind: 'open', trigger, currentPage })
+      // First-party funnel: unique users who open the chatbot.
+      trackEvent('chatbot_open')
     },
     [currentPage, fireLog]
   )
+
+  // Funnel: unique users who send the chatbot a message. Fired from the public
+  // chatbot only (the admin playground doesn't pass onUserSend), so internal
+  // testing never inflates the numbers.
+  const handleUserSend = useCallback(() => {
+    trackEvent('chatbot_message')
+  }, [])
 
   const handleTogglePill = useCallback(() => {
     if (isOpen) {
@@ -152,6 +162,8 @@ export default function Assistant() {
         currentPage,
         sessionId: getSessionId(),
       })
+      // Funnel: unique users who click a result the chatbot surfaced.
+      trackEvent('chatbot_click', { url: c.url, listingId: c.id })
     },
     [currentPage, fireLog]
   )
@@ -166,6 +178,7 @@ export default function Assistant() {
         currentPage,
         sessionId: getSessionId(),
       })
+      trackEvent('chatbot_click', { url: href, label })
     },
     [currentPage, fireLog]
   )
@@ -373,6 +386,7 @@ export default function Assistant() {
           onSuggest={handleSuggest}
           onCitationClick={handleCitationClick}
           onLinkClick={handleLinkClick}
+          onUserSend={handleUserSend}
           onHasMessagesChange={setHasMessages}
           resizeKey={`${isOpen}-${isExpanded}`}
         />

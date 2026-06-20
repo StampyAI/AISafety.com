@@ -245,6 +245,10 @@ interface Props {
   onCitationClick?: (c: CitationRef) => void
   /** Fires when the visitor clicks an inline markdown link in a reply. */
   onLinkClick?: (href: string, label: string) => void
+  /** Fires when the user sends a message (typed or via a chip), excluding
+   *  retries — lets the public chatbot count engagement while the admin
+   *  playground (which doesn't pass this) stays out of the numbers. */
+  onUserSend?: () => void
   /** Fires whenever the message count transitions between 0 and >0, so the
    *  parent can show/hide a clear button without polling. */
   onHasMessagesChange?: (hasMessages: boolean) => void
@@ -267,6 +271,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     onSuggest,
     onCitationClick,
     onLinkClick,
+    onUserSend,
     onHasMessagesChange,
     closeOnEscape,
     onCloseEscape,
@@ -279,6 +284,11 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
   const [isWaiting, setIsWaiting] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  // Latest onUserSend in a ref so send() can call it without it being a dep.
+  const onUserSendRef = useRef(onUserSend)
+  useEffect(() => {
+    onUserSendRef.current = onUserSend
+  }, [onUserSend])
 
   // Hydrate from session storage (when key provided)
   useEffect(() => {
@@ -377,6 +387,8 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     async (text: string, historyOverride?: UIMessage[]) => {
       const trimmed = text.trim()
       if (!trimmed || isWaiting) return
+      // A fresh user message (not a retry/regenerate) — funnel "sent a message".
+      if (!historyOverride) onUserSendRef.current?.()
 
       const baseHistory: UIMessage[] = historyOverride ?? [
         ...messages,

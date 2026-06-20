@@ -13,6 +13,17 @@ const nextConfig: NextConfig = {
         destination: '/founders',
         permanent: true,
       },
+      // Admin routes renamed: /admin/assistant -> /admin/chatbot.
+      {
+        source: '/admin/assistant',
+        destination: '/admin/chatbot/playground',
+        permanent: false,
+      },
+      {
+        source: '/admin/assistant/conversations',
+        destination: '/admin/chatbot/log',
+        permanent: false,
+      },
       // Migrated from Webflow redirects (exported 6 April 2026).
       // Redirects whose destination doesn't exist on the new site
       // were skipped: /ai-safety-reading-guide, /landscape-map/suggest,

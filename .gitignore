@@ -42,3 +42,6 @@ next-env.d.ts
 
 # generated at build time
 /public/images/airtable-cache/
+
+# local-dev analytics event log (no Redis in dev)
+/.analytics-dev/

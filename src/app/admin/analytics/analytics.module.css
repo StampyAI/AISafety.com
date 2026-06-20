@@ -1,0 +1,351 @@
+/* Analytics dashboard. Same dark, utilitarian internal chrome as the rest of
+   /admin — panels on teal-850 with teal-800 borders, square-ish corners, all
+   colors from the existing design tokens. */
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.total {
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 991px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.panelTitle {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-bottom: 14px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal-400);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--teal-800);
+}
+
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--teal-800);
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--white);
+}
+
+.nameCell span {
+  word-break: break-word;
+}
+
+.numCol {
+  text-align: right;
+  color: var(--bright-teal-300);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The base `.table th` rule (text-align:left) outranks `.numCol` by
+   specificity, so the numeric column header needs an explicit override to
+   line up over its right-aligned numbers. */
+.table th.numCol {
+  text-align: right;
+}
+
+.dim {
+  font-size: 13px;
+  color: var(--teal-400);
+}
+
+.empty {
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+  padding: 28px;
+  font-size: 14px;
+  color: var(--teal-300);
+  line-height: 1.5;
+}
+
+.recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.recentItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--teal-800);
+  font-size: 13px;
+}
+
+.recentItem:last-child {
+  border-bottom: none;
+}
+
+.recentTime {
+  color: var(--teal-400);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  font-size: 11px;
+  color: var(--bright-teal-300);
+  border: 1px solid var(--teal-700);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.recentLabel {
+  color: var(--white);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentUrl {
+  color: var(--teal-300);
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+  transition: color var(--hover-transition);
+}
+
+.recentUrl:hover {
+  color: var(--white);
+}
+
+/* ─── Listing logos ───────────────────────────────────────────────────── */
+
+.logo,
+.logoFallback {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.logo {
+  object-fit: contain;
+}
+
+.logoFallback {
+  display: inline-block;
+  background-color: var(--teal-800);
+}
+
+/* ─── Date-range picker ───────────────────────────────────────────────── */
+
+.rangeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.presets {
+  display: flex;
+  gap: 4px;
+}
+
+.presetBtn {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.presetBtn:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.presetBtnActive,
+.presetBtnActive:hover {
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dateInput {
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--white);
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color-scheme: dark;
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: var(--teal-500);
+}
+
+.rangeDash {
+  color: var(--teal-400);
+  font-size: 13px;
+}
+
+.applyBtn {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.applyBtn:hover:not(:disabled) {
+  background-color: var(--bright-teal-500);
+}
+
+.applyBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Chatbot funnel ──────────────────────────────────────────────────── */
+
+.funnel {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.funnelStage {
+  flex: 1;
+  min-width: 120px;
+  padding: 16px;
+  text-align: center;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+}
+
+.funnelValue {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--bright-teal-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.funnelLabel {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.funnelArrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 44px;
+}
+
+.funnelArrowGlyph {
+  font-size: 16px;
+  color: var(--teal-500);
+}
+
+.funnelPct {
+  font-size: 11px;
+  color: var(--teal-400);
+  font-variant-numeric: tabular-nums;
+}

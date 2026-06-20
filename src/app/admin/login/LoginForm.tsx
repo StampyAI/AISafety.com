@@ -26,7 +26,7 @@ export default function LoginForm() {
         setBusy(false)
         return
       }
-      router.push('/admin/assistant')
+      router.push('/admin/chatbot/playground')
       router.refresh()
     } catch {
       setError('Network error')

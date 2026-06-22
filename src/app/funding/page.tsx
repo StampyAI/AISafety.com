@@ -55,6 +55,7 @@ export default async function FundingPage() {
                   },
                 ]}
                 trackingPage="Funding"
+                trackingPosition={`F${funder.featured}`}
               />
             ))}
         </div>

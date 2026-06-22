@@ -6,6 +6,9 @@ import { trackListingClick } from '@/lib/analytics'
 interface TrackedLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   trackingPage: string
   trackingName: string
+  /** Slot the listing sits in ('F1'/'F2' or a number), recorded with the click
+   *  so the analytics dashboard can tie clicks to page position. */
+  trackingPosition?: string
   href: string
   children: ReactNode
 }
@@ -17,6 +20,7 @@ interface TrackedLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
 export default function TrackedLink({
   trackingPage,
   trackingName,
+  trackingPosition,
   href,
   children,
   onClick,
@@ -26,7 +30,13 @@ export default function TrackedLink({
     <a
       href={href}
       onClick={e => {
-        trackListingClick(trackingPage, trackingName, href)
+        trackListingClick(
+          trackingPage,
+          trackingName,
+          href,
+          undefined,
+          trackingPosition
+        )
         onClick?.(e)
       }}
       {...rest}

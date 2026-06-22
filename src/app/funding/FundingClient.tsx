@@ -22,10 +22,32 @@ const typeOptions = [
   'Platform',
 ]
 
+/** Each funder's slot in the full (unfiltered) page order, keyed by record id:
+ *  the two featured cards are 'F1'/'F2'; everything else is numbered '1', '2',
+ *  '3'… in display order. Stamped onto a click so the slot survives later
+ *  reordering. Expects `funders` in the order getFunders() returns them. */
+function fundingPlacements(funders: Funder[]): Map<string, string> {
+  const placements = new Map<string, string>()
+  let n = 0
+  for (const f of funders) {
+    if (f.featured === '1') placements.set(f.id, 'F1')
+    else if (f.featured === '2') placements.set(f.id, 'F2')
+    else {
+      n += 1
+      placements.set(f.id, String(n))
+    }
+  }
+  return placements
+}
+
 export default function FundingClient({ funders }: FundingClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAccepting, setSelectedAccepting] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+
+  // Each funder's slot in the full (unfiltered) page order, so a click is
+  // tagged with the rank Bryce set — not its position within an active filter.
+  const placements = useMemo(() => fundingPlacements(funders), [funders])
 
   const filteredFunders = useMemo(() => {
     return funders.filter(funder => {
@@ -130,7 +152,13 @@ export default function FundingClient({ funders }: FundingClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Funding', funder.name, funder.url, funder.id)
+                trackListingClick(
+                  'Funding',
+                  funder.name,
+                  funder.url,
+                  funder.id,
+                  placements.get(funder.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">

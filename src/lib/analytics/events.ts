@@ -28,6 +28,10 @@ export interface AnalyticsEvent {
   listingId?: string
   /** Human-readable label for dashboards, e.g. the listing name. */
   label?: string
+  /** The slot the listing occupied when it was clicked — 'F1'/'F2' for the two
+   *  featured cards, otherwise its number in the list ('1', '2', …). Stamped at
+   *  click time so it survives later reordering; absent on pre-feature clicks. */
+  position?: string
   /** Destination / relevant URL. */
   url?: string
   /** Referrer path, if available. */
@@ -146,6 +150,13 @@ export interface Counted {
   count: number
 }
 
+export interface FundingRow extends Counted {
+  /** Lowest–highest slot this listing was clicked at during the period (e.g.
+   *  'F1', '2', '4–8'), from positions stamped at click time. Undefined when
+   *  none of its clicks in range carry a recorded position. */
+  position?: string
+}
+
 export interface DateRange {
   /** Inclusive lower bound in epoch ms, or null for no lower bound. */
   startMs: number | null
@@ -170,7 +181,10 @@ export interface DashboardData {
   /** Total events within the selected range. */
   totalEvents: number
   byPage: Counted[]
-  topFunding: Counted[]
+  topFunding: FundingRow[]
+  /** Funding clicks bucketed by the slot they happened in, ordered F1, F2, 1,
+   *  2, 3… — answers "do higher slots draw more clicks" across all listings. */
+  byPosition: Counted[]
   funnel: ChatbotFunnel
   recent: AnalyticsEvent[]
 }
@@ -179,6 +193,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   totalEvents: 0,
   byPage: [],
   topFunding: [],
+  byPosition: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
   recent: [],
 }
@@ -197,6 +212,37 @@ function tally(items: string[]): Counted[] {
     .sort((a, b) => b.count - a.count)
 }
 
+/** Sort key putting the featured slots above the numbered list: F1, F2, 1, 2…
+ *  Unparseable labels sort last so a stray value never crashes the ordering. */
+function positionSortKey(p: string): number {
+  if (p === 'F1') return -2
+  if (p === 'F2') return -1
+  const n = Number(p)
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER
+}
+
+/** Compact "lowest–highest slot" label for a listing's recorded positions, e.g.
+ *  ['3','5','4'] → '3–5', ['F1','F1'] → 'F1'. Undefined for an empty set. */
+function positionRange(positions: string[]): string | undefined {
+  if (positions.length === 0) return undefined
+  const sorted = [...positions].sort(
+    (a, b) => positionSortKey(a) - positionSortKey(b)
+  )
+  const lo = sorted[0]
+  const hi = sorted[sorted.length - 1]
+  return lo === hi ? lo : `${lo}–${hi}`
+}
+
+/** Like tally(), but ordered by slot (F1, F2, 1, 2…) rather than by count, so
+ *  the by-position table reads as a ladder from top slot to bottom. */
+function tallyPositions(positions: string[]): Counted[] {
+  const m = new Map<string, number>()
+  for (const p of positions) m.set(p, (m.get(p) ?? 0) + 1)
+  return [...m.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => positionSortKey(a.name) - positionSortKey(b.name))
+}
+
 /** Aggregate a newest-first event list into the dashboard view, filtered to the
  *  given date range. */
 function aggregate(
@@ -213,12 +259,35 @@ function aggregate(
   const clicks = inRange.filter(e => e.page)
   const usersOf = (type: string) =>
     uniqueUsers(inRange.filter(e => e.type === type))
+
+  // Funding listings: total clicks per listing plus the range of slots each was
+  // clicked at (from positions stamped at click time, so it's period-accurate
+  // even as Bryce reorders the page).
+  const fundingClicks = clicks.filter(e => e.page === 'Funding')
+  const perListing = new Map<string, { count: number; positions: string[] }>()
+  for (const e of fundingClicks) {
+    const k = listingMember(e)
+    const g = perListing.get(k) ?? { count: 0, positions: [] }
+    g.count += 1
+    if (e.position) g.positions.push(e.position)
+    perListing.set(k, g)
+  }
+  const topFunding: FundingRow[] = [...perListing.entries()]
+    .map(([name, g]) => ({
+      name,
+      count: g.count,
+      position: positionRange(g.positions),
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15)
+
   return {
     totalEvents: inRange.length,
     byPage: tally(clicks.map(e => e.page as string)),
-    topFunding: tally(
-      clicks.filter(e => e.page === 'Funding').map(e => listingMember(e))
-    ).slice(0, 15),
+    topFunding,
+    byPosition: tallyPositions(
+      fundingClicks.map(e => e.position).filter((p): p is string => p != null)
+    ),
     funnel: {
       opened: usersOf('chatbot_open'),
       typed: usersOf('chatbot_message'),

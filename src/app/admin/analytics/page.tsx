@@ -152,19 +152,10 @@ export default async function AnalyticsPage({
   const logoById = new Map(funders.map(f => [f.id, f.logo]))
   const logoByName = new Map(funders.map(f => [f.name, f.logo]))
 
-  // Each listing's placement on the live /funding page, so Bryce can see how
-  // position correlates with clicks. The two featured cards sit above the main
-  // list (F1, F2); everything below is numbered 1, 2, 3… in display order.
-  const placementByName = new Map<string, string>()
-  let mainRank = 0
-  for (const f of funders) {
-    if (f.featured === '1') placementByName.set(f.name, 'F1')
-    else if (f.featured === '2') placementByName.set(f.name, 'F2')
-    else {
-      mainRank += 1
-      placementByName.set(f.name, String(mainRank))
-    }
-  }
+  // Slot range each listing was clicked at during this period — stamped onto
+  // the click when it happened, so it stays accurate even as the page is
+  // reordered. Undefined for listings whose clicks predate slot tracking.
+  const positionByName = new Map(data.topFunding.map(r => [r.name, r.position]))
 
   return (
     <div>
@@ -206,11 +197,25 @@ export default async function AnalyticsPage({
               <CountTable
                 rows={data.topFunding}
                 labelHead="Listing"
+                rankHead="Slot"
                 logoFor={name => logoByName.get(name) ?? undefined}
-                rankFor={name => placementByName.get(name)}
+                rankFor={name => positionByName.get(name)}
               />
+              <p className={styles.caption}>
+                Slot = where each listing was clicked this period (F1/F2 =
+                featured cards). Blank for clicks logged before slot tracking.
+              </p>
             </Panel>
           </div>
+
+          <Panel title="Clicks by position">
+            <CountTable rows={data.byPosition} labelHead="Slot" />
+            <p className={styles.caption}>
+              Every funding click counted at the slot it happened in, pooled
+              across all listings — so a busy top slot shows up even as
+              different listings rotate through it.
+            </p>
+          </Panel>
 
           <Panel title="Recent activity">
             {data.recent.length === 0 ? (
@@ -271,11 +276,13 @@ function Panel({
 function CountTable({
   rows,
   labelHead,
+  rankHead = '#',
   logoFor,
   rankFor,
 }: {
   rows: Counted[]
   labelHead: string
+  rankHead?: string
   logoFor?: (name: string) => string | undefined
   rankFor?: (name: string) => string | undefined
 }) {
@@ -284,7 +291,7 @@ function CountTable({
     <table className={styles.table}>
       <thead>
         <tr>
-          {rankFor && <th className={styles.rankCol}>#</th>}
+          {rankFor && <th className={styles.rankCol}>{rankHead}</th>}
           <th>{labelHead}</th>
           <th className={styles.numCol}>Clicks</th>
         </tr>

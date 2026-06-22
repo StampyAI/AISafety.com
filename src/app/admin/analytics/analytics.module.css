@@ -137,6 +137,13 @@
   color: var(--teal-400);
 }
 
+.caption {
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--teal-400);
+}
+
 .empty {
   background-color: var(--teal-850);
   border: 1px solid var(--teal-800);

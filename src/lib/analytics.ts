@@ -22,6 +22,9 @@ interface TrackPayload {
   label?: string
   url?: string
   listingId?: string
+  /** Slot the listing sat in when clicked ('F1'/'F2' or a number) — lets the
+   *  dashboard tie clicks to the rank that produced them. */
+  position?: string
 }
 
 const VID_KEY = 'aisafety_vid'
@@ -84,11 +87,19 @@ export function trackListingClick(
   page: string,
   name: string,
   url: string,
-  listingId?: string
+  listingId?: string,
+  position?: string
 ): void {
   if (typeof window === 'undefined') return
   window._paq?.push(['trackEvent', `Listings - ${page}`, name, url])
-  sendTrackEvent({ type: 'listing_click', page, label: name, url, listingId })
+  sendTrackEvent({
+    type: 'listing_click',
+    page,
+    label: name,
+    url,
+    listingId,
+    position,
+  })
 }
 
 /**

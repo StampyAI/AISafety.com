@@ -15,6 +15,8 @@ interface FeaturedCardProps {
   logo?: string
   metadata: MetadataField[]
   trackingPage: string
+  /** Slot this featured card occupies ('F1'/'F2'), recorded with the click. */
+  trackingPosition?: string
 }
 
 export default function FeaturedCard({
@@ -25,6 +27,7 @@ export default function FeaturedCard({
   logo,
   metadata,
   trackingPage,
+  trackingPosition,
 }: FeaturedCardProps) {
   const cardInner = (
     <div className={`${styles.card} ${href ? '' : styles.cardStatic}`}>
@@ -91,6 +94,7 @@ export default function FeaturedCard({
       className="flex flex-col-mobile"
       trackingPage={trackingPage}
       trackingName={name}
+      trackingPosition={trackingPosition}
     >
       {cardInner}
     </TrackedLink>

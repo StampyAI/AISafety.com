@@ -32,6 +32,10 @@ export interface AnalyticsEvent {
    *  featured cards, otherwise its number in the list ('1', '2', …). Stamped at
    *  click time so it survives later reordering; absent on pre-feature clicks. */
   position?: string
+  /** Where on the page the click came from. Only set to 'map' on the two pages
+   *  with a map (Map, Communities) when the click is on the map itself; every
+   *  other click (cards, featured cards) is left unset and treated as a card. */
+  source?: string
   /** Destination / relevant URL. */
   url?: string
   /** Referrer path, if available. */
@@ -192,6 +196,9 @@ export interface DashboardData {
   /** `selectedPage`'s clicks bucketed by the slot they happened in, ordered F1,
    *  F2, 1, 2, 3… — answers "do higher slots draw more clicks" for that page. */
   byPosition: Counted[]
+  /** For pages with a map (Map, Communities): the selected page's clicks split
+   *  into 'Map' vs 'Cards'. Empty for pages without a map. */
+  bySource: Counted[]
   funnel: ChatbotFunnel
   recent: AnalyticsEvent[]
 }
@@ -202,9 +209,14 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   selectedPage: null,
   topListings: [],
   byPosition: [],
+  bySource: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
   recent: [],
 }
+
+/** Resource pages that have a map above their card list, so a click can come
+ *  from either surface. These are the only pages that get a source breakdown. */
+const MAP_PAGES = new Set(['Map', 'Communities'])
 
 /** What a listing click is counted under. Prefer the human label; fall back to
  *  id/url so nothing is silently dropped. */
@@ -341,6 +353,18 @@ function aggregate(
     .sort((a, b) => b.count - a.count)
     .slice(0, 15)
 
+  // Source split, only for pages with a map: clicks tagged 'map' came from the
+  // map, everything else from the cards. Honours the unique/total mode since it
+  // derives from the same deduped pageClicks.
+  let bySource: Counted[] = []
+  if (selectedPage && MAP_PAGES.has(selectedPage)) {
+    const fromMap = pageClicks.filter(e => e.source === 'map').length
+    bySource = [
+      { name: 'Map', count: fromMap },
+      { name: 'Cards', count: pageClicks.length - fromMap },
+    ]
+  }
+
   return {
     totalEvents: inRange.length,
     byPage,
@@ -349,6 +373,7 @@ function aggregate(
     byPosition: tallyPositions(
       pageClicks.map(e => e.position).filter((p): p is string => p != null)
     ),
+    bySource,
     funnel: {
       opened: usersOf('chatbot_open'),
       typed: usersOf('chatbot_message'),

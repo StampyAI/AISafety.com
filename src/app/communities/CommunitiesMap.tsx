@@ -6,6 +6,7 @@ import Image from 'next/image'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
 import { positionTooltip } from '@/lib/mapTooltip'
+import { trackListingClick } from '@/lib/analytics'
 
 interface CommunitiesMapProps {
   communities: Community[]
@@ -378,7 +379,17 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
         if (!isMobile()) {
           const link = feature.properties?.link || feature.properties?.url
-          if (link && link !== '#') openInNewTab(link)
+          if (link && link !== '#') {
+            trackListingClick(
+              'Communities',
+              feature.properties?.name,
+              link,
+              undefined,
+              undefined,
+              'map'
+            )
+            openInNewTab(link)
+          }
           return
         }
 
@@ -394,6 +405,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
           const link = feature.properties?.link || feature.properties?.url
           tooltip.setAttribute('data-link-url', link || '')
+          tooltip.setAttribute(
+            'data-link-title',
+            feature.properties?.name || ''
+          )
           tooltip.style.display = 'block'
         }
         updateTooltipPosition(e, tooltip, mapContainer)
@@ -410,6 +425,16 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
               resetHover()
               tappedPinId = null
             }
+            const title = tooltip.getAttribute('data-link-title')
+            if (title)
+              trackListingClick(
+                'Communities',
+                title,
+                lnk,
+                undefined,
+                undefined,
+                'map'
+              )
             openInNewTab(lnk)
           }
           e.stopPropagation()

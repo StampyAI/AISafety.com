@@ -184,6 +184,48 @@
   border-color: var(--bright-teal-300);
 }
 
+/* ─── Clicks-by-source split (map pages) ──────────────────────────────── */
+
+.sourceSplit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.sourceSplitLabel {
+  color: var(--teal-400);
+  font-weight: 600;
+}
+
+.sourceStat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+}
+
+.sourceStatName {
+  color: var(--teal-300);
+}
+
+.sourceStatCount {
+  color: var(--white);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sourceStatPct {
+  color: var(--teal-400);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ─── Per-page drill-down ─────────────────────────────────────────────── */
 
 .pageSection {

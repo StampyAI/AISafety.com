@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     listingId: str(b.listingId, 64),
     label: str(b.label, 300),
     position: str(b.position, 16),
+    source: str(b.source, 16),
     url: str(b.url, 600),
     ref: str(req.headers.get('referer'), 600),
     vid: str(b.vid, 64),

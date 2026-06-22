@@ -232,6 +232,7 @@ export default async function AnalyticsPage({
 
           <div className={styles.pageSection}>
             <PageTabs pages={tabPages} active={data.selectedPage} params={sp} />
+            <SourceSplit rows={data.bySource} />
             <div className={styles.grid}>
               <Panel
                 title={
@@ -343,6 +344,31 @@ function ClickModeToggle({
       >
         Total
       </a>
+    </div>
+  )
+}
+
+/** For pages with a map, shows how the selected page's clicks split between the
+ *  map and the cards. Renders nothing for pages without a map. */
+function SourceSplit({ rows }: { rows: Counted[] }) {
+  if (rows.length === 0) return null
+  const total = rows.reduce((sum, r) => sum + r.count, 0)
+  return (
+    <div className={styles.sourceSplit}>
+      <span className={styles.sourceSplitLabel}>Clicks by source</span>
+      {rows.map(r => (
+        <span key={r.name} className={styles.sourceStat}>
+          <span className={styles.sourceStatName}>{r.name}</span>
+          <span className={styles.sourceStatCount}>
+            {r.count.toLocaleString()}
+          </span>
+          {total > 0 && (
+            <span className={styles.sourceStatPct}>
+              {Math.round((100 * r.count) / total)}%
+            </span>
+          )}
+        </span>
+      ))}
     </div>
   )
 }

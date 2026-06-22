@@ -285,7 +285,14 @@ export default function D3Map({ orgs }: D3MapProps) {
               tappedOrgId = org.id
               return
             }
-            trackListingClick('Map', org.title, org.link)
+            trackListingClick(
+              'Map',
+              org.title,
+              org.link,
+              org.id,
+              undefined,
+              'map'
+            )
           })
       }
 
@@ -445,7 +452,8 @@ export default function D3Map({ orgs }: D3MapProps) {
       const link = tt.getAttribute('data-link-url')
       const title = tt.getAttribute('data-link-title')
       if (link && link !== '#') {
-        if (title) trackListingClick('Map', title, link)
+        if (title)
+          trackListingClick('Map', title, link, undefined, undefined, 'map')
         hideTooltip()
         window.open(link, '_blank')
       }

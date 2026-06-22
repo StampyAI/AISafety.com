@@ -150,11 +150,14 @@ export interface Counted {
   count: number
 }
 
-export interface FundingRow extends Counted {
+export interface ListingRow extends Counted {
   /** Lowest–highest slot this listing was clicked at during the period (e.g.
    *  'F1', '2', '4–8'), from positions stamped at click time. Undefined when
    *  none of its clicks in range carry a recorded position. */
   position?: string
+  /** A representative destination url (most recent click) — lets the dashboard
+   *  show a favicon for pages whose listings have no Airtable logo. */
+  url?: string
 }
 
 export interface DateRange {
@@ -181,9 +184,13 @@ export interface DashboardData {
   /** Total events within the selected range. */
   totalEvents: number
   byPage: Counted[]
-  topFunding: FundingRow[]
-  /** Funding clicks bucketed by the slot they happened in, ordered F1, F2, 1,
-   *  2, 3… — answers "do higher slots draw more clicks" across all listings. */
+  /** Which resource page the per-listing panels below reflect. Null only when
+   *  no page has any clicks in range. */
+  selectedPage: string | null
+  /** Top listings for `selectedPage`, with each one's slot range this period. */
+  topListings: ListingRow[]
+  /** `selectedPage`'s clicks bucketed by the slot they happened in, ordered F1,
+   *  F2, 1, 2, 3… — answers "do higher slots draw more clicks" for that page. */
   byPosition: Counted[]
   funnel: ChatbotFunnel
   recent: AnalyticsEvent[]
@@ -192,7 +199,8 @@ export interface DashboardData {
 const EMPTY: Omit<DashboardData, 'source'> = {
   totalEvents: 0,
   byPage: [],
-  topFunding: [],
+  selectedPage: null,
+  topListings: [],
   byPosition: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
   recent: [],
@@ -244,10 +252,12 @@ function tallyPositions(positions: string[]): Counted[] {
 }
 
 /** Aggregate a newest-first event list into the dashboard view, filtered to the
- *  given date range. */
+ *  given date range. `selectedPageReq` chooses which resource page the
+ *  per-listing panels reflect; it falls back to Funding, then the busiest page. */
 function aggregate(
   all: AnalyticsEvent[],
-  { startMs, endMs }: DateRange
+  { startMs, endMs }: DateRange,
+  selectedPageReq?: string
 ): Omit<DashboardData, 'source' | 'error'> {
   const inRange = all.filter(e => {
     const t = Date.parse(e.ts)
@@ -260,33 +270,51 @@ function aggregate(
   const usersOf = (type: string) =>
     uniqueUsers(inRange.filter(e => e.type === type))
 
-  // Funding listings: total clicks per listing plus the range of slots each was
+  const byPage = tally(clicks.map(e => e.page as string))
+  const pageNames = byPage.map(p => p.name)
+  // The page the listing panels drill into: the requested one if it has data,
+  // else Funding (Bryce's main interest), else the busiest page.
+  const selectedPage =
+    selectedPageReq && pageNames.includes(selectedPageReq)
+      ? selectedPageReq
+      : pageNames.includes('Funding')
+        ? 'Funding'
+        : (pageNames[0] ?? null)
+
+  // For the selected page: total clicks per listing, the range of slots each was
   // clicked at (from positions stamped at click time, so it's period-accurate
-  // even as Bryce reorders the page).
-  const fundingClicks = clicks.filter(e => e.page === 'Funding')
-  const perListing = new Map<string, { count: number; positions: string[] }>()
-  for (const e of fundingClicks) {
+  // even as the page is reordered), and a representative url for its favicon.
+  const pageClicks = clicks.filter(e => e.page === selectedPage)
+  const perListing = new Map<
+    string,
+    { count: number; positions: string[]; url?: string }
+  >()
+  for (const e of pageClicks) {
+    // pageClicks is newest-first, so the first url we see is the most recent.
     const k = listingMember(e)
-    const g = perListing.get(k) ?? { count: 0, positions: [] }
+    const g = perListing.get(k) ?? { count: 0, positions: [], url: e.url }
     g.count += 1
     if (e.position) g.positions.push(e.position)
+    if (!g.url && e.url) g.url = e.url
     perListing.set(k, g)
   }
-  const topFunding: FundingRow[] = [...perListing.entries()]
+  const topListings: ListingRow[] = [...perListing.entries()]
     .map(([name, g]) => ({
       name,
       count: g.count,
       position: positionRange(g.positions),
+      url: g.url,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 15)
 
   return {
     totalEvents: inRange.length,
-    byPage: tally(clicks.map(e => e.page as string)),
-    topFunding,
+    byPage,
+    selectedPage,
+    topListings,
     byPosition: tallyPositions(
-      fundingClicks.map(e => e.position).filter((p): p is string => p != null)
+      pageClicks.map(e => e.position).filter((p): p is string => p != null)
     ),
     funnel: {
       opened: usersOf('chatbot_open'),
@@ -309,12 +337,15 @@ function uniqueUsers(events: AnalyticsEvent[]): number {
   return seen.size + anon
 }
 
-export async function readDashboard(range: DateRange): Promise<DashboardData> {
+export async function readDashboard(
+  range: DateRange,
+  page?: string
+): Promise<DashboardData> {
   if (store) {
     try {
       // Newest-first (lpush prepends); up to MAX_EVENTS.
       const all = await store.lrange<AnalyticsEvent>(EVENTS_KEY, 0, -1)
-      return { source: 'redis', ...aggregate(all, range) }
+      return { source: 'redis', ...aggregate(all, range, page) }
     } catch (err) {
       // Degrade gracefully — a Redis blip must not 500 the dashboard.
       console.warn(
@@ -326,5 +357,5 @@ export async function readDashboard(range: DateRange): Promise<DashboardData> {
 
   const all = await readDevEvents()
   if (all.length === 0) return { source: 'none', ...EMPTY }
-  return { source: 'local-file', ...aggregate(all, range) }
+  return { source: 'local-file', ...aggregate(all, range, page) }
 }

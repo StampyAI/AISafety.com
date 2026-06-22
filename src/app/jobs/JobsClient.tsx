@@ -7,6 +7,7 @@ import FilterSidebar from '@/components/FilterSidebar'
 import SearchBar from '@/components/SearchBar'
 import { Job } from '@/lib/data/jobs'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 import { setPageContext } from '@/lib/assistant/page-context'
 
 interface JobsClientProps {
@@ -52,6 +53,10 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<string[]>([])
   const savedScrollY = useRef<number | null>(null)
+
+  // Each job's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(jobs), [jobs])
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
@@ -227,7 +232,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                 trackListingClick(
                   'Jobs',
                   `${job.name} – ${job.organization}`,
-                  job.url
+                  job.url,
+                  job.id,
+                  placements.get(job.id)
                 )
               }
             >

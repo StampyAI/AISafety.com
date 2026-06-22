@@ -62,6 +62,7 @@ export default async function ProjectsPage() {
                   { label: 'Status', value: project.status },
                 ]}
                 trackingPage="Projects"
+                trackingPosition={`F${project.featured}`}
               />
             ))}
         </div>

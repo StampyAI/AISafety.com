@@ -141,21 +141,27 @@ export default async function AnalyticsPage({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const range = resolveRange(await searchParams)
+  const sp = await searchParams
+  const range = resolveRange(sp)
   const [data, funders] = await Promise.all([
-    readDashboard(range),
+    readDashboard(range, first(sp.page)),
     getFunders().catch(() => []),
   ])
 
-  // Map funding listings back to their logos by id (for clicks) and by name
-  // (for the top-listings table, which is keyed by display name).
+  // Funding listings have Airtable logos (by id for the activity feed, by name
+  // for the top-listings table). Other pages fall back to a favicon derived
+  // from each listing's most-recent click url.
   const logoById = new Map(funders.map(f => [f.id, f.logo]))
   const logoByName = new Map(funders.map(f => [f.name, f.logo]))
 
-  // Slot range each listing was clicked at during this period — stamped onto
-  // the click when it happened, so it stays accurate even as the page is
-  // reordered. Undefined for listings whose clicks predate slot tracking.
-  const positionByName = new Map(data.topFunding.map(r => [r.name, r.position]))
+  // Per-listing slot range + a url for the favicon, keyed by display name, for
+  // whichever page is selected. The slot is stamped onto the click when it
+  // happens, so it stays accurate even as the page is reordered; it's undefined
+  // for listings whose clicks predate slot tracking.
+  const positionByName = new Map(
+    data.topListings.map(r => [r.name, r.position])
+  )
+  const urlByName = new Map(data.topListings.map(r => [r.name, r.url]))
 
   return (
     <div>
@@ -189,33 +195,48 @@ export default async function AnalyticsPage({
             <Funnel funnel={data.funnel} />
           </Panel>
 
-          <div className={styles.grid}>
-            <Panel title="Clicks by page">
-              <CountTable rows={data.byPage} labelHead="Page" />
-            </Panel>
-            <Panel title="Top funding listings">
-              <CountTable
-                rows={data.topFunding}
-                labelHead="Listing"
-                rankHead="Slot"
-                logoFor={name => logoByName.get(name) ?? undefined}
-                rankFor={name => positionByName.get(name)}
-              />
-              <p className={styles.caption}>
-                Slot = where each listing was clicked this period (F1/F2 =
-                featured cards). Blank for clicks logged before slot tracking.
-              </p>
-            </Panel>
-          </div>
-
-          <Panel title="Clicks by position">
-            <CountTable rows={data.byPosition} labelHead="Slot" />
-            <p className={styles.caption}>
-              Every funding click counted at the slot it happened in, pooled
-              across all listings — so a busy top slot shows up even as
-              different listings rotate through it.
-            </p>
+          <Panel title="Clicks by page">
+            <CountTable rows={data.byPage} labelHead="Page" />
           </Panel>
+
+          <div className={styles.pageSection}>
+            <PageTabs
+              pages={data.byPage.map(p => p.name)}
+              active={data.selectedPage}
+              params={sp}
+            />
+            <div className={styles.grid}>
+              <Panel
+                title={
+                  data.selectedPage
+                    ? `Top ${data.selectedPage} listings`
+                    : 'Top listings'
+                }
+              >
+                <CountTable
+                  rows={data.topListings}
+                  labelHead="Listing"
+                  rankHead="Slot"
+                  logoFor={name =>
+                    logoByName.get(name) ?? faviconFor(urlByName.get(name))
+                  }
+                  rankFor={name => positionByName.get(name)}
+                />
+                <p className={styles.caption}>
+                  Slot = where each listing was clicked this period (F1/F2 =
+                  featured cards). Blank for clicks logged before slot tracking.
+                </p>
+              </Panel>
+              <Panel title="Clicks by position">
+                <CountTable rows={data.byPosition} labelHead="Slot" />
+                <p className={styles.caption}>
+                  Every click on this page counted at the slot it happened in —
+                  so a busy top slot shows up even as different listings rotate
+                  through it.
+                </p>
+              </Panel>
+            </div>
+          </div>
 
           <Panel title="Recent activity">
             {data.recent.length === 0 ? (
@@ -254,6 +275,44 @@ export default async function AnalyticsPage({
           </Panel>
         </>
       )}
+    </div>
+  )
+}
+
+/** Tabs that pick which resource page the listing panels drill into. Each tab
+ *  preserves the current date range and swaps only the `page` query param. */
+function PageTabs({
+  pages,
+  active,
+  params,
+}: {
+  pages: string[]
+  active: string | null
+  params: SearchParams
+}) {
+  if (pages.length <= 1) return null
+  const base = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (k === 'page' || v == null) continue
+    base.set(k, Array.isArray(v) ? (v[0] ?? '') : v)
+  }
+  return (
+    <div className={styles.pageTabs}>
+      {pages.map(p => {
+        const q = new URLSearchParams(base)
+        q.set('page', p)
+        return (
+          <a
+            key={p}
+            href={`?${q.toString()}`}
+            className={`${styles.pageTab}${
+              p === active ? ` ${styles.pageTabActive}` : ''
+            }`}
+          >
+            {p}
+          </a>
+        )
+      })}
     </div>
   )
 }

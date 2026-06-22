@@ -9,6 +9,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Community } from '@/lib/data/communities'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface CommunitiesClientProps {
   communities: Community[]
@@ -38,6 +39,10 @@ export default function CommunitiesClient({
   const [platformFilters, setPlatformFilters] = useState<string[]>([])
   const [activityFilters, setActivityFilters] = useState<string[]>([])
   const [focusFilters, setFocusFilters] = useState<string[]>([])
+
+  // Each community's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(communities), [communities])
 
   const filteredCommunities = useMemo(() => {
     return communities.filter(community => {
@@ -239,7 +244,9 @@ export default function CommunitiesClient({
                     trackListingClick(
                       'Communities',
                       community.name,
-                      community.joinLink
+                      community.joinLink,
+                      community.id,
+                      placements.get(community.id)
                     )
                   }
                 >

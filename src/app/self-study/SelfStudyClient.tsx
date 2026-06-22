@@ -8,6 +8,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import type { Course } from '@/lib/data/self-study'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface SelfStudyClientProps {
   courses: Course[]
@@ -26,6 +27,10 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+
+  // Each course's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(courses), [courses])
 
   const filteredCourses = useMemo(() => {
     return courses.filter(course => {
@@ -130,7 +135,13 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Self-study', course.name, course.url)
+                trackListingClick(
+                  'Self-study',
+                  course.name,
+                  course.url,
+                  course.id,
+                  placements.get(course.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">

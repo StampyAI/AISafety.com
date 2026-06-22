@@ -144,6 +144,45 @@
   color: var(--teal-400);
 }
 
+/* ─── Per-page drill-down ─────────────────────────────────────────────── */
+
+.pageSection {
+  margin-bottom: 20px;
+}
+
+.pageTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.pageTab {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.pageTab:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.pageTabActive,
+.pageTabActive:hover {
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
 .empty {
   background-color: var(--teal-850);
   border: 1px solid var(--teal-800);

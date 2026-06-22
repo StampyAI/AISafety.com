@@ -160,8 +160,11 @@ export default async function AnalyticsPage({
 }) {
   const sp = await searchParams
   const range = resolveRange(sp)
+  // Count each visitor once per listing per day by default; ?clicks=total counts
+  // every click.
+  const unique = first(sp.clicks) !== 'total'
   const [data, funders] = await Promise.all([
-    readDashboard(range, first(sp.page)),
+    readDashboard(range, first(sp.page), unique),
     getFunders().catch(() => []),
   ])
 
@@ -204,6 +207,8 @@ export default async function AnalyticsPage({
       </div>
 
       <DateRangePicker activeKey={range.key} from={range.from} to={range.to} />
+
+      <ClickModeToggle unique={unique} params={sp} />
 
       {data.error ? (
         <div className={styles.empty}>
@@ -297,6 +302,47 @@ export default async function AnalyticsPage({
           </Panel>
         </>
       )}
+    </div>
+  )
+}
+
+/** Switches the click tables between unique counts (one per visitor per listing
+ *  per day) and total counts. Unique is the default, so its link drops the param
+ *  for a clean url; both links preserve the rest of the query. */
+function ClickModeToggle({
+  unique,
+  params,
+}: {
+  unique: boolean
+  params: SearchParams
+}) {
+  const base = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (k === 'clicks' || v == null) continue
+    base.set(k, Array.isArray(v) ? (v[0] ?? '') : v)
+  }
+  const uniqueQ = base.toString()
+  const totalParams = new URLSearchParams(base)
+  totalParams.set('clicks', 'total')
+  return (
+    <div className={styles.clickToggle}>
+      <span className={styles.clickToggleLabel}>Count</span>
+      <a
+        href={uniqueQ ? `?${uniqueQ}` : '?'}
+        className={`${styles.clickToggleBtn}${
+          unique ? ` ${styles.clickToggleBtnActive}` : ''
+        }`}
+      >
+        Unique
+      </a>
+      <a
+        href={`?${totalParams.toString()}`}
+        className={`${styles.clickToggleBtn}${
+          !unique ? ` ${styles.clickToggleBtnActive}` : ''
+        }`}
+      >
+        Total
+      </a>
     </div>
   )
 }

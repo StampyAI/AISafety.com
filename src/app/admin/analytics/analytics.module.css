@@ -144,6 +144,46 @@
   color: var(--teal-400);
 }
 
+/* ─── Unique / total click toggle ─────────────────────────────────────── */
+
+.clickToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -8px 0 24px;
+  font-size: 13px;
+}
+
+.clickToggleLabel {
+  color: var(--teal-400);
+  margin-right: 2px;
+}
+
+.clickToggleBtn {
+  padding: 4px 12px;
+  font-size: 13px;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  text-decoration: none;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.clickToggleBtn:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.clickToggleBtnActive,
+.clickToggleBtnActive:hover {
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
 /* ─── Per-page drill-down ─────────────────────────────────────────────── */
 
 .pageSection {

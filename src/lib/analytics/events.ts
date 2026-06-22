@@ -251,8 +251,9 @@ function tallyPositions(positions: string[]): Counted[] {
     .sort((a, b) => positionSortKey(a.name) - positionSortKey(b.name))
 }
 
-/** Collapse repeat clicks so a visitor counts once per listing: keep only the
- *  most recent click per (visitor, page, listing). Clicks with no visitor id
+/** Collapse repeat clicks so a visitor counts once per listing per day: keep
+ *  only the most recent click per (visitor, day, page, listing). The day uses
+ *  Bryce's timezone (UTC-5), matching the date-range bounds. Clicks with no id
  *  (e.g. private browsing, where we can't tell visitors apart) are each kept.
  *  Expects a newest-first list, so the first time a key is seen is the most
  *  recent click. */
@@ -264,7 +265,11 @@ function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
       out.push(e)
       continue
     }
-    const key = `${e.vid} ${e.page ?? ''} ${listingMember(e)}`
+    const t = Date.parse(e.ts)
+    const day = Number.isNaN(t)
+      ? ''
+      : new Date(t - 5 * 3_600_000).toISOString().slice(0, 10)
+    const key = `${e.vid} ${day} ${e.page ?? ''} ${listingMember(e)}`
     if (seen.has(key)) continue
     seen.add(key)
     out.push(e)
@@ -274,11 +279,14 @@ function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
 
 /** Aggregate a newest-first event list into the dashboard view, filtered to the
  *  given date range. `selectedPageReq` chooses which resource page the
- *  per-listing panels reflect; it falls back to Funding, then the busiest page. */
+ *  per-listing panels reflect; it falls back to Funding, then the busiest page.
+ *  `unique` (default) counts each visitor once per listing per day; pass false
+ *  to count every click. */
 function aggregate(
   all: AnalyticsEvent[],
   { startMs, endMs }: DateRange,
-  selectedPageReq?: string
+  selectedPageReq?: string,
+  unique = true
 ): Omit<DashboardData, 'source' | 'error'> {
   const inRange = all.filter(e => {
     const t = Date.parse(e.ts)
@@ -287,10 +295,11 @@ function aggregate(
     if (endMs != null && t > endMs) return false
     return true
   })
-  // Unique clicks: one per visitor per listing, so repeat clicks in a visit (or
-  // across visits) don't inflate the counts. Every click table below derives
-  // from this deduped set.
-  const clicks = uniqueClicks(inRange.filter(e => e.page))
+  // Every click table below derives from this set. In unique mode it's deduped
+  // to one click per visitor per listing per day, so repeat clicks don't inflate
+  // the counts; in total mode every click is counted.
+  const pageHits = inRange.filter(e => e.page)
+  const clicks = unique ? uniqueClicks(pageHits) : pageHits
   const usersOf = (type: string) =>
     uniqueUsers(inRange.filter(e => e.type === type))
 
@@ -363,13 +372,14 @@ function uniqueUsers(events: AnalyticsEvent[]): number {
 
 export async function readDashboard(
   range: DateRange,
-  page?: string
+  page?: string,
+  unique = true
 ): Promise<DashboardData> {
   if (store) {
     try {
       // Newest-first (lpush prepends); up to MAX_EVENTS.
       const all = await store.lrange<AnalyticsEvent>(EVENTS_KEY, 0, -1)
-      return { source: 'redis', ...aggregate(all, range, page) }
+      return { source: 'redis', ...aggregate(all, range, page, unique) }
     } catch (err) {
       // Degrade gracefully — a Redis blip must not 500 the dashboard.
       console.warn(
@@ -381,5 +391,5 @@ export async function readDashboard(
 
   const all = await readDevEvents()
   if (all.length === 0) return { source: 'none', ...EMPTY }
-  return { source: 'local-file', ...aggregate(all, range, page) }
+  return { source: 'local-file', ...aggregate(all, range, page, unique) }
 }

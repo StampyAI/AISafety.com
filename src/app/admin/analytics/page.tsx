@@ -152,6 +152,20 @@ export default async function AnalyticsPage({
   const logoById = new Map(funders.map(f => [f.id, f.logo]))
   const logoByName = new Map(funders.map(f => [f.name, f.logo]))
 
+  // Each listing's placement on the live /funding page, so Bryce can see how
+  // position correlates with clicks. The two featured cards sit above the main
+  // list (F1, F2); everything below is numbered 1, 2, 3… in display order.
+  const placementByName = new Map<string, string>()
+  let mainRank = 0
+  for (const f of funders) {
+    if (f.featured === '1') placementByName.set(f.name, 'F1')
+    else if (f.featured === '2') placementByName.set(f.name, 'F2')
+    else {
+      mainRank += 1
+      placementByName.set(f.name, String(mainRank))
+    }
+  }
+
   return (
     <div>
       <div className={styles.headerRow}>
@@ -193,6 +207,7 @@ export default async function AnalyticsPage({
                 rows={data.topFunding}
                 labelHead="Listing"
                 logoFor={name => logoByName.get(name) ?? undefined}
+                rankFor={name => placementByName.get(name)}
               />
             </Panel>
           </div>
@@ -257,30 +272,46 @@ function CountTable({
   rows,
   labelHead,
   logoFor,
+  rankFor,
 }: {
   rows: Counted[]
   labelHead: string
   logoFor?: (name: string) => string | undefined
+  rankFor?: (name: string) => string | undefined
 }) {
   if (rows.length === 0) return <p className={styles.dim}>No data yet.</p>
   return (
     <table className={styles.table}>
       <thead>
         <tr>
+          {rankFor && <th className={styles.rankCol}>#</th>}
           <th>{labelHead}</th>
           <th className={styles.numCol}>Clicks</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((r, i) => (
-          <tr key={i}>
-            <td className={styles.nameCell}>
-              {logoFor && <Logo src={logoFor(r.name)} />}
-              <span>{r.name}</span>
-            </td>
-            <td className={styles.numCol}>{r.count.toLocaleString()}</td>
-          </tr>
-        ))}
+        {rows.map((r, i) => {
+          const rank = rankFor?.(r.name)
+          const featured = rank?.startsWith('F')
+          return (
+            <tr key={i}>
+              {rankFor && (
+                <td
+                  className={`${styles.rankCol}${
+                    featured ? ` ${styles.rankFeatured}` : ''
+                  }`}
+                >
+                  {rank ?? '—'}
+                </td>
+              )}
+              <td className={styles.nameCell}>
+                {logoFor && <Logo src={logoFor(r.name)} />}
+                <span>{r.name}</span>
+              </td>
+              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )

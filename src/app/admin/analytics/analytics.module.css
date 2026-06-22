@@ -110,6 +110,28 @@
   text-align: right;
 }
 
+/* Listing placement on the /funding page (F1/F2 featured, then 1, 2, 3…). */
+.rankCol {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--teal-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th.rankCol {
+  text-align: right;
+}
+
+.table td.rankCol {
+  vertical-align: middle;
+}
+
+.rankFeatured {
+  color: var(--bright-teal-300);
+  font-weight: 600;
+}
+
 .dim {
   font-size: 13px;
   color: var(--teal-400);

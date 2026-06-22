@@ -201,7 +201,8 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 12px 5px 6px;
+  /* Symmetric by default so text-only tabs (e.g. Home) stay centered. */
+  padding: 5px 12px;
   font-size: 13px;
   color: var(--teal-300);
   background-color: transparent;
@@ -212,6 +213,11 @@
   transition:
     color var(--hover-transition),
     background-color var(--hover-transition);
+}
+
+/* Tabs with an icon badge get a tighter left pad so the badge sits near the edge. */
+.pageTab:has(.pageTabIcon) {
+  padding-left: 6px;
 }
 
 /* White badge behind the nav icon, mirroring the site nav, so the glyph reads

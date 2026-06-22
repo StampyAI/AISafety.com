@@ -251,6 +251,27 @@ function tallyPositions(positions: string[]): Counted[] {
     .sort((a, b) => positionSortKey(a.name) - positionSortKey(b.name))
 }
 
+/** Collapse repeat clicks so a visitor counts once per listing: keep only the
+ *  most recent click per (visitor, page, listing). Clicks with no visitor id
+ *  (e.g. private browsing, where we can't tell visitors apart) are each kept.
+ *  Expects a newest-first list, so the first time a key is seen is the most
+ *  recent click. */
+function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
+  const seen = new Set<string>()
+  const out: AnalyticsEvent[] = []
+  for (const e of clicks) {
+    if (!e.vid) {
+      out.push(e)
+      continue
+    }
+    const key = `${e.vid} ${e.page ?? ''} ${listingMember(e)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(e)
+  }
+  return out
+}
+
 /** Aggregate a newest-first event list into the dashboard view, filtered to the
  *  given date range. `selectedPageReq` chooses which resource page the
  *  per-listing panels reflect; it falls back to Funding, then the busiest page. */
@@ -266,7 +287,10 @@ function aggregate(
     if (endMs != null && t > endMs) return false
     return true
   })
-  const clicks = inRange.filter(e => e.page)
+  // Unique clicks: one per visitor per listing, so repeat clicks in a visit (or
+  // across visits) don't inflate the counts. Every click table below derives
+  // from this deduped set.
+  const clicks = uniqueClicks(inRange.filter(e => e.page))
   const usersOf = (type: string) =>
     uniqueUsers(inRange.filter(e => e.type === type))
 

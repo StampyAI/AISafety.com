@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import {
   readDashboard,
   type Counted,
@@ -20,6 +21,22 @@ const SOURCE_LABEL: Record<string, string> = {
   'local-file': 'Local dev',
   none: 'No data yet',
 }
+
+// Resource pages in the same order as the site nav, each with its nav icon.
+// Keyed by the analytics `page` value (the string passed to trackListingClick).
+// Drives the order and icons of the page tabs; pages not listed here (e.g.
+// Home) sort after these, keeping their by-clicks order.
+const PAGE_NAV: { name: string; icon: string }[] = [
+  { name: 'Map', icon: 'map.svg' },
+  { name: 'Communities', icon: 'globe.svg' },
+  { name: 'Self-study', icon: 'book.svg' },
+  { name: 'Jobs', icon: 'briefcase.svg' },
+  { name: 'Funding', icon: 'coins.svg' },
+  { name: 'Media channels', icon: 'megaphone.svg' },
+  { name: 'Advisors', icon: 'person.svg' },
+  { name: 'Projects', icon: 'clipboard.svg' },
+  { name: 'Founders', icon: 'rocket.svg' },
+]
 
 // Bryce is in Colombia — fixed UTC-5, no DST — so day boundaries use -05:00.
 const TZ_OFFSET = '-05:00'
@@ -163,6 +180,15 @@ export default async function AnalyticsPage({
   )
   const urlByName = new Map(data.topListings.map(r => [r.name, r.url]))
 
+  // Page tabs in site-nav order (pages not in the nav fall to the end), each
+  // carrying its nav icon.
+  const pageOrder = new Map(PAGE_NAV.map((p, i) => [p.name, i]))
+  const iconByPage = new Map(PAGE_NAV.map(p => [p.name, p.icon]))
+  const tabPages = data.byPage
+    .map(p => p.name)
+    .sort((a, b) => (pageOrder.get(a) ?? 999) - (pageOrder.get(b) ?? 999))
+    .map(name => ({ name, icon: iconByPage.get(name) }))
+
   return (
     <div>
       <div className={styles.headerRow}>
@@ -200,11 +226,7 @@ export default async function AnalyticsPage({
           </Panel>
 
           <div className={styles.pageSection}>
-            <PageTabs
-              pages={data.byPage.map(p => p.name)}
-              active={data.selectedPage}
-              params={sp}
-            />
+            <PageTabs pages={tabPages} active={data.selectedPage} params={sp} />
             <div className={styles.grid}>
               <Panel
                 title={
@@ -286,7 +308,7 @@ function PageTabs({
   active,
   params,
 }: {
-  pages: string[]
+  pages: { name: string; icon?: string }[]
   active: string | null
   params: SearchParams
 }) {
@@ -298,18 +320,23 @@ function PageTabs({
   }
   return (
     <div className={styles.pageTabs}>
-      {pages.map(p => {
+      {pages.map(({ name, icon }) => {
         const q = new URLSearchParams(base)
-        q.set('page', p)
+        q.set('page', name)
         return (
           <a
-            key={p}
+            key={name}
             href={`?${q.toString()}`}
             className={`${styles.pageTab}${
-              p === active ? ` ${styles.pageTabActive}` : ''
+              name === active ? ` ${styles.pageTabActive}` : ''
             }`}
           >
-            {p}
+            {icon && (
+              <span className={styles.pageTabIcon}>
+                <Image src={`/images/${icon}`} alt="" width={12} height={12} />
+              </span>
+            )}
+            {name}
           </a>
         )
       })}

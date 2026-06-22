@@ -158,7 +158,10 @@
 }
 
 .pageTab {
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 6px;
   font-size: 13px;
   color: var(--teal-300);
   background-color: transparent;
@@ -169,6 +172,19 @@
   transition:
     color var(--hover-transition),
     background-color var(--hover-transition);
+}
+
+/* White badge behind the nav icon, mirroring the site nav, so the glyph reads
+   on both the dark tabs and the light active tab. */
+.pageTabIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background-color: var(--white);
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .pageTab:hover {

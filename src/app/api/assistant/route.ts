@@ -39,7 +39,9 @@ function readGeo(
   // this merge the city from the fallback was discarded and the admin row fell
   // back to the bare region code (e.g. "ENG").
   const merged = {
-    city: headerCity ? decodeURIComponent(headerCity) : (fallback?.city ?? undefined),
+    city: headerCity
+      ? decodeURIComponent(headerCity)
+      : (fallback?.city ?? undefined),
     region: region ?? fallback?.region ?? undefined,
     country: country ?? fallback?.country ?? undefined,
   }
@@ -120,6 +122,10 @@ export async function POST(req: NextRequest) {
       result: AssistantRunResult | null,
       status?: 'abandoned' | 'error'
     ) => {
+      // The owner excluded this browser — don't write their own test chats to
+      // the conversation log. (Same per-browser flag as the analytics opt-out.)
+      if (body.noLog) return
+
       const assistantText = result?.assistantText ?? ''
       const toolCalls = result?.toolCalls ?? []
       const citations = result?.citations ?? []

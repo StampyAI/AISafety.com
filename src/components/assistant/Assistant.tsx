@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 import { getPageContext } from '@/lib/assistant/page-context'
 import { suggestFormUrl } from '@/lib/assistant/constants'
-import { trackEvent } from '@/lib/analytics'
+import { trackEvent, isTrackingOptedOut } from '@/lib/analytics'
 import type { CitationRef } from '@/lib/assistant/types'
 import ChatBody, { type ChatBodyHandle } from './ChatBody'
 import styles from './Assistant.module.css'
@@ -209,6 +209,9 @@ export default function Assistant() {
       utm,
       geoFallback,
       sessionId: getSessionId(),
+      // When the owner has excluded this browser, tell the server not to log
+      // the turn — keeps their own testing out of the conversation log.
+      noLog: isTrackingOptedOut() || undefined,
     }
   }, [currentPage])
 

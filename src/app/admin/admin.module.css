@@ -998,6 +998,35 @@
   cursor: default;
 }
 
+/* ─── "Exclude this browser" control (in the conversation filter row) ──── */
+
+.excludeMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.excludeMetaOn {
+  color: var(--bright-teal-300);
+}
+
+.excludeLink {
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--teal-400);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color var(--hover-transition);
+}
+
+.excludeLink:hover {
+  color: var(--white);
+}
+
 /* ─── Empty / disabled state notice ───────────────────────────────────── */
 
 .notice {

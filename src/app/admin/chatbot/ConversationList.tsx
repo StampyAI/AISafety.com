@@ -8,6 +8,7 @@ import TranscriptMessage, {
   hasSuggestButton,
   type ListingInfo,
 } from './TranscriptMessage'
+import ExcludeBrowserToggle from './ExcludeBrowserToggle'
 
 interface HistoryTurn {
   role: 'user' | 'assistant'
@@ -233,6 +234,7 @@ export default function ConversationList() {
           />
           Only chats with no results
         </label>
+        <ExcludeBrowserToggle />
         {loading && <span className={styles.convStatus}>loading…</span>}
         {error && <span className={styles.convError}>{error}</span>}
         {tzLabel && (

@@ -48,6 +48,9 @@ export interface AssistantRequest {
   sessionId?: string | null
   /** Client-supplied geo (used when Vercel headers absent, e.g. dev) */
   geoFallback?: { city?: string; region?: string; country?: string } | null
+  /** When the owner has excluded this browser, skip writing the turn to the
+   *  conversation log so their own testing doesn't clutter it. */
+  noLog?: boolean
 }
 
 export interface UIToolCall {

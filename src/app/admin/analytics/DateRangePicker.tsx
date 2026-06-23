@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import styles from './analytics.module.css'
 
@@ -23,18 +23,32 @@ export default function DateRangePicker({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [customFrom, setCustomFrom] = useState(from ?? '')
   const [customTo, setCustomTo] = useState(to ?? '')
 
+  // Keep the rest of the query (active tab, count mode, source filter) when the
+  // date changes — only the date params (range/from/to) get swapped, so changing
+  // the range no longer kicks you back to the Overview tab.
+  const carryOver = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('range')
+    params.delete('from')
+    params.delete('to')
+    return params
+  }
+
   const setPreset = (key: string) => {
-    router.push(`${pathname}?range=${key}`)
+    const params = carryOver()
+    params.set('range', key)
+    router.push(`${pathname}?${params.toString()}`)
   }
   const applyCustom = () => {
-    const params = new URLSearchParams()
+    const params = carryOver()
     if (customFrom) params.set('from', customFrom)
     if (customTo) params.set('to', customTo)
     const qs = params.toString()
-    if (qs) router.push(`${pathname}?${qs}`)
+    router.push(qs ? `${pathname}?${qs}` : pathname)
   }
 
   return (

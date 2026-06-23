@@ -110,6 +110,29 @@
   text-align: right;
 }
 
+/* Per-row share of the chart total — a secondary, dimmer column. */
+.pctCol {
+  text-align: right;
+  color: var(--teal-400);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.table th.pctCol {
+  text-align: right;
+}
+
+/* Total row: separated by the last body row's border, bold. */
+.table tfoot td {
+  padding-top: 8px;
+  font-weight: 600;
+}
+
+.totalLabel {
+  color: var(--teal-300);
+}
+
 /* Listing placement on the /funding page (F1/F2 featured, then 1, 2, 3…). */
 .rankCol {
   width: 1%;

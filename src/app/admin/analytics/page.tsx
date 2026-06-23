@@ -247,6 +247,12 @@ export default async function AnalyticsPage({
     .sort((a, b) => orderOf(a) - orderOf(b))
     .map(name => ({ name, icon: iconByPage.get(name) }))
 
+  // Chart totals (also the % denominators). The listings total is the selected
+  // page's whole click count, not just the visible top-15 rows.
+  const totalClicks = data.byPage.reduce((sum, r) => sum + r.count, 0)
+  const pageTotal = data.byPage.find(p => p.name === data.selectedPage)?.count
+  const positionTotal = data.byPosition.reduce((sum, r) => sum + r.count, 0)
+
   return (
     <div>
       <div className={styles.headerRow}>
@@ -282,7 +288,11 @@ export default async function AnalyticsPage({
           </Panel>
 
           <Panel title="Clicks by page">
-            <CountTable rows={data.byPage} labelHead="Page" />
+            <CountTable
+              rows={data.byPage}
+              labelHead="Page"
+              total={totalClicks}
+            />
           </Panel>
 
           <div className={styles.pageSection}>
@@ -304,6 +314,7 @@ export default async function AnalyticsPage({
                     logoByName.get(name) ?? faviconFor(urlByName.get(name))
                   }
                   rankFor={name => positionByName.get(name)}
+                  total={pageTotal}
                 />
                 <p className={styles.caption}>
                   Slot = where each listing was clicked this period (F1/F2 =
@@ -311,7 +322,11 @@ export default async function AnalyticsPage({
                 </p>
               </Panel>
               <Panel title="Clicks by position">
-                <CountTable rows={data.byPosition} labelHead="Slot" />
+                <CountTable
+                  rows={data.byPosition}
+                  labelHead="Slot"
+                  total={positionTotal}
+                />
                 <p className={styles.caption}>
                   Every click on this page counted at the slot it happened in —
                   so a busy top slot shows up even as different listings rotate
@@ -415,6 +430,14 @@ function SourceSplit({ rows }: { rows: Counted[] }) {
     <div className={styles.sourceSplitWrap}>
       <div className={styles.sourceSplit}>
         <span className={styles.sourceSplitLabel}>Clicks by source</span>
+        {rows.length > 1 && (
+          <span className={styles.sourceStat}>
+            <span className={styles.sourceStatName}>Total</span>
+            <span className={styles.sourceStatCount}>
+              {total.toLocaleString()}
+            </span>
+          </span>
+        )}
         {rows.map(r => (
           <span key={r.name} className={styles.sourceStat}>
             <span className={styles.sourceStatName}>{r.name}</span>
@@ -504,14 +527,20 @@ function CountTable({
   rankHead = '#',
   logoFor,
   rankFor,
+  total,
 }: {
   rows: Counted[]
   labelHead: string
   rankHead?: string
   logoFor?: (name: string) => string | undefined
   rankFor?: (name: string) => string | undefined
+  /** When set, adds a % column (each row's share of this total) and a Total
+   *  footer row. The total is the denominator, so for a sliced "top N" table it
+   *  can exceed the sum of the visible rows. */
+  total?: number
 }) {
   if (rows.length === 0) return <p className={styles.dim}>No data yet.</p>
+  const showPct = total != null && total > 0
   return (
     <table className={styles.table}>
       <thead>
@@ -519,6 +548,7 @@ function CountTable({
           {rankFor && <th className={styles.rankCol}>{rankHead}</th>}
           <th>{labelHead}</th>
           <th className={styles.numCol}>Clicks</th>
+          {showPct && <th className={styles.pctCol}>%</th>}
         </tr>
       </thead>
       <tbody>
@@ -541,10 +571,25 @@ function CountTable({
                 <span>{r.name}</span>
               </td>
               <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+              {showPct && (
+                <td className={styles.pctCol}>
+                  {Math.round((100 * r.count) / total)}%
+                </td>
+              )}
             </tr>
           )
         })}
       </tbody>
+      {total != null && (
+        <tfoot>
+          <tr className={styles.totalRow}>
+            {rankFor && <td className={styles.rankCol} />}
+            <td className={styles.totalLabel}>Total</td>
+            <td className={styles.numCol}>{total.toLocaleString()}</td>
+            {showPct && <td className={styles.pctCol}>100%</td>}
+          </tr>
+        </tfoot>
+      )}
     </table>
   )
 }

@@ -7,6 +7,14 @@ import {
   type ChatbotFunnel,
 } from '@/lib/analytics/events'
 import { getFunders } from '@/lib/data/funding'
+import { getCourses } from '@/lib/data/self-study'
+import { getAdvisors } from '@/lib/data/advisors'
+import { getCommunities } from '@/lib/data/communities'
+import { getMediaChannels } from '@/lib/data/media-channels'
+import { getFounderResources } from '@/lib/data/founders'
+import { getJobs } from '@/lib/data/jobs'
+import { getMapData } from '@/lib/data/map'
+import { getProjects } from '@/lib/data/projects'
 import DateRangePicker from './DateRangePicker'
 import Logo from './Logo'
 import admin from '../admin.module.css'
@@ -94,6 +102,45 @@ function resolveRange(sp: SearchParams): ResolvedRange {
   }
 }
 
+/** Real Airtable logos for the selected page's listings, keyed by the exact
+ *  label each click was tracked under, so the top-listings table shows proper
+ *  logos instead of favicons. Returns an empty map (→ favicons) on any error or
+ *  for pages without listing data. */
+async function logosForPage(
+  page: string | null
+): Promise<Map<string, string | null>> {
+  try {
+    switch (page) {
+      case 'Funding':
+        return new Map((await getFunders()).map(i => [i.name, i.logo]))
+      case 'Self-study':
+        return new Map((await getCourses()).map(i => [i.name, i.image]))
+      case 'Advisors':
+        return new Map((await getAdvisors()).map(i => [i.name, i.logo]))
+      case 'Communities':
+        return new Map((await getCommunities()).map(i => [i.name, i.logo]))
+      case 'Media channels':
+        return new Map((await getMediaChannels()).map(i => [i.name, i.logo]))
+      case 'Founders':
+        return new Map(
+          (await getFounderResources()).map(i => [i.name, i.image])
+        )
+      case 'Projects':
+        return new Map((await getProjects()).map(i => [i.name, i.logo]))
+      case 'Jobs':
+        return new Map(
+          (await getJobs()).map(i => [`${i.name} – ${i.organization}`, i.logo])
+        )
+      case 'Map':
+        return new Map((await getMapData()).records.map(i => [i.title, i.logo]))
+      default:
+        return new Map()
+    }
+  } catch {
+    return new Map()
+  }
+}
+
 /** A favicon for any outbound URL — the universal fallback when a listing has
  *  no Airtable logo (or the event isn't a funding listing). */
 function faviconFor(url?: string): string | undefined {
@@ -169,11 +216,16 @@ export default async function AnalyticsPage({
     getFunders().catch(() => []),
   ])
 
-  // Funding listings have Airtable logos (by id for the activity feed, by name
-  // for the top-listings table). Other pages fall back to a favicon derived
-  // from each listing's most-recent click url.
+  // logoById drives the recent-activity feed (funding listings, by record id).
+  // logoByName drives the top-listings table for the selected page, fetched from
+  // that page's Airtable data so every page shows real logos — not just funding.
+  // Funding reuses the already-fetched funders. Anything without a logo falls
+  // back to a favicon from the click url.
   const logoById = new Map(funders.map(f => [f.id, f.logo]))
-  const logoByName = new Map(funders.map(f => [f.name, f.logo]))
+  const logoByName =
+    data.selectedPage === 'Funding'
+      ? new Map<string, string | null>(funders.map(f => [f.name, f.logo]))
+      : await logosForPage(data.selectedPage)
 
   // Per-listing slot range + a url for the favicon, keyed by display name, for
   // whichever page is selected. The slot is stamped onto the click when it

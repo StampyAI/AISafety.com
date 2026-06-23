@@ -78,6 +78,7 @@ export default async function CommunitiesPage() {
                   ]}
                   trackingPage="Communities"
                   trackingPosition={`F${community.featured}`}
+                  trackingSource="cards"
                 />
               ))}
           </div>

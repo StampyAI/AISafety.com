@@ -353,16 +353,26 @@ function aggregate(
     .sort((a, b) => b.count - a.count)
     .slice(0, 15)
 
-  // Source split, only for pages with a map: clicks tagged 'map' came from the
-  // map, everything else from the cards. Honours the unique/total mode since it
-  // derives from the same deduped pageClicks.
+  // Source split, only for pages with a map. Clicks are explicitly tagged 'map'
+  // or 'cards' at click time; anything untagged (logged before source tracking,
+  // or a surface we don't tag) is its own 'Untracked' bucket rather than being
+  // miscounted as a card. Honours the unique/total mode (same pageClicks). Only
+  // non-empty buckets are shown.
   let bySource: Counted[] = []
   if (selectedPage && MAP_PAGES.has(selectedPage)) {
-    const fromMap = pageClicks.filter(e => e.source === 'map').length
+    let map = 0
+    let cards = 0
+    let untracked = 0
+    for (const e of pageClicks) {
+      if (e.source === 'map') map += 1
+      else if (e.source === 'cards') cards += 1
+      else untracked += 1
+    }
     bySource = [
-      { name: 'Map', count: fromMap },
-      { name: 'Cards', count: pageClicks.length - fromMap },
-    ]
+      { name: 'Map', count: map },
+      { name: 'Cards', count: cards },
+      { name: 'Untracked', count: untracked },
+    ].filter(r => r.count > 0)
   }
 
   return {

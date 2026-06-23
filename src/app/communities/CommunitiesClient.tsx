@@ -246,7 +246,8 @@ export default function CommunitiesClient({
                       community.name,
                       community.joinLink,
                       community.id,
-                      placements.get(community.id)
+                      placements.get(community.id),
+                      'cards'
                     )
                   }
                 >

@@ -186,12 +186,15 @@
 
 /* ─── Clicks-by-source split (map pages) ──────────────────────────────── */
 
+.sourceSplitWrap {
+  margin-bottom: 16px;
+}
+
 .sourceSplit {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
   font-size: 13px;
 }
 

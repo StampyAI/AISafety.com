@@ -244,7 +244,8 @@ export default function MapClient({
                       org.title,
                       org.link,
                       org.id,
-                      placements.get(org.id)
+                      placements.get(org.id),
+                      'cards'
                     )
                   }
                 >

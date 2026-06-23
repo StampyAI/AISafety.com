@@ -17,6 +17,8 @@ interface FeaturedCardProps {
   trackingPage: string
   /** Slot this featured card occupies ('F1'/'F2'), recorded with the click. */
   trackingPosition?: string
+  /** Click source ('cards' on map pages), so map vs card clicks can be split. */
+  trackingSource?: string
 }
 
 export default function FeaturedCard({
@@ -28,6 +30,7 @@ export default function FeaturedCard({
   metadata,
   trackingPage,
   trackingPosition,
+  trackingSource,
 }: FeaturedCardProps) {
   const cardInner = (
     <div className={`${styles.card} ${href ? '' : styles.cardStatic}`}>
@@ -95,6 +98,7 @@ export default function FeaturedCard({
       trackingPage={trackingPage}
       trackingName={name}
       trackingPosition={trackingPosition}
+      trackingSource={trackingSource}
     >
       {cardInner}
     </TrackedLink>

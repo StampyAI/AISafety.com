@@ -353,22 +353,31 @@ function ClickModeToggle({
 function SourceSplit({ rows }: { rows: Counted[] }) {
   if (rows.length === 0) return null
   const total = rows.reduce((sum, r) => sum + r.count, 0)
+  const hasUntracked = rows.some(r => r.name === 'Untracked')
   return (
-    <div className={styles.sourceSplit}>
-      <span className={styles.sourceSplitLabel}>Clicks by source</span>
-      {rows.map(r => (
-        <span key={r.name} className={styles.sourceStat}>
-          <span className={styles.sourceStatName}>{r.name}</span>
-          <span className={styles.sourceStatCount}>
-            {r.count.toLocaleString()}
-          </span>
-          {total > 0 && (
-            <span className={styles.sourceStatPct}>
-              {Math.round((100 * r.count) / total)}%
+    <div className={styles.sourceSplitWrap}>
+      <div className={styles.sourceSplit}>
+        <span className={styles.sourceSplitLabel}>Clicks by source</span>
+        {rows.map(r => (
+          <span key={r.name} className={styles.sourceStat}>
+            <span className={styles.sourceStatName}>{r.name}</span>
+            <span className={styles.sourceStatCount}>
+              {r.count.toLocaleString()}
             </span>
-          )}
-        </span>
-      ))}
+            {total > 0 && (
+              <span className={styles.sourceStatPct}>
+                {Math.round((100 * r.count) / total)}%
+              </span>
+            )}
+          </span>
+        ))}
+      </div>
+      {hasUntracked && (
+        <p className={styles.caption}>
+          Untracked = clicks logged before map/card source tracking started;
+          they age out as the date range moves forward.
+        </p>
+      )}
     </div>
   )
 }

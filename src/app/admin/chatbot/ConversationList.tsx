@@ -233,13 +233,6 @@ export default function ConversationList() {
           />
           Only chats with no results
         </label>
-        <button
-          type="button"
-          className={styles.editorButton}
-          onClick={() => void load(zeroOnly, search)}
-        >
-          Refresh
-        </button>
         {loading && <span className={styles.convStatus}>loading…</span>}
         {error && <span className={styles.convError}>{error}</span>}
         {tzLabel && (

@@ -16,6 +16,7 @@ import { getJobs } from '@/lib/data/jobs'
 import { getMapData } from '@/lib/data/map'
 import { getProjects } from '@/lib/data/projects'
 import DateRangePicker from './DateRangePicker'
+import ExcludeToggle from './ExcludeToggle'
 import Logo from './Logo'
 import admin from '../admin.module.css'
 import styles from './analytics.module.css'
@@ -275,6 +276,8 @@ export default async function AnalyticsPage({
       <DateRangePicker activeKey={range.key} from={range.from} to={range.to} />
 
       <ClickModeToggle unique={unique} params={sp} />
+
+      <ExcludeToggle />
 
       {data.error ? (
         <div className={styles.empty}>

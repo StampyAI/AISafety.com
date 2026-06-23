@@ -31,6 +31,34 @@ interface TrackPayload {
 }
 
 const VID_KEY = 'aisafety_vid'
+const OPTOUT_KEY = 'aisafety_no_track'
+
+/** True when this browser has opted out of first-party analytics — used by the
+ *  site owner to keep their own clicks out of the dashboard. The flag lives in
+ *  localStorage rather than being matched on IP, because the owner is a nomad
+ *  whose IP changes monthly; a per-browser flag sticks regardless of location. */
+export function isTrackingOptedOut(): boolean {
+  try {
+    return (
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem(OPTOUT_KEY) === '1'
+    )
+  } catch {
+    return false
+  }
+}
+
+/** Turn first-party tracking off (true) or back on (false) for this browser.
+ *  Set from the admin analytics dashboard. */
+export function setTrackingOptOut(optOut: boolean): void {
+  try {
+    if (typeof localStorage === 'undefined') return
+    if (optOut) localStorage.setItem(OPTOUT_KEY, '1')
+    else localStorage.removeItem(OPTOUT_KEY)
+  } catch {
+    // Storage unavailable (private mode); nothing to persist.
+  }
+}
 
 /** A stable, anonymous per-browser id (random UUID in localStorage) so the
  *  dashboard can count UNIQUE users — e.g. not double-counting one person who
@@ -57,6 +85,8 @@ function getVisitorId(): string | undefined {
 /** Fire a first-party event to /api/track. Prefers sendBeacon so it survives the
  *  navigation a click triggers; falls back to keepalive fetch. */
 function sendTrackEvent(payload: TrackPayload): void {
+  // The owner can exclude their own browser from the stats.
+  if (isTrackingOptedOut()) return
   try {
     const body = JSON.stringify({ ...payload, vid: getVisitorId() })
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
@@ -95,6 +125,8 @@ export function trackListingClick(
   source?: string
 ): void {
   if (typeof window === 'undefined') return
+  // Opted-out browsers skip Matomo too, so the owner's clicks stay out of both.
+  if (isTrackingOptedOut()) return
   window._paq?.push(['trackEvent', `Listings - ${page}`, name, url])
   sendTrackEvent({
     type: 'listing_click',

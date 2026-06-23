@@ -184,12 +184,14 @@
 
 .clickToggleBtn {
   padding: 4px 12px;
+  font: inherit;
   font-size: 13px;
   color: var(--teal-300);
   background-color: transparent;
   border: 1px solid var(--teal-800);
   border-radius: 6px;
   text-decoration: none;
+  cursor: pointer;
   transition:
     color var(--hover-transition),
     background-color var(--hover-transition);
@@ -205,6 +207,41 @@
   color: var(--teal-900);
   background-color: var(--bright-teal-300);
   border-color: var(--bright-teal-300);
+}
+
+/* ─── Exclude-my-activity control ─────────────────────────────────────── */
+
+.excludeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  margin: -8px 0 24px;
+  font-size: 13px;
+}
+
+.excludeStatus {
+  color: var(--teal-400);
+}
+
+.excludeStatusOn {
+  color: var(--bright-teal-300);
+}
+
+.excludeUndo {
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--teal-300);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color var(--hover-transition);
+}
+
+.excludeUndo:hover {
+  color: var(--white);
 }
 
 /* ─── Clicks-by-source split (map pages) ──────────────────────────────── */

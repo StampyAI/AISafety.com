@@ -310,10 +310,18 @@ export function SuggestInline({
     e.preventDefault()
     onSuggest?.(query, type)
   }
+  const label =
+    type === 'correction'
+      ? 'Suggest a correction'
+      : type === 'contact'
+        ? 'Contact the team'
+        : type === 'feedback'
+          ? 'Send feedback'
+          : 'Suggest a listing'
   return (
     <span className={styles.suggest}>
       <a href="#" className={styles.suggestButton} onClick={handleClick}>
-        Suggest a listing
+        {label}
         <svg
           width="14"
           height="14"

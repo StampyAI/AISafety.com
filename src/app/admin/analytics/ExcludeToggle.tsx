@@ -1,7 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
-import { isTrackingOptedOut, setTrackingOptOut } from '@/lib/analytics'
+import { getTrackingOptOut, setTrackingOptOut } from '@/lib/analytics'
 import styles from './analytics.module.css'
 
 // The opt-out flag lives in localStorage (a browser-only store), so we read it
@@ -25,47 +25,56 @@ function setFlag(next: boolean): void {
   listeners.forEach(cb => cb())
 }
 
-/** One-time control for the owner to keep their own activity out of these stats
- *  on the current browser. The choice is stored in this browser's localStorage
- *  (not matched on IP — the owner moves countries monthly, so an IP filter
- *  wouldn't stick), so it's set once per device. It also shows whether *this*
- *  device is currently excluded, since that state is otherwise invisible. */
+/** Format an ISO timestamp as "22 Jun 2026" (day-month-year, browser-local). */
+function formatSince(iso: string): string | undefined {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return undefined
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+/** Small header control for the owner to keep their own activity out of these
+ *  stats on the current browser. Stored in localStorage (set once per device,
+ *  not matched on IP — the owner moves countries monthly). It only applies going
+ *  forward: when excluded it shows the date it stopped recording this browser,
+ *  and earlier visits stay counted. */
 export default function ExcludeToggle() {
-  const optedOut = useSyncExternalStore(
-    subscribe,
-    () => isTrackingOptedOut(), // client: read the flag from localStorage
-    () => false // server: no localStorage, assume counted
-  )
+  const marker = useSyncExternalStore(subscribe, getTrackingOptOut, () => '')
+  const optedOut = marker !== ''
+  const since = optedOut ? formatSince(marker) : undefined
+
+  if (optedOut) {
+    return (
+      <span className={styles.excludeMeta}>
+        <span
+          className={styles.excludeMetaOn}
+          title="Only affects visits from now on — earlier visits stay counted."
+        >
+          ✓ Not recording this browser{since ? ` since ${since}` : ''}
+        </span>
+        <button
+          type="button"
+          className={styles.excludeLink}
+          onClick={() => setFlag(false)}
+        >
+          Undo
+        </button>
+      </span>
+    )
+  }
 
   return (
-    <div className={styles.excludeRow}>
-      {optedOut ? (
-        <>
-          <span className={styles.excludeStatusOn}>
-            ✓ This browser is excluded from these stats.
-          </span>
-          <button
-            type="button"
-            className={styles.excludeUndo}
-            onClick={() => setFlag(false)}
-          >
-            Undo
-          </button>
-        </>
-      ) : (
-        <>
-          <span className={styles.excludeStatus}>
-            This browser is counted in these stats.
-          </span>
-          <button
-            type="button"
-            className={styles.clickToggleBtn}
-            onClick={() => setFlag(true)}
-          >
-            Exclude this browser
-          </button>
-        </>
-      )}
-    </div>
+    <span className={styles.excludeMeta}>
+      <button
+        type="button"
+        className={styles.excludeLink}
+        onClick={() => setFlag(true)}
+      >
+        Exclude this browser
+      </button>
+    </span>
   )
 }

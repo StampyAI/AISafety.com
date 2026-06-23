@@ -33,27 +33,34 @@ interface TrackPayload {
 const VID_KEY = 'aisafety_vid'
 const OPTOUT_KEY = 'aisafety_no_track'
 
-/** True when this browser has opted out of first-party analytics — used by the
- *  site owner to keep their own clicks out of the dashboard. The flag lives in
- *  localStorage rather than being matched on IP, because the owner is a nomad
- *  whose IP changes monthly; a per-browser flag sticks regardless of location. */
-export function isTrackingOptedOut(): boolean {
+/** Raw opt-out marker for this browser: the ISO timestamp it was excluded from
+ *  the stats, or '' when it isn't excluded (a legacy '1' may exist from before
+ *  the date was stored). The flag lives in localStorage rather than being
+ *  matched on IP, because the owner is a nomad whose IP changes monthly; a
+ *  per-browser flag sticks regardless of location. The dashboard control reads
+ *  this directly as its reactive snapshot. */
+export function getTrackingOptOut(): string {
   try {
-    return (
-      typeof localStorage !== 'undefined' &&
-      localStorage.getItem(OPTOUT_KEY) === '1'
-    )
+    if (typeof localStorage === 'undefined') return ''
+    return localStorage.getItem(OPTOUT_KEY) ?? ''
   } catch {
-    return false
+    return ''
   }
 }
 
+/** True when this browser has opted out of first-party analytics — used to keep
+ *  the site owner's own clicks out of the dashboard. */
+export function isTrackingOptedOut(): boolean {
+  return getTrackingOptOut() !== ''
+}
+
 /** Turn first-party tracking off (true) or back on (false) for this browser.
- *  Set from the admin analytics dashboard. */
+ *  When turning off we record the moment, so the dashboard can show that the
+ *  exclusion only applies from then on — earlier visits stay counted. */
 export function setTrackingOptOut(optOut: boolean): void {
   try {
     if (typeof localStorage === 'undefined') return
-    if (optOut) localStorage.setItem(OPTOUT_KEY, '1')
+    if (optOut) localStorage.setItem(OPTOUT_KEY, new Date().toISOString())
     else localStorage.removeItem(OPTOUT_KEY)
   } catch {
     // Storage unavailable (private mode); nothing to persist.

@@ -270,14 +270,13 @@ export default async function AnalyticsPage({
           <span className={styles.total}>
             {data.totalEvents.toLocaleString()} events
           </span>
+          <ExcludeToggle />
         </div>
       </div>
 
       <DateRangePicker activeKey={range.key} from={range.from} to={range.to} />
 
       <ClickModeToggle unique={unique} params={sp} />
-
-      <ExcludeToggle />
 
       {data.error ? (
         <div className={styles.empty}>

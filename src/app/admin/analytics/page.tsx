@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   readDashboard,
   type Counted,
@@ -183,13 +184,15 @@ export default async function AnalyticsPage({
   )
   const urlByName = new Map(data.topListings.map(r => [r.name, r.url]))
 
-  // Page tabs in site-nav order (pages not in the nav fall to the end), each
-  // carrying its nav icon.
+  // Page tabs: Home first, then the resource pages in site-nav order, then any
+  // other pages. Each carries its nav icon where it has one.
   const pageOrder = new Map(PAGE_NAV.map((p, i) => [p.name, i]))
   const iconByPage = new Map(PAGE_NAV.map(p => [p.name, p.icon]))
+  const orderOf = (name: string) =>
+    name === 'Home' ? -1 : (pageOrder.get(name) ?? 999)
   const tabPages = data.byPage
     .map(p => p.name)
-    .sort((a, b) => (pageOrder.get(a) ?? 999) - (pageOrder.get(b) ?? 999))
+    .sort((a, b) => orderOf(a) - orderOf(b))
     .map(name => ({ name, icon: iconByPage.get(name) }))
 
   return (
@@ -328,22 +331,24 @@ function ClickModeToggle({
   return (
     <div className={styles.clickToggle}>
       <span className={styles.clickToggleLabel}>Count</span>
-      <a
+      <Link
         href={uniqueQ ? `?${uniqueQ}` : '?'}
+        scroll={false}
         className={`${styles.clickToggleBtn}${
           unique ? ` ${styles.clickToggleBtnActive}` : ''
         }`}
       >
         Unique
-      </a>
-      <a
+      </Link>
+      <Link
         href={`?${totalParams.toString()}`}
+        scroll={false}
         className={`${styles.clickToggleBtn}${
           !unique ? ` ${styles.clickToggleBtnActive}` : ''
         }`}
       >
         Total
-      </a>
+      </Link>
     </div>
   )
 }
@@ -405,9 +410,10 @@ function PageTabs({
         const q = new URLSearchParams(base)
         q.set('page', name)
         return (
-          <a
+          <Link
             key={name}
             href={`?${q.toString()}`}
+            scroll={false}
             className={`${styles.pageTab}${
               name === active ? ` ${styles.pageTabActive}` : ''
             }`}
@@ -418,7 +424,7 @@ function PageTabs({
               </span>
             )}
             {name}
-          </a>
+          </Link>
         )
       })}
     </div>

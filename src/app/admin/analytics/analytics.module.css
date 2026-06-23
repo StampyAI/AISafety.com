@@ -280,6 +280,30 @@
   font-variant-numeric: tabular-nums;
 }
 
+.sourceStatLink {
+  text-decoration: none;
+  transition:
+    background-color var(--hover-transition),
+    border-color var(--hover-transition);
+}
+
+.sourceStatLink:hover {
+  background-color: var(--teal-800);
+}
+
+.sourceStatActive,
+.sourceStatActive:hover {
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
+/* On the active (light) pill, recolor every part for contrast. */
+.sourceStatActive .sourceStatName,
+.sourceStatActive .sourceStatCount,
+.sourceStatActive .sourceStatPct {
+  color: var(--teal-900);
+}
+
 /* ─── Per-page drill-down ─────────────────────────────────────────────── */
 
 .pageSection {

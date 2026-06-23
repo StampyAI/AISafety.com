@@ -218,7 +218,7 @@ export default async function AnalyticsPage({
   // every click.
   const unique = first(sp.clicks) !== 'total'
   const [data, funders] = await Promise.all([
-    readDashboard(range, first(sp.page), unique),
+    readDashboard(range, first(sp.page), unique, first(sp.source)),
     getFunders().catch(() => []),
   ])
 
@@ -257,6 +257,13 @@ export default async function AnalyticsPage({
   // page's whole click count, not just the visible top-15 rows.
   const totalClicks = data.byPage.reduce((sum, r) => sum + r.count, 0)
   const pageTotal = data.byPage.find(p => p.name === data.selectedPage)?.count
+  // When the listings are filtered to one source, the top-listings table is a
+  // share of that source's clicks, not the page's whole. bySource carries the
+  // per-source totals, so read the active one from there.
+  const listingTotal = data.selectedSource
+    ? data.bySource.find(r => r.name.toLowerCase() === data.selectedSource)
+        ?.count
+    : pageTotal
   const positionTotal = data.byPosition.reduce((sum, r) => sum + r.count, 0)
 
   return (
@@ -304,7 +311,11 @@ export default async function AnalyticsPage({
 
           <div className={styles.pageSection}>
             <PageTabs pages={tabPages} active={data.selectedPage} params={sp} />
-            <SourceSplit rows={data.bySource} />
+            <SourceSplit
+              rows={data.bySource}
+              active={data.selectedSource}
+              params={sp}
+            />
             <div className={styles.grid}>
               <Panel
                 title={
@@ -321,7 +332,7 @@ export default async function AnalyticsPage({
                     logoByName.get(name) ?? faviconFor(urlByName.get(name))
                   }
                   rankFor={name => positionByName.get(name)}
-                  total={pageTotal}
+                  total={listingTotal}
                 />
                 <p className={styles.caption}>
                   Slot = where each listing was clicked this period (F1/F2 =
@@ -428,36 +439,71 @@ function ClickModeToggle({
 }
 
 /** For pages with a map, shows how the selected page's clicks split between the
- *  map and the cards. Renders nothing for pages without a map. */
-function SourceSplit({ rows }: { rows: Counted[] }) {
+ *  map and the cards. Each split is a link that filters the listing panels below
+ *  to that source; "Total" clears the filter. Renders nothing for pages without
+ *  a map. */
+function SourceSplit({
+  rows,
+  active,
+  params,
+}: {
+  rows: Counted[]
+  active: string | null
+  params: SearchParams
+}) {
   if (rows.length === 0) return null
   const total = rows.reduce((sum, r) => sum + r.count, 0)
   const hasUntracked = rows.some(r => r.name === 'Untracked')
+  // Preserve every other query param; only the `source` filter is swapped.
+  const base = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (k === 'source' || v == null) continue
+    base.set(k, Array.isArray(v) ? (v[0] ?? '') : v)
+  }
+  const totalHref = base.toString() ? `?${base.toString()}` : '?'
   return (
     <div className={styles.sourceSplitWrap}>
       <div className={styles.sourceSplit}>
         <span className={styles.sourceSplitLabel}>Clicks by source</span>
         {rows.length > 1 && (
-          <span className={styles.sourceStat}>
+          <Link
+            href={totalHref}
+            scroll={false}
+            className={`${styles.sourceStat} ${styles.sourceStatLink}${
+              active == null ? ` ${styles.sourceStatActive}` : ''
+            }`}
+          >
             <span className={styles.sourceStatName}>Total</span>
             <span className={styles.sourceStatCount}>
               {total.toLocaleString()}
             </span>
-          </span>
+          </Link>
         )}
-        {rows.map(r => (
-          <span key={r.name} className={styles.sourceStat}>
-            <span className={styles.sourceStatName}>{r.name}</span>
-            <span className={styles.sourceStatCount}>
-              {r.count.toLocaleString()}
-            </span>
-            {total > 0 && (
-              <span className={styles.sourceStatPct}>
-                {pct1(r.count, total)}
+        {rows.map(r => {
+          const key = r.name.toLowerCase()
+          const q = new URLSearchParams(base)
+          q.set('source', key)
+          return (
+            <Link
+              key={r.name}
+              href={`?${q.toString()}`}
+              scroll={false}
+              className={`${styles.sourceStat} ${styles.sourceStatLink}${
+                active === key ? ` ${styles.sourceStatActive}` : ''
+              }`}
+            >
+              <span className={styles.sourceStatName}>{r.name}</span>
+              <span className={styles.sourceStatCount}>
+                {r.count.toLocaleString()}
               </span>
-            )}
-          </span>
-        ))}
+              {total > 0 && (
+                <span className={styles.sourceStatPct}>
+                  {pct1(r.count, total)}
+                </span>
+              )}
+            </Link>
+          )
+        })}
       </div>
       {hasUntracked && (
         <p className={styles.caption}>

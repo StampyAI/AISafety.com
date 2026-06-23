@@ -197,8 +197,12 @@ export interface DashboardData {
    *  F2, 1, 2, 3… — answers "do higher slots draw more clicks" for that page. */
   byPosition: Counted[]
   /** For pages with a map (Map, Communities): the selected page's clicks split
-   *  into 'Map' vs 'Cards'. Empty for pages without a map. */
+   *  into 'Map' vs 'Cards'. Empty for pages without a map. Always the full split,
+   *  even when one source is selected, so the user can switch between them. */
   bySource: Counted[]
+  /** The source the per-listing panels are filtered to ('map' | 'cards' |
+   *  'untracked'), or null for all sources. Only ever set on map pages. */
+  selectedSource: string | null
   funnel: ChatbotFunnel
   recent: AnalyticsEvent[]
 }
@@ -210,9 +214,13 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   topListings: [],
   byPosition: [],
   bySource: [],
+  selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
   recent: [],
 }
+
+/** Source filters offered on map pages. 'untracked' = neither map nor cards. */
+const SOURCE_FILTERS = new Set(['map', 'cards', 'untracked'])
 
 /** Resource pages that have a map above their card list, so a click can come
  *  from either surface. These are the only pages that get a source breakdown. */
@@ -298,7 +306,8 @@ function aggregate(
   all: AnalyticsEvent[],
   { startMs, endMs }: DateRange,
   selectedPageReq?: string,
-  unique = true
+  unique = true,
+  sourceReq?: string
 ): Omit<DashboardData, 'source' | 'error'> {
   const inRange = all.filter(e => {
     const t = Date.parse(e.ts)
@@ -326,10 +335,25 @@ function aggregate(
         ? 'Funding'
         : (pageNames[0] ?? null)
 
+  // On a map page the panels can be filtered to one click source. The split
+  // itself (bySource, below) is always computed from every click on the page so
+  // the user can switch sources; only the per-listing panels narrow.
+  const isMapPage = selectedPage != null && MAP_PAGES.has(selectedPage)
+  const selectedSource =
+    isMapPage && sourceReq && SOURCE_FILTERS.has(sourceReq) ? sourceReq : null
+  const matchesSource = (e: AnalyticsEvent): boolean => {
+    if (selectedSource === 'map') return e.source === 'map'
+    if (selectedSource === 'cards') return e.source === 'cards'
+    if (selectedSource === 'untracked')
+      return e.source !== 'map' && e.source !== 'cards'
+    return true // no filter
+  }
+
   // For the selected page: total clicks per listing, the range of slots each was
   // clicked at (from positions stamped at click time, so it's period-accurate
   // even as the page is reordered), and a representative url for its favicon.
-  const pageClicks = clicks.filter(e => e.page === selectedPage)
+  const pageClicksAll = clicks.filter(e => e.page === selectedPage)
+  const pageClicks = pageClicksAll.filter(matchesSource)
   const perListing = new Map<
     string,
     { count: number; positions: string[]; url?: string }
@@ -359,11 +383,11 @@ function aggregate(
   // miscounted as a card. Honours the unique/total mode (same pageClicks). Only
   // non-empty buckets are shown.
   let bySource: Counted[] = []
-  if (selectedPage && MAP_PAGES.has(selectedPage)) {
+  if (isMapPage) {
     let map = 0
     let cards = 0
     let untracked = 0
-    for (const e of pageClicks) {
+    for (const e of pageClicksAll) {
       if (e.source === 'map') map += 1
       else if (e.source === 'cards') cards += 1
       else untracked += 1
@@ -384,6 +408,7 @@ function aggregate(
       pageClicks.map(e => e.position).filter((p): p is string => p != null)
     ),
     bySource,
+    selectedSource,
     funnel: {
       opened: usersOf('chatbot_open'),
       typed: usersOf('chatbot_message'),
@@ -408,13 +433,17 @@ function uniqueUsers(events: AnalyticsEvent[]): number {
 export async function readDashboard(
   range: DateRange,
   page?: string,
-  unique = true
+  unique = true,
+  sourceFilter?: string
 ): Promise<DashboardData> {
   if (store) {
     try {
       // Newest-first (lpush prepends); up to MAX_EVENTS.
       const all = await store.lrange<AnalyticsEvent>(EVENTS_KEY, 0, -1)
-      return { source: 'redis', ...aggregate(all, range, page, unique) }
+      return {
+        source: 'redis',
+        ...aggregate(all, range, page, unique, sourceFilter),
+      }
     } catch (err) {
       // Degrade gracefully — a Redis blip must not 500 the dashboard.
       console.warn(
@@ -426,5 +455,8 @@ export async function readDashboard(
 
   const all = await readDevEvents()
   if (all.length === 0) return { source: 'none', ...EMPTY }
-  return { source: 'local-file', ...aggregate(all, range, page, unique) }
+  return {
+    source: 'local-file',
+    ...aggregate(all, range, page, unique, sourceFilter),
+  }
 }

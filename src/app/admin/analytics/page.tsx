@@ -47,14 +47,15 @@ const PAGE_NAV: { name: string; label: string; icon: string }[] = [
   { name: 'Funding', label: 'Funding', icon: 'coins.svg' },
   { name: 'Media channels', label: 'Media channels', icon: 'megaphone.svg' },
   { name: 'Advisors', label: 'Advisors', icon: 'person.svg' },
-  { name: 'Projects', label: 'Volunteer projects', icon: 'clipboard.svg' },
+  // Volunteer projects has no trackable clicks (its cards are plain text with no
+  // links), so it gets no tab. If it's ever tracked, add it back here.
   { name: 'Founders', label: 'Founder toolkit', icon: 'rocket.svg' },
 ]
 
 // The two non-page tabs that lead the tab bar. Their keys are reserved, so a
 // resource page can never collide with them.
 const OVERVIEW_TABS: { key: string; label: string }[] = [
-  { key: 'pages', label: 'Clicks by page' },
+  { key: 'pages', label: 'Overview' },
   { key: 'funnel', label: 'Chatbot funnel' },
 ]
 const OVERVIEW_KEYS = new Set(OVERVIEW_TABS.map(t => t.key))
@@ -308,7 +309,7 @@ export default async function AnalyticsPage({
   return (
     <div>
       <div className={styles.headerRow}>
-        <h1 className={admin.pageTitle}>Overview</h1>
+        <h1 className={admin.pageTitle}>Analytics</h1>
         <div className={styles.meta}>
           <span className={styles.badge}>
             {SOURCE_LABEL[data.source] ?? data.source}
@@ -406,41 +407,44 @@ export default async function AnalyticsPage({
             </div>
           )}
 
-          <Panel title="Recent activity">
-            {data.recent.length === 0 ? (
-              <p className={styles.dim}>No recent events.</p>
-            ) : (
-              <ul className={styles.recent}>
-                {data.recent.map((e, i) => (
-                  <li key={i} className={styles.recentItem}>
-                    <span className={styles.recentTime}>
-                      {formatTime(e.ts)}
-                    </span>
-                    {pillFor(e) && (
-                      <span className={styles.pill}>{pillFor(e)}</span>
-                    )}
-                    <Logo
-                      src={
-                        (e.listingId ? logoById.get(e.listingId) : undefined) ??
-                        faviconFor(e.url)
-                      }
-                    />
-                    <span className={styles.recentLabel}>{labelFor(e)}</span>
-                    {e.url && e.url !== '#' && (
-                      <a
-                        className={styles.recentUrl}
-                        href={e.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {prettyUrl(e.url)}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
+          {activeTab === 'pages' && (
+            <Panel title="Recent activity">
+              {data.recent.length === 0 ? (
+                <p className={styles.dim}>No recent events.</p>
+              ) : (
+                <ul className={styles.recent}>
+                  {data.recent.map((e, i) => (
+                    <li key={i} className={styles.recentItem}>
+                      <span className={styles.recentTime}>
+                        {formatTime(e.ts)}
+                      </span>
+                      {pillFor(e) && (
+                        <span className={styles.pill}>{pillFor(e)}</span>
+                      )}
+                      <Logo
+                        src={
+                          (e.listingId
+                            ? logoById.get(e.listingId)
+                            : undefined) ?? faviconFor(e.url)
+                        }
+                      />
+                      <span className={styles.recentLabel}>{labelFor(e)}</span>
+                      {e.url && e.url !== '#' && (
+                        <a
+                          className={styles.recentUrl}
+                          href={e.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {prettyUrl(e.url)}
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          )}
         </>
       )}
     </div>

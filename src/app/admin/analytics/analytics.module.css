@@ -459,6 +459,22 @@
   object-fit: contain;
 }
 
+/* Wraps a row's logo to link out to the listing. Sized to the logo so the row
+   stays aligned; the name text beside it is intentionally left unlinked so it
+   can still be selected and copied. */
+.logoLink {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity var(--hover-transition);
+}
+
+.logoLink:hover {
+  opacity: 0.75;
+}
+
 .logoFallback {
   display: inline-block;
   background-color: var(--teal-800);

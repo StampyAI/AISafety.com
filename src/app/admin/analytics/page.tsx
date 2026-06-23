@@ -382,6 +382,7 @@ export default async function AnalyticsPage({
                     logoFor={name =>
                       logoByName.get(name) ?? faviconFor(urlByName.get(name))
                     }
+                    linkFor={name => urlByName.get(name)}
                     rankFor={name => positionByName.get(name)}
                     total={listingTotal}
                   />
@@ -654,6 +655,7 @@ function CountTable({
   labelHead,
   rankHead = '#',
   logoFor,
+  linkFor,
   rankFor,
   total,
 }: {
@@ -661,6 +663,10 @@ function CountTable({
   labelHead: string
   rankHead?: string
   logoFor?: (name: string) => string | undefined
+  /** Destination url for a row's logo. When set, the logo becomes a link to the
+   *  listing; the name text is deliberately left unlinked so it stays
+   *  selectable/copyable. */
+  linkFor?: (name: string) => string | undefined
   rankFor?: (name: string) => string | undefined
   /** When set, adds a % column (each row's share of this total) and a Total
    *  footer row. The total is the denominator, so for a sliced "top N" table it
@@ -683,6 +689,7 @@ function CountTable({
         {rows.map((r, i) => {
           const rank = rankFor?.(r.name)
           const featured = rank?.startsWith('F')
+          const href = linkFor?.(r.name)
           return (
             <tr key={i}>
               {rankFor && (
@@ -695,7 +702,20 @@ function CountTable({
                 </td>
               )}
               <td className={styles.nameCell}>
-                {logoFor && <Logo src={logoFor(r.name)} />}
+                {logoFor &&
+                  (href && href !== '#' ? (
+                    <a
+                      className={styles.logoLink}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Open ${r.name}`}
+                    >
+                      <Logo src={logoFor(r.name)} />
+                    </a>
+                  ) : (
+                    <Logo src={logoFor(r.name)} />
+                  ))}
                 <span>{r.name}</span>
               </td>
               <td className={styles.numCol}>{r.count.toLocaleString()}</td>

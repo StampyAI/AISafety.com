@@ -326,14 +326,15 @@ function aggregate(
 
   const byPage = tally(clicks.map(e => e.page as string))
   const pageNames = byPage.map(p => p.name)
-  // The page the listing panels drill into: the requested one if it has data,
-  // else Funding (Bryce's main interest), else the busiest page.
-  const selectedPage =
-    selectedPageReq && pageNames.includes(selectedPageReq)
-      ? selectedPageReq
-      : pageNames.includes('Funding')
-        ? 'Funding'
-        : (pageNames[0] ?? null)
+  // The page the listing panels drill into. An explicit request always wins —
+  // even with no clicks in range — so selecting a quiet page's tab shows that
+  // page (empty), not a fallback. With no request, default to Funding (Bryce's
+  // main interest), then the busiest page.
+  const selectedPage = selectedPageReq
+    ? selectedPageReq
+    : pageNames.includes('Funding')
+      ? 'Funding'
+      : (pageNames[0] ?? null)
 
   // On a map page the panels can be filtered to one click source. The split
   // itself (bySource, below) is always computed from every click on the page so

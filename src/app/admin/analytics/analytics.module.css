@@ -313,8 +313,17 @@
 .pageTabs {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
   margin-bottom: 16px;
+}
+
+/* Separates the two overview tabs from the resource-page tabs. */
+.tabDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 6px;
+  background-color: var(--teal-800);
 }
 
 .pageTab {

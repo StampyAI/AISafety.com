@@ -201,6 +201,11 @@ function pct(part: number, whole: number): string {
   return whole > 0 ? `${Math.round((100 * part) / whole)}%` : '—'
 }
 
+/** A share of `total` to one decimal place, e.g. "43.2%". */
+function pct1(part: number, total: number): string {
+  return `${((100 * part) / total).toFixed(1)}%`
+}
+
 export default async function AnalyticsPage({
   searchParams,
 }: {
@@ -446,7 +451,7 @@ function SourceSplit({ rows }: { rows: Counted[] }) {
             </span>
             {total > 0 && (
               <span className={styles.sourceStatPct}>
-                {Math.round((100 * r.count) / total)}%
+                {pct1(r.count, total)}
               </span>
             )}
           </span>
@@ -572,9 +577,7 @@ function CountTable({
               </td>
               <td className={styles.numCol}>{r.count.toLocaleString()}</td>
               {showPct && (
-                <td className={styles.pctCol}>
-                  {Math.round((100 * r.count) / total)}%
-                </td>
+                <td className={styles.pctCol}>{pct1(r.count, total)}</td>
               )}
             </tr>
           )
@@ -586,7 +589,7 @@ function CountTable({
             {rankFor && <td className={styles.rankCol} />}
             <td className={styles.totalLabel}>Total</td>
             <td className={styles.numCol}>{total.toLocaleString()}</td>
-            {showPct && <td className={styles.pctCol}>100%</td>}
+            {showPct && <td className={styles.pctCol}>{pct1(total, total)}</td>}
           </tr>
         </tfoot>
       )}

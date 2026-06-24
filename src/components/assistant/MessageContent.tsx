@@ -4,6 +4,7 @@ import { Fragment, ReactNode, useMemo } from 'react'
 import type { CitationRef } from '@/lib/assistant/types'
 import { SUGGEST_TYPES } from '@/lib/assistant/constants'
 import CitationCard from './CitationCard'
+import { cardTypePage } from './cardFallback'
 import styles from './Assistant.module.css'
 
 const SUGGEST_TYPE_SET = new Set<string>(SUGGEST_TYPES)
@@ -464,18 +465,31 @@ export default function MessageContent({
     if (isStreaming) return hidden
     blocks.forEach((block, i) => {
       if (block.kind !== 'cards') return
-      const anyResolves = block.cards.some(spec =>
-        resolveCitation(spec.id, citationsById)
+      // A card renders if it resolves to a real listing, OR (failing that) its
+      // type is known — in which case it degrades to a "Browse X" fallback link
+      // rather than vanishing. Only when NOTHING in the block can render do we
+      // hide the block and its now-orphaned lead-in.
+      const anyRenderable = block.cards.some(
+        spec => resolveCitation(spec.id, citationsById) || cardTypePage(spec.id)
       )
-      if (anyResolves) return
+      if (anyRenderable) return
       hidden.add(i)
       const prev = blocks[i - 1]
-      if (
-        prev?.kind === 'paragraph' &&
-        prev.lines.length > 0 &&
-        prev.lines[prev.lines.length - 1].trimEnd().endsWith(':')
-      ) {
-        hidden.add(i - 1)
+      if (prev && prev.kind !== 'cards' && prev.lines.length > 0) {
+        // Strip trailing emphasis/code markers so a lead-in ending "…momentum:"
+        // is caught even when written "…**momentum:**" (colon inside bold).
+        const lead = prev.lines[prev.lines.length - 1]
+          .trimEnd()
+          .replace(/[*_`]+$/, '')
+          .trimEnd()
+        if (
+          lead.endsWith(':') &&
+          // Any paragraph, or a single-item list that's purely the lead-in.
+          // Don't nuke a genuine multi-item list because its last item ends ':'.
+          (prev.kind === 'paragraph' || prev.lines.length === 1)
+        ) {
+          hidden.add(i - 1)
+        }
       }
     })
     return hidden
@@ -490,14 +504,46 @@ export default function MessageContent({
             <div key={i} className={styles.citationStack}>
               {block.cards.map((spec, j) => {
                 const cit = resolveCitation(spec.id, citationsById)
-                if (!cit) return null
+                if (cit) {
+                  return (
+                    <CitationCard
+                      key={`${spec.id}-${j}`}
+                      citation={cit}
+                      note={spec.note}
+                      onClick={onCitationClick}
+                    />
+                  )
+                }
+                // The card's id doesn't resolve — the model fabricated it, or
+                // it's a real listing it never retrieved this turn. Rather than
+                // silently dropping it (which orphans the lead-in sentence),
+                // degrade to an honest link to the matching resource page. The
+                // label stays generic — never the model's note, which has no
+                // backing. If the type isn't parseable, render nothing and let
+                // hiddenBlocks hide the dangling lead-in instead.
+                const fb = cardTypePage(spec.id)
+                if (!fb) return null
                 return (
-                  <CitationCard
-                    key={`${spec.id}-${j}`}
-                    citation={cit}
-                    note={spec.note}
-                    onClick={onCitationClick}
-                  />
+                  <a
+                    key={`fb-${spec.id}-${j}`}
+                    href={fb.path}
+                    className={styles.citationFallback}
+                    onClick={() => onLinkClick?.(fb.path, fb.label)}
+                  >
+                    <span>{fb.label}</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M7 17L17 7" />
+                      <path d="M8 7h9v9" />
+                    </svg>
+                  </a>
                 )
               })}
             </div>

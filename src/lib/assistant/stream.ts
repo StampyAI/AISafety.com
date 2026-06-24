@@ -3,7 +3,7 @@
 // runAssistantStream so the protocol stays in lockstep.
 
 import Anthropic from '@anthropic-ai/sdk'
-import { extractCitations } from './citations'
+import { auditCardCitations, extractCitations } from './citations'
 import { modelDisplayName } from './models'
 import { TOOL_DEFINITIONS, executeTool } from './tools'
 import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
@@ -300,6 +300,34 @@ export async function runAssistantStream(
   const byId = new Map<string, CitationRef>()
   for (const l of cited) byId.set(l.id, toCitationRef(l))
   for (const c of extractCitations(assistantText, catalog)) byId.set(c.id, c)
+
+  // Audit the [[card:...]] ids the model wrote. A card naming a REAL listing it
+  // never tool-surfaced is backfilled so the stored snapshot carries it; a card
+  // naming NOTHING in the catalog is fabricated — log it (the live renderer
+  // shows a "Browse X" link, the admin flags it UNRESOLVED) rather than letting
+  // the invention pass silently.
+  const { backfill, fabricated } = auditCardCitations(
+    assistantText,
+    Array.from(byId.values()),
+    catalog
+  )
+  for (const ref of backfill) byId.set(ref.id, ref)
+  if (fabricated.length > 0) {
+    console.warn(
+      `[assistant] fabricated card id(s) with no matching listing: ${fabricated.join(', ')}`
+    )
+  }
+
+  // Telemetry: a turn that finishes with no user-facing answer (truly empty, or
+  // only a reasoning trail before [[/thinking]]) leaves the visitor with a blank
+  // reply. Log it so we can measure how often it happens instead of letting it
+  // pass silently. The client surfaces a retry prompt for the same condition.
+  const answer = assistantText.split(/\[\[\s*\/\s*thinking\s*\]\]/i).pop() ?? ''
+  if (!answer.trim()) {
+    console.warn(
+      `[assistant] blank answer — no user-facing text produced (chars=${assistantText.length}, toolCalls=${toolCalls.length})`
+    )
+  }
 
   return { assistantText, toolCalls, citations: Array.from(byId.values()) }
 }

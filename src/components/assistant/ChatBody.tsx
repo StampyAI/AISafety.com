@@ -568,11 +568,23 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
             // server emits 'done' or just closes the stream.
           }
         }
+        // The visible answer is whatever follows the last [[/thinking]] marker
+        // (or the whole reply if there's no marker). If that's empty, the turn
+        // produced no answer — a transient hiccup or an empty completion. Show a
+        // clear retry prompt instead of leaving a silent blank bubble.
+        const answer =
+          streamingText.split(/\[\[\s*\/\s*thinking\s*\]\]/i).pop() ?? ''
         const followUp = extractChips(streamingText)
         setMessages(prev =>
           prev.map(m =>
             m.id === asstId
-              ? { ...m, isStreaming: false, followUpChips: followUp }
+              ? answer.trim() === ''
+                ? {
+                    ...m,
+                    isStreaming: false,
+                    error: 'Sorry, something went wrong. Please try again.',
+                  }
+                : { ...m, isStreaming: false, followUpChips: followUp }
               : m
           )
         )
@@ -605,6 +617,20 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
   const handleChipClick = useCallback((chip: string) => void send(chip), [send])
 
   const handleSubmit = useCallback(() => void send(input), [input, send])
+
+  // Re-send the user message that produced a failed/blank reply, dropping the
+  // failed assistant bubble. Not counted as a fresh send (historyOverride is
+  // set), so engagement metrics aren't inflated by retries.
+  const handleRetry = useCallback(
+    (msgId: string) => {
+      const idx = messages.findIndex(m => m.id === msgId)
+      if (idx <= 0) return
+      const userMsg = messages[idx - 1]
+      if (userMsg.role !== 'user') return
+      void send(userMsg.content, messages.slice(0, idx))
+    },
+    [messages, send]
+  )
 
   const handleEdit = useCallback(
     (msgId: string) => {
@@ -704,7 +730,16 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                   </div>
                 )}
                 {m.error && (
-                  <div className={styles.errorMessage}>{m.error}</div>
+                  <div className={styles.errorMessage}>
+                    <span>{m.error}</span>
+                    <button
+                      type="button"
+                      className={styles.retryButton}
+                      onClick={() => handleRetry(m.id)}
+                    >
+                      Try again
+                    </button>
+                  </div>
                 )}
               </div>
             )

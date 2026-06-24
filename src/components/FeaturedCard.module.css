@@ -42,6 +42,14 @@
   right: 24px;
 }
 
+.bookmarkAccent {
+  width: 16px;
+  height: 24px;
+  background-color: currentColor;
+  -webkit-mask: url('/images/bookmark-small.svg') no-repeat center / contain;
+  mask: url('/images/bookmark-small.svg') no-repeat center / contain;
+}
+
 /* Tagline pill: green-tinted outline, no fill. Padding + typography come from
    global utility classes in the JSX. */
 .pill {
@@ -57,6 +65,15 @@
   height: 6px;
   border-radius: 999px;
   background-color: var(--teal-300);
+}
+
+.pillAccent {
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  background-color: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.dotAccent {
+  background-color: currentColor;
 }
 
 @media (max-width: 991px) {

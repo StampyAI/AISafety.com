@@ -1,0 +1,43 @@
+.heroRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 56px;
+}
+
+.heroHeader {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.heroHeader h2 {
+  margin-bottom: 24px;
+}
+
+.newsletterSlot {
+  flex: 0 0 320px;
+  margin-top: 56px;
+  min-height: 96px;
+  border: 1px solid color-mix(in srgb, var(--teal-bright-500) 30%, transparent);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sectionHeading {
+  margin: 0;
+}
+
+@media (max-width: 991px) {
+  .heroRow {
+    flex-direction: column;
+    gap: 24px;
+  }
+  .newsletterSlot {
+    flex: 1 1 auto;
+    width: 100%;
+    margin-top: 0;
+  }
+}

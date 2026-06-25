@@ -1,6 +1,7 @@
 export const EVENT_TYPES = [
   'Competition',
   'Conference',
+  'Hackathon',
   'Meetup',
   'Talk',
   'Workshop',

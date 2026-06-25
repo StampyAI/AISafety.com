@@ -1,7 +1,7 @@
 import { fetchAirtableRecords } from './airtable'
 import { EVENT_TYPES, type EventType } from '../event-types'
 
-const TABLE_ID = ''
+const TABLE_ID = 'tblXbN9swwldwq8f7'
 const VIEW_ID: string | undefined = undefined
 
 interface AirtableRecord {

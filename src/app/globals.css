@@ -141,12 +141,6 @@ body {
   line-height: 160%;
 }
 
-/* Sub-pages (every route except the landing page) shift the top background up
-   so only its bottom half shows */
-body:not(:has(.home-page)) {
-  background-position: center -250px;
-}
-
 h1 {
   font-size: 72px;
   font-weight: 400;

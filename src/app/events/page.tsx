@@ -13,7 +13,7 @@ export default async function EventsPage() {
 
   return (
     <div className="container-default">
-      <div className={`${styles.heroRow} padding-bottom-80px`}>
+      <div className={`${styles.heroRow} padding-bottom-128px`}>
         <div className={styles.heroHeader}>
           <PageHeader
             title="Events"

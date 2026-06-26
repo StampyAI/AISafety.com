@@ -1,7 +1,12 @@
+'use client'
+
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
+import Image from 'next/image'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
-import { eventTypeColor } from '@/lib/event-types'
+import FilterDropdown from '@/components/FilterDropdown'
+import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
 
@@ -11,6 +16,11 @@ const SUGGEST_CORRECTION_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form'
 const AIRTABLE_VIEW_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
+
+const applicationOptions = ['Open', 'Closed']
+const costOptions = ['Free', 'Paid', 'Paid (Stipend Available)']
+
+type Mode = 'in-person' | 'online'
 
 interface EventsClientProps {
   events: EventListing[]
@@ -90,25 +100,240 @@ function bottomMetaFor(event: EventListing) {
   return rows
 }
 
-export default function EventsClient({ events }: EventsClientProps) {
-  const featuredEvents = (['1', '2'] as const)
-    .map(rank => events.find(e => e.featured === rank))
-    .filter((e): e is EventListing => e != null)
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: Mode
+  onChange: (m: Mode) => void
+}) {
+  const tab = (value: Mode, icon: string, label: string) => (
+    <button
+      type="button"
+      className={`paragraph-small-bold ${styles.modeTab} ${mode === value ? styles.modeTabActive : ''}`}
+      aria-pressed={mode === value}
+      onClick={() => onChange(value)}
+    >
+      <Image src={icon} alt="" width={16} height={16} unoptimized />
+      {label}
+    </button>
+  )
+  return (
+    <div className={styles.modeToggle} role="group" aria-label="Event format">
+      {tab('in-person', '/images/icons/pin.svg', 'In person')}
+      {tab('online', '/images/icons/computer.svg', 'Online')}
+    </div>
+  )
+}
 
-  const monthGroups: { key: string; label: string; events: EventListing[] }[] =
-    []
-  for (const event of events) {
-    const key = monthKey(event.startDate)
-    let group = monthGroups.find(g => g.key === key)
-    if (!group) {
-      group = { key, label: monthLabel(event.startDate), events: [] }
-      monthGroups.push(group)
+function CitySearch({
+  cities,
+  selectedCity,
+  onSelect,
+  onClear,
+}: {
+  cities: string[]
+  selectedCity: string
+  onSelect: (city: string) => void
+  onClear: () => void
+}) {
+  const [query, setQuery] = useState(selectedCity)
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
-    group.events.push(event)
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleEsc)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleEsc)
+    }
+  }, [open])
+
+  const normalized = query.trim().toLowerCase()
+  const matches = cities.filter(c => c.toLowerCase().includes(normalized))
+
+  return (
+    <div className={styles.nearMeSearch} ref={ref}>
+      <span className={styles.nearMeIcon} aria-hidden="true" />
+      <input
+        type="text"
+        className={`text-field ${styles.nearMeInput}`}
+        placeholder="Type your city"
+        maxLength={256}
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={e => {
+          setQuery(e.target.value)
+          setOpen(true)
+          if (e.target.value.trim() === '') onClear()
+        }}
+      />
+      {open && (
+        <div className={`${styles.cityList} drop-shadow-dark`}>
+          {matches.length > 0 ? (
+            matches.map(city => (
+              <button
+                key={city}
+                type="button"
+                className={`paragraph-small ${styles.cityOption}`}
+                onClick={() => {
+                  setQuery(city)
+                  onSelect(city)
+                  setOpen(false)
+                }}
+              >
+                <span className={styles.cityOptionIcon} aria-hidden="true" />
+                {city}
+              </button>
+            ))
+          ) : (
+            <p className={`paragraph-small ${styles.cityEmpty}`}>
+              No events found in that city.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function EventsClient({ events }: EventsClientProps) {
+  const [mode, setMode] = useState<Mode>('in-person')
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [selectedCost, setSelectedCost] = useState<string[]>([])
+  const [selectedCity, setSelectedCity] = useState('')
+
+  function switchMode(next: Mode) {
+    if (next === 'online') setSelectedCity('')
+    setMode(next)
   }
+
+  const modeEvents = useMemo(
+    () => events.filter(e => (mode === 'online' ? e.isOnline : !e.isOnline)),
+    [events, mode]
+  )
+
+  const cities = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of modeEvents) {
+      const loc = e.location.trim()
+      if (loc) set.add(loc)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [modeEvents])
+
+  const featuredEvents = useMemo(
+    () =>
+      (['1', '2'] as const)
+        .map(rank => modeEvents.find(e => e.featured === rank))
+        .filter((e): e is EventListing => e != null),
+    [modeEvents]
+  )
+
+  const filteredEvents = useMemo(() => {
+    return modeEvents.filter(event => {
+      if (
+        selectedStatus.length > 0 &&
+        !selectedStatus.includes(event.applicationStatus)
+      )
+        return false
+      if (
+        selectedTypes.length > 0 &&
+        !event.type.some(t => selectedTypes.includes(t))
+      )
+        return false
+      if (
+        selectedCost.length > 0 &&
+        !event.cost.some(c => selectedCost.includes(c))
+      )
+        return false
+      if (
+        mode === 'in-person' &&
+        selectedCity &&
+        event.location !== selectedCity
+      )
+        return false
+      return true
+    })
+  }, [
+    modeEvents,
+    selectedStatus,
+    selectedTypes,
+    selectedCost,
+    mode,
+    selectedCity,
+  ])
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const e of modeEvents)
+      counts[e.applicationStatus] = (counts[e.applicationStatus] || 0) + 1
+    return counts
+  }, [modeEvents])
+
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const e of modeEvents)
+      for (const t of e.type) counts[t] = (counts[t] || 0) + 1
+    return counts
+  }, [modeEvents])
+
+  const costCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const e of modeEvents)
+      for (const c of e.cost) counts[c] = (counts[c] || 0) + 1
+    return counts
+  }, [modeEvents])
+
+  const monthGroups = useMemo(() => {
+    const groups: { key: string; label: string; events: EventListing[] }[] = []
+    for (const event of filteredEvents) {
+      const key = monthKey(event.startDate)
+      let group = groups.find(g => g.key === key)
+      if (!group) {
+        group = { key, label: monthLabel(event.startDate), events: [] }
+        groups.push(group)
+      }
+      group.events.push(event)
+    }
+    return groups
+  }, [filteredEvents])
+
+  const savedScrollY = useRef<number | null>(null)
+  const toggleFilter = (
+    value: string,
+    current: string[],
+    setter: (v: string[]) => void
+  ) => {
+    savedScrollY.current = window.scrollY
+    setter(
+      current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+    )
+  }
+  useLayoutEffect(() => {
+    if (savedScrollY.current !== null) {
+      window.scrollTo(0, savedScrollY.current)
+      savedScrollY.current = null
+    }
+  }, [filteredEvents])
 
   return (
     <>
+      <div className="padding-bottom-40px">
+        <ModeToggle mode={mode} onChange={switchMode} />
+      </div>
+
       {featuredEvents.length > 0 && (
         <div className="flex flex-wrap gap-56px padding-bottom-80px">
           {featuredEvents.map((event, i) => (
@@ -116,7 +341,11 @@ export default function EventsClient({ events }: EventsClientProps) {
               key={event.id}
               className="width-6-col"
               href={event.url !== '#' ? event.url : undefined}
-              tagline={event.featuredTagline ?? 'Featured event'}
+              tagline={
+                event.type[0]
+                  ? `Featured ${event.type[0].toLowerCase()}`
+                  : 'Featured event'
+              }
               name={event.name}
               description={event.description}
               logo={event.logo}
@@ -133,12 +362,58 @@ export default function EventsClient({ events }: EventsClientProps) {
         </div>
       )}
 
-      <h2 className={styles.sectionHeading}>Upcoming events</h2>
+      <div className="width-9-col">
+        <div className={styles.upcomingHeader}>
+          <h3 className={styles.sectionHeading}>
+            Upcoming events {mode === 'in-person' ? 'in person' : 'online'}
+          </h3>
+          <div className={styles.filterPills}>
+            <FilterDropdown
+              title="Applications"
+              options={applicationOptions}
+              selected={selectedStatus}
+              counts={statusCounts}
+              onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
+            />
+            <FilterDropdown
+              title="Event type"
+              options={[...EVENT_TYPES]}
+              selected={selectedTypes}
+              counts={typeCounts}
+              onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+            />
+            <FilterDropdown
+              title="Cost"
+              options={costOptions}
+              selected={selectedCost}
+              counts={costCounts}
+              onToggle={v => toggleFilter(v, selectedCost, setSelectedCost)}
+            />
+          </div>
+        </div>
 
-      <div className="flex gap-56px padding-top-40px">
-        <div className="width-9-col">
-          {monthGroups.map(group => (
-            <div key={group.key} className="padding-bottom-40px">
+        {mode === 'in-person' && (
+          <div className={`${styles.nearMe} margin-bottom-32px`}>
+            <p className="paragraph-small padding-bottom-16px">
+              Find events near you
+            </p>
+            <CitySearch
+              cities={cities}
+              selectedCity={selectedCity}
+              onSelect={setSelectedCity}
+              onClear={() => setSelectedCity('')}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-56px">
+        <div className="width-9-col padding-bottom-80px">
+          {monthGroups.map((group, i) => (
+            <div
+              key={group.key}
+              className={i === 0 ? undefined : 'padding-top-32px'}
+            >
               <p className="paragraph-small color-teal-300 padding-bottom-24px">
                 {group.label}
               </p>
@@ -162,14 +437,15 @@ export default function EventsClient({ events }: EventsClientProps) {
               </div>
             </div>
           ))}
-          {events.length === 0 && (
+          {filteredEvents.length === 0 && (
             <p className="paragraph-small color-teal-300">
-              No upcoming events right now. Check back soon.
+              No results found for {mode === 'online' ? 'online' : 'in person'}{' '}
+              events. Try adjusting the filters.
             </p>
           )}
         </div>
 
-        <div className="hide-mobile width-3-col">
+        <div className={`hide-mobile width-3-col ${styles.sidebar}`}>
           <ContributeButtons
             suggestEntryUrl={ADD_EVENT_URL}
             suggestCorrectionUrl={SUGGEST_CORRECTION_URL}

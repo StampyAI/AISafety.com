@@ -318,30 +318,30 @@ export default async function Home() {
               height={32}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
-              Best for medium to large projects
+              $1M grant round now open
             </p>
             <div className={`${styles['icon-row']} padding-bottom-24px`}>
               <Image
                 loading="lazy"
-                src="/images/sff.png"
+                src="/images/grantmaking.svg"
                 alt=""
                 className={styles['icon-homepage']}
                 width={56}
                 height={56}
               />
-              <h3>Survival and Flourishing Fund</h3>
+              <h3>grantmaking.ai</h3>
             </div>
             <p className="padding-bottom-24px">
-              Funds orgs working to improve humanity&apos;s long-term prospects
-              for survival and flourishing.
+              A public database of AI safety funding opportunities, now running
+              a $1M grant round.
             </p>
             <TrackedLink
-              href="https://survivalandflourishing.fund/"
+              href="https://www.grantmaking.ai/"
               target="_blank"
               rel="noopener noreferrer"
               className="button-secondary"
               trackingPage="Home"
-              trackingName="Survival and Flourishing Fund"
+              trackingName="grantmaking.ai"
             >
               Learn more
             </TrackedLink>

@@ -318,7 +318,7 @@ export default async function Home() {
               height={32}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
-              $1M grant round now open
+              New funding platform
             </p>
             <div className={`${styles['icon-row']} padding-bottom-24px`}>
               <Image
@@ -332,8 +332,8 @@ export default async function Home() {
               <h3>grantmaking.ai</h3>
             </div>
             <p className="padding-bottom-24px">
-              A public database of AI safety funding opportunities, now running
-              a $1M grant round.
+              Public database of AI safety funding opportunities, now running a
+              $1M grant round.
             </p>
             <TrackedLink
               href="https://www.grantmaking.ai/"

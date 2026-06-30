@@ -121,6 +121,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="project"
+          suggestEntryDescription="Suggest a project to be published here"
           suggestCorrectionDescription="Propose changes to a project listing"
         />
       </div>

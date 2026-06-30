@@ -207,6 +207,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="course"
+          suggestEntryDescription="Suggest a course to be published here"
         />
       </div>
     </div>

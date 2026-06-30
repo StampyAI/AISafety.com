@@ -295,6 +295,7 @@ export default function CommunitiesClient({
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="community"
+          suggestEntryDescription="Suggest a community to be published here"
         />
       </aside>
     </div>

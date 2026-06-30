@@ -5,6 +5,7 @@ import Image from 'next/image'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
+import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
@@ -100,6 +101,40 @@ function bottomMetaFor(event: EventListing) {
   return rows
 }
 
+function pluralizeTypes(types: string[]): string {
+  const plural = types.map(t => `${t.toLowerCase()}s`)
+  if (plural.length <= 1) return plural[0] ?? ''
+  if (plural.length === 2) return `${plural[0]} and ${plural[1]}`
+  return `${plural.slice(0, -1).join(', ')} and ${plural[plural.length - 1]}`
+}
+
+function emptyStateMessage(
+  mode: Mode,
+  selectedStatus: string[],
+  selectedTypes: string[],
+  selectedCost: string[]
+): string {
+  const activePills =
+    (selectedStatus.length > 0 ? 1 : 0) +
+    (selectedTypes.length > 0 ? 1 : 0) +
+    (selectedCost.length > 0 ? 1 : 0)
+  if (activePills > 1) {
+    return 'No results found based on these filters. Try adjusting them.'
+  }
+  const modeLabel = mode === 'online' ? 'online' : 'in person'
+  const cost =
+    selectedCost.length > 0
+      ? `${selectedCost.map(c => c.toLowerCase()).join(' or ')} `
+      : ''
+  const noun =
+    selectedTypes.length > 0 ? pluralizeTypes(selectedTypes) : 'events'
+  const applications =
+    selectedStatus.length === 1
+      ? ` with ${selectedStatus[0].toLowerCase()} applications`
+      : ''
+  return `No results found for ${cost}${noun} ${modeLabel}${applications}. Try adjusting the filters.`
+}
+
 function ModeToggle({
   mode,
   onChange,
@@ -120,8 +155,8 @@ function ModeToggle({
   )
   return (
     <div className={styles.modeToggle} role="group" aria-label="Event format">
-      {tab('in-person', '/images/icons/pin.svg', 'In person')}
       {tab('online', '/images/icons/computer.svg', 'Online')}
+      {tab('in-person', '/images/icons/pin.svg', 'In person')}
     </div>
   )
 }
@@ -176,6 +211,33 @@ function CitySearch({
           if (e.target.value.trim() === '') onClear()
         }}
       />
+      {query.length > 0 && (
+        <button
+          type="button"
+          className={styles.nearMeClear}
+          aria-label="Clear city"
+          onClick={() => {
+            setQuery('')
+            onClear()
+            setOpen(false)
+          }}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M6 6L14 14M14 6L6 14"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      )}
       {open && (
         <div className={`${styles.cityList} drop-shadow-dark`}>
           {matches.length > 0 ? (
@@ -206,7 +268,7 @@ function CitySearch({
 }
 
 export default function EventsClient({ events }: EventsClientProps) {
-  const [mode, setMode] = useState<Mode>('in-person')
+  const [mode, setMode] = useState<Mode>('online')
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedCost, setSelectedCost] = useState<string[]>([])
@@ -363,34 +425,35 @@ export default function EventsClient({ events }: EventsClientProps) {
       )}
 
       <div className="width-9-col">
-        <div className={styles.upcomingHeader}>
-          <h3 className={styles.sectionHeading}>
-            Upcoming events {mode === 'in-person' ? 'in person' : 'online'}
-          </h3>
-          <div className={styles.filterPills}>
-            <FilterDropdown
-              title="Applications"
-              options={applicationOptions}
-              selected={selectedStatus}
-              counts={statusCounts}
-              onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
-            />
-            <FilterDropdown
-              title="Event type"
-              options={[...EVENT_TYPES]}
-              selected={selectedTypes}
-              counts={typeCounts}
-              onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-            />
-            <FilterDropdown
-              title="Cost"
-              options={costOptions}
-              selected={selectedCost}
-              counts={costCounts}
-              onToggle={v => toggleFilter(v, selectedCost, setSelectedCost)}
-            />
-          </div>
-        </div>
+        <FilterBar
+          count={filteredEvents.length}
+          noun="event"
+          label={`${filteredEvents.length} upcoming event${
+            filteredEvents.length === 1 ? '' : 's'
+          } ${mode === 'in-person' ? 'in person' : 'online'}`}
+        >
+          <FilterDropdown
+            title="Applications"
+            options={applicationOptions}
+            selected={selectedStatus}
+            counts={statusCounts}
+            onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
+          />
+          <FilterDropdown
+            title="Event type"
+            options={[...EVENT_TYPES]}
+            selected={selectedTypes}
+            counts={typeCounts}
+            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+          />
+          <FilterDropdown
+            title="Cost"
+            options={costOptions}
+            selected={selectedCost}
+            counts={costCounts}
+            onToggle={v => toggleFilter(v, selectedCost, setSelectedCost)}
+          />
+        </FilterBar>
 
         {mode === 'in-person' && (
           <div className={`${styles.nearMe} margin-bottom-32px`}>
@@ -439,8 +502,12 @@ export default function EventsClient({ events }: EventsClientProps) {
           ))}
           {filteredEvents.length === 0 && (
             <p className="paragraph-small color-teal-300">
-              No results found for {mode === 'online' ? 'online' : 'in person'}{' '}
-              events. Try adjusting the filters.
+              {emptyStateMessage(
+                mode,
+                selectedStatus,
+                selectedTypes,
+                selectedCost
+              )}
             </p>
           )}
         </div>

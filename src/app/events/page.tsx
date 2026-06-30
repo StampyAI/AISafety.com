@@ -3,6 +3,7 @@ import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
 import { getEvents } from '@/lib/data/events'
 import EventsClient from './EventsClient'
+import NewsletterSignup from './NewsletterSignup'
 import styles from './page.module.css'
 
 export default async function EventsPage() {
@@ -13,7 +14,7 @@ export default async function EventsPage() {
 
   return (
     <div className="container-default">
-      <div className={`${styles.heroRow} padding-bottom-128px`}>
+      <div className={`${styles.heroRow} padding-bottom-56px`}>
         <div className={styles.heroHeader}>
           <PageHeader
             title="Events"
@@ -22,7 +23,7 @@ export default async function EventsPage() {
               <>
                 Find{' '}
                 <span className="color-teal-bright-300">
-                  conferences, competitions, meetups, talks, and workshops
+                  conferences, talks, workshops, meetups, and competitions
                 </span>{' '}
                 in AI safety, both online and in person.
               </>
@@ -34,8 +35,8 @@ export default async function EventsPage() {
           </Link>
         </div>
 
-        <div className={styles.newsletterSlot} aria-hidden="true">
-          <p className="paragraph-xs color-teal-300">Newsletter signup</p>
+        <div className={styles.newsletterSlot}>
+          <NewsletterSignup />
         </div>
       </div>
 

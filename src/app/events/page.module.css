@@ -15,19 +15,7 @@
 }
 
 .newsletterSlot {
-  flex: 0 0 320px;
   margin-top: 56px;
-  min-height: 96px;
-  border: 1px solid color-mix(in srgb, var(--teal-bright-500) 30%, transparent);
-  border-radius: 16px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sectionHeading {
-  margin: 0;
 }
 
 .modeToggle {
@@ -50,22 +38,6 @@
 
 .modeTabActive {
   border-color: color-mix(in srgb, var(--bright-teal-500) 30%, transparent);
-}
-
-.upcomingHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding-bottom: 40px;
-}
-
-.filterPills {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .nearMe {
@@ -94,12 +66,28 @@
 .nearMeInput {
   height: 48px;
   padding-left: 40px;
+  padding-right: 44px;
   border: none;
   border-radius: 999px;
   background-color: color-mix(in srgb, var(--bright-teal-500) 10%, transparent);
   color: var(--white);
   font-size: 15px;
   font-weight: 300;
+}
+
+.nearMeClear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background-color: transparent;
+  color: var(--teal-400);
+  cursor: pointer;
 }
 
 .nearMeInput::placeholder {
@@ -164,8 +152,5 @@
     flex: 1 1 auto;
     width: 100%;
     margin-top: 0;
-  }
-  .upcomingHeader {
-    align-items: flex-start;
   }
 }

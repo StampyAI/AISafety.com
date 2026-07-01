@@ -732,6 +732,18 @@
   gap: 8px;
 }
 
+/* The chatbot's opening message for the page — shown subtly at the top of the
+ * transcript for context, since visitors are often replying to it. Not a logged
+ * turn, so it's plain muted text rather than a bordered bubble. */
+.convGreeting {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--teal-500);
+  line-height: 1.5;
+  padding: 0 2px 2px;
+  opacity: 0.7;
+}
+
 .convTurnUser,
 .convTurnAssistant {
   padding: 8px 10px;

@@ -340,7 +340,7 @@ function parseBlocks(text: string): Block[] {
   return blocks
 }
 
-function CardPill({ card }: { card: CardSpec }) {
+function CardPill({ card, turnIndex }: { card: CardSpec; turnIndex?: number }) {
   const listings = useContext(ListingInfoContext)
   const clicked = useContext(ClickedCardsContext)
   const [imgFailed, setImgFailed] = useState(false)
@@ -351,7 +351,15 @@ function CardPill({ card }: { card: CardSpec }) {
   const primary = info?.name ?? (card.note || rec)
   const showNote = Boolean(card.note) && card.note !== primary
   const showLogo = Boolean(info?.logo) && !imgFailed
-  const wasClicked = clicked.has(card.id) || clicked.has(rec)
+  // Turn-scoped match badges only the card the visitor opened. The bare-id
+  // match is the legacy path for rows recorded before clicks were turn-scoped
+  // (their set has no `<turn>:` entries), where every copy is still badged.
+  const wasClicked =
+    (turnIndex != null &&
+      (clicked.has(`${turnIndex}:${card.id}`) ||
+        clicked.has(`${turnIndex}:${rec}`))) ||
+    clicked.has(card.id) ||
+    clicked.has(rec)
   // No resolvable listing for this id — the model fabricated/guessed it without
   // a search, so the live renderer dropped this card entirely. Flag it so a
   // reviewer can tell it apart from a real card (it can't be made clickable).
@@ -404,7 +412,13 @@ function CardPill({ card }: { card: CardSpec }) {
   )
 }
 
-function MessageBody({ text }: { text: string }) {
+function MessageBody({
+  text,
+  turnIndex,
+}: {
+  text: string
+  turnIndex?: number
+}) {
   const blocks = parseBlocks(text)
   const listings = useContext(ListingInfoContext)
   const clicked = useContext(ClickedCardsContext)
@@ -415,7 +429,7 @@ function MessageBody({ text }: { text: string }) {
           return (
             <div key={i} className={styles.convCards}>
               {block.cards.map((card, j) => (
-                <CardPill key={j} card={card} />
+                <CardPill key={j} card={card} turnIndex={turnIndex} />
               ))}
             </div>
           )
@@ -444,7 +458,16 @@ function MessageBody({ text }: { text: string }) {
   )
 }
 
-export default function TranscriptMessage({ text }: { text: string }) {
+export default function TranscriptMessage({
+  text,
+  turnIndex,
+}: {
+  text: string
+  /** This message's index in the stored conversation history, so clicked-card
+   *  badges can be matched to the exact turn. Omitted for legacy rows with no
+   *  stored history. */
+  turnIndex?: number
+}) {
   // The reasoning/search trail before the [[/thinking]] boundary is dropped
   // here: it's never shown to visitors (the live chat hides it), and it adds
   // noise to the admin transcript. parseMessage still splits it off so it
@@ -452,7 +475,7 @@ export default function TranscriptMessage({ text }: { text: string }) {
   const { body, chips } = parseMessage(text)
   return (
     <div className={styles.convMsg}>
-      <MessageBody text={body} />
+      <MessageBody text={body} turnIndex={turnIndex} />
       {chips.length > 0 && (
         <div className={styles.convChips}>
           {chips.map((chip, i) => (

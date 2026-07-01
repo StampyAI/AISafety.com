@@ -9,6 +9,7 @@ import TranscriptMessage, {
   type ListingInfo,
 } from './TranscriptMessage'
 import ExcludeBrowserToggle from './ExcludeBrowserToggle'
+import { greetingFor } from '@/lib/assistant/pages'
 
 interface HistoryTurn {
   role: 'user' | 'assistant'
@@ -314,14 +315,27 @@ function ConversationRow({
   // for old rows that have no stored history.
   const firstUser =
     data?.history.find(t => t.role === 'user')?.content ?? data?.user ?? ''
-  // Cards the visitor clicked, keyed by both full id and bare rec so the
-  // transcript can badge them regardless of how the token was written.
+  // Cards the visitor clicked. New clicks are stored turn-scoped as
+  // `<turnIndex>:<listing id>` so only the card the visitor actually opened is
+  // badged — a listing shown in three replies no longer looks like three
+  // clicks. We seed the set with each entry verbatim plus a `<turn>:<rec>`
+  // variant (tokens are sometimes written without the type prefix). Legacy
+  // entries have no leading `<turn>:` — for those we also add the bare rec, and
+  // CardPill falls back to matching every copy, preserving old rows' behaviour.
+  // `link:` entries pass through untouched for inline-link badging.
   const clickedSet = useMemo(() => {
     const s = new Set<string>()
-    for (const id of conv.clickedCitations) {
-      s.add(id)
-      const rec = /rec[A-Za-z0-9]+/.exec(id)?.[0]
-      if (rec) s.add(rec)
+    for (const raw of conv.clickedCitations) {
+      s.add(raw)
+      const turnScoped = /^(\d+):(.+)$/.exec(raw)
+      if (turnScoped) {
+        const [, turn, id] = turnScoped
+        const rec = /rec[A-Za-z0-9]+/.exec(id)?.[0]
+        if (rec) s.add(`${turn}:${rec}`)
+      } else if (!raw.startsWith('link:')) {
+        const rec = /rec[A-Za-z0-9]+/.exec(raw)?.[0]
+        if (rec) s.add(rec)
+      }
     }
     return s
   }, [conv.clickedCitations])
@@ -416,6 +430,9 @@ function ConversationRow({
                 Transcript ({turnCount} turn{turnCount === 1 ? '' : 's'})
               </div>
               <div className={styles.convTranscript}>
+                <div className={styles.convGreeting}>
+                  {greetingFor(conv.page)}
+                </div>
                 {data.history.length > 0 ? (
                   data.history.map((t, i) => (
                     <div
@@ -434,7 +451,7 @@ function ConversationRow({
                           {t.content}
                         </div>
                       ) : (
-                        <TranscriptMessage text={t.content} />
+                        <TranscriptMessage text={t.content} turnIndex={i} />
                       )}
                     </div>
                   ))

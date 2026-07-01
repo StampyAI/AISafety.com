@@ -20,6 +20,11 @@ export interface AssistantClickEvent {
   target?: 'card' | 'link'
   /** The listing id, for card clicks. Absent for link clicks. */
   citationId?: string
+  /** Which assistant turn the clicked card sat in (its index in the stored
+   *  conversation history). Lets the admin badge the one card the visitor
+   *  actually clicked instead of every copy of that listing across the chat.
+   *  Absent for link clicks and for older clients that didn't send it. */
+  turnIndex?: number
   /** Destination: the card's url, or the inline link's href. */
   url: string
   /** The link's visible text, for link clicks (shown in the admin viewer). */
@@ -55,15 +60,23 @@ export async function logAssistantEvent(event: AssistantEvent): Promise<void> {
   console.log(`[assistant] ${line}`)
 
   // Persist clicks onto the conversation row so the admin viewer can show what
-  // the visitor actually opened. Cards are keyed by listing id; inline links by
-  // a `link:`-prefixed href, which never collides with a `type:recXXX` id.
+  // the visitor actually opened. Cards are keyed `<turnIndex>:<listing id>` so
+  // the exact instance is known (a listing can be shown in several replies);
+  // inline links by a `link:`-prefixed href, which never collides with a
+  // `type:recXXX` id. Older clients omit turnIndex — fall back to the bare
+  // listing id, which the admin still matches (badging every copy) for legacy
+  // rows.
   if (
     event.kind === 'click' &&
     event.sessionId &&
     isConversationsTableConfigured()
   ) {
     const clickKey =
-      event.target === 'link' ? `link:${event.url}` : event.citationId
+      event.target === 'link'
+        ? `link:${event.url}`
+        : event.citationId != null && event.turnIndex != null
+          ? `${event.turnIndex}:${event.citationId}`
+          : event.citationId
     try {
       if (clickKey) await recordCitationClick(event.sessionId, clickKey)
     } catch (err) {

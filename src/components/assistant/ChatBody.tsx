@@ -242,7 +242,10 @@ interface Props {
   /** sessionStorage key for persisting messages (omit to disable). */
   storageKey?: string
   onSuggest?: (query: string, type?: string) => void
-  onCitationClick?: (c: CitationRef) => void
+  /** `turnIndex` is the clicked card's position in the message list, which
+   *  matches its index in the stored conversation history — so the admin can
+   *  badge the exact card the visitor opened. */
+  onCitationClick?: (c: CitationRef, turnIndex: number) => void
   /** Fires when the visitor clicks an inline markdown link in a reply. */
   onLinkClick?: (href: string, label: string) => void
   /** Fires when the user sends a message (typed or via a chip), excluding
@@ -679,7 +682,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
             )}
           </>
         ) : (
-          messages.map(m =>
+          messages.map((m, turnIndex) =>
             m.role === 'user' ? (
               <div key={m.id} className={styles.userMessageWrap}>
                 <button
@@ -712,7 +715,11 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                   message={m}
                   allCitations={allCitations}
                   onSuggest={onSuggest}
-                  onCitationClick={onCitationClick}
+                  onCitationClick={
+                    onCitationClick
+                      ? (c: CitationRef) => onCitationClick(c, turnIndex)
+                      : undefined
+                  }
                   onLinkClick={onLinkClick}
                 />
                 {!m.isStreaming && m.followUpChips.length > 0 && (

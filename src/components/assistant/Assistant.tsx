@@ -154,10 +154,11 @@ export default function Assistant() {
   )
 
   const handleCitationClick = useCallback(
-    (c: CitationRef) => {
+    (c: CitationRef, turnIndex: number) => {
       void fireLog({
         kind: 'click',
         citationId: c.id,
+        turnIndex,
         url: c.url,
         currentPage,
         sessionId: getSessionId(),

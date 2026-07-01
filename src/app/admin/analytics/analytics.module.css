@@ -160,6 +160,32 @@
   color: var(--teal-400);
 }
 
+/* "Show more" row: a full-width button under a truncated listing table. */
+.showMoreRow td {
+  padding-top: 12px;
+  text-align: center;
+  border-bottom: none;
+}
+
+.showMoreBtn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.showMoreBtn:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
 .caption {
   margin-top: 12px;
   font-size: 11px;

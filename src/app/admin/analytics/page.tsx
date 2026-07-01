@@ -5,6 +5,7 @@ import {
   type Counted,
   type DateRange,
   type ChatbotFunnel,
+  type OverallListingRow,
 } from '@/lib/analytics/events'
 import { getFunders } from '@/lib/data/funding'
 import { getCourses } from '@/lib/data/self-study'
@@ -17,6 +18,7 @@ import { getMapData } from '@/lib/data/map'
 import { getProjects } from '@/lib/data/projects'
 import DateRangePicker from './DateRangePicker'
 import ExcludeToggle from './ExcludeToggle'
+import ExpandableBody from './ExpandableBody'
 import Logo from './Logo'
 import admin from '../admin.module.css'
 import styles from './analytics.module.css'
@@ -294,7 +296,7 @@ export default async function AnalyticsPage({
   const urlByName = new Map(data.topListings.map(r => [r.name, r.url]))
 
   // Chart totals (also the % denominators). The listings total is the selected
-  // page's whole click count, not just the visible top-15 rows.
+  // page's whole click count, not just the rows currently revealed.
   const totalClicks = data.byPage.reduce((sum, r) => sum + r.count, 0)
   const pageTotal = data.byPage.find(p => p.name === data.selectedPage)?.count
   // When the listings are filtered to one source, the top-listings table is a
@@ -305,6 +307,19 @@ export default async function AnalyticsPage({
         ?.count
     : pageTotal
   const positionTotal = data.byPosition.reduce((sum, r) => sum + r.count, 0)
+
+  // Site-wide leaderboards for the Overview tab. The listings total is every
+  // page's clicks (same denominator as "Clicks by page"); the position total is
+  // only the clicks that carry a slot. Resolve each row's page to its site label
+  // (e.g. 'Founders' → 'Founder toolkit') so the page pills read the site's way.
+  const overallListings = data.topListingsOverall.map(r => ({
+    ...r,
+    pageLabel: r.page ? (labelByPage.get(r.page) ?? r.page) : undefined,
+  }))
+  const overallPositionTotal = data.byPositionOverall.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
 
   return (
     <div>
@@ -405,6 +420,33 @@ export default async function AnalyticsPage({
                   </p>
                 </Panel>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'pages' && (
+            <div className={styles.grid}>
+              <Panel title="Most clicked listings overall">
+                <OverallListingsTable
+                  rows={overallListings}
+                  total={totalClicks}
+                />
+                <p className={styles.caption}>
+                  Every listing across all resource pages, ranked by clicks this
+                  period. Open a page&apos;s tab for its own breakdown.
+                </p>
+              </Panel>
+              <Panel title="Clicks by position overall">
+                <CountTable
+                  rows={data.byPositionOverall}
+                  labelHead="Slot"
+                  total={overallPositionTotal}
+                />
+                <p className={styles.caption}>
+                  Every click across all pages counted at the slot it happened
+                  in (F1/F2 = featured cards) — how much attention each slot
+                  draws site-wide.
+                </p>
+              </Panel>
             </div>
           )}
 
@@ -675,6 +717,7 @@ function CountTable({
 }) {
   if (rows.length === 0) return <p className={styles.dim}>No data yet.</p>
   const showPct = total != null && total > 0
+  const colSpan = (rankFor ? 1 : 0) + 2 + (showPct ? 1 : 0)
   return (
     <table className={styles.table}>
       <thead>
@@ -685,7 +728,7 @@ function CountTable({
           {showPct && <th className={styles.pctCol}>%</th>}
         </tr>
       </thead>
-      <tbody>
+      <ExpandableBody colSpan={colSpan}>
         {rows.map((r, i) => {
           const rank = rankFor?.(r.name)
           const featured = rank?.startsWith('F')
@@ -725,7 +768,7 @@ function CountTable({
             </tr>
           )
         })}
-      </tbody>
+      </ExpandableBody>
       {total != null && (
         <tfoot>
           <tr className={styles.totalRow}>
@@ -736,6 +779,78 @@ function CountTable({
           </tr>
         </tfoot>
       )}
+    </table>
+  )
+}
+
+/** The Overview tab's site-wide listings leaderboard. Like CountTable, but each
+ *  row carries the page it came from (shown as a pill) and always uses a favicon
+ *  — listings here span every page, so there's no single page's logos to load.
+ *  `total` is every page's click count, so the top-N rows can sum to less than
+ *  it; the Total footer shows the true denominator. */
+function OverallListingsTable({
+  rows,
+  total,
+}: {
+  rows: (OverallListingRow & { pageLabel?: string })[]
+  total: number
+}) {
+  if (rows.length === 0) return <p className={styles.dim}>No data yet.</p>
+  const showPct = total > 0
+  const colSpan = 3 + (showPct ? 1 : 0)
+  return (
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th>Listing</th>
+          <th>Page</th>
+          <th className={styles.numCol}>Clicks</th>
+          {showPct && <th className={styles.pctCol}>%</th>}
+        </tr>
+      </thead>
+      <ExpandableBody colSpan={colSpan}>
+        {rows.map((r, i) => {
+          const favicon = faviconFor(r.url)
+          const href = r.url
+          return (
+            <tr key={i}>
+              <td className={styles.nameCell}>
+                {href && href !== '#' ? (
+                  <a
+                    className={styles.logoLink}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open ${r.name}`}
+                  >
+                    <Logo src={favicon} />
+                  </a>
+                ) : (
+                  <Logo src={favicon} />
+                )}
+                <span>{r.name}</span>
+              </td>
+              <td>
+                {r.pageLabel && (
+                  <span className={styles.pill}>{r.pageLabel}</span>
+                )}
+              </td>
+              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+              {showPct && (
+                <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+              )}
+            </tr>
+          )
+        })}
+      </ExpandableBody>
+      <tfoot>
+        <tr className={styles.totalRow}>
+          <td className={styles.totalLabel}>Total</td>
+          <td />
+          <td className={styles.numCol}>{total.toLocaleString()}</td>
+          {showPct && <td className={styles.pctCol}>{pct1(total, total)}</td>}
+        </tr>
+      </tfoot>
     </table>
   )
 }

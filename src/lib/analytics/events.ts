@@ -164,6 +164,14 @@ export interface ListingRow extends Counted {
   url?: string
 }
 
+export interface OverallListingRow extends Counted {
+  /** The resource page this listing belongs to (e.g. 'Funding'), so the
+   *  site-wide leaderboard can show which page each top listing came from. */
+  page?: string
+  /** A representative destination url (most recent click), for the favicon. */
+  url?: string
+}
+
 export interface DateRange {
   /** Inclusive lower bound in epoch ms, or null for no lower bound. */
   startMs: number | null
@@ -196,6 +204,12 @@ export interface DashboardData {
   /** `selectedPage`'s clicks bucketed by the slot they happened in, ordered F1,
    *  F2, 1, 2, 3… — answers "do higher slots draw more clicks" for that page. */
   byPosition: Counted[]
+  /** Site-wide most-clicked listings, across every page (not scoped to
+   *  `selectedPage`). Each row carries the page it came from. */
+  topListingsOverall: OverallListingRow[]
+  /** Every click across every page bucketed by the slot it happened in, ordered
+   *  F1, F2, 1, 2, 3… — the site-wide version of `byPosition`. */
+  byPositionOverall: Counted[]
   /** For pages with a map (Map, Communities): the selected page's clicks split
    *  into 'Map' vs 'Cards'. Empty for pages without a map. Always the full split,
    *  even when one source is selected, so the user can switch between them. */
@@ -213,6 +227,8 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   selectedPage: null,
   topListings: [],
   byPosition: [],
+  topListingsOverall: [],
+  byPositionOverall: [],
   bySource: [],
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
@@ -368,6 +384,9 @@ function aggregate(
     if (!g.url && e.url) g.url = e.url
     perListing.set(k, g)
   }
+  // Every listing for the page, ranked by clicks — the dashboard shows the first
+  // 50 and lets the user reveal more, so we return the full list rather than a
+  // fixed top-N here.
   const topListings: ListingRow[] = [...perListing.entries()]
     .map(([name, g]) => ({
       name,
@@ -376,7 +395,34 @@ function aggregate(
       url: g.url,
     }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 15)
+
+  // Site-wide leaderboards, independent of the selected page: the most-clicked
+  // listings and the busiest slots across every page. Keyed by page+listing so
+  // the same name on two pages stays two rows (each keeps its own page pill).
+  const perOverall = new Map<
+    string,
+    { name: string; page?: string; count: number; url?: string }
+  >()
+  for (const e of clicks) {
+    const name = listingMember(e)
+    const key = `${e.page ?? ''} ${name}`
+    // clicks is newest-first, so the first url seen for a listing is the latest.
+    const g = perOverall.get(key) ?? {
+      name,
+      page: e.page,
+      count: 0,
+      url: e.url,
+    }
+    g.count += 1
+    if (!g.url && e.url) g.url = e.url
+    perOverall.set(key, g)
+  }
+  const topListingsOverall: OverallListingRow[] = [...perOverall.values()]
+    .map(g => ({ name: g.name, page: g.page, count: g.count, url: g.url }))
+    .sort((a, b) => b.count - a.count)
+  const byPositionOverall = tallyPositions(
+    clicks.map(e => e.position).filter((p): p is string => p != null)
+  )
 
   // Source split, only for pages with a map. Clicks are explicitly tagged 'map'
   // or 'cards' at click time; anything untagged (logged before source tracking,
@@ -408,6 +454,8 @@ function aggregate(
     byPosition: tallyPositions(
       pageClicks.map(e => e.position).filter((p): p is string => p != null)
     ),
+    topListingsOverall,
+    byPositionOverall,
     bySource,
     selectedSource,
     funnel: {

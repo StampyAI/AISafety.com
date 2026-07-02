@@ -126,7 +126,7 @@ Rules:
 - The page may be stale or wrong; attribute what you take from it ("their site says…", "their curriculum page lists…").
 - For EVENT application deadlines/status, the catalog's pre-computed applicationsStatus stays authoritative — do not use a page read to overturn it. That includes 'unknown': if a page you read shows a deadline the catalog lacks, do NOT present it as the official deadline (pages routinely show a past year's dates) — keep following the applicationsNote.
 - If the read fails, that usually means the site blocks automated readers or needs JavaScript — it does NOT mean the link is broken, so never tell the user the link is dead. Answer from the fields you have and suggest they check the site for the specifics (except event application deadlines — for those keep following the applicationsNote instead of sending the user to the site).
-- Reads are slow (seconds each). At most 2 per turn, and never re-read a page you already read this conversation — reuse what you learned.`,
+- Reads are slow (seconds each). At most 5 per turn, and never re-read a page you already read this conversation — reuse what you learned.`,
     input_schema: {
       type: 'object',
       properties: {

@@ -14,10 +14,10 @@ import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
 const MAX_TOKENS = 4096
 const MAX_HISTORY = 14
 const MAX_TOOL_ITERATIONS = 10
-// Hard server-side budget backing the prompt's "at most 2 page reads per
+// Hard server-side budget matching the prompt's "at most 5 page reads per
 // turn" rule — each read is a multi-second external fetch, so a runaway model
 // must not be able to chain 10 of them.
-const MAX_PAGE_READS_PER_TURN = 3
+const MAX_PAGE_READS_PER_TURN = 5
 
 export type SseSend = (event: string, data: unknown) => void
 

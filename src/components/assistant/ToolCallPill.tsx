@@ -7,11 +7,13 @@ import styles from './Assistant.module.css'
 const TOOL_LABELS: Record<string, string> = {
   search_listings: 'Searched',
   get_listing: 'Opened',
+  read_listing_page: 'Read website',
 }
 
 const TOOL_RUNNING_LABELS: Record<string, string> = {
   search_listings: 'Searching',
   get_listing: 'Fetching',
+  read_listing_page: 'Reading website',
 }
 
 function ToolIcon({ name }: { name: string }) {
@@ -40,6 +42,16 @@ function ToolIcon({ name }: { name: string }) {
       </svg>
     )
   }
+  if (name === 'read_listing_page') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <ellipse cx="12" cy="12" rx="4" ry="9" />
+        <line x1="3.5" y1="9" x2="20.5" y2="9" />
+        <line x1="3.5" y1="15" x2="20.5" y2="15" />
+      </svg>
+    )
+  }
   return null
 }
 
@@ -59,7 +71,7 @@ function describeInput(name: string, input: Record<string, unknown>): string {
     if (filters) parts.push(filters)
     return parts.join(' · ')
   }
-  if (name === 'get_listing') {
+  if (name === 'get_listing' || name === 'read_listing_page') {
     const id = typeof input.id === 'string' ? input.id : ''
     return id
   }
@@ -82,7 +94,7 @@ function formatInputDetails(
       }
     }
     if (input.limit) out.push(`limit: ${String(input.limit)}`)
-  } else if (name === 'get_listing') {
+  } else if (name === 'get_listing' || name === 'read_listing_page') {
     if (input.id) out.push(`id: ${String(input.id)}`)
   } else {
     for (const [k, v] of Object.entries(input)) {

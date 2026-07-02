@@ -232,7 +232,10 @@ function renderInline(
       }
     } else if (token.startsWith('[')) {
       const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
-      if (linkMatch) {
+      // Only http(s) and site-relative destinations become links. The model's
+      // context includes untrusted webpage text (read_listing_page), so a
+      // scheme like javascript: must render as plain text, never as an <a>.
+      if (linkMatch && /^(https?:\/\/|\/|#)/.test(linkMatch[2])) {
         const href = linkMatch[2]
         const label = linkMatch[1]
         const isExternal = /^https?:\/\//.test(href)

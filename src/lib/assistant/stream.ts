@@ -14,6 +14,10 @@ import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
 const MAX_TOKENS = 4096
 const MAX_HISTORY = 14
 const MAX_TOOL_ITERATIONS = 10
+// Hard server-side budget backing the prompt's "at most 2 page reads per
+// turn" rule — each read is a multi-second external fetch, so a runaway model
+// must not be able to chain 10 of them.
+const MAX_PAGE_READS_PER_TURN = 3
 
 export type SseSend = (event: string, data: unknown) => void
 
@@ -265,7 +269,18 @@ export async function runAssistantStream(
 
     const toolResults: Anthropic.ToolResultBlockParam[] = []
     for (const tu of toolUseBlocks) {
-      const result = await executeTool(tu.name, tu.input as unknown, catalog)
+      const overReadBudget =
+        tu.name === 'read_listing_page' &&
+        toolCalls.filter(c => c.name === 'read_listing_page').length >=
+          MAX_PAGE_READS_PER_TURN
+      const result = overReadBudget
+        ? {
+            ok: false,
+            content:
+              'Page-read budget for this turn is used up. Answer from what you already have — do not request another page read.',
+            listings: [],
+          }
+        : await executeTool(tu.name, tu.input as unknown, catalog)
       toolCalls.push({ name: tu.name, input: tu.input, ok: result.ok })
       cited.push(...result.listings)
       const n = result.listings.length
@@ -276,7 +291,11 @@ export async function runAssistantStream(
             ? result.ok
               ? 'fetched'
               : 'not found'
-            : 'done'
+            : tu.name === 'read_listing_page'
+              ? result.ok
+                ? 'read'
+                : 'unreadable'
+              : 'done'
       send('tool_call_done', {
         id: tu.id,
         name: tu.name,

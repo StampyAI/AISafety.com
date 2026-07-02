@@ -28,12 +28,19 @@ export default function ThinkingBlock({
 }: Props) {
   const [open, setOpen] = useState(false)
   const searchCount = toolCalls.length
+  // "Searched N times" would miscount page reads as searches, so a turn with
+  // any read_listing_page call gets a neutral verb instead.
+  const hasPageRead = toolCalls.some(tc => tc.name === 'read_listing_page')
   const label =
     searchCount === 0
       ? 'Thought it through'
-      : searchCount === 1
-        ? 'Searched once'
-        : `Searched ${searchCount} times`
+      : hasPageRead
+        ? searchCount === 1
+          ? 'Looked it up'
+          : `Looked it up (${searchCount} steps)`
+        : searchCount === 1
+          ? 'Searched once'
+          : `Searched ${searchCount} times`
 
   return (
     <div className={styles.thinkBlock}>

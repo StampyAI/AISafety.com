@@ -147,12 +147,15 @@ function AssistantMessageView({
   onLinkClick,
 }: AssistantMessageViewProps) {
   let boundary = lastThinkingDoneIndex(message.events)
-  // Fallback: if the model forgot the [[/thinking]] marker but did make tool
-  // calls, treat everything after the last tool call as the answer, so the
-  // search/reasoning trail doesn't leak into the final message. Only applied
-  // once streaming ends (during streaming we show the loading indicator).
-  if (boundary === -1 && !message.isStreaming) {
-    for (let i = message.events.length - 1; i >= 0; i--) {
+  // A tool call AFTER the marker means the model was still working — text in
+  // between is narration ("Let me read the page…"), not the answer, so the
+  // real boundary is the LAST of (marker, tool call) and the reasoning trail
+  // never leaks into the final message. The same scan doubles as the fallback
+  // for a model that forgot the marker entirely but did make tool calls —
+  // in that case only applied once streaming ends (during streaming we show
+  // the loading indicator until the marker arrives).
+  if (boundary !== -1 || !message.isStreaming) {
+    for (let i = message.events.length - 1; i > boundary; i--) {
       if (message.events[i].kind === 'tool') {
         boundary = i
         break

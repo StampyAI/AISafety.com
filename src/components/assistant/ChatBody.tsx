@@ -681,6 +681,10 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
             {greeting && (
               <div className={styles.greetingBubble}>{greeting}</div>
             )}
+            <div className={styles.privacyNote}>
+              This conversation may be reviewed by the AISafety.com team to
+              improve the chatbot.
+            </div>
             {chips && chips.length > 0 && (
               <div className={styles.chipsRow}>
                 {chips.map(chip => (

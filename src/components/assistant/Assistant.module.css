@@ -212,6 +212,18 @@
   color: var(--white);
 }
 
+/* Privacy note — one muted line under the greeting on a fresh conversation,
+ * visible before the visitor has typed anything */
+
+.privacyNote {
+  align-self: flex-start;
+  max-width: 90%;
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--teal-400);
+}
+
 /* Chips — flowing right-aligned reply suggestions */
 
 .chipsRow {

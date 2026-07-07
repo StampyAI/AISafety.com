@@ -32,7 +32,7 @@ export const ClickedCardsContext = createContext<Set<string>>(new Set())
 
 /** Resolve a card token's id to its listing info: try the full id, then the
  *  bare rec id (handles tokens written without a type prefix). */
-function resolveListing(
+export function resolveListing(
   listings: Record<string, ListingInfo>,
   id: string
 ): ListingInfo | null {

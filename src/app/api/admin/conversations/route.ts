@@ -73,6 +73,21 @@ export async function GET(req: NextRequest) {
     }
     for (const id of c.data.citations) referencedIds.add(id)
     for (const id of c.clickedCitations) referencedIds.add(id)
+    // Listing ids the bot read live webpages for, so the transcript's
+    // "visited …'s webpage" note can show the listing's name even when the
+    // read failed and the listing was never carded or cited.
+    for (const turn of c.data.tools) {
+      if (!Array.isArray(turn)) continue
+      for (const t of turn) {
+        const call = t as { name?: unknown; input?: { id?: unknown } }
+        if (
+          call?.name === 'read_listing_page' &&
+          typeof call.input?.id === 'string'
+        ) {
+          referencedIds.add(call.input.id)
+        }
+      }
+    }
   }
 
   type ListingInfo = {

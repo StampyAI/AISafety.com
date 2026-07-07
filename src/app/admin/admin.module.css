@@ -775,6 +775,22 @@
   line-height: 1.5;
 }
 
+/* "Visited the web" note on a chatbot turn — one entry per live page read
+ * (read_listing_page) the bot made while composing that reply. */
+.convTurnVisited {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 11px;
+  color: var(--teal-400);
+  margin-bottom: 6px;
+}
+
+.convTurnVisited a {
+  color: var(--teal-300);
+  text-decoration: underline;
+}
+
 /* ─── Rendered assistant message ──────────────────────────────────────── */
 
 .convMsg {

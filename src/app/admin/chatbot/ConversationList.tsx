@@ -1,11 +1,12 @@
 'use client'
 
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useContext, useEffect, useMemo, useState } from 'react'
 import styles from '../admin.module.css'
 import TranscriptMessage, {
   ClickedCardsContext,
   ListingInfoContext,
   hasSuggestButton,
+  resolveListing,
   type ListingInfo,
 } from './TranscriptMessage'
 import ExcludeBrowserToggle from './ExcludeBrowserToggle'
@@ -14,6 +15,72 @@ import { greetingFor } from '@/lib/assistant/pages'
 interface HistoryTurn {
   role: 'user' | 'assistant'
   content: string
+}
+
+interface LoggedToolCall {
+  name: string
+  input?: { id?: string }
+  ok?: boolean
+}
+
+/** The tool calls behind the chatbot message at history index msgIdx.
+ *
+ *  Data.tools holds one array per LOGGED TURN since the conversation began,
+ *  and every turn carries exactly one user message (abandoned/error turns log
+ *  the question with no reply). Data.history however is a sliding WINDOW (the
+ *  last 14 messages), so long conversations lose their oldest messages while
+ *  tools keeps growing — the two can only be aligned from the END: the last
+ *  user message in the window belongs to the last tools entry, and so on
+ *  backwards. A reply's tools sit at the entry of the user message it answers;
+ *  a window that opens mid-turn (leading assistant message) resolves to the
+ *  entry before the window's first user turn. */
+function toolCallsForMessage(
+  history: HistoryTurn[],
+  tools: unknown[],
+  msgIdx: number
+): LoggedToolCall[] {
+  const totalUsers = history.filter(t => t.role === 'user').length
+  const usersUpToHere = history
+    .slice(0, msgIdx)
+    .filter(t => t.role === 'user').length
+  const turn = tools[tools.length - 1 - (totalUsers - usersUpToHere)]
+  if (!Array.isArray(turn)) return []
+  return turn.filter(
+    (t): t is LoggedToolCall =>
+      !!t &&
+      typeof t === 'object' &&
+      typeof (t as LoggedToolCall).name === 'string'
+  )
+}
+
+/** Web visits (live page reads) the bot made while composing a reply — shown
+ *  in the transcript so it's clear when an answer drew on a listing's page. */
+function VisitedPages({ reads }: { reads: LoggedToolCall[] }) {
+  const listings = useContext(ListingInfoContext)
+  if (reads.length === 0) return null
+  return (
+    <div className={styles.convTurnVisited}>
+      {reads.map((r, i) => {
+        const id = r.input?.id ?? ''
+        const info = resolveListing(listings, id)
+        const name = info?.name ?? id
+        const url = info?.url
+        return (
+          <span key={i}>
+            {r.ok ? '🌐 visited ' : '🌐 tried '}
+            {url ? (
+              <a href={url} target="_blank" rel="noreferrer">
+                {name}
+              </a>
+            ) : (
+              name
+            )}
+            {r.ok ? "'s webpage" : "'s webpage – read failed"}
+          </span>
+        )
+      })}
+    </div>
+  )
 }
 
 interface ConversationData {
@@ -434,27 +501,38 @@ function ConversationRow({
                   {greetingFor(conv.page)}
                 </div>
                 {data.history.length > 0 ? (
-                  data.history.map((t, i) => (
-                    <div
-                      key={i}
-                      className={
-                        t.role === 'user'
-                          ? styles.convTurnUser
-                          : styles.convTurnAssistant
-                      }
-                    >
-                      <div className={styles.convTurnRole}>
-                        {t.role === 'user' ? 'User' : 'Chatbot'}
-                      </div>
-                      {t.role === 'user' ? (
-                        <div className={styles.convTurnContent}>
-                          {t.content}
+                  data.history.map((t, i) => {
+                    const reads =
+                      t.role === 'assistant'
+                        ? toolCallsForMessage(
+                            data.history,
+                            data.tools ?? [],
+                            i
+                          ).filter(c => c.name === 'read_listing_page')
+                        : []
+                    return (
+                      <div
+                        key={i}
+                        className={
+                          t.role === 'user'
+                            ? styles.convTurnUser
+                            : styles.convTurnAssistant
+                        }
+                      >
+                        <div className={styles.convTurnRole}>
+                          {t.role === 'user' ? 'User' : 'Chatbot'}
                         </div>
-                      ) : (
-                        <TranscriptMessage text={t.content} turnIndex={i} />
-                      )}
-                    </div>
-                  ))
+                        <VisitedPages reads={reads} />
+                        {t.role === 'user' ? (
+                          <div className={styles.convTurnContent}>
+                            {t.content}
+                          </div>
+                        ) : (
+                          <TranscriptMessage text={t.content} turnIndex={i} />
+                        )}
+                      </div>
+                    )
+                  })
                 ) : (
                   <TranscriptMessage text={data.response} />
                 )}

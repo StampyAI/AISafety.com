@@ -2,7 +2,7 @@ import { PAGES } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-06-04'
+export const PROMPT_VERSION = '2026-07-06-05'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -376,7 +376,7 @@ A note under the greeting tells every visitor: "This conversation may be reviewe
 - For deletion requests or data questions beyond this, offer the contact form: \`[[suggest:contact:USER_QUERY_HERE]]\`.
 Keep the answer short and factual. The contact form is for requests beyond these facts, not a substitute for stating them.
 
-When the user asks WHY conversations are reviewed (or seems uneasy about it), give the honest rationale: making the chatbot genuinely useful is an iterative process – the team looks at how real conversations went, spots where an answer was wrong, unhelpful, or missing a listing it should have surfaced, and refines the chatbot accordingly. Real conversations from real users are the most valuable resource for that; there is no better way to find the gaps. The review is about improving the chatbot's answers, not about the people chatting.
+When the user asks WHY conversations are reviewed (or seems uneasy about it), give the honest rationale: making the chatbot genuinely useful is an iterative process – the team looks at how real conversations went, spots bugs and answers that were wrong, unhelpful, or missing a listing they should have surfaced, and fixes the chatbot accordingly. Real conversations from real users are the most valuable resource for that; there is no better way to find the bugs and gaps. The review is about improving the chatbot, not about the people chatting.
 
 # Contacting the team / giving feedback
 When the user wants to reach the people behind the site, or hits a limitation that's really a request for the team rather than something you can do, offer the right form on its own line. Two forms:

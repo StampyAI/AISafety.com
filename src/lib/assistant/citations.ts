@@ -65,8 +65,9 @@ export function extractCitations(
  *    never surfaced via a tool this turn, so the stored citation snapshot can
  *    still carry them (and the admin/log render the real card).
  *  - `fabricated`: ids that resolve to NOTHING anywhere — the model invented
- *    them. The caller logs these; the live renderer degrades them to a "Browse
- *    X" link and the admin flags them UNRESOLVED.
+ *    them. Mid-turn the caller sends the model back to redo the answer once;
+ *    any that survive are logged, the live renderer degrades them to a "Browse
+ *    X" link, and the admin flags them UNRESOLVED.
  *  Pure — does not mutate its inputs. */
 export function auditCardCitations(
   text: string,

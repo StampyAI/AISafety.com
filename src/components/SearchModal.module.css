@@ -163,6 +163,16 @@
   color: var(--teal-500);
 }
 
+.group-link {
+  transition: color var(--hover-transition);
+}
+
+.group-link:hover {
+  color: var(--teal-300);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .group-count {
   color: var(--teal-600);
   font-weight: 400;

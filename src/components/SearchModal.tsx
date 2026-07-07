@@ -8,6 +8,7 @@ import {
   BROWSE_TYPES,
   TYPE_ICON,
   TYPE_LABEL,
+  TYPE_PATH,
   countsByType,
   groupByType,
   search,
@@ -327,7 +328,13 @@ export default function SearchModal({
                 <div
                   className={`${styles['group-label']} paragraph-xs-bold flex items-center gap-8px padding-top-16px padding-bottom-8px padding-left-12px padding-right-12px`}
                 >
-                  <span>{TYPE_LABEL[type]}</span>
+                  {TYPE_PATH[type] ? (
+                    <a href={TYPE_PATH[type]} className={styles['group-link']}>
+                      {TYPE_LABEL[type]}
+                    </a>
+                  ) : (
+                    <span>{TYPE_LABEL[type]}</span>
+                  )}
                   <span className={styles['group-count']}>{items.length}</span>
                 </div>
               )}

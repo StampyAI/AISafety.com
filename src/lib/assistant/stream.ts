@@ -101,7 +101,12 @@ export function validateMessages(messages: unknown): ChatMessage[] {
     const msg = m as { role?: unknown; content?: unknown }
     if (msg.role !== 'user' && msg.role !== 'assistant') continue
     if (typeof msg.content !== 'string') continue
-    if (msg.content.length === 0 || msg.content.length > 4000) continue
+    if (msg.content.length === 0) continue
+    // User messages are bounded by the composer (4000 chars); assistant
+    // history is the bot's own raw replies (reasoning + tokens included),
+    // which routinely exceed 4000 — dropping those silently deleted long
+    // replies from the bot's memory and from the stored transcript.
+    if (msg.content.length > (msg.role === 'user' ? 4000 : 12000)) continue
     out.push({ role: msg.role, content: msg.content })
   }
   if (out.length === 0) throw new Error('no valid messages')
@@ -392,6 +397,20 @@ export async function runAssistantStream(
   if (fabricated.length > 0) {
     console.warn(
       `[assistant] fabricated card id(s) with no matching listing: ${fabricated.join(', ')}`
+    )
+  }
+
+  // Telemetry: a reply should carry exactly one [[/thinking]] marker (two when
+  // the fabrication redo above injected a second generation). More than that
+  // means the model re-entered thinking mid-answer — the renderer keeps only
+  // what follows the LAST marker, so everything the model wrote before its
+  // spurious re-emission was hidden from the visitor.
+  const markerCount =
+    assistantText.match(/\[\[\s*\/\s*thinking\s*\]\]/gi)?.length ?? 0
+  const expectedMarkers = redoneFabrication ? 2 : 1
+  if (markerCount > expectedMarkers) {
+    console.warn(
+      `[assistant] re-emitted [[/thinking]] mid-answer (${markerCount} markers, expected ${expectedMarkers}) — earlier answer text was hidden from the visitor`
     )
   }
 

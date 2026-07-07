@@ -52,7 +52,7 @@ const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer(
           onKeyDown={handleKey}
           placeholder={placeholder ?? 'Type a message…'}
           rows={1}
-          maxLength={2000}
+          maxLength={4000}
           aria-label="Message"
         />
         {isStreaming ? (

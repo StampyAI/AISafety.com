@@ -1,8 +1,8 @@
-import { PAGES } from './pages'
+import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-06-07'
+export const PROMPT_VERSION = '2026-07-07-01'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -421,6 +421,13 @@ export function buildContextLine(ctx: RequestContext): string {
   // application deadlines ("is X open right now / when do applications close").
   parts.push(`Today's date: ${new Date().toISOString().slice(0, 10)}`)
   parts.push(`Currently viewing: ${ctx.currentPage}`)
+  // The chat window opens with a static greeting bubble that is rendered
+  // client-side only – it is never part of the message history, so without
+  // this line the model has no idea it "said" anything. First messages are
+  // often direct replies to it ("suggest me a course to learn about it").
+  parts.push(
+    `The chat window shows this greeting from you above the conversation (the user may be replying to it): "${greetingFor(ctx.currentPage)}"`
+  )
   if (ctx.pageState && Object.keys(ctx.pageState).length > 0) {
     parts.push(`Page state: ${JSON.stringify(ctx.pageState)}`)
   }

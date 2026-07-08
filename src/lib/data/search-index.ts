@@ -254,7 +254,7 @@ export async function buildSearchIndex(): Promise<SearchEntry[]> {
       category: [c.platformText, c.focus, c.location ?? '']
         .filter(Boolean)
         .join(' · '),
-      url: c.joinLink || c.website || '/communities',
+      url: c.joinLink !== '#' ? c.joinLink : '/communities',
       logo: c.logo,
     })
   }

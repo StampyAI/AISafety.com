@@ -13,8 +13,7 @@ interface AirtableRecord {
     Type?: string[]
     'Activity level'?: string
     Focus?: string
-    'Join link'?: string
-    Website?: string
+    Link?: string
     'Location (if in-person)'?: string
     Size?: string
     Sort?: number
@@ -36,7 +35,6 @@ export interface Community {
   activityLevel: string
   focus: string
   joinLink: string
-  website: string | null
   location: string | null
   size: string | null
   sort: number
@@ -74,8 +72,7 @@ export async function getCommunities(): Promise<Community[]> {
       type: fields.Type || [],
       activityLevel: fields['Activity level'] || '',
       focus: fields.Focus || '',
-      joinLink: fields['Join link'] || '#',
-      website: fields.Website || null,
+      joinLink: fields.Link || '#',
       location: fields['Location (if in-person)'] || null,
       size: fields.Size || null,
       sort: fields.Sort || 9999,

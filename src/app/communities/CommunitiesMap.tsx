@@ -59,7 +59,6 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           type: locationType,
           coordinates: [c.longitude!, c.latitude!] as [number, number],
           location: c.location || '',
-          url: c.website || '',
           link: c.joinLink,
           logo: c.logo || '',
         }
@@ -209,7 +208,6 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             name: community.name,
             description: community.description,
             type: community.type,
-            url: community.url,
             link: community.link,
             location: community.location,
             logo: community.logo,
@@ -378,7 +376,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         const feature = e.features[0]
 
         if (!isMobile()) {
-          const link = feature.properties?.link || feature.properties?.url
+          const link = feature.properties?.link
           if (link && link !== '#') {
             trackListingClick(
               'Communities',
@@ -403,7 +401,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
           tooltip.innerHTML = buildTooltipHTML(feature.properties)
 
-          const link = feature.properties?.link || feature.properties?.url
+          const link = feature.properties?.link
           tooltip.setAttribute('data-link-url', link || '')
           tooltip.setAttribute(
             'data-link-title',

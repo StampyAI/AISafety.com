@@ -945,25 +945,52 @@
   white-space: nowrap;
 }
 
-/* Card whose id didn't resolve to a listing (fabricated by the model). Dimmed
-   with a dashed border so it reads as broken, not a real card. */
-.convCardUnresolved {
+/* Card the visitor never got: their chat showed a generic "Browse X"
+   resource-page link instead (the model wrote the card without retrieving
+   the listing). The link is rendered as they saw it; the note next to it is
+   admin-only annotation. */
+.convCardDegradedRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.convCardFallback {
   border-style: dashed;
-  border-color: var(--teal-600);
+  border-color: rgba(255, 170, 90, 0.4);
+}
+
+.convCardFallbackNote {
+  font-size: 11px;
+  color: #ffb96b;
+}
+
+/* Card the visitor's chat dropped entirely (no listing AND no parseable type
+   to fall back to). Nothing rendered live, so nothing card-like here either —
+   just a dimmed admin-only marker. */
+.convCardGhost {
+  display: inline-flex;
+  padding: 5px 10px;
+  border: 1px dashed var(--teal-600);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--teal-300);
   opacity: 0.65;
 }
 
-.convCardUnresolvedTag {
-  padding: 1px 7px;
-  background-color: rgba(255, 170, 90, 0.15);
-  border: 1px solid rgba(255, 170, 90, 0.4);
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: #ffb96b;
-  white-space: nowrap;
+/* Token the live renderer stripped (malformed directive) or a reference that
+   resolved to nothing — the visitor saw no trace of it. */
+.convStripped {
+  color: var(--teal-300);
+  opacity: 0.6;
+}
+
+/* Block the visitor's chat hid entirely (a cards block where nothing could
+   render, plus its dangling lead-in sentence). Dimmed rather than hidden so
+   the reviewer still sees what the model wrote. */
+.convNotShown {
+  opacity: 0.45;
 }
 
 .convCardInline {

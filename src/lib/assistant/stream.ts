@@ -140,6 +140,12 @@ export interface AssistantRunResult {
   assistantText: string
   toolCalls: ToolCallLogEntry[]
   citations: CitationRef[]
+  /** Card ids in the visible answer that the live widget degraded to a
+   *  generic "Browse X" fallback link (or dropped entirely) instead of a real
+   *  card — the model wrote them without a tool having returned the listing.
+   *  Logged per turn so the admin transcript can show the same degraded state
+   *  the visitor saw rather than a full card the model only pretended to have. */
+  fallbackCardIds: string[]
 }
 
 interface RunOptions {
@@ -183,7 +189,9 @@ export async function runAssistantStream(
   let answerStartOffset = 0
 
   for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-    if (signal?.aborted) return { assistantText, toolCalls, citations: [] }
+    if (signal?.aborted) {
+      return { assistantText, toolCalls, citations: [], fallbackCardIds: [] }
+    }
     const response = await client.messages.create(
       {
         model,
@@ -440,6 +448,28 @@ export async function runAssistantStream(
     )
   }
 
+  // Which of the answer's cards did the live widget degrade to a "Browse X"
+  // fallback link? The widget resolves cards only against listings its tools
+  // returned during the conversation, so fabricated ids always degrade, and
+  // backfilled ids (real listings no tool surfaced this turn) degrade too —
+  // unless an earlier reply already carded the listing, in which case the
+  // widget still holds its citation and renders the real card. Prior replies
+  // are the history messages, whose content is a plain string (this run's own
+  // assistant turns were appended as content-block arrays).
+  const priorAssistantText = apiMessages
+    .filter(m => m.role === 'assistant' && typeof m.content === 'string')
+    .map(m => m.content as string)
+    .join('\n')
+  const fallbackCardIds = [
+    ...fabricated,
+    ...backfill
+      .map(ref => ref.id)
+      .filter(id => {
+        const rec = id.match(/rec[A-Za-z0-9]+$/)?.[0]
+        return !(rec && priorAssistantText.includes(rec))
+      }),
+  ]
+
   // Telemetry: a turn that finishes with no user-facing answer (truly empty, or
   // only a reasoning trail before [[/thinking]]) leaves the visitor with a blank
   // reply. Log it so we can measure how often it happens instead of letting it
@@ -450,7 +480,12 @@ export async function runAssistantStream(
     )
   }
 
-  return { assistantText, toolCalls, citations: Array.from(byId.values()) }
+  return {
+    assistantText,
+    toolCalls,
+    citations: Array.from(byId.values()),
+    fallbackCardIds,
+  }
 }
 
 function toCitationRef(l: Listing): CitationRef {

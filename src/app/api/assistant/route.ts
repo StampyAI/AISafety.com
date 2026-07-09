@@ -168,6 +168,7 @@ export async function POST(req: NextRequest) {
           history: [...messages, { role: 'assistant', content: assistantText }],
           toolCalls,
           response: assistantText,
+          fallbackCards: result?.fallbackCardIds ?? [],
           citations: citations.map(c => c.id),
           citationRefs,
           zeroMatches,

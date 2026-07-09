@@ -19,6 +19,9 @@ export interface StoredTurn {
   history: { role: 'user' | 'assistant'; content: string }[]
   toolCalls: { name: string; input: unknown; ok: boolean }[]
   response: string
+  /** Card ids in this turn's reply that rendered as a generic "Browse X"
+   *  fallback link (or nothing) instead of a real card in the visitor's chat. */
+  fallbackCards: string[]
   citations: string[]
   citationRefs: { id: string; name: string; url: string; logo?: string }[]
   zeroMatches: boolean
@@ -52,6 +55,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
         response: turn.response,
         history: turn.history,
         tools: turn.toolCalls,
+        fallbackCards: turn.fallbackCards,
         citations: turn.citations,
         citationRefs: turn.citationRefs,
         geo: turn.geo,

@@ -34,16 +34,24 @@ interface LoggedToolCall {
  *  backwards. A reply's tools sit at the entry of the user message it answers;
  *  a window that opens mid-turn (leading assistant message) resolves to the
  *  entry before the window's first user turn. */
+function turnEntryForMessage(
+  history: HistoryTurn[],
+  entries: unknown[],
+  msgIdx: number
+): unknown {
+  const totalUsers = history.filter(t => t.role === 'user').length
+  const usersUpToHere = history
+    .slice(0, msgIdx)
+    .filter(t => t.role === 'user').length
+  return entries[entries.length - 1 - (totalUsers - usersUpToHere)]
+}
+
 function toolCallsForMessage(
   history: HistoryTurn[],
   tools: unknown[],
   msgIdx: number
 ): LoggedToolCall[] {
-  const totalUsers = history.filter(t => t.role === 'user').length
-  const usersUpToHere = history
-    .slice(0, msgIdx)
-    .filter(t => t.role === 'user').length
-  const turn = tools[tools.length - 1 - (totalUsers - usersUpToHere)]
+  const turn = turnEntryForMessage(history, tools, msgIdx)
   if (!Array.isArray(turn)) return []
   return turn.filter(
     (t): t is LoggedToolCall =>
@@ -51,6 +59,30 @@ function toolCallsForMessage(
       typeof t === 'object' &&
       typeof (t as LoggedToolCall).name === 'string'
   )
+}
+
+/** Card ids in the reply at history index msgIdx that degraded to a generic
+ *  "Browse X" link (or nothing) in the visitor's chat. Undefined when the turn
+ *  predates fallback tracking, so the renderer can fall back to its
+ *  resolvability heuristic. The set carries each id plus its bare rec form,
+ *  since card tokens are sometimes written without the type prefix. */
+function fallbackCardsForMessage(
+  history: HistoryTurn[],
+  fallbackCards: unknown[] | undefined,
+  msgIdx: number
+): Set<string> | undefined {
+  if (!fallbackCards) return undefined
+  const turn = turnEntryForMessage(history, fallbackCards, msgIdx)
+  if (!Array.isArray(turn)) return undefined
+  const set = new Set<string>()
+  for (const id of turn) {
+    if (typeof id !== 'string') continue
+    const cleaned = id.replace(/\s+/g, '')
+    set.add(cleaned)
+    const rec = /rec[A-Za-z0-9]+/.exec(cleaned)?.[0]
+    if (rec) set.add(rec)
+  }
+  return set
 }
 
 /** Web visits (live page reads) the bot made while composing a reply — shown
@@ -88,6 +120,9 @@ interface ConversationData {
   response: string
   history: HistoryTurn[]
   tools: unknown[]
+  /** Per-turn (aligned with tools): card ids that degraded to a "Browse X"
+   *  link in the visitor's chat. Absent on rows from before this was logged. */
+  fallbackCards?: unknown[]
   citations: string[]
   citationRefs?: { id: string; name: string; url: string; logo?: string }[]
   geo: { city?: string; region?: string; country?: string } | null
@@ -528,7 +563,15 @@ function ConversationRow({
                             {t.content}
                           </div>
                         ) : (
-                          <TranscriptMessage text={t.content} turnIndex={i} />
+                          <TranscriptMessage
+                            text={t.content}
+                            turnIndex={i}
+                            fallbackCardIds={fallbackCardsForMessage(
+                              data.history,
+                              data.fallbackCards,
+                              i
+                            )}
+                          />
                         )}
                       </div>
                     )

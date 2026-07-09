@@ -10,6 +10,7 @@ import {
   SuggestInline,
   parseSuggestToken,
 } from '@/components/assistant/MessageContent'
+import { cardTypePage } from '@/components/assistant/cardFallback'
 import { suggestFormUrl } from '@/lib/assistant/constants'
 import styles from '../admin.module.css'
 
@@ -67,10 +68,38 @@ function lastThinkingDone(
 }
 const CHIP_RE = /\[\[\s*chip\s*:([^\]\n]*)\]\]/gi
 const SUGGEST_TOKEN_RE = /^\[\[\s*suggest\s*:([^\]\n]*)\]\]$/i
+// Same strict grammar as the live renderer's CARD_LINE (MessageContent): a
+// card line must carry a proper rec id. Sloppier tokens (a space inside the
+// rec id, no rec at all) were NOT cards in the visitor's chat — the live
+// malformed-directive sweep stripped them — so they must not become pills
+// here either; they fall through to the paragraph path and render as
+// struck-through "stripped" tokens instead.
 const CARD_LINE_RE =
-  /^\s*\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
+  /^\s*\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
+// Anchored well-formedness tests for inline card/id tokens, mirroring the
+// live renderer's CARD_TOKEN_RE / ID_TOKEN_RE.
+const STRICT_CARD_TOKEN_RE =
+  /^\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|[^\]\n]*)?\s*\]\]$/i
+const STRICT_ID_TOKEN_RE =
+  /^\[\[\s*id\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+\s*\]\]$/i
 const INLINE_RE =
   /(\[\[[^\]\n]*\]\])|(\[[^\]\n]+\]\(\/?[^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
+
+/** Did the visitor get a real card for this token, or a degraded fallback?
+ *  Turns logged since fallback tracking (Data.fallbackCards) say exactly
+ *  which ids degraded; for older turns, an id that resolves to nothing was
+ *  certainly degraded live (the widget had no listing for it either). */
+function cardDegraded(
+  cardId: string,
+  listings: Record<string, ListingInfo>,
+  fallbackIds?: Set<string>
+): boolean {
+  if (fallbackIds) {
+    const rec = /rec[A-Za-z0-9]+/.exec(cardId)?.[0]
+    return fallbackIds.has(cardId) || (!!rec && fallbackIds.has(rec))
+  }
+  return !resolveListing(listings, cardId)
+}
 
 /** "job:recXXX" → "job"; bare rec ids have no type. */
 function cardType(rawId: string): string | null {
@@ -177,7 +206,8 @@ export function hasSuggestButton(text: string): boolean {
 function renderInline(
   text: string,
   listings: Record<string, ListingInfo>,
-  clicked: Set<string>
+  clicked: Set<string>,
+  fallbackIds?: Set<string>
 ): ReactNode[] {
   const parts: ReactNode[] = []
   let lastIndex = 0
@@ -209,36 +239,88 @@ function renderInline(
             />
           )
         }
-      } else {
-        // Well-formed card/id tokens become inline badges; any other [[...]]
-        // directive is malformed or already handled — drop it silently rather
-        // than leaking raw brackets.
-        const label = /^\[\[\s*(?:card|id)\s*:/i.test(token)
-          ? inlineCardLabel(token, listings)
-          : ''
-        if (label) {
+      } else if (/^\[\[\s*(?:card|id)\s*:/i.test(token)) {
+        if (
+          STRICT_CARD_TOKEN_RE.test(token) ||
+          STRICT_ID_TOKEN_RE.test(token)
+        ) {
+          const rawId =
+            /^\[\[\s*(?:card|id)\s*:\s*([^\]|\n]+?)(?:\s*\|[^\]\n]*)?\s*\]\]$/i
+              .exec(token)?.[1]
+              ?.replace(/\s+/g, '') ?? ''
+          if (cardDegraded(rawId, listings, fallbackIds)) {
+            // Live, an inline reference the widget couldn't resolve rendered
+            // nothing — mark it so the reviewer knows the visitor saw no link.
+            parts.push(
+              <s
+                key={`c-${key++}`}
+                className={styles.convStripped}
+                title="This inline reference did not resolve in the visitor's chat — they saw no link here"
+              >
+                {inlineCardLabel(token, listings) || rawId}
+              </s>
+            )
+          } else {
+            parts.push(
+              <span key={`c-${key++}`} className={styles.convCardInline}>
+                {inlineCardLabel(token, listings)}
+              </span>
+            )
+          }
+        } else {
+          // Malformed card/id token (e.g. a space inside the rec id): the live
+          // renderer's malformed-directive sweep stripped it, so the visitor
+          // saw nothing — show it struck-through rather than as a real badge.
           parts.push(
-            <span key={`c-${key++}`} className={styles.convCardInline}>
-              {label}
-            </span>
+            <s
+              key={`c-${key++}`}
+              className={styles.convStripped}
+              title="Malformed token — stripped from the visitor's view"
+            >
+              {token}
+            </s>
           )
         }
       }
+      // Any other [[...]] directive is already handled or defensive-stripped
+      // by the live renderer — drop it silently rather than leaking brackets.
     } else if (token.startsWith('[')) {
       const m = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token)
-      if (m) {
+      // Mirror the live renderer's scheme guard: only http(s) and
+      // site-relative destinations became links for the visitor; anything
+      // else (e.g. javascript:) rendered as plain text.
+      if (m && /^(https?:\/\/|\/|#)/.test(m[2])) {
         parts.push(inlineLink(m[2], m[1], clicked, `l-${key++}`))
       } else {
         parts.push(token)
       }
     } else if (token.startsWith('**')) {
-      parts.push(<strong key={`b-${key++}`}>{token.slice(2, -2)}</strong>)
+      // Recurse so markdown inside bold (e.g. `**[Jobs](/jobs)**`) renders as
+      // it did live. INLINE_RE is shared global state — save/restore its
+      // cursor around the recursive call.
+      const saved = INLINE_RE.lastIndex
+      const inner = renderInline(
+        token.slice(2, -2),
+        listings,
+        clicked,
+        fallbackIds
+      )
+      INLINE_RE.lastIndex = saved
+      parts.push(<strong key={`b-${key++}`}>{inner}</strong>)
     } else if (/^aisafety\.info/i.test(token)) {
       // Auto-linkify bare aisafety.info mentions, matching the live renderer
       // (the bot writes it as plain text rather than a markdown link).
       parts.push(inlineLink(`https://${token}`, token, clicked, `u-${key++}`))
     } else {
-      parts.push(<em key={`i-${key++}`}>{token.slice(1, -1)}</em>)
+      const saved = INLINE_RE.lastIndex
+      const inner = renderInline(
+        token.slice(1, -1),
+        listings,
+        clicked,
+        fallbackIds
+      )
+      INLINE_RE.lastIndex = saved
+      parts.push(<em key={`i-${key++}`}>{inner}</em>)
     }
     lastIndex = match.index + token.length
   }
@@ -340,12 +422,62 @@ function parseBlocks(text: string): Block[] {
   return blocks
 }
 
-function CardPill({ card, turnIndex }: { card: CardSpec; turnIndex?: number }) {
+function CardPill({
+  card,
+  turnIndex,
+  fallbackIds,
+}: {
+  card: CardSpec
+  turnIndex?: number
+  fallbackIds?: Set<string>
+}) {
   const listings = useContext(ListingInfoContext)
   const clicked = useContext(ClickedCardsContext)
   const [imgFailed, setImgFailed] = useState(false)
   const info = resolveListing(listings, card.id)
   const rec = /rec[A-Za-z0-9]+/.exec(card.id)?.[0] ?? card.id
+
+  // The visitor never got this card: the model wrote it without a tool having
+  // returned the listing, so the live widget degraded it to a generic
+  // "Browse X" link — or, when even the type wasn't parseable, dropped it.
+  // Render what the visitor actually saw, annotated with what the model wrote.
+  if (cardDegraded(card.id, listings, fallbackIds)) {
+    const fb = cardTypePage(card.id)
+    const attempted = info?.name ?? card.id
+    if (!fb) {
+      return (
+        <span
+          className={styles.convCardGhost}
+          title="The model wrote this card without retrieving the listing and its type wasn't parseable, so the visitor's chat dropped it entirely"
+        >
+          hidden from visitor: {attempted}
+        </span>
+      )
+    }
+    const wasClicked = clicked.has(`link:${fb.path}`)
+    return (
+      <span className={styles.convCardDegradedRow}>
+        <a
+          href={fb.path}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${styles.convCard} ${styles.convCardLink} ${styles.convCardFallback}`}
+          title="This is what the visitor saw: a generic resource-page link, not a card — the model wrote the card without retrieving the listing"
+        >
+          <span className={styles.convCardName}>{fb.label}</span>
+          {wasClicked && (
+            <span className={styles.convCardClicked}>✓ clicked</span>
+          )}
+        </a>
+        <span className={styles.convCardFallbackNote}>
+          {info
+            ? `shown instead of “${info.name}” — the model carded it without a search`
+            : `fabricated id: ${card.id}`}
+        </span>
+      </span>
+    )
+  }
+
   // Prefer the real listing name; fall back to the note, then the raw id, so
   // a card is never blank.
   const primary = info?.name ?? (card.note || rec)
@@ -360,15 +492,11 @@ function CardPill({ card, turnIndex }: { card: CardSpec; turnIndex?: number }) {
         clicked.has(`${turnIndex}:${rec}`))) ||
     clicked.has(card.id) ||
     clicked.has(rec)
-  // No resolvable listing for this id — the model fabricated/guessed it without
-  // a search, so the live renderer dropped this card entirely. Flag it so a
-  // reviewer can tell it apart from a real card (it can't be made clickable).
-  const unresolved = !info
   // Link to the listing's external URL (what the live card opens); fall back
   // to its AISafety.com resource page when there's no usable external URL.
   const href =
     info?.url && /^https?:\/\//.test(info.url) ? info.url : info?.pageUrl
-  const className = `${styles.convCard}${wasClicked ? ` ${styles.convCardClickedRow}` : ''}${href ? ` ${styles.convCardLink}` : ''}${unresolved ? ` ${styles.convCardUnresolved}` : ''}`
+  const className = `${styles.convCard}${wasClicked ? ` ${styles.convCardClickedRow}` : ''}${href ? ` ${styles.convCardLink}` : ''}`
   const inner = (
     <>
       {showLogo ? (
@@ -387,14 +515,6 @@ function CardPill({ card, turnIndex }: { card: CardSpec; turnIndex?: number }) {
       {card.type && <span className={styles.convCardType}>{card.type}</span>}
       <span className={styles.convCardName}>{primary}</span>
       {showNote && <span className={styles.convCardNote}>{card.note}</span>}
-      {unresolved && (
-        <span
-          className={styles.convCardUnresolvedTag}
-          title="No listing matched this id — the model fabricated it without a search, so the live card was dropped"
-        >
-          unresolved
-        </span>
-      )}
       {wasClicked && <span className={styles.convCardClicked}>✓ clicked</span>}
     </>
   )
@@ -415,43 +535,105 @@ function CardPill({ card, turnIndex }: { card: CardSpec; turnIndex?: number }) {
 function MessageBody({
   text,
   turnIndex,
+  fallbackIds,
 }: {
   text: string
   turnIndex?: number
+  fallbackIds?: Set<string>
 }) {
   const blocks = parseBlocks(text)
   const listings = useContext(ListingInfoContext)
   const clicked = useContext(ClickedCardsContext)
+
+  // Mirror the live renderer's hiddenBlocks: a cards block where NOTHING was
+  // renderable (every card degraded with no "Browse X" fallback either) was
+  // hidden from the visitor along with its dangling colon-terminated lead-in
+  // sentence. The admin dims those blocks instead of hiding them, so the
+  // reviewer sees what the model wrote AND that the visitor never saw it.
+  const dimmed = new Set<number>()
+  blocks.forEach((block, i) => {
+    if (block.kind !== 'cards') return
+    const anyRenderable = block.cards.some(
+      card =>
+        !cardDegraded(card.id, listings, fallbackIds) || cardTypePage(card.id)
+    )
+    if (anyRenderable) return
+    dimmed.add(i)
+    const prev = blocks[i - 1]
+    if (prev && prev.kind !== 'cards' && prev.lines.length > 0) {
+      const lead = prev.lines[prev.lines.length - 1]
+        .trimEnd()
+        .replace(/[*_`]+$/, '')
+        .trimEnd()
+      if (
+        lead.endsWith(':') &&
+        (prev.kind === 'paragraph' || prev.lines.length === 1)
+      ) {
+        dimmed.add(i - 1)
+      }
+    }
+  })
+
+  const wrap = (i: number, node: ReactNode) =>
+    dimmed.has(i) ? (
+      <div
+        key={i}
+        className={styles.convNotShown}
+        title="Hidden from the visitor — their chat dropped this block (no card in it could render)"
+      >
+        {node}
+      </div>
+    ) : (
+      node
+    )
+
   return (
     <>
       {blocks.map((block, i) => {
         if (block.kind === 'cards') {
-          return (
+          return wrap(
+            i,
             <div key={i} className={styles.convCards}>
               {block.cards.map((card, j) => (
-                <CardPill key={j} card={card} turnIndex={turnIndex} />
+                <CardPill
+                  key={j}
+                  card={card}
+                  turnIndex={turnIndex}
+                  fallbackIds={fallbackIds}
+                />
               ))}
             </div>
           )
         }
         if (block.kind === 'paragraph') {
-          return (
+          return wrap(
+            i,
             <p key={i}>
-              {renderInline(block.lines.join(' '), listings, clicked)}
+              {renderInline(
+                block.lines.join(' '),
+                listings,
+                clicked,
+                fallbackIds
+              )}
             </p>
           )
         }
         const items = block.lines.map((item, j) => (
           <li key={j}>
-            <Fragment>{renderInline(item, listings, clicked)}</Fragment>
+            <Fragment>
+              {renderInline(item, listings, clicked, fallbackIds)}
+            </Fragment>
           </li>
         ))
-        return block.kind === 'ol' ? (
-          <ol key={i} start={block.start}>
-            {items}
-          </ol>
-        ) : (
-          <ul key={i}>{items}</ul>
+        return wrap(
+          i,
+          block.kind === 'ol' ? (
+            <ol key={i} start={block.start}>
+              {items}
+            </ol>
+          ) : (
+            <ul key={i}>{items}</ul>
+          )
         )
       })}
     </>
@@ -461,12 +643,17 @@ function MessageBody({
 export default function TranscriptMessage({
   text,
   turnIndex,
+  fallbackCardIds,
 }: {
   text: string
   /** This message's index in the stored conversation history, so clicked-card
    *  badges can be matched to the exact turn. Omitted for legacy rows with no
    *  stored history. */
   turnIndex?: number
+  /** Card ids in THIS turn that degraded to a "Browse X" link (or nothing) in
+   *  the visitor's chat, from Data.fallbackCards. Undefined when the turn
+   *  predates fallback tracking — then unresolvability is used as the signal. */
+  fallbackCardIds?: Set<string>
 }) {
   // The reasoning/search trail before the [[/thinking]] boundary is dropped
   // here: it's never shown to visitors (the live chat hides it), and it adds
@@ -475,7 +662,11 @@ export default function TranscriptMessage({
   const { body, chips } = parseMessage(text)
   return (
     <div className={styles.convMsg}>
-      <MessageBody text={body} turnIndex={turnIndex} />
+      <MessageBody
+        text={body}
+        turnIndex={turnIndex}
+        fallbackIds={fallbackCardIds}
+      />
       {chips.length > 0 && (
         <div className={styles.convChips}>
           {chips.map((chip, i) => (

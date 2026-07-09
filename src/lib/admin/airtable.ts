@@ -105,6 +105,11 @@ export interface ConversationData {
   response: string
   history: HistoryTurn[]
   tools: unknown[]
+  /** One entry per logged turn (aligned with `tools`): card ids in that
+   *  turn's reply that rendered as a generic "Browse X" fallback link (or
+   *  nothing) in the visitor's chat instead of a real card. Absent on rows
+   *  written before this was tracked. */
+  fallbackCards?: unknown[]
   citations: string[]
   /** Resolved name/url for each cited listing, so cards survive deletion. */
   citationRefs: StoredCitation[]
@@ -311,6 +316,7 @@ export async function upsertConversation(input: {
   response: string
   history: HistoryTurn[]
   tools: unknown
+  fallbackCards: string[]
   citations: string[]
   citationRefs: StoredCitation[]
   geo: ConversationData['geo']
@@ -335,6 +341,13 @@ export async function upsertConversation(input: {
     response: input.response,
     history: input.history,
     tools: previous ? [...previous.tools, input.tools] : [input.tools],
+    // Same per-turn alignment as tools. Older rows have no fallbackCards key;
+    // starting the array now still aligns because the viewer matches turns
+    // from the END (same trick it already uses for tools vs a windowed
+    // history) — pre-tracking turns simply resolve to no entry.
+    fallbackCards: previous
+      ? [...(previous.fallbackCards ?? []), input.fallbackCards]
+      : [input.fallbackCards],
     citations: previous
       ? Array.from(new Set([...previous.citations, ...input.citations]))
       : input.citations,

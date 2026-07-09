@@ -251,8 +251,11 @@ interface Props {
    *  matches its index in the stored conversation history — so the admin can
    *  badge the exact card the visitor opened. */
   onCitationClick?: (c: CitationRef, turnIndex: number) => void
-  /** Fires when the visitor clicks an inline markdown link in a reply. */
-  onLinkClick?: (href: string, label: string) => void
+  /** Fires when the visitor clicks an inline markdown link in a reply.
+   *  `turnIndex` is the reply's position in the message list (matching its
+   *  index in the stored history), so the admin can badge the one link the
+   *  visitor clicked instead of every copy of that href across the chat. */
+  onLinkClick?: (href: string, label: string, turnIndex?: number) => void
   /** Fires when the user sends a message (typed or via a chip), excluding
    *  retries — lets the public chatbot count engagement while the admin
    *  playground (which doesn't pass this) stays out of the numbers. */
@@ -764,7 +767,12 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                       ? (c: CitationRef) => onCitationClick(c, turnIndex)
                       : undefined
                   }
-                  onLinkClick={onLinkClick}
+                  onLinkClick={
+                    onLinkClick
+                      ? (href: string, label: string) =>
+                          onLinkClick(href, label, turnIndex)
+                      : undefined
+                  }
                 />
                 {!m.isStreaming && m.followUpChips.length > 0 && (
                   <div className={styles.followUpRow}>

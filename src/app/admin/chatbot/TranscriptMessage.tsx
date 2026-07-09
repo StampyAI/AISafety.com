@@ -151,14 +151,20 @@ function parseMessage(text: string): ParsedMessage {
 }
 
 /** Wraps an inline link with a "clicked" badge when the visitor opened it.
- *  Link clicks are stored in the same Clicked set as cards, keyed `link:<href>`. */
+ *  Link clicks are stored in the same Clicked set as cards, keyed
+ *  `<turnIndex>:link:<href>`. The bare `link:<href>` form is the legacy path
+ *  for rows recorded before link clicks were turn-scoped — there every copy
+ *  of the href is still badged, matching cards' legacy behaviour. */
 function inlineLink(
   href: string,
   text: ReactNode,
   clicked: Set<string>,
-  key: string
+  key: string,
+  turnIndex?: number
 ): ReactNode {
-  const wasClicked = clicked.has(`link:${href}`)
+  const wasClicked =
+    (turnIndex != null && clicked.has(`${turnIndex}:link:${href}`)) ||
+    clicked.has(`link:${href}`)
   return (
     <a
       key={key}
@@ -207,7 +213,8 @@ function renderInline(
   text: string,
   listings: Record<string, ListingInfo>,
   clicked: Set<string>,
-  fallbackIds?: Set<string>
+  fallbackIds?: Set<string>,
+  turnIndex?: number
 ): ReactNode[] {
   const parts: ReactNode[] = []
   let lastIndex = 0
@@ -290,7 +297,7 @@ function renderInline(
       // site-relative destinations became links for the visitor; anything
       // else (e.g. javascript:) rendered as plain text.
       if (m && /^(https?:\/\/|\/|#)/.test(m[2])) {
-        parts.push(inlineLink(m[2], m[1], clicked, `l-${key++}`))
+        parts.push(inlineLink(m[2], m[1], clicked, `l-${key++}`, turnIndex))
       } else {
         parts.push(token)
       }
@@ -303,21 +310,25 @@ function renderInline(
         token.slice(2, -2),
         listings,
         clicked,
-        fallbackIds
+        fallbackIds,
+        turnIndex
       )
       INLINE_RE.lastIndex = saved
       parts.push(<strong key={`b-${key++}`}>{inner}</strong>)
     } else if (/^aisafety\.info/i.test(token)) {
       // Auto-linkify bare aisafety.info mentions, matching the live renderer
       // (the bot writes it as plain text rather than a markdown link).
-      parts.push(inlineLink(`https://${token}`, token, clicked, `u-${key++}`))
+      parts.push(
+        inlineLink(`https://${token}`, token, clicked, `u-${key++}`, turnIndex)
+      )
     } else {
       const saved = INLINE_RE.lastIndex
       const inner = renderInline(
         token.slice(1, -1),
         listings,
         clicked,
-        fallbackIds
+        fallbackIds,
+        turnIndex
       )
       INLINE_RE.lastIndex = saved
       parts.push(<em key={`i-${key++}`}>{inner}</em>)
@@ -454,7 +465,9 @@ function CardPill({
         </span>
       )
     }
-    const wasClicked = clicked.has(`link:${fb.path}`)
+    const wasClicked =
+      (turnIndex != null && clicked.has(`${turnIndex}:link:${fb.path}`)) ||
+      clicked.has(`link:${fb.path}`)
     return (
       <span className={styles.convCardDegradedRow}>
         <a
@@ -613,7 +626,8 @@ function MessageBody({
                 block.lines.join(' '),
                 listings,
                 clicked,
-                fallbackIds
+                fallbackIds,
+                turnIndex
               )}
             </p>
           )
@@ -621,7 +635,7 @@ function MessageBody({
         const items = block.lines.map((item, j) => (
           <li key={j}>
             <Fragment>
-              {renderInline(item, listings, clicked, fallbackIds)}
+              {renderInline(item, listings, clicked, fallbackIds, turnIndex)}
             </Fragment>
           </li>
         ))

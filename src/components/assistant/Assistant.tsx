@@ -170,12 +170,13 @@ export default function Assistant() {
   )
 
   const handleLinkClick = useCallback(
-    (href: string, label: string) => {
+    (href: string, label: string, turnIndex?: number) => {
       void fireLog({
         kind: 'click',
         target: 'link',
         url: href,
         label,
+        turnIndex,
         currentPage,
         sessionId: getSessionId(),
       })

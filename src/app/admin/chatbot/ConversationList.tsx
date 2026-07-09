@@ -417,14 +417,14 @@ function ConversationRow({
   // for old rows that have no stored history.
   const firstUser =
     data?.history.find(t => t.role === 'user')?.content ?? data?.user ?? ''
-  // Cards the visitor clicked. New clicks are stored turn-scoped as
-  // `<turnIndex>:<listing id>` so only the card the visitor actually opened is
-  // badged — a listing shown in three replies no longer looks like three
-  // clicks. We seed the set with each entry verbatim plus a `<turn>:<rec>`
-  // variant (tokens are sometimes written without the type prefix). Legacy
-  // entries have no leading `<turn>:` — for those we also add the bare rec, and
-  // CardPill falls back to matching every copy, preserving old rows' behaviour.
-  // `link:` entries pass through untouched for inline-link badging.
+  // Cards and links the visitor clicked. New clicks are stored turn-scoped as
+  // `<turnIndex>:<listing id>` / `<turnIndex>:link:<href>` so only the
+  // instance the visitor actually opened is badged — a listing or href shown
+  // in three replies no longer looks like three clicks. For card entries we
+  // seed the set with each entry verbatim plus a `<turn>:<rec>` variant
+  // (tokens are sometimes written without the type prefix). Legacy entries
+  // have no leading `<turn>:` — for those the renderers fall back to matching
+  // every copy, preserving old rows' behaviour.
   const clickedSet = useMemo(() => {
     const s = new Set<string>()
     for (const raw of conv.clickedCitations) {
@@ -432,8 +432,10 @@ function ConversationRow({
       const turnScoped = /^(\d+):(.+)$/.exec(raw)
       if (turnScoped) {
         const [, turn, id] = turnScoped
-        const rec = /rec[A-Za-z0-9]+/.exec(id)?.[0]
-        if (rec) s.add(`${turn}:${rec}`)
+        if (!id.startsWith('link:')) {
+          const rec = /rec[A-Za-z0-9]+/.exec(id)?.[0]
+          if (rec) s.add(`${turn}:${rec}`)
+        }
       } else if (!raw.startsWith('link:')) {
         const rec = /rec[A-Za-z0-9]+/.exec(raw)?.[0]
         if (rec) s.add(rec)

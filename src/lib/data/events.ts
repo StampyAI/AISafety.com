@@ -58,10 +58,6 @@ function normalizeUrl(url: string): string {
   return `https://${trimmed}`
 }
 
-function normalizeLocation(location: string): string {
-  return location.replace(/,\s*(United States|USA|US)\s*$/i, '').trim()
-}
-
 function isUpcomingOrOngoing(
   endDate: string | null,
   startDate: string | null
@@ -118,11 +114,9 @@ export async function getEvents(): Promise<EventListing[]> {
     }
     const type = rawTypes.filter(t => EVENT_TYPES.includes(t as EventType))
 
-    const location = normalizeLocation(
-      Array.isArray(fields.Location)
-        ? fields.Location.join(', ')
-        : fields.Location || ''
-    )
+    const location = Array.isArray(fields.Location)
+      ? fields.Location.join(', ')
+      : fields.Location || ''
     const isOnline =
       fields['Online?'] === true || location.trim().toLowerCase() === 'online'
 

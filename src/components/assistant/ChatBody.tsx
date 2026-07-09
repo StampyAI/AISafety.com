@@ -478,6 +478,10 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
         const decoder = new TextDecoder()
         let buffer = ''
         let streamingText = ''
+        // Text length when the last tool call started — everything before it
+        // is reasoning. Used below to repair a reply whose [[/thinking]]
+        // marker never arrived.
+        let lastToolTextOffset = 0
 
         while (true) {
           const { done, value } = await reader.read()
@@ -508,6 +512,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                 })
               )
             } else if (eventType === 'tool_call_start') {
+              lastToolTextOffset = streamingText.length
               const newCall: UIToolCall = {
                 id: data.id,
                 name: data.name,
@@ -584,6 +589,20 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
             // server emits 'done' or just closes the stream.
           }
         }
+        // A reply that ran tools but never emitted [[/thinking]] after its
+        // last tool call leaves reasoning narration ("I'll search for…")
+        // glued to the answer in the flat content string. The rendered view
+        // already hides it (its boundary falls back to the last tool call),
+        // but `content` is what gets sent back as history on later turns —
+        // and stored in the conversation log — so repair it the same way:
+        // inject the marker where the last tool call sat. Mirrors the
+        // identical repair in runAssistantStream.
+        if (
+          lastToolTextOffset > 0 &&
+          !THINKING_DONE_RE.test(streamingText.slice(lastToolTextOffset))
+        ) {
+          streamingText = `${streamingText.slice(0, lastToolTextOffset).trimEnd()}\n[[/thinking]]\n${streamingText.slice(lastToolTextOffset).trimStart()}`
+        }
         // The visible answer is whatever follows the last [[/thinking]] marker
         // (or the whole reply if there's no marker). If that's empty, the turn
         // produced no answer — a transient hiccup or an empty completion. Show a
@@ -599,10 +618,16 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
               ? answer.trim() === ''
                 ? {
                     ...m,
+                    content: streamingText,
                     isStreaming: false,
                     error: 'Sorry, something went wrong. Please try again.',
                   }
-                : { ...m, isStreaming: false, followUpChips: followUp }
+                : {
+                    ...m,
+                    content: streamingText,
+                    isStreaming: false,
+                    followUpChips: followUp,
+                  }
               : m
           )
         )

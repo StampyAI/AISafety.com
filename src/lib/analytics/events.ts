@@ -101,9 +101,13 @@ const MIGRATED_KEY = 'aisafety:analytics:legacy-migrated'
 // the cap a month is ~15 MB of organic events, or ~90 MB if an attacker maxes
 // every length-capped field — either way comfortably inside the shared
 // free-tier database's 256 MB, which the chatbot rate limiter also lives in.
-// recordEvent warns loudly whenever the cap actually trims, so organic growth
-// approaching it shows up in the logs long before data quietly disappears.
+// recordEvent warns in the logs whenever the cap actually trims, and the
+// dashboard shows a warning banner from MONTH_CAP_WARN_RATIO up — so organic
+// growth approaching the cap is visible well before data quietly disappears.
 const MONTH_CAP = 50_000
+// Share of MONTH_CAP at which the dashboard starts warning: early enough to
+// raise the cap (one constant, redeploy) before anything is actually trimmed.
+const MONTH_CAP_WARN_RATIO = 0.75
 // Month lists are read in slices of this many events, each slice as its OWN
 // REST request (a pipeline wouldn't help — the client sends a pipeline as one
 // HTTP call whose single response would still carry everything), so no
@@ -301,6 +305,11 @@ export interface DashboardData {
    *  range) — lets the dashboard say how far back its data actually goes.
    *  Undefined when the store is empty or the oldest event can't be read. */
   oldestTs?: string
+  /** Months whose event count has reached MONTH_CAP_WARN_RATIO of the backstop
+   *  cap — the dashboard shows a warning so the cap can be raised before it
+   *  trims anything. Checked across the whole store, not just the selected
+   *  range. Normally empty. */
+  nearCap: { month: string; count: number; cap: number }[]
 }
 
 const EMPTY: Omit<DashboardData, 'source'> = {
@@ -315,6 +324,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
   recent: [],
+  nearCap: [],
 }
 
 /** Source filters offered on map pages. 'untracked' = neither map nor cards. */
@@ -406,7 +416,7 @@ function aggregate(
   selectedPageReq?: string,
   unique = true,
   sourceReq?: string
-): Omit<DashboardData, 'source' | 'error'> {
+): Omit<DashboardData, 'source' | 'error' | 'oldestTs' | 'nearCap'> {
   const inRange = all.filter(e => {
     const t = Date.parse(e.ts)
     if (Number.isNaN(t)) return false
@@ -578,20 +588,14 @@ function uniqueUsers(events: AnalyticsEvent[]): number {
  *  volume a dashboard range is a handful of slices. */
 async function readMonths(
   db: Redis,
-  monthsNewestFirst: string[]
+  monthsNewestFirst: { month: string; len: number }[]
 ): Promise<AnalyticsEvent[]> {
-  if (monthsNewestFirst.length === 0) return []
-  const lenPipe = db.pipeline()
-  for (const m of monthsNewestFirst) lenPipe.llen(MONTH_KEY_PREFIX + m)
-  const lens = (await lenPipe.exec()) as number[]
-
   // Newest-first overall: months newest → oldest, and within a month the head
   // (newest) slice first. In tail-relative terms the head slice is the DEEPEST
   // tail offset, so iterate offsets downward.
   const out: AnalyticsEvent[] = []
-  for (let i = 0; i < monthsNewestFirst.length; i++) {
-    const key = MONTH_KEY_PREFIX + monthsNewestFirst[i]
-    const len = lens[i]
+  for (const { month, len } of monthsNewestFirst) {
+    const key = MONTH_KEY_PREFIX + month
     const sliceCount = Math.ceil(len / READ_CHUNK)
     for (let s = sliceCount - 1; s >= 0; s--) {
       const fromTail = s * READ_CHUNK // events between this offset and the tail
@@ -607,6 +611,17 @@ async function readMonths(
   return out
 }
 
+/** The months at or past the warn share of the backstop cap, given every
+ *  stored month's event count. Shared by both backends so the dashboard's
+ *  early warning behaves identically in dev and prod. */
+function nearCapMonths(
+  counts: { month: string; count: number }[]
+): DashboardData['nearCap'] {
+  return counts
+    .filter(c => c.count >= MONTH_CAP * MONTH_CAP_WARN_RATIO)
+    .map(c => ({ ...c, cap: MONTH_CAP }))
+}
+
 export async function readDashboard(
   range: DateRange,
   page?: string,
@@ -615,10 +630,21 @@ export async function readDashboard(
 ): Promise<DashboardData> {
   if (store) {
     try {
-      // All stored months, oldest first. Only the ones the range touches are
-      // read; the oldest month also tells us how far back the data goes.
+      // All stored months, oldest first. Every month's length is fetched (a
+      // pipeline of integers — cheap) so the near-cap warning covers the whole
+      // store; only the months the range touches have their events read. The
+      // oldest month also tells us how far back the data goes.
       const months = (await store.zrange(MONTHS_KEY, 0, -1)) as string[]
-      const wanted = monthsInRange(months, range).reverse() // newest first
+      let lens: number[] = []
+      if (months.length > 0) {
+        const lenPipe = store.pipeline()
+        for (const m of months) lenPipe.llen(MONTH_KEY_PREFIX + m)
+        lens = (await lenPipe.exec()) as number[]
+      }
+      const byMonth = months.map((month, i) => ({ month, len: lens[i] }))
+      const wanted = monthsInRange(months, range)
+        .map(m => byMonth.find(b => b.month === m)!)
+        .reverse() // newest first
       const [all, oldestEvent] = await Promise.all([
         readMonths(store, wanted),
         months.length > 0
@@ -631,6 +657,9 @@ export async function readDashboard(
       return {
         source: 'redis',
         oldestTs: oldestEvent?.ts,
+        nearCap: nearCapMonths(
+          byMonth.map(b => ({ month: b.month, count: b.len }))
+        ),
         ...aggregate(all, range, page, unique, sourceFilter),
       }
     } catch (err) {
@@ -644,9 +673,17 @@ export async function readDashboard(
 
   const all = await readDevEvents()
   if (all.length === 0) return { source: 'none', ...EMPTY }
+  const devMonthCounts = new Map<string, number>()
+  for (const e of all) {
+    const month = monthOf(e.ts)
+    if (month) devMonthCounts.set(month, (devMonthCounts.get(month) ?? 0) + 1)
+  }
   return {
     source: 'local-file',
     oldestTs: all[all.length - 1]?.ts, // newest-first, so the oldest is last
+    nearCap: nearCapMonths(
+      [...devMonthCounts.entries()].map(([month, count]) => ({ month, count }))
+    ),
     ...aggregate(all, range, page, unique, sourceFilter),
   }
 }

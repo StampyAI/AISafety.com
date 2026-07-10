@@ -235,6 +235,19 @@ function formatDay(iso: string): string {
   }
 }
 
+/** "July 2026" for a storage month ('2026-07'), for the near-cap warning. */
+function formatMonth(month: string): string {
+  try {
+    return new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-GB', {
+      timeZone: 'UTC',
+      month: 'long',
+      year: 'numeric',
+    })
+  } catch {
+    return month
+  }
+}
+
 export default async function AnalyticsPage({
   searchParams,
 }: {
@@ -365,6 +378,16 @@ export default async function AnalyticsPage({
           <ExcludeToggle />
         </div>
       </div>
+
+      {data.nearCap.map(({ month, count, cap }) => (
+        <div key={month} className={styles.capWarning}>
+          ⚠ {formatMonth(month)} already holds {count.toLocaleString()} events –{' '}
+          {Math.round((100 * count) / cap)}% of the {cap.toLocaleString()}
+          -per-month safety cap. At the cap, the month&apos;s oldest events
+          start being deleted. If this is real traffic rather than abuse, raise
+          the cap now (MONTH_CAP in the analytics code) so nothing is lost.
+        </div>
+      ))}
 
       <DateRangePicker activeKey={range.key} from={range.from} to={range.to} />
 
@@ -722,8 +745,24 @@ function Panel({
   )
 }
 
+// Hard ceiling on rows a listings table sends to the browser. Real catalogs
+// are a few hundred listings, so organic data never comes near it; it exists
+// so a flood of fabricated distinct labels through the public track endpoint
+// can't balloon the page payload (every row crosses the server→client
+// boundary, hidden rows included). Truncation is announced, never silent.
+const MAX_TABLE_ROWS = 1000
+
+function TruncationNote({ shown, of }: { shown: number; of: number }) {
+  return (
+    <p className={styles.dim}>
+      Showing the {shown.toLocaleString()} most-clicked of {of.toLocaleString()}{' '}
+      listings.
+    </p>
+  )
+}
+
 function CountTable({
-  rows,
+  rows: allRows,
   labelHead,
   rankHead = '#',
   logoFor,
@@ -745,71 +784,79 @@ function CountTable({
    *  can exceed the sum of the visible rows. */
   total?: number
 }) {
-  if (rows.length === 0) return <p className={styles.dim}>No data yet.</p>
+  if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
+  const rows = allRows.slice(0, MAX_TABLE_ROWS)
   const showPct = total != null && total > 0
   const colSpan = (rankFor ? 1 : 0) + 2 + (showPct ? 1 : 0)
   return (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          {rankFor && <th className={styles.rankCol}>{rankHead}</th>}
-          <th>{labelHead}</th>
-          <th className={styles.numCol}>Clicks</th>
-          {showPct && <th className={styles.pctCol}>%</th>}
-        </tr>
-      </thead>
-      <ExpandableBody colSpan={colSpan}>
-        {rows.map((r, i) => {
-          const rank = rankFor?.(r.name)
-          const featured = rank?.startsWith('F')
-          const href = linkFor?.(r.name)
-          return (
-            <tr key={i}>
-              {rankFor && (
-                <td
-                  className={`${styles.rankCol}${
-                    featured ? ` ${styles.rankFeatured}` : ''
-                  }`}
-                >
-                  {rank ?? '—'}
-                </td>
-              )}
-              <td className={styles.nameCell}>
-                {logoFor &&
-                  (href && href !== '#' ? (
-                    <a
-                      className={styles.logoLink}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={`Open ${r.name}`}
-                    >
+    <>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            {rankFor && <th className={styles.rankCol}>{rankHead}</th>}
+            <th>{labelHead}</th>
+            <th className={styles.numCol}>Clicks</th>
+            {showPct && <th className={styles.pctCol}>%</th>}
+          </tr>
+        </thead>
+        <ExpandableBody colSpan={colSpan}>
+          {rows.map((r, i) => {
+            const rank = rankFor?.(r.name)
+            const featured = rank?.startsWith('F')
+            const href = linkFor?.(r.name)
+            return (
+              <tr key={i}>
+                {rankFor && (
+                  <td
+                    className={`${styles.rankCol}${
+                      featured ? ` ${styles.rankFeatured}` : ''
+                    }`}
+                  >
+                    {rank ?? '—'}
+                  </td>
+                )}
+                <td className={styles.nameCell}>
+                  {logoFor &&
+                    (href && href !== '#' ? (
+                      <a
+                        className={styles.logoLink}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Open ${r.name}`}
+                      >
+                        <Logo src={logoFor(r.name)} />
+                      </a>
+                    ) : (
                       <Logo src={logoFor(r.name)} />
-                    </a>
-                  ) : (
-                    <Logo src={logoFor(r.name)} />
-                  ))}
-                <span>{r.name}</span>
-              </td>
-              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+                    ))}
+                  <span>{r.name}</span>
+                </td>
+                <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+                {showPct && (
+                  <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+                )}
+              </tr>
+            )
+          })}
+        </ExpandableBody>
+        {total != null && (
+          <tfoot>
+            <tr className={styles.totalRow}>
+              {rankFor && <td className={styles.rankCol} />}
+              <td className={styles.totalLabel}>Total</td>
+              <td className={styles.numCol}>{total.toLocaleString()}</td>
               {showPct && (
-                <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+                <td className={styles.pctCol}>{pct1(total, total)}</td>
               )}
             </tr>
-          )
-        })}
-      </ExpandableBody>
-      {total != null && (
-        <tfoot>
-          <tr className={styles.totalRow}>
-            {rankFor && <td className={styles.rankCol} />}
-            <td className={styles.totalLabel}>Total</td>
-            <td className={styles.numCol}>{total.toLocaleString()}</td>
-            {showPct && <td className={styles.pctCol}>{pct1(total, total)}</td>}
-          </tr>
-        </tfoot>
+          </tfoot>
+        )}
+      </table>
+      {allRows.length > rows.length && (
+        <TruncationNote shown={rows.length} of={allRows.length} />
       )}
-    </table>
+    </>
   )
 }
 
@@ -819,69 +866,75 @@ function CountTable({
  *  `total` is every page's click count, so the top-N rows can sum to less than
  *  it; the Total footer shows the true denominator. */
 function OverallListingsTable({
-  rows,
+  rows: allRows,
   total,
 }: {
   rows: (OverallListingRow & { pageLabel?: string })[]
   total: number
 }) {
-  if (rows.length === 0) return <p className={styles.dim}>No data yet.</p>
+  if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
+  const rows = allRows.slice(0, MAX_TABLE_ROWS)
   const showPct = total > 0
   const colSpan = 3 + (showPct ? 1 : 0)
   return (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th>Listing</th>
-          <th>Page</th>
-          <th className={styles.numCol}>Clicks</th>
-          {showPct && <th className={styles.pctCol}>%</th>}
-        </tr>
-      </thead>
-      <ExpandableBody colSpan={colSpan}>
-        {rows.map((r, i) => {
-          const favicon = faviconFor(r.url)
-          const href = r.url
-          return (
-            <tr key={i}>
-              <td className={styles.nameCell}>
-                {href && href !== '#' ? (
-                  <a
-                    className={styles.logoLink}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`Open ${r.name}`}
-                  >
+    <>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Listing</th>
+            <th>Page</th>
+            <th className={styles.numCol}>Clicks</th>
+            {showPct && <th className={styles.pctCol}>%</th>}
+          </tr>
+        </thead>
+        <ExpandableBody colSpan={colSpan}>
+          {rows.map((r, i) => {
+            const favicon = faviconFor(r.url)
+            const href = r.url
+            return (
+              <tr key={i}>
+                <td className={styles.nameCell}>
+                  {href && href !== '#' ? (
+                    <a
+                      className={styles.logoLink}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Open ${r.name}`}
+                    >
+                      <Logo src={favicon} />
+                    </a>
+                  ) : (
                     <Logo src={favicon} />
-                  </a>
-                ) : (
-                  <Logo src={favicon} />
+                  )}
+                  <span>{r.name}</span>
+                </td>
+                <td>
+                  {r.pageLabel && (
+                    <span className={styles.pill}>{r.pageLabel}</span>
+                  )}
+                </td>
+                <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+                {showPct && (
+                  <td className={styles.pctCol}>{pct1(r.count, total)}</td>
                 )}
-                <span>{r.name}</span>
-              </td>
-              <td>
-                {r.pageLabel && (
-                  <span className={styles.pill}>{r.pageLabel}</span>
-                )}
-              </td>
-              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
-              {showPct && (
-                <td className={styles.pctCol}>{pct1(r.count, total)}</td>
-              )}
-            </tr>
-          )
-        })}
-      </ExpandableBody>
-      <tfoot>
-        <tr className={styles.totalRow}>
-          <td className={styles.totalLabel}>Total</td>
-          <td />
-          <td className={styles.numCol}>{total.toLocaleString()}</td>
-          {showPct && <td className={styles.pctCol}>{pct1(total, total)}</td>}
-        </tr>
-      </tfoot>
-    </table>
+              </tr>
+            )
+          })}
+        </ExpandableBody>
+        <tfoot>
+          <tr className={styles.totalRow}>
+            <td className={styles.totalLabel}>Total</td>
+            <td />
+            <td className={styles.numCol}>{total.toLocaleString()}</td>
+            {showPct && <td className={styles.pctCol}>{pct1(total, total)}</td>}
+          </tr>
+        </tfoot>
+      </table>
+      {allRows.length > rows.length && (
+        <TruncationNote shown={rows.length} of={allRows.length} />
+      )}
+    </>
   )
 }
 

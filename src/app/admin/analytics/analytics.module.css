@@ -40,6 +40,20 @@
   cursor: help;
 }
 
+/* A storage month nearing its safety cap — an act-now warning, so amber and
+ * impossible to miss, shown on every tab. Same warning tones as the admin
+ * log's degraded-card note. */
+.capWarning {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ffb96b;
+  background-color: rgba(255, 170, 90, 0.08);
+  border: 1px solid rgba(255, 170, 90, 0.4);
+  border-radius: 8px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

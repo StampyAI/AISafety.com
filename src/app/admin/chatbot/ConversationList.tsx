@@ -10,7 +10,7 @@ import TranscriptMessage, {
   type ListingInfo,
 } from './TranscriptMessage'
 import ExcludeBrowserToggle from './ExcludeBrowserToggle'
-import { greetingFor } from '@/lib/assistant/pages'
+import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 
 interface HistoryTurn {
   role: 'user' | 'assistant'
@@ -578,6 +578,38 @@ function ConversationRow({
               <div className={styles.convTranscript}>
                 <div className={styles.convGreeting}>
                   {greetingFor(conv.page)}
+                </div>
+                {/* The suggestion chips offered with the greeting. Chips send
+                    their text verbatim, so a first message that matches one
+                    was a press, not typed — badge it. Like the greeting, the
+                    chips come from today's page config rather than the log,
+                    so old rows show the current set. */}
+                <div className={styles.convGreetingChips}>
+                  {chipsFor(conv.page).map(chip => {
+                    const pressed = chip === firstUser.trim()
+                    return (
+                      <span
+                        key={chip}
+                        className={
+                          pressed
+                            ? `${styles.convChip} ${styles.convChipPressed}`
+                            : styles.convChip
+                        }
+                        title={
+                          pressed
+                            ? 'The visitor pressed this suggestion — their first message was not typed'
+                            : 'Suggestion offered with the greeting'
+                        }
+                      >
+                        {chip}
+                        {pressed && (
+                          <span className={styles.convChipPressedTag}>
+                            ✓ pressed
+                          </span>
+                        )}
+                      </span>
+                    )
+                  })}
                 </div>
                 {data.history.length > 0 ? (
                   data.history.map((t, i) => {

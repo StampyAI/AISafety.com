@@ -750,6 +750,35 @@
   opacity: 0.7;
 }
 
+/* The suggestion chips offered alongside the greeting — dimmed context like
+ * the greeting itself, except the one the visitor actually pressed. */
+.convGreetingChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 2px 4px;
+}
+
+.convGreetingChips .convChip {
+  opacity: 0.7;
+}
+
+.convGreetingChips .convChipPressed {
+  opacity: 1;
+  border-color: var(--bright-teal-300);
+  color: var(--white);
+}
+
+.convChipPressedTag {
+  margin-left: 5px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-radius: 999px;
+}
+
 .convTurnUser,
 .convTurnAssistant {
   padding: 8px 10px;

@@ -221,6 +221,20 @@ function pct1(part: number, total: number): string {
   return `${((100 * part) / total).toFixed(1)}%`
 }
 
+/** "1 July 2026" in the dashboard's timezone, for the coverage note. */
+function formatDay(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString('en-GB', {
+      timeZone: 'America/Bogota',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+  } catch {
+    return iso
+  }
+}
+
 export default async function AnalyticsPage({
   searchParams,
 }: {
@@ -321,6 +335,14 @@ export default async function AnalyticsPage({
     0
   )
 
+  // When the selected range reaches back further than the stored data (or is
+  // unbounded, like All time), say how far back the data actually goes — so a
+  // range like "All time" can't quietly read as more history than exists.
+  const oldestMs = data.oldestTs ? Date.parse(data.oldestTs) : NaN
+  const showCoverage =
+    !Number.isNaN(oldestMs) &&
+    (range.startMs == null || range.startMs < oldestMs)
+
   return (
     <div>
       <div className={styles.headerRow}>
@@ -332,6 +354,14 @@ export default async function AnalyticsPage({
           <span className={styles.total}>
             {data.totalEvents.toLocaleString()} events
           </span>
+          {showCoverage && data.oldestTs && (
+            <span
+              className={styles.coverage}
+              title={`The earliest stored event. Tracking launched on 20 June 2026; events before ${formatDay(data.oldestTs)} were deleted by an early 5,000-event storage cap. The cap has been removed, so nothing is deleted anymore.`}
+            >
+              data since {formatDay(data.oldestTs)}
+            </span>
+          )}
           <ExcludeToggle />
         </div>
       </div>

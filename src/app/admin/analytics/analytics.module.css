@@ -31,6 +31,15 @@
   color: var(--teal-300);
 }
 
+/* How far back the stored data reaches, shown when the selected range extends
+ * beyond it. Dotted underline signals the tooltip carrying the full story. */
+.coverage {
+  font-size: 12px;
+  color: var(--teal-300);
+  border-bottom: 1px dotted var(--teal-500);
+  cursor: help;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

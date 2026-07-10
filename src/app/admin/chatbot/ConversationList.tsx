@@ -207,6 +207,24 @@ function formatLatency(ms: number): string {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
 }
 
+// Conversations this browser has already opened, so reviewed chats read as
+// dimmed — like seen emails in an inbox. Reviewing is personal to the viewer,
+// so the ids live in localStorage rather than Airtable. Most recent last,
+// capped so the list can't grow without bound.
+const VIEWED_KEY = 'admin-conversations-viewed'
+const VIEWED_CAP = 5000
+
+function loadViewedIds(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(VIEWED_KEY) ?? '[]')
+    if (!Array.isArray(parsed)) throw new Error('not an array')
+    return parsed.filter((id): id is string => typeof id === 'string')
+  } catch (err) {
+    console.warn('Resetting unreadable viewed-conversations list:', err)
+    return []
+  }
+}
+
 export default function ConversationList() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [listings, setListings] = useState<Record<string, ListingInfo>>({})
@@ -226,6 +244,9 @@ export default function ConversationList() {
   // Resolved on the client so it matches the row times, which also render in
   // the browser's local zone. Empty until mounted to avoid an SSR mismatch.
   const [tzLabel, setTzLabel] = useState('')
+  // Ids of conversations this browser has opened. Loaded after mount
+  // (localStorage is browser-only) to avoid an SSR mismatch.
+  const [viewed, setViewed] = useState<Set<string>>(new Set())
 
   const PAGE_SIZE = 200
 
@@ -312,7 +333,22 @@ export default function ConversationList() {
       .formatToParts(new Date())
       .find(p => p.type === 'timeZoneName')?.value
     setTzLabel([tz, abbr && `(${abbr})`].filter(Boolean).join(' '))
+    setViewed(new Set(loadViewedIds()))
   }, [])
+
+  const markViewed = (id: string) => {
+    if (viewed.has(id)) return
+    // Re-read storage so marks from other admin tabs aren't overwritten.
+    const ids = [...loadViewedIds().filter(v => v !== id), id].slice(
+      -VIEWED_CAP
+    )
+    try {
+      localStorage.setItem(VIEWED_KEY, JSON.stringify(ids))
+    } catch (err) {
+      console.warn('Could not save viewed-conversations list:', err)
+    }
+    setViewed(new Set(ids))
+  }
 
   const handleUpdate = (updated: Conversation) => {
     setConversations(prev => prev.map(c => (c.id === updated.id ? updated : c)))
@@ -363,9 +399,11 @@ export default function ConversationList() {
               <ConversationRow
                 conv={c}
                 expanded={expandedId === c.id}
-                onToggle={() =>
+                viewed={viewed.has(c.id)}
+                onToggle={() => {
+                  if (expandedId !== c.id) markViewed(c.id)
                   setExpandedId(expandedId === c.id ? null : c.id)
-                }
+                }}
                 onUpdate={handleUpdate}
               />
             </Fragment>
@@ -399,11 +437,13 @@ export default function ConversationList() {
 function ConversationRow({
   conv,
   expanded,
+  viewed,
   onToggle,
   onUpdate,
 }: {
   conv: Conversation
   expanded: boolean
+  viewed: boolean
   onToggle: () => void
   onUpdate: (c: Conversation) => void
 }) {
@@ -480,7 +520,9 @@ function ConversationRow({
     <div>
       <button
         type="button"
-        className={styles.convRow}
+        className={
+          viewed ? `${styles.convRow} ${styles.convRowViewed}` : styles.convRow
+        }
         onClick={onToggle}
         aria-expanded={expanded}
       >

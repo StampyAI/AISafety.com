@@ -696,6 +696,12 @@
   color: var(--white);
 }
 
+/* Chats this browser has already opened read like seen emails — the question
+   drops from white to muted so unreviewed rows stand out. */
+.convRowViewed .convRowQuery {
+  color: var(--teal-300);
+}
+
 .convDetail {
   display: flex;
   flex-direction: column;

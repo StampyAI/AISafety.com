@@ -95,12 +95,20 @@ const MONTHS_KEY = 'aisafety:analytics:months'
 // place so a rolled-back deployment still finds its data.
 const LEGACY_EVENTS_KEY = 'aisafety:analytics:events'
 const MIGRATED_KEY = 'aisafety:analytics:legacy-migrated'
-// Backstop only — never reached by real traffic (~15k events/month as of July
-// 2026). It bounds what a scripted abuser who stays under the per-IP rate limit
-// can grow a month list to, so the shared free-tier database can't be filled.
-const MONTH_CAP = 150_000
-// Month lists are read in slices of this many events so a single REST response
-// can never outgrow Upstash's response-size limits, however big a month gets.
+// Backstop only — never reached by real traffic (~15k events/month, ~300 bytes
+// each, as of July 2026; this is ~3× headroom). It bounds what a scripted
+// abuser who stays under the per-IP rate limit can grow a month list to: at
+// the cap a month is ~15 MB of organic events, or ~90 MB if an attacker maxes
+// every length-capped field — either way comfortably inside the shared
+// free-tier database's 256 MB, which the chatbot rate limiter also lives in.
+// recordEvent warns loudly whenever the cap actually trims, so organic growth
+// approaching it shows up in the logs long before data quietly disappears.
+const MONTH_CAP = 50_000
+// Month lists are read in slices of this many events, each slice as its OWN
+// REST request (a pipeline wouldn't help — the client sends a pipeline as one
+// HTTP call whose single response would still carry everything), so no
+// response can outgrow Upstash's response-size limits, however big a month
+// gets. ~300-byte events make a full slice ~1.5 MB.
 const READ_CHUNK = 5000
 
 /** 'YYYY-MM' (UTC) an event belongs to, from its server-stamped timestamp. */
@@ -196,9 +204,18 @@ export async function recordEvent(event: AnalyticsEvent): Promise<void> {
       }
       const p = store.pipeline()
       p.lpush(MONTH_KEY_PREFIX + month, event) // upstash serializes to JSON
-      p.ltrim(MONTH_KEY_PREFIX + month, 0, MONTH_CAP - 1) // abuse backstop
       p.zadd(MONTHS_KEY, { score: monthScore(month), member: month })
-      await p.exec()
+      const [len] = (await p.exec()) as [number, unknown]
+      // Abuse backstop, applied only when actually over the cap. Trimming the
+      // tail on every write would also destabilise readMonths' tail-anchored
+      // slices, so the common case must stay pure-LPUSH. Never silent: real
+      // data loss (an attack, or organic growth outgrowing the cap) is logged.
+      if (len > MONTH_CAP) {
+        console.warn(
+          `[analytics] month ${month} is over its ${MONTH_CAP}-event backstop cap (${len}) — trimming oldest events. If this is organic traffic, raise MONTH_CAP.`
+        )
+        await store.ltrim(MONTH_KEY_PREFIX + month, 0, MONTH_CAP - 1)
+      }
       return
     }
     // No Redis configured (local dev) — fall back to the on-disk log.
@@ -545,10 +562,20 @@ function uniqueUsers(events: AnalyticsEvent[]): number {
 }
 
 /** Every event in the given months, globally newest-first. Each month list is
- *  read in READ_CHUNK slices addressed FROM THE TAIL: concurrent writes only
- *  ever prepend at the head, so tail-relative indices stay stable and a read
- *  can't double-count or skip events mid-way. Events arriving after the length
- *  snapshot simply aren't part of this read — the next refresh has them. */
+ *  read in READ_CHUNK slices addressed FROM THE TAIL: normal writes only ever
+ *  prepend at the head, so tail-relative indices stay stable and a read can't
+ *  double-count or skip events mid-way. Events arriving after the length
+ *  snapshot simply aren't part of this read — the next refresh has them. (The
+ *  one exception to head-only writes is the backstop trim on a month over
+ *  MONTH_CAP, which eats the tail; a trim landing mid-read can shift a few
+ *  seam events between slices. That's transient, per-read, abuse-only noise —
+ *  the stored data stays correct.)
+ *
+ *  Each slice is awaited as its OWN request, deliberately not pipelined: the
+ *  client sends a pipeline as a single HTTP call, whose one response would
+ *  carry every slice at once — recreating exactly the oversized response the
+ *  slicing exists to prevent. Sequential round trips are fine here: at organic
+ *  volume a dashboard range is a handful of slices. */
 async function readMonths(
   db: Redis,
   monthsNewestFirst: string[]
@@ -558,28 +585,26 @@ async function readMonths(
   for (const m of monthsNewestFirst) lenPipe.llen(MONTH_KEY_PREFIX + m)
   const lens = (await lenPipe.exec()) as number[]
 
-  // One lrange per chunk, ordered so the flattened results read newest-first:
-  // months newest → oldest, and within a month head slices before tail slices.
-  const readPipe = db.pipeline()
-  let chunks = 0
-  monthsNewestFirst.forEach((m, i) => {
+  // Newest-first overall: months newest → oldest, and within a month the head
+  // (newest) slice first. In tail-relative terms the head slice is the DEEPEST
+  // tail offset, so iterate offsets downward.
+  const out: AnalyticsEvent[] = []
+  for (let i = 0; i < monthsNewestFirst.length; i++) {
+    const key = MONTH_KEY_PREFIX + monthsNewestFirst[i]
     const len = lens[i]
-    // Head-most slice last in tail-relative terms: iterate from the deepest
-    // tail offset DOWN so pipeline order is head slice → tail slice.
     const sliceCount = Math.ceil(len / READ_CHUNK)
     for (let s = sliceCount - 1; s >= 0; s--) {
       const fromTail = s * READ_CHUNK // events between this offset and the tail
-      readPipe.lrange(
-        MONTH_KEY_PREFIX + m,
-        Math.max(-len, -(fromTail + READ_CHUNK)),
-        -(fromTail + 1)
+      out.push(
+        ...(await db.lrange<AnalyticsEvent>(
+          key,
+          Math.max(-len, -(fromTail + READ_CHUNK)),
+          -(fromTail + 1)
+        ))
       )
-      chunks++
     }
-  })
-  if (chunks === 0) return []
-  const slices = (await readPipe.exec()) as AnalyticsEvent[][]
-  return slices.flat()
+  }
+  return out
 }
 
 export async function readDashboard(
@@ -641,18 +666,32 @@ export interface MigrationResult {
  *
  *  A marker key claimed with SET NX makes a second call a no-op — two copies
  *  would double every pre-migration event. The marker is claimed BEFORE the
- *  copy, so a mid-copy crash leaves it set with the copy incomplete; recovery
- *  is manual (delete the marker, the month lists and the months index, then
- *  call again) and worth it to guarantee double-counting can't happen. */
+ *  copy and then updated with per-month progress after every copied batch, so
+ *  a mid-copy crash leaves an exact record of what landed. Recovery from such
+ *  a crash (never needed if the one POST succeeds): read the marker's copied
+ *  counts, then for each listed month LTRIM that many elements OFF THE TAIL of
+ *  its month list (copied legacy events always sit at the tail, and head
+ *  growth from live traffic doesn't disturb a trim expressed as "keep the
+ *  first llen − copied"), delete the marker, and POST again. Do NOT delete
+ *  whole month lists: they also hold every event recorded since the deploy,
+ *  which exists nowhere else.
+ *
+ *  Run it a minute or so AFTER the deploy settles: an old-code instance
+ *  draining its last requests can still append to the legacy list, and an
+ *  event landing there after this function has read the list would be missed
+ *  (visible in old dashboards, absent from new ones — recover as above, then
+ *  re-run). */
 export async function migrateLegacyEvents(): Promise<MigrationResult> {
   if (!store) {
     throw new Error(
       'migrateLegacyEvents needs the Redis backend; the dev file store has no legacy list'
     )
   }
-  const claimed = await store.set(MIGRATED_KEY, new Date().toISOString(), {
-    nx: true,
-  })
+  const claimed = await store.set(
+    MIGRATED_KEY,
+    { startedAt: new Date().toISOString(), copied: {} },
+    { nx: true }
+  )
   if (claimed !== 'OK') return { alreadyMigrated: true, copied: {} }
 
   // The legacy list is bounded (it was capped at 5,000), but read it in chunks
@@ -682,24 +721,33 @@ export async function migrateLegacyEvents(): Promise<MigrationResult> {
     byMonth.set(month, group)
   }
 
-  // Legacy events are all older than anything the new code has written, so they
-  // belong at the TAIL of their month lists: rpush in newest-first order keeps
-  // each list newest-first overall. Batches are sent as separate sequential
-  // requests (not one pipeline, which would still be a single oversized REST
-  // call) so no request can outgrow Upstash's request-size limit.
+  // Legacy events are all older than anything the new code has written (up to
+  // a few seconds of rolling-deploy overlap, which only bends ordering at the
+  // seam, never counts), so they belong at the TAIL of their month lists:
+  // rpush in newest-first order keeps each list newest-first overall. Batches
+  // are sent as separate sequential requests (not one pipeline, which would
+  // still be a single oversized REST call) so no request can outgrow Upstash's
+  // request-size limit, and the marker is updated after every batch so a crash
+  // leaves an exact recovery record (see the docstring).
   const copied: Record<string, number> = {}
+  const startedAt = new Date().toISOString()
   for (const [month, group] of byMonth) {
     for (let start = 0; start < group.length; start += 500) {
       await store.rpush(
         MONTH_KEY_PREFIX + month,
         ...group.slice(start, start + 500)
       )
+      copied[month] = Math.min(start + 500, group.length)
+      await store.set(MIGRATED_KEY, { startedAt, copied })
     }
     await store.zadd(MONTHS_KEY, {
       score: monthScore(month),
       member: month,
     })
-    copied[month] = group.length
   }
+  await store.set(MIGRATED_KEY, {
+    doneAt: new Date().toISOString(),
+    copied,
+  })
   return { alreadyMigrated: false, copied }
 }

@@ -10,9 +10,10 @@ export interface AdminNavTab {
 }
 
 /** Tabs shown in the admin header. Playground and Conversation Log always show;
- *  the Analytics tab is owner-only (the shared Successif password can't reach
- *  /admin/analytics), so it's only included when the session is the owner. */
-export function adminTabs(owner: boolean): AdminNavTab[] {
+ *  the Analytics tab is only included when the session may reach
+ *  /admin/analytics (owner and volunteer passwords; the shared Successif
+ *  password can't). */
+export function adminTabs(analytics: boolean): AdminNavTab[] {
   return [
     {
       href: '/admin/chatbot/playground',
@@ -20,7 +21,7 @@ export function adminTabs(owner: boolean): AdminNavTab[] {
       group: 'chatbot',
     },
     { href: '/admin/chatbot/log', label: 'Conversation Log', group: 'chatbot' },
-    ...(owner
+    ...(analytics
       ? [
           {
             href: '/admin/analytics',

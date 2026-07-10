@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { isAdmin, isOwner } from '@/lib/admin/auth'
+import { canViewAnalytics, isAdmin } from '@/lib/admin/auth'
 import AdminHeader from '../AdminHeader'
 import { adminTabs } from '../nav'
 import styles from '../admin.module.css'
@@ -12,10 +12,11 @@ export default async function ChatbotAdminLayout({
   if (!(await isAdmin())) {
     redirect('/admin/login')
   }
-  // adminTabs() hides the Analytics tab from non-owners (e.g. Successif).
+  // adminTabs() hides the Analytics tab from sessions that can't reach it
+  // (e.g. Successif; owner and volunteers see it).
   return (
     <>
-      <AdminHeader tabs={adminTabs(await isOwner())} />
+      <AdminHeader tabs={adminTabs(await canViewAnalytics())} />
       <main className={styles.consoleWrap}>{children}</main>
     </>
   )

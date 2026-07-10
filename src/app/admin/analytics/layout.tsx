@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { isAdmin, isOwner } from '@/lib/admin/auth'
+import { canViewAnalytics, isAdmin } from '@/lib/admin/auth'
 import AdminHeader from '../AdminHeader'
 import { adminTabs } from '../nav'
 import styles from '../admin.module.css'
@@ -14,12 +14,13 @@ export default async function AnalyticsLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Owner-only. A signed-in partner holding the Successif password is sent to
-  // the chat area they're allowed to use; everyone else to the login page.
-  if (!(await isOwner())) {
+  // Owner and volunteers only. A signed-in partner holding the Successif
+  // password is sent to the chat area they're allowed to use; everyone else to
+  // the login page.
+  if (!(await canViewAnalytics())) {
     redirect((await isAdmin()) ? '/admin/chatbot/playground' : '/admin/login')
   }
-  // owner is guaranteed here, so the Analytics tab is always present.
+  // analytics access is guaranteed here, so the Analytics tab is always present.
   return (
     <>
       <AdminHeader tabs={adminTabs(true)} />

@@ -5,16 +5,17 @@ const COOKIE_NAME = 'aisafety_admin'
 // 30 days. Re-auth when expired.
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
-/** Passwords that grant admin access: the primary owner password plus an
- *  optional secondary one (e.g. a shareable "successif…" password handed to a
- *  partner reviewing the chat logs). Each lives in its own env var, so either
- *  can be revoked on its own — drop `ADMIN_PASSWORD_SUCCESSIF` and that
- *  password (and any cookie derived from it) stops working immediately, while
- *  the primary is untouched. */
+/** Passwords that grant admin access: the primary owner password plus optional
+ *  shareable ones (a "successif…" password for the partner reviewing chat logs,
+ *  a "volunteer…" password for site volunteers). Each lives in its own env var,
+ *  so any one can be revoked on its own — drop the env var and that password
+ *  (and any cookie derived from it) stops working immediately, while the others
+ *  are untouched. */
 function validPasswords(): string[] {
   return [
     process.env.ADMIN_PASSWORD,
     process.env.ADMIN_PASSWORD_SUCCESSIF,
+    process.env.ADMIN_PASSWORD_VOLUNTEER,
   ].filter((p): p is string => typeof p === 'string' && p.length > 0)
 }
 
@@ -35,17 +36,21 @@ export async function isAdmin(): Promise<boolean> {
   return got != null && accepted.includes(got)
 }
 
-/** True only when the session was authenticated with the PRIMARY owner password
- *  (ADMIN_PASSWORD) — NOT the shared, revocable ADMIN_PASSWORD_SUCCESSIF. Use
- *  this to gate owner-only areas (e.g. the analytics dashboard) so a partner
- *  holding the Successif password can't reach them. Fails closed if the primary
- *  password isn't configured. */
-export async function isOwner(): Promise<boolean> {
-  const primary = process.env.ADMIN_PASSWORD
-  if (!primary) return false
+/** True when the session was authenticated with a password allowed into the
+ *  analytics dashboard: the primary owner password or the shared volunteer
+ *  password. The Successif password is deliberately excluded — that partner
+ *  reviews chat logs only. Fails closed if neither password is configured. */
+export async function canViewAnalytics(): Promise<boolean> {
+  const accepted = [
+    process.env.ADMIN_PASSWORD,
+    process.env.ADMIN_PASSWORD_VOLUNTEER,
+  ]
+    .filter((p): p is string => typeof p === 'string' && p.length > 0)
+    .map(cookieValueFor)
+  if (accepted.length === 0) return false
   const c = await cookies()
   const got = c.get(COOKIE_NAME)?.value
-  return got != null && got === cookieValueFor(primary)
+  return got != null && accepted.includes(got)
 }
 
 export async function setAdminCookie(password: string): Promise<void> {

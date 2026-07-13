@@ -246,7 +246,11 @@ interface Props {
   greeting?: string
   /** sessionStorage key for persisting messages (omit to disable). */
   storageKey?: string
-  onSuggest?: (query: string, type?: string) => void
+  /** Fires when the visitor presses a "Suggest a listing" button in a reply.
+   *  `turnIndex` is the reply's position in the message list (matching its
+   *  index in the stored history), so the admin can badge the button the
+   *  visitor pressed. */
+  onSuggest?: (query: string, type?: string, turnIndex?: number) => void
   /** `turnIndex` is the clicked card's position in the message list, which
    *  matches its index in the stored conversation history — so the admin can
    *  badge the exact card the visitor opened. */
@@ -761,7 +765,12 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                 <AssistantMessageView
                   message={m}
                   allCitations={allCitations}
-                  onSuggest={onSuggest}
+                  onSuggest={
+                    onSuggest
+                      ? (query: string, type?: string) =>
+                          onSuggest(query, type, turnIndex)
+                      : undefined
+                  }
                   onCitationClick={
                     onCitationClick
                       ? (c: CitationRef) => onCitationClick(c, turnIndex)

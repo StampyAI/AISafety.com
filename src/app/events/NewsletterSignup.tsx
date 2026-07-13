@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Image from 'next/image'
 import styles from './NewsletterSignup.module.css'
 
+const NEWSLETTER_URL = 'https://aisafetyeventsandtraining.substack.com/'
+
 export default function NewsletterSignup() {
   const [email, setEmail] = useState('')
 
@@ -23,7 +25,13 @@ export default function NewsletterSignup() {
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
-        <button type="submit" className={styles.submit} aria-label="Subscribe">
+        <a
+          href={NEWSLETTER_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.submit}
+          aria-label="Subscribe"
+        >
           <Image
             src="/images/icons/arrow-right.svg"
             alt=""
@@ -31,7 +39,7 @@ export default function NewsletterSignup() {
             height={16}
             unoptimized
           />
-        </button>
+        </a>
       </div>
     </form>
   )

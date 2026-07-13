@@ -428,6 +428,7 @@ export default function EventsClient({ events }: EventsClientProps) {
         <FilterBar
           count={filteredEvents.length}
           noun="event"
+          className={styles.filterBar}
           label={`${filteredEvents.length} upcoming event${
             filteredEvents.length === 1 ? '' : 's'
           } ${mode === 'in-person' ? 'in person' : 'online'}`}

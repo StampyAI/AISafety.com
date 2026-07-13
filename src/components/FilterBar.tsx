@@ -8,6 +8,7 @@ interface FilterBarProps {
   /** Singular noun for the count, e.g. "course". Pluralized with an "s". */
   noun: string
   label?: ReactNode
+  className?: string
 }
 
 // Horizontal row of filter dropdowns with a result count on the right, sitting
@@ -18,9 +19,12 @@ export default function FilterBar({
   count,
   noun,
   label,
+  className,
 }: FilterBarProps) {
   return (
-    <div className="flex items-center justify-between gap-16px padding-bottom-40px">
+    <div
+      className={`flex items-center justify-between gap-16px padding-bottom-40px${className ? ` ${className}` : ''}`}
+    >
       <div className="flex items-center gap-8px" style={{ flexWrap: 'wrap' }}>
         {children}
       </div>

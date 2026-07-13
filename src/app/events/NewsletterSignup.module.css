@@ -1,0 +1,63 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: fit-content;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--bright-green) 30%, transparent);
+  border-radius: 16px;
+}
+
+.heading {
+  text-align: center;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: fit-content;
+  padding: 4px 4px 4px 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--bright-teal-500) 20%, transparent);
+}
+
+.field:focus-within {
+  border-color: color-mix(in srgb, var(--bright-teal-500) 60%, transparent);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background-color: transparent;
+  color: var(--white);
+}
+
+.input::placeholder {
+  color: var(--teal-400);
+}
+
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--white);
+  caret-color: var(--white);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.submit {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--white);
+  border-radius: 999px;
+  background-color: transparent;
+  cursor: pointer;
+}

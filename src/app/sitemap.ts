@@ -8,7 +8,7 @@ const ROUTES = [
   '/advisors',
   '/communities',
   '/donation-guide',
-  '/events-and-training',
+  '/events',
   '/founders',
   '/funding',
   '/jobs',

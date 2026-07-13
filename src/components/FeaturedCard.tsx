@@ -25,6 +25,7 @@ interface FeaturedCardProps {
   count: number
   /** Extra classes for the card root (e.g. a width utility). */
   className?: string
+  accentClass?: string
 }
 
 // Gap between featured cards — must match the row's gap-56px utility so the
@@ -57,6 +58,7 @@ export default function FeaturedCard({
   index,
   count,
   className,
+  accentClass,
 }: FeaturedCardProps) {
   // One radial gradient shared across the whole row: each card paints its own
   // slice of a background sized to span every card plus the gaps between them
@@ -72,19 +74,28 @@ export default function FeaturedCard({
 
   const inner = (
     <>
-      <Image
-        src="/images/bookmark-small.svg"
-        alt=""
-        className={styles.bookmark}
-        width={16}
-        height={24}
-        unoptimized
-      />
+      {accentClass ? (
+        <span
+          className={`${styles.bookmark} ${styles.bookmarkAccent} ${accentClass}`}
+          aria-hidden="true"
+        />
+      ) : (
+        <Image
+          src="/images/bookmark-small.svg"
+          alt=""
+          className={styles.bookmark}
+          width={16}
+          height={24}
+          unoptimized
+        />
+      )}
 
       <span
-        className={`${styles.pill} paragraph-xs-bold color-teal-300 inline-flex items-center gap-8px padding-left-8px padding-right-8px`}
+        className={`${styles.pill} ${accentClass ? styles.pillAccent : ''} paragraph-xs-bold ${accentClass ?? 'color-teal-300'} inline-flex items-center gap-8px padding-left-8px padding-right-8px`}
       >
-        <span className={styles.dot} />
+        <span
+          className={`${styles.dot} ${accentClass ? styles.dotAccent : ''}`}
+        />
         {tagline}
       </span>
 

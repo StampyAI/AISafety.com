@@ -69,7 +69,7 @@ export default function ListingCard({
           {pills.map((pill, i) => (
             <span
               key={i}
-              className={`${styles.pill}${pill.colorClass ? ` ${pill.colorClass}` : ''}`}
+              className={`${styles.pill} ${pill.colorClass ?? 'color-teal-bright-400'}`}
             >
               {pill.label}
             </span>

@@ -42,3 +42,6 @@ next-env.d.ts
 
 # generated at build time
 /public/images/airtable-cache/
+
+# local-only mock data for the /events page (never commit)
+events.mock.json

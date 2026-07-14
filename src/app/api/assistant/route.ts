@@ -154,7 +154,9 @@ export async function POST(req: NextRequest) {
       // reaching Airtable in production.
       after(() =>
         storeConversationTurn({
-          ts: new Date().toISOString(),
+          // When the user's message arrived (not when the log write runs), so
+          // the admin transcript can show real gaps between turns.
+          ts: new Date(startedAt).toISOString(),
           sessionId: body.sessionId ?? null,
           currentPage: ctx.currentPage,
           pageState: ctx.pageState ?? null,

@@ -110,6 +110,10 @@ export interface ConversationData {
    *  nothing) in the visitor's chat instead of a real card. Absent on rows
    *  written before this was tracked. */
   fallbackCards?: unknown[]
+  /** One entry per logged turn (aligned with `tools`): ISO timestamp of when
+   *  that turn's user message arrived. Absent on rows written before this was
+   *  tracked. */
+  turnTimes?: unknown[]
   citations: string[]
   /** Resolved name/url for each cited listing, so cards survive deletion. */
   citationRefs: StoredCitation[]
@@ -310,6 +314,8 @@ async function findConversationBySession(
 }
 
 export async function upsertConversation(input: {
+  /** ISO timestamp of when this turn's user message arrived. */
+  turnAt: string
   session: string | null
   page: string
   user: string
@@ -348,6 +354,9 @@ export async function upsertConversation(input: {
     fallbackCards: previous
       ? [...(previous.fallbackCards ?? []), input.fallbackCards]
       : [input.fallbackCards],
+    turnTimes: previous
+      ? [...(previous.turnTimes ?? []), input.turnAt]
+      : [input.turnAt],
     citations: previous
       ? Array.from(new Set([...previous.citations, ...input.citations]))
       : input.citations,

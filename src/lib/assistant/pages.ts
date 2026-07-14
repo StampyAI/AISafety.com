@@ -32,10 +32,10 @@ export const PAGES: PageInfo[] = [
     greeting:
       'Looking for a role in AI safety? Tell me what kind of work, seniority, or location you want.',
     chips: [
-      'Junior policy roles I could realistically get hired for',
       'Remote technical roles',
-      'Operations and ops jobs',
-      'Roles for non-technical people',
+      'Policy and governance jobs',
+      'Entry-level roles',
+      'Jobs for non-technical people',
     ],
   },
   {
@@ -61,7 +61,7 @@ export const PAGES: PageInfo[] = [
     greeting:
       'Want to give to AI safety effectively? Tell me roughly how much you want to donate and how much time you have.',
     chips: [
-      'I want to donate $5,000 this weekend',
+      'I want to donate a few thousand dollars',
       'Best fund for a small donation',
       'Where do major donors give?',
     ],
@@ -77,7 +77,7 @@ export const PAGES: PageInfo[] = [
     chips: [
       'Talk to a career advisor',
       'Advisors for technical research',
-      'Advisors for policy careers',
+      "I'm not sure how I can contribute",
     ],
   },
   {
@@ -115,7 +115,11 @@ export const PAGES: PageInfo[] = [
       "There's a wide range of events and training programs in AI safety, both online and in-person. These can help you build skills, make connections, and discover opportunities.",
     audience: 'People looking for events to attend or programs to apply to.',
     greeting: 'Looking for an upcoming event or training program in AI safety?',
-    chips: ['Upcoming conferences', 'Training programs accepting applications'],
+    chips: [
+      'Upcoming conferences',
+      'Training programs accepting applications',
+      'Online events I can join from anywhere',
+    ],
   },
   {
     path: '/founders',
@@ -139,7 +143,11 @@ export const PAGES: PageInfo[] = [
     audience: 'People with time to volunteer on AI safety work.',
     greeting:
       'Want to volunteer on AI safety work? I can match you to an active project.',
-    chips: ['Active projects looking for volunteers', 'Technical projects'],
+    chips: [
+      'I can code – show me projects',
+      'Non-technical ways to volunteer',
+      'Projects needing the least time',
+    ],
   },
   {
     path: '/media-channels',
@@ -149,7 +157,11 @@ export const PAGES: PageInfo[] = [
     audience: 'People who want to follow the field.',
     greeting:
       'Want to follow AI safety news and ideas? I can suggest podcasts, newsletters, and blogs.',
-    chips: ['Best AI safety podcasts', 'Weekly newsletters'],
+    chips: [
+      'Best AI safety podcasts',
+      'Newsletters to stay up to date',
+      'YouTube channels worth following',
+    ],
   },
   {
     path: '/map',
@@ -160,7 +172,7 @@ export const PAGES: PageInfo[] = [
     greeting:
       'Looking for orgs working on a specific area of AI safety? I can find them by category or focus.',
     chips: [
-      'Research labs in alignment',
+      'Alignment research orgs',
       'Advocacy organizations',
       'Career-support orgs',
     ],

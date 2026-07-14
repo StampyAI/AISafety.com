@@ -19,7 +19,7 @@ export const PAGES: PageInfo[] = [
     chips: [
       "I'm new to AI safety",
       'Communities near me',
-      'I want a job in AI safety',
+      "Who's working on AI policy?",
     ],
   },
   {

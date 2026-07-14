@@ -123,6 +123,9 @@ interface ConversationData {
   /** Per-turn (aligned with tools): card ids that degraded to a "Browse X"
    *  link in the visitor's chat. Absent on rows from before this was logged. */
   fallbackCards?: unknown[]
+  /** Per-turn (aligned with tools): ISO timestamp of when that turn's user
+   *  message arrived. Absent on rows from before this was logged. */
+  turnTimes?: unknown[]
   citations: string[]
   citationRefs?: { id: string; name: string; url: string; logo?: string }[]
   geo: { city?: string; region?: string; country?: string } | null
@@ -205,6 +208,28 @@ function formatTime(iso: string): string {
 
 function formatLatency(ms: number): string {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
+/** When the user message at history index msgIdx was sent, e.g. "14:03" — or
+ *  "14 July, 14:03" when it falls on a different day than the conversation
+ *  started. Undefined for rows logged before turn times were tracked. */
+function timeForUserMessage(
+  data: ConversationData,
+  msgIdx: number,
+  conversationStart: string
+): string | undefined {
+  // turnEntryForMessage counts user messages BEFORE msgIdx; passing the index
+  // just past this user message counts the message itself, landing on its own
+  // turn entry (the same one its reply resolves to).
+  const ts = turnEntryForMessage(data.history, data.turnTimes ?? [], msgIdx + 1)
+  if (typeof ts !== 'string') return undefined
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return undefined
+  const time = formatTime(ts)
+  const sameDay = formatDay(ts) === formatDay(conversationStart)
+  if (sameDay) return time
+  const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+  return `${day}, ${time}`
 }
 
 // Conversations this browser has already opened, so reviewed chats read as
@@ -632,6 +657,22 @@ function ConversationRow({
                       >
                         <div className={styles.convTurnRole}>
                           {t.role === 'user' ? 'User' : 'Chatbot'}
+                          {t.role === 'user' &&
+                            (() => {
+                              const time = timeForUserMessage(
+                                data,
+                                i,
+                                conv.createdAt
+                              )
+                              return time ? (
+                                <span
+                                  className={styles.convTurnTime}
+                                  title="When the visitor sent this message (your browser's local timezone)"
+                                >
+                                  {time}
+                                </span>
+                              ) : null
+                            })()}
                         </div>
                         <VisitedPages reads={reads} />
                         {t.role === 'user' ? (

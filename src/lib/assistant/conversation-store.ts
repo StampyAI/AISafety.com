@@ -49,6 +49,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
   if (isConversationsTableConfigured()) {
     try {
       await upsertConversation({
+        turnAt: turn.ts,
         session: turn.sessionId,
         page: turn.currentPage,
         user: turn.user,

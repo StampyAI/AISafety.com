@@ -802,6 +802,13 @@
   margin-bottom: 4px;
 }
 
+.convTurnTime {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--teal-500);
+}
+
 .convTurnContent {
   font-size: 13px;
   color: var(--white);

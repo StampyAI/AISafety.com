@@ -108,6 +108,12 @@
   border-bottom: none;
 }
 
+/* Every other body row gets a faint tint so wide rows are easier to track.
+   The show-more button row is a control, not data, so it stays untinted. */
+.table tbody tr:nth-child(even):not(.showMoreRow) {
+  background-color: color-mix(in srgb, var(--teal-850) 60%, var(--teal-800));
+}
+
 .nameCell {
   display: flex;
   align-items: center;

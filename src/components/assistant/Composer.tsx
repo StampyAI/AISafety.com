@@ -50,7 +50,7 @@ const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer(
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={handleKey}
-          placeholder={placeholder ?? 'Type a message…'}
+          placeholder={placeholder ?? 'Ask in any language…'}
           rows={1}
           maxLength={4000}
           aria-label="Message"

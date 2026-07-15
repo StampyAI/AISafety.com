@@ -4,27 +4,28 @@ import { EVENT_TYPES, type EventType } from '../event-types'
 const TABLE_ID = 'tblXbN9swwldwq8f7'
 const VIEW_ID: string | undefined = undefined
 
-interface AirtableRecord {
-  fields: {
-    Name?: string
-    Description?: string
-    URL?: string
-    Type?: string | string[]
-    Location?: string | string[]
-    'Online?'?: boolean
-    'Start date'?: string
-    'End date'?: string
-    'Start time'?: string
-    'End time'?: string
-    'Applications open or today'?: string
-    'Applications/registrations close'?: string
-    'Host name'?: string
-    Cost?: string | string[]
-    Logo?: Array<{ url: string }>
-    Featured?: string
-    'Featured tagline'?: string
-  }
-}
+// Permanent Airtable field IDs for the Events table. Fetching by ID
+// (returnFieldsByFieldId) keeps the page working when fields are renamed
+// in Airtable.
+const FIELD = {
+  name: 'fldHDwWtiBFYN9fgf',
+  description: 'fldAdLfIFJlJYD3Fm',
+  url: 'fldvCJ4pBXAxxSWRo',
+  type: 'fldF03SyCeA0aM68n',
+  online: 'fldaCB147ky62Cb83',
+  startDate: 'fldsDuvoXahPLGYEN',
+  endDate: 'fldAAtwTu3POfROpi',
+  deadline: 'fldRhQqHVTVvGFM3k',
+  deadlineType: 'fldkz9cW2FkG8xHac',
+  location: 'fldqvyFLWjImT4n1y',
+  logo: 'fldYAG5RVeT6FbSHa',
+  host: 'fldNKTGHFtf4EptQ7',
+  cost: 'fldcgDGeUkOAFdnWg',
+  featured: 'fldPlLRAopKjDlSEV',
+  featuredTagline: 'fld2rzRd4asMe18aQ',
+  publish: 'flddgpgNm090Uftsq',
+  hide: 'fldsYr7bsZb3eCPum',
+} as const
 
 export interface EventListing {
   id: string
@@ -41,14 +42,23 @@ export interface EventListing {
   host: string
   cost: string[]
   applicationStatus: 'Open' | 'Closed'
+  applicationsClose: string | null
+  deadlineType: 'Apply' | 'Register' | null
   logo: string | null
   featured: '1' | '2' | null
   featuredTagline: string | null
 }
 
-function toArray(value: string | string[] | undefined): string[] {
-  if (!value) return []
-  return Array.isArray(value) ? value : [value]
+function optionalString(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null
+}
+
+function toArray(value: unknown): string[] {
+  if (typeof value === 'string') return value ? [value] : []
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string')
+  }
+  return []
 }
 
 function normalizeUrl(url: string): string {
@@ -85,69 +95,89 @@ export async function getEvents(): Promise<EventListing[]> {
     return []
   }
 
+  // Publish/Hide filtering and date sorting happen in code below rather than
+  // in the Airtable query — filterByFormula and sort reference fields by
+  // name, which would break when a field is renamed.
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
-    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
-    sort: [{ field: 'Start date', direction: 'asc' }],
+    returnFieldsByFieldId: true,
   })
 
   const today = new Date().toISOString().slice(0, 10)
   const results: EventListing[] = []
 
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
-    if (!fields.Name) continue
+    const f = record.fields
+    const name = optionalString(f[FIELD.name])
+    if (!name) continue
+    if (f[FIELD.publish] !== true || f[FIELD.hide] === true) continue
 
-    const startDate = fields['Start date'] || null
-    const endDate = fields['End date'] || null
+    const startDate = optionalString(f[FIELD.startDate])
+    const endDate = optionalString(f[FIELD.endDate])
     if (!isUpcomingOrOngoing(endDate, startDate)) continue
 
-    const rawTypes = toArray(fields.Type)
+    const rawTypes = toArray(f[FIELD.type])
     for (const t of rawTypes) {
       if (!EVENT_TYPES.includes(t as EventType)) {
         console.warn(
-          `[events] "${fields.Name}" has unexpected Type "${t}" ` +
+          `[events] "${name}" has unexpected Type "${t}" ` +
             `(allowed: ${EVENT_TYPES.join(', ')})`
         )
       }
     }
     const type = rawTypes.filter(t => EVENT_TYPES.includes(t as EventType))
 
-    const location = Array.isArray(fields.Location)
-      ? fields.Location.join(', ')
-      : fields.Location || ''
+    const location = toArray(f[FIELD.location]).join(', ')
     const isOnline =
-      fields['Online?'] === true || location.trim().toLowerCase() === 'online'
+      f[FIELD.online] === true || location.trim().toLowerCase() === 'online'
 
-    const opensOn = fields['Applications open or today']
-    const closesOn = fields['Applications/registrations close']
+    // No close date means there is nothing to apply/register for, so the
+    // event counts as open. See the field descriptions on the Events table.
+    const closesOn = optionalString(f[FIELD.deadline])
     const applicationStatus: 'Open' | 'Closed' =
-      !!opensOn && !!closesOn && opensOn <= today && closesOn >= today
-        ? 'Open'
-        : 'Closed'
+      !closesOn || closesOn >= today ? 'Open' : 'Closed'
+
+    const rawDeadlineType = optionalString(f[FIELD.deadlineType])
+    const deadlineType =
+      rawDeadlineType === 'Apply' || rawDeadlineType === 'Register'
+        ? rawDeadlineType
+        : null
+    if (rawDeadlineType && !deadlineType) {
+      console.warn(
+        `[events] "${name}" has unexpected Deadline type "${rawDeadlineType}" (allowed: Apply, Register)`
+      )
+    }
+    if (deadlineType && !closesOn) {
+      console.warn(
+        `[events] "${name}" has a Deadline type but no deadline date — no deadline will be shown`
+      )
+    }
+
+    const logoField = f[FIELD.logo] as Array<{ url?: string }> | undefined
+    const featuredRaw = f[FIELD.featured]
 
     results.push({
       id: record.id,
-      name: fields.Name,
-      description: fields.Description || '',
-      url: normalizeUrl(fields.URL || ''),
+      name,
+      description: optionalString(f[FIELD.description]) || '',
+      url: normalizeUrl(optionalString(f[FIELD.url]) || ''),
       type,
       location,
       isOnline,
       startDate,
       endDate,
-      startTime: fields['Start time'] || null,
-      endTime: fields['End time'] || null,
-      host: fields['Host name'] || '',
-      cost: toArray(fields.Cost),
+      // The Events table has no time fields yet.
+      startTime: null,
+      endTime: null,
+      host: optionalString(f[FIELD.host]) || '',
+      cost: toArray(f[FIELD.cost]),
       applicationStatus,
-      logo: fields.Logo?.[0]?.url ?? null,
-      featured:
-        fields.Featured === '1' || fields.Featured === '2'
-          ? (fields.Featured as '1' | '2')
-          : null,
-      featuredTagline: fields['Featured tagline'] || null,
+      applicationsClose: closesOn,
+      deadlineType,
+      logo: logoField?.[0]?.url ?? null,
+      featured: featuredRaw === '1' || featuredRaw === '2' ? featuredRaw : null,
+      featuredTagline: optionalString(f[FIELD.featuredTagline]),
     })
   }
 

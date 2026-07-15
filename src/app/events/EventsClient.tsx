@@ -67,6 +67,12 @@ function formatEventTime(
   return endTime ? `${startTime} – ${endTime}` : startTime
 }
 
+function formatDeadline(event: EventListing): string | null {
+  if (!event.deadlineType || !event.applicationsClose) return null
+  const d = parseISO(event.applicationsClose)
+  return `${event.deadlineType} by ${d.getUTCDate()} ${shortMonth(d)} ${d.getUTCFullYear()}`
+}
+
 function monthKey(startDate: string | null): string {
   if (!startDate) return 'tbc'
   const d = parseISO(startDate)
@@ -93,11 +99,13 @@ function titleMetaFor(event: EventListing) {
 }
 
 function bottomMetaFor(event: EventListing) {
+  const deadline = formatDeadline(event)
   const rows: { icon: string; value: string }[] = []
   if (event.host)
     rows.push({ icon: '/images/icons/person.svg', value: `By ${event.host}` })
   if (event.cost.length > 0)
     rows.push({ icon: '/images/icons/tag.svg', value: event.cost.join(', ') })
+  if (deadline) rows.push({ icon: '/images/icons/paper.svg', value: deadline })
   return rows
 }
 

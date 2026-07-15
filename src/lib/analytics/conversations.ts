@@ -133,12 +133,73 @@ const LANGUAGE_NAMES: Record<string, string> = {
 }
 const DETECTABLE = Object.keys(LANGUAGE_NAMES)
 
-/** Best-effort language of a conversation, from everything the visitor wrote
- *  (concatenated — more text makes trigram detection much more reliable).
- *  'Unknown' when there's too little text to call. */
+/** Common English words (function words plus the content words this site's
+ *  queries actually use). Trigram detection is unreliable on short texts —
+ *  "show me jobs" reads as Hungarian, "Communities near me" as Spanish — so
+ *  a text where these words dominate is called English before franc runs. */
+const ENGLISH_WORDS = new Set(
+  `the a an and or but of to in on for with at from by about as into out up
+   over is are am was were be been being do does did done have has had will
+   would can could should shall may might must not no yes if then than so
+   because i im i'm me my mine we our us you your it its this that these
+   those there here what which who whom whose how when where why any some
+   all more most best good great new near also just like want wants need
+   needs looking look find show get give go going help know think thinks
+   make start started starting work working worked learn learning apply
+   applying applied interested interesting course courses program programs
+   programme training event events conference conferences community
+   communities group groups people person role roles remote entry level
+   career careers research researcher researchers policy governance funding
+   grant grants fund funds funders donate donation donations money
+   organization organizations organisation organisations volunteer
+   volunteering project projects please thanks thank hi hello hey very
+   really much many lot again still currently upcoming accepting
+   application applications open now soon today part full time week month
+   year long short beginner beginners friendly technical individual orgs
+   ok okay cool test message messages model models dear u r ur pls plz
+   wheres whats hows thats dont cant wont ive ill id youre yeah sure maybe`
+    .split(/\s+/)
+    .filter(Boolean)
+)
+
+/** Words that are the same in visitor queries regardless of language ("AI",
+ *  "safety", "job" — German and Spanish speakers write these too). They count
+ *  as neither English nor foreign evidence. */
+const NEUTRAL_WORDS = new Set([
+  'ai',
+  'agi',
+  'ml',
+  'llm',
+  'llms',
+  'safety',
+  'alignment',
+  'job',
+  'jobs',
+])
+
+/** Best-effort language of a conversation, from everything the visitor wrote.
+ *
+ *  Suggested-chip messages are site-authored English, so they say nothing
+ *  about the visitor's own language and are set aside — a chip-only
+ *  conversation counts as English (that's the language the visitor chose to
+ *  interact in). For typed text, a simple word check runs first: if common
+ *  English words dominate, it's English — this is what actually decides most
+ *  real queries, because trigram detection (franc) misreads short English as
+ *  its Latin-script neighbours. franc then only judges texts that don't look
+ *  English, which is what it's good at. 'Unknown' when there's too little to
+ *  call. */
 function detectLanguage(messages: string[]): string {
-  const text = messages.join(' ').trim()
+  const typed = messages.filter(m => !CHIP_TEXTS.has(normalize(m)))
+  if (typed.length === 0) return messages.length > 0 ? 'English' : 'Unknown'
+  const text = typed.join(' ').trim()
   if (!text) return 'Unknown'
+
+  const words = text.toLowerCase().match(/[\p{L}']+/gu) ?? []
+  const scorable = words.filter(w => !NEUTRAL_WORDS.has(w))
+  if (words.length > 0 && scorable.length === 0) return 'English' // e.g. "AI safety"
+  const hits = scorable.filter(w => ENGLISH_WORDS.has(w)).length
+  if (hits / scorable.length >= 0.4) return 'English'
+
   const code = franc(text, { only: DETECTABLE })
   return LANGUAGE_NAMES[code] ?? 'Unknown'
 }

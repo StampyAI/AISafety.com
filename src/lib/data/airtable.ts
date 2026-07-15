@@ -22,6 +22,8 @@ interface FetchOptions {
   filterByFormula?: string
   sort?: Array<{ field: string; direction: 'asc' | 'desc' }>
   fields?: string[]
+  /** Key record fields by permanent field ID instead of name (rename-proof). */
+  returnFieldsByFieldId?: boolean
 }
 
 const CACHE_DIR = path.join(process.cwd(), 'public', 'images', 'airtable-cache')
@@ -327,6 +329,9 @@ async function fetchAirtableRecordsImpl(
     }
     if (options.fields) {
       options.fields.forEach(f => url.searchParams.append('fields[]', f))
+    }
+    if (options.returnFieldsByFieldId) {
+      url.searchParams.set('returnFieldsByFieldId', 'true')
     }
     if (offset) {
       url.searchParams.set('offset', offset)

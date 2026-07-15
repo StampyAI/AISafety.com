@@ -41,11 +41,10 @@ export default function PrivacyPage() {
           messages, the page you were on, how you arrived at the site, and your
           approximate location (city and country, estimated from your IP
           address, which we don&apos;t keep). Conversations may be reviewed by
-          the AISafety.com team and trusted partners, and are deleted once
-          they&apos;re no longer needed. The chat tells you this before you
-          start typing. Please don&apos;t share sensitive personal information
-          in the chat, and if you&apos;d like a conversation deleted, contact us
-          using the form below.
+          the AISafety.com team and trusted partners — the chat tells you this
+          before you start typing. Please don&apos;t share sensitive personal
+          information in the chat, and if you&apos;d like a conversation
+          deleted, contact us using the form below.
         </p>
 
         <h3 className="padding-bottom-16px">Services we rely on</h3>

@@ -16,8 +16,8 @@ interface AirtableRecord {
     'End date'?: string
     'Start time'?: string
     'End time'?: string
-    'Applications open or today'?: string
     'Applications/registrations close'?: string
+    'Deadline type'?: string
     'Host name'?: string
     Cost?: string | string[]
     Logo?: Array<{ url: string }>
@@ -41,6 +41,8 @@ export interface EventListing {
   host: string
   cost: string[]
   applicationStatus: 'Open' | 'Closed'
+  applicationsClose: string | null
+  deadlineType: 'Apply' | 'Register' | null
   logo: string | null
   featured: '1' | '2' | null
   featuredTagline: string | null
@@ -120,12 +122,27 @@ export async function getEvents(): Promise<EventListing[]> {
     const isOnline =
       fields['Online?'] === true || location.trim().toLowerCase() === 'online'
 
-    const opensOn = fields['Applications open or today']
-    const closesOn = fields['Applications/registrations close']
+    // No close date means there is nothing to apply/register for, so the
+    // event counts as open. See the field descriptions on the Events table.
+    const closesOn = fields['Applications/registrations close'] || null
     const applicationStatus: 'Open' | 'Closed' =
-      !!opensOn && !!closesOn && opensOn <= today && closesOn >= today
-        ? 'Open'
-        : 'Closed'
+      !closesOn || closesOn >= today ? 'Open' : 'Closed'
+
+    const rawDeadlineType = fields['Deadline type']
+    const deadlineType =
+      rawDeadlineType === 'Apply' || rawDeadlineType === 'Register'
+        ? rawDeadlineType
+        : null
+    if (rawDeadlineType && !deadlineType) {
+      console.warn(
+        `[events] "${fields.Name}" has unexpected Deadline type "${rawDeadlineType}" (allowed: Apply, Register)`
+      )
+    }
+    if (deadlineType && !closesOn) {
+      console.warn(
+        `[events] "${fields.Name}" has a Deadline type but no Applications/registrations close date — no deadline will be shown`
+      )
+    }
 
     results.push({
       id: record.id,
@@ -142,6 +159,8 @@ export async function getEvents(): Promise<EventListing[]> {
       host: fields['Host name'] || '',
       cost: toArray(fields.Cost),
       applicationStatus,
+      applicationsClose: closesOn,
+      deadlineType,
       logo: fields.Logo?.[0]?.url ?? null,
       featured:
         fields.Featured === '1' || fields.Featured === '2'

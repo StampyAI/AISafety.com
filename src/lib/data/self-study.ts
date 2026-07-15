@@ -1,21 +1,32 @@
-import { fetchAirtableRecords } from './airtable'
+import {
+  fetchAirtableRecords,
+  fieldAttachmentUrl,
+  fieldFeatured,
+  fieldString,
+  fieldText,
+  publishedFormula,
+} from './airtable'
 
 const TABLE_ID = 'tblRNYJ0m1cmJXKKk'
 const VIEW_ID = 'viwblgaia3x1gsqBo'
 
-interface AirtableRecord {
-  fields: {
-    Name?: string
-    Description?: string
-    Focus?: string | string[]
-    Format?: string | string[]
-    'Created by'?: string
-    Link?: string
-    Logo?: Array<{ url: string }>
-    Featured?: string
-    'Featured tagline'?: string
-  }
-}
+// Permanent Airtable field IDs for the Self-study table. Fetching,
+// filtering and sorting by ID keeps the page working when fields are
+// renamed.
+const FIELD = {
+  name: 'fldQQt1WHmasrayDD', // Name
+  description: 'fld3BWX1PMV9R3lA5', // Description
+  focus: 'fldkyFFjqE02A5nPP', // Focus
+  format: 'fld5x5ek1pBqG9FNV', // Format
+  createdBy: 'fldQAhN1cBrYe5RSY', // Created by
+  link: 'fldkkeUHGbVSFit1g', // Link
+  logo: 'fldtcSqZB0sKbzVCK', // Logo
+  featured: 'fldETJCJIuQwxEvmu', // Featured
+  featuredTagline: 'fldvZjLjgSlDbtfre', // Featured tagline
+  sort: 'fldThp6KjSXk03P7p', // Sort
+  publish: 'fldWShxP7GkMeh6rg', // Publish?
+  hide: 'fldTF2A1ibOD8w3RO', // Hide?
+} as const
 
 export interface Course {
   id: string
@@ -34,38 +45,28 @@ export async function getCourses(): Promise<Course[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
-    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
-    sort: [{ field: 'Sort', direction: 'asc' }],
+    returnFieldsByFieldId: true,
+    filterByFormula: publishedFormula(FIELD.publish, FIELD.hide),
+    sort: [{ field: FIELD.sort, direction: 'asc' }],
   })
 
   const results: Course[] = []
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
-    if (!fields.Name) continue
-
-    let image: string | null = null
-    if (fields.Logo && fields.Logo.length > 0) {
-      image = fields.Logo[0].url
-    }
+    const f = record.fields
+    const name = fieldString(f[FIELD.name])
+    if (!name) continue
 
     results.push({
       id: record.id,
-      name: fields.Name,
-      description: fields.Description || '',
-      category: Array.isArray(fields.Focus)
-        ? fields.Focus.join(', ')
-        : fields.Focus || '',
-      courseType: Array.isArray(fields.Format)
-        ? fields.Format.join(', ')
-        : fields.Format || '',
-      organizer: fields['Created by'] || '',
-      url: fields.Link || '#',
-      image,
-      featured:
-        fields.Featured === '1' || fields.Featured === '2'
-          ? (fields.Featured as '1' | '2')
-          : null,
-      featuredTagline: fields['Featured tagline'] || null,
+      name,
+      description: fieldString(f[FIELD.description]) || '',
+      category: fieldText(f[FIELD.focus]),
+      courseType: fieldText(f[FIELD.format]),
+      organizer: fieldString(f[FIELD.createdBy]) || '',
+      url: fieldString(f[FIELD.link]) || '#',
+      image: fieldAttachmentUrl(f[FIELD.logo]),
+      featured: fieldFeatured(f[FIELD.featured]),
+      featuredTagline: fieldString(f[FIELD.featuredTagline]),
     })
   }
 

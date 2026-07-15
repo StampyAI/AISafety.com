@@ -1,21 +1,30 @@
-import { fetchAirtableRecords } from './airtable'
+import {
+  fetchAirtableRecords,
+  fieldAttachmentUrl,
+  fieldFeatured,
+  fieldString,
+  fieldText,
+  publishedFormula,
+} from './airtable'
 
 const TABLE_ID = 'tblzMTLDZWZKqTxrq'
 const VIEW_ID = 'viwxv2w8utSEhUeiJ'
 
-interface AirtableRecord {
-  fields: {
-    Name?: string
-    Description?: string
-    Logo?: Array<{ url: string }>
-    Type?: string | string[]
-    'Recipient type'?: string | string[]
-    'Accepting applications?'?: string | string[]
-    Website?: string
-    Featured?: string
-    'Featured tagline'?: string
-  }
-}
+// Permanent Airtable field IDs for the Funding table. Fetching, filtering
+// and sorting by ID keeps the page working when fields are renamed.
+const FIELD = {
+  name: 'fldsFpgVduYnNuYkN', // Name
+  description: 'fldBm7ZehvD2anFg8', // Description
+  logo: 'fldVVx7c5jJRvKxDB', // Logo
+  type: 'fldu44vSLT2tH4fqh', // Type
+  acceptingApplications: 'fld398tQjtRGz0Pk1', // Accepting applications?
+  website: 'fldpc3AO5j2k3PU3b', // Website
+  featured: 'fldS0WL2vXJ0h2HQs', // Featured
+  featuredTagline: 'fldNevMnRCmCzv4Jt', // Featured tagline
+  sort: 'fldDDTHjJHiUUBz7k', // Sort
+  publish: 'fldoH88AbtQLEViD7', // Publish?
+  hide: 'fldU5a381Lcgjgzp8', // Hide?
+} as const
 
 export interface Funder {
   id: string
@@ -34,40 +43,29 @@ export async function getFunders(): Promise<Funder[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
-    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
-    sort: [{ field: 'Sort', direction: 'asc' }],
+    returnFieldsByFieldId: true,
+    filterByFormula: publishedFormula(FIELD.publish, FIELD.hide),
+    sort: [{ field: FIELD.sort, direction: 'asc' }],
   })
 
   const results: Funder[] = []
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
-    if (!fields.Name) continue
-
-    let logo: string | null = null
-    if (fields.Logo && fields.Logo.length > 0) {
-      logo = fields.Logo[0].url
-    }
+    const f = record.fields
+    const name = fieldString(f[FIELD.name])
+    if (!name) continue
 
     results.push({
       id: record.id,
-      name: fields.Name,
-      description: fields.Description || '',
-      logo,
-      type: Array.isArray(fields.Type)
-        ? fields.Type.join(', ')
-        : fields.Type || '',
-      recipientType: Array.isArray(fields['Recipient type'])
-        ? fields['Recipient type'].join(', ')
-        : fields['Recipient type'] || '',
-      acceptingApplications: Array.isArray(fields['Accepting applications?'])
-        ? fields['Accepting applications?'].join(', ')
-        : fields['Accepting applications?'] || '',
-      url: fields.Website || '#',
-      featured:
-        fields.Featured === '1' || fields.Featured === '2'
-          ? (fields.Featured as '1' | '2')
-          : null,
-      featuredTagline: fields['Featured tagline'] || null,
+      name,
+      description: fieldString(f[FIELD.description]) || '',
+      logo: fieldAttachmentUrl(f[FIELD.logo]),
+      type: fieldText(f[FIELD.type]),
+      // The Recipient type field no longer exists in Airtable.
+      recipientType: '',
+      acceptingApplications: fieldText(f[FIELD.acceptingApplications]),
+      url: fieldString(f[FIELD.website]) || '#',
+      featured: fieldFeatured(f[FIELD.featured]),
+      featuredTagline: fieldString(f[FIELD.featuredTagline]),
     })
   }
 

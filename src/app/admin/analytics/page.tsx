@@ -5,8 +5,14 @@ import {
   type Counted,
   type DateRange,
   type ChatbotFunnel,
+  type ChatbotDestination,
   type OverallListingRow,
 } from '@/lib/analytics/events'
+import {
+  readConversationStats,
+  type ConversationStats,
+  type TopQuestion,
+} from '@/lib/analytics/conversations'
 import { getFunders } from '@/lib/data/funding'
 import { getCourses } from '@/lib/data/self-study'
 import { getAdvisors } from '@/lib/data/advisors'
@@ -58,7 +64,7 @@ const PAGE_NAV: { name: string; label: string; icon: string }[] = [
 // resource page can never collide with them.
 const OVERVIEW_TABS: { key: string; label: string }[] = [
   { key: 'pages', label: 'Overview' },
-  { key: 'funnel', label: 'Chatbot funnel' },
+  { key: 'chatbot', label: 'Chatbot' },
 ]
 const OVERVIEW_KEYS = new Set(OVERVIEW_TABS.map(t => t.key))
 
@@ -202,8 +208,10 @@ const CHATBOT_LABELS: Record<string, string> = {
 }
 
 function pillFor(e: { page?: string; type: string }): string | null {
-  if (e.page) return e.page
+  // Chatbot first: chatbot events carry the page they happened on too, but in
+  // the feed they should read as chatbot activity, not page clicks.
   if (e.type.startsWith('chatbot')) return 'Chatbot'
+  if (e.page) return e.page
   return null
 }
 
@@ -259,14 +267,16 @@ export default async function AnalyticsPage({
   // every click.
   const unique = first(sp.clicks) !== 'total'
 
-  // The dashboard is tabbed: two overview tabs (the funnel and the by-page
+  // The dashboard is tabbed: two overview tabs (the chatbot and the by-page
   // table) plus one tab per resource page. `tab` holds the active tab — an
   // overview key, or a resource page's analytics name. A resource tab is the
   // page we ask the store to drill into; the overview tabs need no page.
-  const tabReq = first(sp.tab)
+  // 'funnel' is the Chatbot tab's old key, kept working for bookmarked urls.
+  const tabRaw = first(sp.tab)
+  const tabReq = tabRaw === 'funnel' ? 'chatbot' : tabRaw
   const onResourceTab = tabReq != null && !OVERVIEW_KEYS.has(tabReq)
 
-  const [data, funders] = await Promise.all([
+  const [data, funders, convStats] = await Promise.all([
     readDashboard(
       range,
       onResourceTab ? tabReq : undefined,
@@ -274,6 +284,9 @@ export default async function AnalyticsPage({
       first(sp.source)
     ),
     getFunders().catch(() => []),
+    // The transcript-derived stats only render on the Chatbot tab, so only
+    // fetch the (ever-growing) conversation log when it's the active tab.
+    tabReq === 'chatbot' ? readConversationStats(range) : null,
   ])
 
   // Resource-page tabs: every page in PAGE_NAV always gets one (so quiet pages
@@ -412,10 +425,15 @@ export default async function AnalyticsPage({
             params={sp}
           />
 
-          {activeTab === 'funnel' && (
-            <Panel title="Chatbot funnel · unique users">
-              <Funnel funnel={data.funnel} />
-            </Panel>
+          {activeTab === 'chatbot' && (
+            <ChatbotView
+              funnel={data.funnel}
+              opensByPage={data.chatbot.opensByPage}
+              opensByTrigger={data.chatbot.opensByTrigger}
+              destinations={data.chatbot.destinations}
+              conv={convStats}
+              unique={unique}
+            />
           )}
 
           {activeTab === 'pages' && (
@@ -764,6 +782,7 @@ function TruncationNote({ shown, of }: { shown: number; of: number }) {
 function CountTable({
   rows: allRows,
   labelHead,
+  countHead = 'Clicks',
   rankHead = '#',
   logoFor,
   linkFor,
@@ -772,6 +791,9 @@ function CountTable({
 }: {
   rows: Counted[]
   labelHead: string
+  /** Heading for the count column — 'Clicks' unless the rows count something
+   *  else (opens, conversations, …). */
+  countHead?: string
   rankHead?: string
   logoFor?: (name: string) => string | undefined
   /** Destination url for a row's logo. When set, the logo becomes a link to the
@@ -795,7 +817,7 @@ function CountTable({
           <tr>
             {rankFor && <th className={styles.rankCol}>{rankHead}</th>}
             <th>{labelHead}</th>
-            <th className={styles.numCol}>Clicks</th>
+            <th className={styles.numCol}>{countHead}</th>
             {showPct && <th className={styles.pctCol}>%</th>}
           </tr>
         </thead>
@@ -928,6 +950,216 @@ function OverallListingsTable({
             <td />
             <td className={styles.numCol}>{total.toLocaleString()}</td>
             {showPct && <td className={styles.pctCol}>{pct1(total, total)}</td>}
+          </tr>
+        </tfoot>
+      </table>
+      {allRows.length > rows.length && (
+        <TruncationNote shown={rows.length} of={allRows.length} />
+      )}
+    </>
+  )
+}
+
+/** The Chatbot tab: the unique-user funnel, where and how the panel gets
+ *  opened (first-party events, so they honour the date range and count mode),
+ *  transcript-derived conversation stats (the Airtable conversation log), and
+ *  what visitors click out of replies. */
+function ChatbotView({
+  funnel,
+  opensByPage,
+  opensByTrigger,
+  destinations,
+  conv,
+  unique,
+}: {
+  funnel: ChatbotFunnel
+  opensByPage: Counted[]
+  opensByTrigger: Counted[]
+  destinations: ChatbotDestination[]
+  conv: ConversationStats | null
+  unique: boolean
+}) {
+  const usersHead = unique ? 'Users' : undefined
+  const sum = (rows: Counted[]) => rows.reduce((s, r) => s + r.count, 0)
+  // Card clicks store only a url (no link text) — those rows read better as a
+  // prettified url than a raw one.
+  const destRows = destinations.map(d => ({
+    ...d,
+    name: d.url && d.name === d.url ? prettyUrl(d.url) : d.name,
+  }))
+  const destUrlByName = new Map(destRows.map(d => [d.name, d.url]))
+  const medianLength =
+    conv?.medianLength == null
+      ? '—'
+      : conv.medianLength === 1
+        ? '1 message'
+        : `${conv.medianLength} messages`
+  const share = (s: number | null) =>
+    s == null ? '—' : `${Math.round(100 * s)}%`
+  return (
+    <>
+      <Panel title="Funnel · unique users">
+        <Funnel funnel={funnel} />
+      </Panel>
+
+      <div className={styles.grid}>
+        <Panel title="Where it's opened">
+          <CountTable
+            rows={opensByPage}
+            labelHead="Page"
+            countHead={usersHead ?? 'Opens'}
+            total={sum(opensByPage)}
+          />
+          <p className={styles.caption}>
+            The page visitors were on when they opened the chat panel.
+          </p>
+        </Panel>
+        <Panel title="How it's opened">
+          <CountTable
+            rows={opensByTrigger}
+            labelHead="Opened via"
+            countHead={usersHead ?? 'Opens'}
+            total={sum(opensByTrigger)}
+          />
+          <p className={styles.caption}>
+            The pill button, a suggested-question chip, or the keyboard
+            shortcut. Tracked from 15 July 2026 — earlier opens show as
+            Untracked.
+          </p>
+        </Panel>
+      </div>
+
+      {conv && !conv.available && (
+        <div className={styles.empty}>
+          Couldn&apos;t reach the conversation log just now, so the conversation
+          panels are hidden — try refreshing in a moment.
+        </div>
+      )}
+
+      {conv?.available && (
+        <>
+          <Panel title="Conversations">
+            <div className={styles.funnel}>
+              <Stat
+                label="Conversations"
+                value={conv.totalConversations.toLocaleString()}
+              />
+              <Stat label="Median length" value={medianLength} />
+              <Stat
+                label="Started from a suggested question"
+                value={share(conv.suggestedShare)}
+              />
+              <Stat
+                label="Clicked a card or link"
+                value={share(conv.clickedShare)}
+              />
+            </div>
+            <p className={styles.caption}>
+              From the conversation log (every message since the chatbot
+              launched on 7 June 2026), for conversations started in the
+              selected date range. These panels count conversations, so the
+              Unique/Total toggle doesn&apos;t apply to them.
+            </p>
+          </Panel>
+
+          <div className={styles.grid}>
+            <Panel title="Conversation length">
+              <CountTable
+                rows={conv.lengthBuckets}
+                labelHead="Length"
+                countHead="Conversations"
+                total={sum(conv.lengthBuckets)}
+              />
+              <p className={styles.caption}>
+                How many messages the visitor sent in each conversation.
+              </p>
+            </Panel>
+            <Panel title="Languages">
+              <CountTable
+                rows={conv.languages}
+                labelHead="Language"
+                countHead="Conversations"
+                total={sum(conv.languages)}
+              />
+              <p className={styles.caption}>
+                Auto-detected from the visitor&apos;s messages, so approximate —
+                conversations too short to call show as Unknown.
+              </p>
+            </Panel>
+          </div>
+
+          <Panel title="Top questions">
+            <QuestionsTable rows={conv.topQuestions} />
+            <p className={styles.caption}>
+              Each conversation&apos;s first message. Suggested = matches one of
+              the chatbot&apos;s pre-written question chips, so it was started
+              with a chip click rather than typed.
+            </p>
+          </Panel>
+        </>
+      )}
+
+      <Panel title="Clicked from replies">
+        <CountTable
+          rows={destRows}
+          labelHead="Destination"
+          countHead={usersHead ?? 'Clicks'}
+          logoFor={name => faviconFor(destUrlByName.get(name))}
+          linkFor={name => destUrlByName.get(name)}
+          total={sum(destRows)}
+        />
+        <p className={styles.caption}>
+          The listing cards and links visitors opened from the chatbot&apos;s
+          replies.
+        </p>
+      </Panel>
+    </>
+  )
+}
+
+/** One stat in the Conversations row — reuses the funnel-stage styling so the
+ *  row reads like the funnel above it. */
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className={styles.funnelStage}>
+      <div className={styles.funnelValue}>{value}</div>
+      <div className={styles.funnelLabel}>{label}</div>
+    </div>
+  )
+}
+
+/** Top questions, with a pill marking the ones that match a suggested chip. */
+function QuestionsTable({ rows: allRows }: { rows: TopQuestion[] }) {
+  if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
+  const rows = allRows.slice(0, MAX_TABLE_ROWS)
+  const total = allRows.reduce((s, r) => s + r.count, 0)
+  return (
+    <>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Question</th>
+            <th className={styles.numCol}>Conversations</th>
+            <th className={styles.pctCol}>%</th>
+          </tr>
+        </thead>
+        <ExpandableBody colSpan={3}>
+          {rows.map((r, i) => (
+            <tr key={i}>
+              <td className={styles.nameCell}>
+                <span>{r.text}</span>
+                {r.suggested && <span className={styles.pill}>Suggested</span>}
+              </td>
+              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+              <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+            </tr>
+          ))}
+        </ExpandableBody>
+        <tfoot>
+          <tr className={styles.totalRow}>
+            <td className={styles.totalLabel}>Total</td>
+            <td className={styles.numCol}>{total.toLocaleString()}</td>
+            <td className={styles.pctCol}>{pct1(total, total)}</td>
           </tr>
         </tfoot>
       </table>

@@ -270,6 +270,26 @@ export interface ChatbotFunnel {
   clicked: number
 }
 
+export interface ChatbotDestination extends Counted {
+  /** Destination url — for the favicon and link in the dashboard table. */
+  url?: string
+}
+
+export interface ChatbotPanelData {
+  /** Opens bucketed by the page they happened on ('/funding', '/map', …).
+   *  Older opens carry no explicit page, so it's recovered from the beacon's
+   *  referer; opens where neither is known fall into 'Unknown'. */
+  opensByPage: Counted[]
+  /** Opens bucketed by what opened the panel: the floating pill, a suggested
+   *  question chip, or the keyboard shortcut. The trigger is only stamped on
+   *  opens recorded from 15 July 2026 — older ones show as 'Untracked'. */
+  opensByTrigger: Counted[]
+  /** Listings and links visitors clicked inside chatbot replies, busiest
+   *  first. `name` is the link's visible text when the click carried one,
+   *  otherwise the raw url (the dashboard prettifies it). */
+  destinations: ChatbotDestination[]
+}
+
 export interface DashboardData {
   /** Which backend served this data — surfaced in the UI so it's obvious in dev. */
   source: 'redis' | 'local-file' | 'none'
@@ -300,6 +320,8 @@ export interface DashboardData {
    *  'untracked'), or null for all sources. Only ever set on map pages. */
   selectedSource: string | null
   funnel: ChatbotFunnel
+  /** The Chatbot tab's event-derived panels (opens and reply clicks). */
+  chatbot: ChatbotPanelData
   recent: AnalyticsEvent[]
   /** Timestamp of the oldest event in the WHOLE store (not just the selected
    *  range) — lets the dashboard say how far back its data actually goes.
@@ -323,6 +345,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   bySource: [],
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
+  chatbot: { opensByPage: [], opensByTrigger: [], destinations: [] },
   recent: [],
   nearCap: [],
 }
@@ -426,8 +449,10 @@ function aggregate(
   })
   // Every click table below derives from this set. In unique mode it's deduped
   // to one click per visitor per listing per day, so repeat clicks don't inflate
-  // the counts; in total mode every click is counted.
-  const pageHits = inRange.filter(e => e.page)
+  // the counts; in total mode every click is counted. Filtered by type, not by
+  // "has a page": chatbot events also carry the page they happened on, and must
+  // not count as listing clicks.
+  const pageHits = inRange.filter(e => e.type === 'listing_click' && e.page)
   const clicks = unique ? uniqueClicks(pageHits) : pageHits
   const usersOf = (type: string) =>
     uniqueUsers(inRange.filter(e => e.type === type))
@@ -555,8 +580,94 @@ function aggregate(
       typed: usersOf('chatbot_message'),
       clicked: usersOf('chatbot_click'),
     },
+    chatbot: chatbotPanels(inRange, unique),
     recent: inRange.slice(0, 50), // already newest-first
   }
+}
+
+/** The page a chatbot event happened on: the explicitly stamped page when the
+ *  event carries one (from 15 July 2026), else the path of the beacon's referer
+ *  (which every earlier open still has). */
+function chatbotPage(e: AnalyticsEvent): string | undefined {
+  if (e.page) return e.page
+  if (!e.ref) return undefined
+  try {
+    return new URL(e.ref).pathname || '/'
+  } catch {
+    return undefined
+  }
+}
+
+/** How a chatbot open's stored trigger reads in the dashboard. */
+const TRIGGER_LABELS: Record<string, string> = {
+  pill: 'Pill button',
+  chip: 'Suggested question chip',
+  keyboard: 'Keyboard shortcut',
+}
+
+/** Bucket events by a key, counting either distinct users per bucket (matching
+ *  the funnel's unique-user semantics; events with no visitor id each count
+ *  once) or raw events. */
+function tallyChatbot(
+  events: AnalyticsEvent[],
+  keyOf: (e: AnalyticsEvent) => string,
+  unique: boolean
+): Counted[] {
+  if (!unique) return tally(events.map(keyOf))
+  const seen = new Set<string>()
+  const counts = new Map<string, number>()
+  for (const e of events) {
+    const key = keyOf(e)
+    if (e.vid) {
+      const dedupe = `${key}\n${e.vid}`
+      if (seen.has(dedupe)) continue
+      seen.add(dedupe)
+    }
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** The Chatbot tab's event-derived panels. `unique` mirrors the dashboard's
+ *  count mode: unique users per bucket, or every event. */
+function chatbotPanels(
+  inRange: AnalyticsEvent[],
+  unique: boolean
+): ChatbotPanelData {
+  const opens = inRange.filter(e => e.type === 'chatbot_open')
+  const clicks = inRange.filter(e => e.type === 'chatbot_click')
+
+  const opensByPage = tallyChatbot(
+    opens,
+    e => chatbotPage(e) ?? 'Unknown',
+    unique
+  )
+  const opensByTrigger = tallyChatbot(
+    opens,
+    e => (e.source ? (TRIGGER_LABELS[e.source] ?? e.source) : 'Untracked'),
+    unique
+  )
+
+  // Reply clicks bucketed by destination url; the most recent click's label
+  // (clicks are newest-first) names the row when one was recorded.
+  const byUrl = new Map<string, { name: string; url?: string; count: number }>()
+  const seen = new Set<string>()
+  for (const e of clicks) {
+    const url = e.url ?? e.label ?? '(unknown)'
+    if (unique && e.vid) {
+      const dedupe = `${url}\n${e.vid}`
+      if (seen.has(dedupe)) continue
+      seen.add(dedupe)
+    }
+    const g = byUrl.get(url) ?? { name: e.label ?? url, url: e.url, count: 0 }
+    g.count += 1
+    byUrl.set(url, g)
+  }
+  const destinations = [...byUrl.values()].sort((a, b) => b.count - a.count)
+
+  return { opensByPage, opensByTrigger, destinations }
 }
 
 /** Distinct users in a set of events: distinct vids, plus each vid-less event

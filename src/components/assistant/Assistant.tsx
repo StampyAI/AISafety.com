@@ -118,8 +118,9 @@ export default function Assistant() {
     (trigger: 'pill' | 'chip' | 'keyboard') => {
       setIsOpen(true)
       void fireLog({ kind: 'open', trigger, currentPage })
-      // First-party funnel: unique users who open the chatbot.
-      trackEvent('chatbot_open')
+      // First-party funnel: unique users who open the chatbot. The page and
+      // trigger feed the admin dashboard's "where/how it's opened" panels.
+      trackEvent('chatbot_open', { page: currentPage, source: trigger })
     },
     [currentPage, fireLog]
   )
@@ -128,8 +129,8 @@ export default function Assistant() {
   // chatbot only (the admin playground doesn't pass onUserSend), so internal
   // testing never inflates the numbers.
   const handleUserSend = useCallback(() => {
-    trackEvent('chatbot_message')
-  }, [])
+    trackEvent('chatbot_message', { page: currentPage })
+  }, [currentPage])
 
   const handleTogglePill = useCallback(() => {
     if (isOpen) {
@@ -164,7 +165,12 @@ export default function Assistant() {
         sessionId: getSessionId(),
       })
       // Funnel: unique users who click a result the chatbot surfaced.
-      trackEvent('chatbot_click', { url: c.url, listingId: c.id })
+      trackEvent('chatbot_click', {
+        url: c.url,
+        listingId: c.id,
+        page: currentPage,
+        source: 'card',
+      })
     },
     [currentPage, fireLog]
   )
@@ -180,7 +186,12 @@ export default function Assistant() {
         currentPage,
         sessionId: getSessionId(),
       })
-      trackEvent('chatbot_click', { url: href, label })
+      trackEvent('chatbot_click', {
+        url: href,
+        label,
+        page: currentPage,
+        source: 'link',
+      })
     },
     [currentPage, fireLog]
   )

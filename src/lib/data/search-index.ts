@@ -1,5 +1,5 @@
 import { getAdvisors } from './advisors'
-import { fetchAirtableRecords } from './airtable'
+import { fetchAirtableRecords, fieldString, fieldStringArray } from './airtable'
 import { getCommunities } from './communities'
 import { getCourses } from './self-study'
 import { getFounderResources } from './founders'
@@ -120,53 +120,48 @@ const STATIC_PAGES: SearchEntry[] = [
   ),
 ]
 
+// Permanent Airtable field IDs for the legacy Events & training table.
+// Fetching, selecting and sorting by ID keeps this working when fields
+// are renamed.
+const EVENT_FIELD = {
+  name: 'fldqx8bjKAUc3IfVO', // Name
+  description: 'fldKQrII3tnj8K2xT', // Description
+  hostName: 'fldv4uOpBaUOO1CR3', // Host name
+  type: 'fldu75bm9xmXRJ9NU', // Type
+  location: 'fldK8ohHmfjK1N7dY', // Location
+  startDate: 'fldRdvrU4kw7liuXt', // Start date
+  endDate: 'fld9viXAgNWmLmcwO', // End date
+  applicationsClose: 'fldiDBF0GlZkxepBx', // Applications/registrations close
+  applicationsOpenOrToday: 'fldTPqG0RfUiu71zl', // Applications open or today
+  url: 'fld6fSumOLa0mCl62', // URL
+} as const
+
 async function getEventEntries(): Promise<SearchEntry[]> {
   const raw = await fetchAirtableRecords({
     tableId: 'tblx0L8qJEaLBxJFS',
     viewId: 'viwHl72bJxCb2SfrL',
-    fields: [
-      'Name',
-      'Description',
-      'Host name',
-      'Type',
-      'Location',
-      'Start date',
-      'End date',
-      'Applications/registrations close',
-      'Applications open or today',
-      'URL',
-    ],
-    sort: [{ field: 'Start date', direction: 'asc' }],
+    returnFieldsByFieldId: true,
+    fields: Object.values(EVENT_FIELD),
+    sort: [{ field: EVENT_FIELD.startDate, direction: 'asc' }],
   })
 
   const today = new Date().toISOString().slice(0, 10)
   const entries: SearchEntry[] = []
 
   for (const record of raw) {
-    const f = record.fields as {
-      Name?: string
-      Description?: string
-      'Host name'?: string
-      Type?: string[]
-      Location?: string[]
-      'Start date'?: string
-      'End date'?: string
-      'Applications/registrations close'?: string
-      'Applications open or today'?: string
-      URL?: string
-    }
-    const name = f.Name
-    const startDate = f['Start date']
+    const f = record.fields
+    const name = fieldString(f[EVENT_FIELD.name])
+    const startDate = fieldString(f[EVENT_FIELD.startDate])
     if (!name || !startDate) continue
-    const endDate = f['End date'] || startDate
+    const endDate = fieldString(f[EVENT_FIELD.endDate]) || startDate
     if (endDate < today) continue
 
-    const closesOn = f['Applications/registrations close']
-    const openOrToday = f['Applications open or today']
+    const closesOn = fieldString(f[EVENT_FIELD.applicationsClose])
+    const openOrToday = fieldString(f[EVENT_FIELD.applicationsOpenOrToday])
     const appsOpen =
       !!closesOn && !!openOrToday && openOrToday <= today && closesOn >= today
 
-    const url = f.URL || ''
+    const url = fieldString(f[EVENT_FIELD.url]) || ''
     let logo: string | null = null
     if (url) {
       try {
@@ -182,14 +177,14 @@ async function getEventEntries(): Promise<SearchEntry[]> {
 
     const dateRange =
       endDate !== startDate ? `${startDate} – ${endDate}` : startDate
-    const types = f.Type || []
-    const locations = f.Location || []
+    const types = fieldStringArray(f[EVENT_FIELD.type])
+    const locations = fieldStringArray(f[EVENT_FIELD.location])
 
     entries.push({
       type: 'event',
       title: name,
-      subtitle: f['Host name'] || '',
-      description: f.Description || '',
+      subtitle: fieldString(f[EVENT_FIELD.hostName]) || '',
+      description: fieldString(f[EVENT_FIELD.description]) || '',
       category: [
         dateRange,
         types.join(', '),

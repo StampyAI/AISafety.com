@@ -26,6 +26,21 @@ const TOKEN = process.env.AIRTABLE_TOKEN
 const BASE = process.env.AIRTABLE_BASE_ID
 const CONVERSATIONS_TABLE = process.env.ADMIN_CONVERSATIONS_TABLE_ID
 
+// Permanent Airtable field IDs for the conversations table. All reads set
+// returnFieldsByFieldId and all writes key fields by ID, so renaming a
+// field in Airtable can't break the log.
+const FIELD = {
+  session: 'flds7cVOnzozLsaAl', // Session
+  page: 'fld36UU20Zc9JNvHt', // Page
+  latencyMs: 'fldD1AMzmTp4EVQUq', // Latency ms
+  promptVersion: 'fldZi6qb5G5bsdfFH', // Prompt version
+  notes: 'fldpjWWpS9R0cFXRU', // Notes
+  tags: 'fldAkUlONRN894SZN', // Tags
+  data: 'fld9TbBixMYVOssja', // Data
+  clicked: 'fld3PKIZx3Oo1oxkm', // Clicked
+  createdAt: 'fldterZrwZHKm2taI', // Created at
+} as const
+
 function ensureConfig(table: string | undefined): asserts table is string {
   if (!TOKEN || !BASE) {
     throw new Error('Airtable credentials missing (AIRTABLE_TOKEN/BASE_ID)')
@@ -128,18 +143,11 @@ export interface ConversationData {
   status?: 'abandoned' | 'error'
 }
 
-interface ConversationFields {
-  Session?: string
-  Page?: string
-  'Latency ms'?: number
-  'Prompt version'?: string
-  Notes?: string
-  Tags?: string[]
-  Data?: string
-  /** JSON array of listing ids whose cards the visitor clicked. Kept in its
-   *  own field (not Data) so a click write never clobbers a turn write. */
-  Clicked?: string
-}
+/** Raw record fields, keyed by permanent field ID (see FIELD above). The
+ *  Clicked field holds a JSON array of listing ids whose cards the visitor
+ *  clicked — kept separate from Data so a click write never clobbers a turn
+ *  write. */
+type ConversationFields = Record<string, unknown>
 
 export interface ConversationRow {
   id: string
@@ -200,20 +208,29 @@ function parseClicked(raw: string | undefined): string[] {
   }
 }
 
+function str(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
 function rowToConversation(
   row: AirtableRow<ConversationFields>
 ): ConversationRow {
+  const f = row.fields
+  const latency = f[FIELD.latencyMs]
+  const tags = f[FIELD.tags]
   return {
     id: row.id,
     createdAt: row.createdTime,
-    session: row.fields.Session ?? '',
-    page: row.fields.Page ?? '',
-    latencyMs: row.fields['Latency ms'] ?? null,
-    promptVersion: row.fields['Prompt version'] ?? '',
-    notes: row.fields.Notes ?? '',
-    tags: row.fields.Tags ?? [],
-    data: parseData(row.fields.Data),
-    clickedCitations: parseClicked(row.fields.Clicked),
+    session: str(f[FIELD.session]),
+    page: str(f[FIELD.page]),
+    latencyMs: typeof latency === 'number' ? latency : null,
+    promptVersion: str(f[FIELD.promptVersion]),
+    notes: str(f[FIELD.notes]),
+    tags: Array.isArray(tags)
+      ? tags.filter((t): t is string => typeof t === 'string')
+      : [],
+    data: parseData(str(f[FIELD.data]) || undefined),
+    clickedCitations: parseClicked(str(f[FIELD.clicked]) || undefined),
   }
 }
 
@@ -232,7 +249,7 @@ function searchFormula(search: string | undefined): string | undefined {
     .split(/\s+/)
     .filter(Boolean)
   if (words.length === 0) return undefined
-  const haystack = 'LOWER({Data} & " " & {Page} & " " & {Notes})'
+  const haystack = `LOWER({${FIELD.data}} & " " & {${FIELD.page}} & " " & {${FIELD.notes}})`
   const terms = words.map(w => `SEARCH(LOWER("${w}"), ${haystack})`)
   return terms.length === 1 ? terms[0] : `AND(${terms.join(', ')})`
 }
@@ -254,8 +271,9 @@ export async function listConversationsPage(opts: {
   do {
     const params = new URLSearchParams()
     params.set('pageSize', String(Math.min(100, want - out.length)))
-    params.set('sort[0][field]', 'Created at')
+    params.set('sort[0][field]', FIELD.createdAt)
     params.set('sort[0][direction]', 'desc')
+    params.set('returnFieldsByFieldId', 'true')
     if (formula) params.set('filterByFormula', formula)
     if (cursor) params.set('offset', cursor)
     const res = await airtableRequest(
@@ -313,11 +331,11 @@ export async function updateConversation(
 ): Promise<ConversationRow> {
   ensureConfig(CONVERSATIONS_TABLE)
   const fields: ConversationFields = {}
-  if (patch.notes !== undefined) fields.Notes = patch.notes
-  if (patch.tags !== undefined) fields.Tags = patch.tags
+  if (patch.notes !== undefined) fields[FIELD.notes] = patch.notes
+  if (patch.tags !== undefined) fields[FIELD.tags] = patch.tags
   const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ fields }),
+    body: JSON.stringify({ fields, returnFieldsByFieldId: true }),
   })
   if (!res.ok) {
     throw new Error(`Airtable update failed: ${res.status} ${await res.text()}`)
@@ -334,8 +352,9 @@ async function findConversationBySession(
   // Escape any double-quotes for the formula literal.
   const escaped = session.replace(/"/g, '\\"')
   const params = new URLSearchParams()
-  params.set('filterByFormula', `{Session} = "${escaped}"`)
+  params.set('filterByFormula', `{${FIELD.session}} = "${escaped}"`)
   params.set('maxRecords', '1')
+  params.set('returnFieldsByFieldId', 'true')
   const res = await airtableRequest(
     `${CONVERSATIONS_TABLE}?${params.toString()}`
   )
@@ -373,7 +392,9 @@ export async function upsertConversation(input: {
   const existing = input.session
     ? await findConversationBySession(input.session)
     : null
-  const previous = existing ? parseData(existing.fields.Data) : null
+  const previous = existing
+    ? parseData(str(existing.fields[FIELD.data]) || undefined)
+    : null
 
   const data: ConversationData = {
     user: input.user,
@@ -411,11 +432,11 @@ export async function upsertConversation(input: {
   }
 
   const fields: ConversationFields = {
-    Session: input.session ?? '',
-    Page: input.page,
-    'Latency ms': input.latencyMs,
-    'Prompt version': input.promptVersion,
-    Data: JSON.stringify(data),
+    [FIELD.session]: input.session ?? '',
+    [FIELD.page]: input.page,
+    [FIELD.latencyMs]: input.latencyMs,
+    [FIELD.promptVersion]: input.promptVersion,
+    [FIELD.data]: JSON.stringify(data),
   }
 
   const res = existing
@@ -450,12 +471,14 @@ export async function recordCitationClick(
   // but if the row isn't there yet we simply drop the click rather than
   // creating a dataless row.
   if (!existing) return
-  const current = parseClicked(existing.fields.Clicked)
+  const current = parseClicked(str(existing.fields[FIELD.clicked]) || undefined)
   if (current.includes(citationId)) return
   const next = [...current, citationId]
   const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ fields: { Clicked: JSON.stringify(next) } }),
+    body: JSON.stringify({
+      fields: { [FIELD.clicked]: JSON.stringify(next) },
+    }),
   })
   if (!res.ok) {
     throw new Error(

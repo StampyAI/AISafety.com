@@ -305,10 +305,14 @@ export function SuggestInline({
   query,
   type,
   onSuggest,
+  badge,
 }: {
   query: string
   type?: string
   onSuggest?: (query: string, type?: string) => void
+  /** Rendered inside the button, after the label — the admin log viewer uses
+   *  this to badge a button the visitor pressed. The live chat passes none. */
+  badge?: React.ReactNode
 }) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -340,6 +344,7 @@ export function SuggestInline({
           <path d="M7 17L17 7" />
           <path d="M8 7h9v9" />
         </svg>
+        {badge}
       </a>
     </span>
   )

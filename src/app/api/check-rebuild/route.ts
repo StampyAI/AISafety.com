@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic'
 
 // Airtable tables whose changes should trigger a rebuild. The filter mirrors
 // what the corresponding page actually displays, so internal-only edits on
-// unpublished records don't cause unnecessary rebuilds.
+// unpublished records don't cause unnecessary rebuilds. Filters reference
+// fields by permanent field ID (rename-proof).
 const TABLES: Array<{
   name: string
   tableId: string
@@ -15,38 +16,38 @@ const TABLES: Array<{
   {
     name: 'communities',
     tableId: 'tbluI5Dll697WiSm8',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldV8RYP1CVzOvHpf} = TRUE()', // Publish?
   },
   {
     name: 'funding',
     tableId: 'tblzMTLDZWZKqTxrq',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldoH88AbtQLEViD7} = TRUE()', // Publish?
   },
   {
     name: 'self-study',
     tableId: 'tblRNYJ0m1cmJXKKk',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldWShxP7GkMeh6rg} = TRUE()', // Publish?
   },
   { name: 'map', tableId: 'tblvzbGL9q9dOO9Nc' },
   {
     name: 'advisors',
     tableId: 'tblf3KKYnmgcjVGhD',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldaOmFd67ORPMfTC} = TRUE()', // Publish?
   },
   {
     name: 'projects',
     tableId: 'tblHT29QNgMYKB8iW',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldrGDtZxpFLQfjMz} = TRUE()', // Publish?
   },
   {
     name: 'media-channels',
     tableId: 'tblCTOMzyH3vILL5I',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldMN0TF3kz41HTQc} = TRUE()', // Publish?
   },
   {
     name: 'founders',
     tableId: 'tbl59Ye8oxvPjoVJv',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fld9Epdrxu9n0FV20} = TRUE()', // Publish?
   },
   { name: 'events', tableId: 'tblx0L8qJEaLBxJFS' },
 ]

@@ -1,19 +1,28 @@
-import { fetchAirtableRecords } from './airtable'
+import {
+  fetchAirtableRecords,
+  fieldFeatured,
+  fieldString,
+  fieldText,
+  publishedFormula,
+} from './airtable'
 
 const TABLE_ID = 'tblHT29QNgMYKB8iW'
 const VIEW_ID = 'viwVgPN3hgpGa8dRE'
 
-interface AirtableRecord {
-  fields: {
-    'Project Name'?: string
-    'Description (short)'?: string
-    Status?: string | string[]
-    'Contact name'?: string
-    'Contact email'?: string
-    Featured?: string
-    'Featured tagline'?: string
-  }
-}
+// Permanent Airtable field IDs for the Projects table. Fetching, filtering
+// and sorting by ID keeps the page working when fields are renamed.
+const FIELD = {
+  projectName: 'fldtfqsPSKc5ubNs4', // Project Name
+  descriptionShort: 'fldbeRqlUCLsgOcCT', // Description (short)
+  status: 'fld57KJsNvSKFLoHT', // Status
+  contactName: 'fldejiM6qWUfXAeqO', // Contact name
+  contactEmail: 'fldNhMihsnXhsHMnc', // Contact email
+  featured: 'fldMxxOYWQGlWTZ9D', // Featured
+  featuredTagline: 'fld8LvgC3dnT40Vbl', // Featured tagline
+  sort: 'fldNvTVR11SJjYu2l', // Sort
+  publish: 'fldrGDtZxpFLQfjMz', // Publish?
+  hide: 'fldPjPfUW5hK98ysn', // Hide?
+} as const
 
 export interface Project {
   id: string
@@ -31,30 +40,27 @@ export async function getProjects(): Promise<Project[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
-    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
-    sort: [{ field: 'Sort', direction: 'asc' }],
+    returnFieldsByFieldId: true,
+    filterByFormula: publishedFormula(FIELD.publish, FIELD.hide),
+    sort: [{ field: FIELD.sort, direction: 'asc' }],
   })
 
   const results: Project[] = []
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
-    if (!fields['Project Name']) continue
+    const f = record.fields
+    const name = fieldString(f[FIELD.projectName])
+    if (!name) continue
 
     results.push({
       id: record.id,
-      name: fields['Project Name'],
-      description: fields['Description (short)'] || '',
+      name,
+      description: fieldString(f[FIELD.descriptionShort]) || '',
       logo: null,
-      contact: fields['Contact name'] || '',
-      email: fields['Contact email'] || null,
-      status: Array.isArray(fields.Status)
-        ? fields.Status.join(', ')
-        : fields.Status || '',
-      featured:
-        fields.Featured === '1' || fields.Featured === '2'
-          ? (fields.Featured as '1' | '2')
-          : null,
-      featuredTagline: fields['Featured tagline'] || null,
+      contact: fieldString(f[FIELD.contactName]) || '',
+      email: fieldString(f[FIELD.contactEmail]),
+      status: fieldText(f[FIELD.status]),
+      featured: fieldFeatured(f[FIELD.featured]),
+      featuredTagline: fieldString(f[FIELD.featuredTagline]),
     })
   }
 

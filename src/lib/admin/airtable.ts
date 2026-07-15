@@ -319,8 +319,9 @@ export async function listConversationsForStats(range: {
       parts.length === 1 ? parts[0] : `AND(${parts.join(', ')})`
     )
   }
-  params.append('fields[]', 'Data')
-  params.append('fields[]', 'Clicked')
+  params.set('returnFieldsByFieldId', 'true')
+  params.append('fields[]', FIELD.data)
+  params.append('fields[]', FIELD.clicked)
   const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
   return rows.map(rowToConversation)
 }

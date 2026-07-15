@@ -237,12 +237,31 @@ function renderInline(
         // there — mirror that.
         const { type, query } = parseSuggestToken(suggest[1])
         if (type !== 'job') {
+          // Badge the button when the visitor pressed it (opening the form).
+          // Presses are stored in the same Clicked set as cards and links,
+          // keyed `<turnIndex>:suggest:<type>` ('listing' when the token has
+          // no recognized type — mirroring the live logger's fallback). The
+          // bare `suggest:<type>` form is the legacy/unscoped path.
+          const suggestKey = `suggest:${type ?? 'listing'}`
+          const wasPressed =
+            (turnIndex != null && clicked.has(`${turnIndex}:${suggestKey}`)) ||
+            clicked.has(suggestKey)
           parts.push(
             <SuggestInline
               key={`s-${key++}`}
               query={query}
               type={type}
               onSuggest={openSuggestForm}
+              badge={
+                wasPressed ? (
+                  <span
+                    className={styles.convCardClicked}
+                    title="The visitor pressed this button and opened the form"
+                  >
+                    ✓
+                  </span>
+                ) : undefined
+              }
             />
           )
         }

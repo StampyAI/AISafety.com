@@ -43,7 +43,16 @@ export interface AssistantOpenEvent {
 export interface AssistantSuggestEvent {
   kind: 'suggest'
   query: string
+  /** The suggest form's type ('community', 'correction', …). Absent when the
+   *  token carried no recognized type (the generic listing form). */
+  type?: string
+  /** Which assistant turn offered the button (its index in the stored
+   *  conversation history), so the admin badges the one instance the visitor
+   *  pressed. Absent for older clients that didn't send it. */
+  turnIndex?: number
   currentPage: string
+  /** Conversation this press belongs to, so it can be recorded on the row. */
+  sessionId?: string | null
 }
 
 export type AssistantEvent =
@@ -60,25 +69,31 @@ export async function logAssistantEvent(event: AssistantEvent): Promise<void> {
   console.log(`[assistant] ${line}`)
 
   // Persist clicks onto the conversation row so the admin viewer can show what
-  // the visitor actually opened. Cards are keyed `<turnIndex>:<listing id>` and
-  // inline links `<turnIndex>:link:<href>`, so the exact instance is known (the
-  // same listing or href can appear in several replies; without the turn scope
-  // one click badged every copy). The `link:` prefix never collides with a
-  // `type:recXXX` id. Older clients omit turnIndex — fall back to the unscoped
-  // key, which the admin still matches (badging every copy) for legacy rows.
+  // the visitor actually opened. Cards are keyed `<turnIndex>:<listing id>`,
+  // inline links `<turnIndex>:link:<href>` and suggest-form buttons
+  // `<turnIndex>:suggest:<type>`, so the exact instance is known (the same
+  // listing or href can appear in several replies; without the turn scope one
+  // click badged every copy). The `link:`/`suggest:` prefixes never collide
+  // with a `type:recXXX` id. Older clients omit turnIndex — fall back to the
+  // unscoped key, which the admin still matches (badging every copy) for
+  // legacy rows.
   if (
-    event.kind === 'click' &&
+    (event.kind === 'click' || event.kind === 'suggest') &&
     event.sessionId &&
     isConversationsTableConfigured()
   ) {
     const clickKey =
-      event.target === 'link'
+      event.kind === 'suggest'
         ? event.turnIndex != null
-          ? `${event.turnIndex}:link:${event.url}`
-          : `link:${event.url}`
-        : event.citationId != null && event.turnIndex != null
-          ? `${event.turnIndex}:${event.citationId}`
-          : event.citationId
+          ? `${event.turnIndex}:suggest:${event.type ?? 'listing'}`
+          : `suggest:${event.type ?? 'listing'}`
+        : event.target === 'link'
+          ? event.turnIndex != null
+            ? `${event.turnIndex}:link:${event.url}`
+            : `link:${event.url}`
+          : event.citationId != null && event.turnIndex != null
+            ? `${event.turnIndex}:${event.citationId}`
+            : event.citationId
     try {
       if (clickKey) await recordCitationClick(event.sessionId, clickKey)
     } catch (err) {

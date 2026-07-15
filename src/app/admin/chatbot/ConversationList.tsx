@@ -628,9 +628,7 @@ function ConversationRow({
                       >
                         {chip}
                         {pressed && (
-                          <span className={styles.convChipPressedTag}>
-                            ✓ pressed
-                          </span>
+                          <span className={styles.convChipPressedTag}>✓</span>
                         )}
                       </span>
                     )

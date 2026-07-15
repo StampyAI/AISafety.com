@@ -105,7 +105,7 @@ function bottomMetaFor(event: EventListing) {
     rows.push({ icon: '/images/icons/person.svg', value: `By ${event.host}` })
   if (event.cost.length > 0)
     rows.push({ icon: '/images/icons/tag.svg', value: event.cost.join(', ') })
-  if (deadline) rows.push({ icon: '/images/icons/timer.svg', value: deadline })
+  if (deadline) rows.push({ icon: '/images/icons/paper.svg', value: deadline })
   return rows
 }
 

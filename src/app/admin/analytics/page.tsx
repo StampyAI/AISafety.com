@@ -1147,9 +1147,10 @@ function ChatbotView({
               {themes && <>Last updated {formatTime(themes.generatedAt)}.</>}
             </p>
             <p className={styles.caption}>
-              Every typed question (suggested-chip clicks excluded), grouped
-              into themes by Claude across the whole log — a fixed weekly
-              snapshot, so the date range doesn&apos;t filter it.
+              Every typed question since the chatbot launched (suggested-chip
+              clicks excluded), grouped into themes by Claude. Always covers the
+              whole log — the date range doesn&apos;t filter it — and
+              regenerates weekly, or whenever it&apos;s refreshed.
             </p>
           </Panel>
 

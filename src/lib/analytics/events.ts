@@ -301,6 +301,9 @@ export interface VisitsData {
   totalViews: number
   /** Distinct visitors among the page views in range. */
   uniqueVisitors: number
+  /** Browsing sessions: one visitor's page views separated by 30+ minutes of
+   *  inactivity count as separate visits (the definition Matomo uses too). */
+  visitCount: number
 }
 
 export interface CorrelationRow {
@@ -379,7 +382,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
   chatbot: { opensByPage: [], opensByTrigger: [], destinations: [] },
-  visits: { byPage: [], totalViews: 0, uniqueVisitors: 0 },
+  visits: { byPage: [], totalViews: 0, uniqueVisitors: 0, visitCount: 0 },
   correlations: [],
   recent: [],
   nearCap: [],
@@ -655,7 +658,39 @@ function visitsData(inRange: AnalyticsEvent[], unique: boolean): VisitsData {
     ),
     totalViews: views.length,
     uniqueVisitors: uniqueUsers(views),
+    visitCount: countVisits(views),
   }
+}
+
+/** A returning visitor starts a new visit after this much inactivity. */
+const SESSION_GAP_MS = 30 * 60_000
+
+/** Browsing sessions among the page views: each visitor's views are grouped,
+ *  and a gap of SESSION_GAP_MS or more starts a new visit. Views with no
+ *  visitor id (private browsing) can't be grouped, so each counts as its own
+ *  visit — same spirit as uniqueUsers. */
+function countVisits(views: AnalyticsEvent[]): number {
+  const byVid = new Map<string, number[]>()
+  let visits = 0
+  for (const e of views) {
+    if (!e.vid) {
+      visits++
+      continue
+    }
+    const t = Date.parse(e.ts)
+    if (Number.isNaN(t)) continue
+    const times = byVid.get(e.vid) ?? []
+    times.push(t)
+    byVid.set(e.vid, times)
+  }
+  for (const times of byVid.values()) {
+    times.sort((a, b) => a - b)
+    visits++
+    for (let i = 1; i < times.length; i++) {
+      if (times[i] - times[i - 1] >= SESSION_GAP_MS) visits++
+    }
+  }
+  return visits
 }
 
 /** The interest an event expresses, for the correlations table: the page it

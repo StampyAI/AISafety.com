@@ -456,6 +456,31 @@ export default async function AnalyticsPage({
           )}
 
           {activeTab === 'pages' && (
+            <Panel title="Site traffic">
+              <div className={styles.funnel}>
+                <Stat
+                  label="Visitors"
+                  value={data.visits.uniqueVisitors.toLocaleString()}
+                />
+                <Stat
+                  label="Visits"
+                  value={data.visits.visitCount.toLocaleString()}
+                />
+                <Stat
+                  label="Page views"
+                  value={data.visits.totalViews.toLocaleString()}
+                />
+              </div>
+              <p className={styles.caption}>
+                First-party numbers, so ad blockers can&apos;t strip them.
+                Visitors = distinct browsers; one visitor&apos;s pages more than
+                30 minutes apart count as separate visits. Recording since 15
+                July 2026.
+              </p>
+            </Panel>
+          )}
+
+          {activeTab === 'pages' && (
             <div className={styles.grid}>
               <Panel title="Visits by page">
                 <CountTable

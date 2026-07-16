@@ -17,6 +17,7 @@ const FIELD = {
   endDate: 'fldAAtwTu3POfROpi',
   deadline: 'fldRhQqHVTVvGFM3k',
   deadlineType: 'fldkz9cW2FkG8xHac',
+  notYetOpen: 'fldF96eidqxAMF08c',
   location: 'fldqvyFLWjImT4n1y',
   logo: 'fldYAG5RVeT6FbSHa',
   host: 'fldNKTGHFtf4EptQ7',
@@ -133,10 +134,14 @@ export async function getEvents(): Promise<EventListing[]> {
       f[FIELD.online] === true || location.trim().toLowerCase() === 'online'
 
     // No close date means there is nothing to apply/register for, so the
-    // event counts as open. See the field descriptions on the Events table.
+    // event counts as open — unless applications/registrations haven't
+    // opened yet, which outranks any deadline (orgs sometimes announce the
+    // deadline before opening). See the field descriptions on the Events
+    // table.
     const closesOn = optionalString(f[FIELD.deadline])
+    const notYetOpen = f[FIELD.notYetOpen] === true
     const applicationStatus: 'Open' | 'Closed' =
-      !closesOn || closesOn >= today ? 'Open' : 'Closed'
+      !notYetOpen && (!closesOn || closesOn >= today) ? 'Open' : 'Closed'
 
     const rawDeadlineType = optionalString(f[FIELD.deadlineType])
     const deadlineType =
@@ -148,7 +153,7 @@ export async function getEvents(): Promise<EventListing[]> {
         `[events] "${name}" has unexpected Deadline type "${rawDeadlineType}" (allowed: Apply, Register)`
       )
     }
-    if (deadlineType && !closesOn) {
+    if (deadlineType && !closesOn && !notYetOpen) {
       console.warn(
         `[events] "${name}" has a Deadline type but no deadline date — no deadline will be shown`
       )

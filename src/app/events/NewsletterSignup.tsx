@@ -4,16 +4,22 @@ import { useState } from 'react'
 import Image from 'next/image'
 import styles from './NewsletterSignup.module.css'
 
-const NEWSLETTER_URL = 'https://aisafetyeventsandtraining.substack.com/'
+const SUBSCRIBE_URL = 'https://aisafetyeventsandtraining.substack.com/subscribe'
 
 export default function NewsletterSignup() {
   const [email, setEmail] = useState('')
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = email.trim()
+    const url = trimmed
+      ? `${SUBSCRIBE_URL}?email=${encodeURIComponent(trimmed)}`
+      : SUBSCRIBE_URL
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   return (
-    <form
-      className={`width-4-col ${styles.card}`}
-      onSubmit={e => e.preventDefault()}
-    >
+    <form className={`width-4-col ${styles.card}`} onSubmit={handleSubmit}>
       <p className={`paragraph-small ${styles.heading}`}>
         Get a weekly summary of upcoming events
       </p>
@@ -25,13 +31,7 @@ export default function NewsletterSignup() {
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
-        <a
-          href={NEWSLETTER_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.submit}
-          aria-label="Subscribe"
-        >
+        <button type="submit" className={styles.submit} aria-label="Subscribe">
           <Image
             src="/images/icons/arrow-right.svg"
             alt=""
@@ -39,7 +39,7 @@ export default function NewsletterSignup() {
             height={16}
             unoptimized
           />
-        </a>
+        </button>
       </div>
     </form>
   )

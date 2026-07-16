@@ -26,13 +26,13 @@ export default function PrivacyPage() {
           <div className="width-7-col-narrow">
             <h3 className="padding-bottom-16px">Who we are</h3>
             <p className="color-teal-300 padding-bottom-40px">
-              AISafety.com is run by a small nonprofit team — you can meet us on
+              AISafety.com is run by a small nonprofit team – you can meet us on
               the{' '}
               <Link href="/about" className="color-light-teal">
                 about page
               </Link>
               . Bryce Robertson, the site&apos;s project manager, is responsible
-              for how visitor data is handled — for anything privacy-related,{' '}
+              for how visitor data is handled – for anything privacy-related,{' '}
               <a
                 href="https://airtable.com/appF8XfZUGXtfi40E/pagUmmzVb8OnVvTZS/form"
                 target="_blank"
@@ -53,8 +53,8 @@ export default function PrivacyPage() {
               isn&apos;t lost as you move between pages (it&apos;s cleared when
               you close the tab), and the anonymous analytics ID described
               below, which you can switch off. Nothing in your browser is used
-              for advertising or to track you across other sites — the things
-              cookie banners exist to ask consent for — which is why
+              for advertising or to track you across other sites – the things
+              cookie banners exist to ask consent for – which is why
               there&apos;s no banner.
             </p>
 
@@ -78,10 +78,10 @@ export default function PrivacyPage() {
 
             <h3 className="padding-bottom-16px">The chatbot</h3>
             <p className="color-teal-300 padding-bottom-40px">
-              The chatbot is powered by Claude, an AI model from Anthropic —
+              The chatbot is powered by Claude, an AI model from Anthropic –
               your messages are sent to Anthropic to generate each reply, and
               Anthropic doesn&apos;t train its models on them. Conversations are
-              saved so we can improve the chatbot — the messages, the page you
+              saved so we can improve the chatbot – the messages, the page you
               were on, how you arrived at the site, and your approximate
               location (city and country, estimated from your IP address, which
               we don&apos;t keep). Conversations may be reviewed by the
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
               Airtable (our listings database, forms, and chatbot logs),
               Anthropic (Claude, the AI model behind the chatbot), and ipapi.co
               (the approximate-location lookup for chatbot conversations). Our
-              newsletters are hosted on Substack — when you subscribe there,
+              newsletters are hosted on Substack – when you subscribe there,
               Substack&apos;s own privacy policy applies.
             </p>
 
@@ -116,7 +116,7 @@ export default function PrivacyPage() {
                 sending us a message
               </a>
               . Because our analytics is anonymous, chatbot conversations are
-              usually the only thing we can link to you — mention roughly when
+              usually the only thing we can link to you – mention roughly when
               the conversation happened and what it was about, and we&apos;ll
               find and delete it.
             </p>

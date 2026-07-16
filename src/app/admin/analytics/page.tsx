@@ -1087,6 +1087,10 @@ function ChatbotView({
                 value={share(conv.suggestedShare)}
               />
               <Stat
+                label="Messages that were a suggested question"
+                value={share(conv.suggestedMessageShare)}
+              />
+              <Stat
                 label="Clicked a card or link"
                 value={share(conv.clickedShare)}
               />

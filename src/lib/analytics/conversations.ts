@@ -32,6 +32,12 @@ export interface ConversationStats {
   /** Share (0–1) of conversations whose first message is one of the suggested
    *  question chips, or null with no data. */
   suggestedShare: number | null
+  /** Share (0–1) of ALL user messages that were a suggested chip rather than
+   *  typed — the message-level "pills vs chat window" split. Chips can only
+   *  be a conversation's first message, so the numerator is the chip-started
+   *  conversations and the denominator every message sent. Null with no
+   *  data. */
+  suggestedMessageShare: number | null
   /** Share (0–1) of conversations where the visitor clicked a listing card or
    *  link out of a reply, or null with no data. */
   clickedShare: number | null
@@ -48,6 +54,7 @@ const EMPTY_STATS: ConversationStats = {
   totalConversations: 0,
   medianLength: null,
   suggestedShare: null,
+  suggestedMessageShare: null,
   clickedShare: null,
   lengthBuckets: [],
   languages: [],
@@ -297,11 +304,14 @@ export async function readConversationStats(
     bucketCounts.set(b, (bucketCounts.get(b) ?? 0) + 1)
   }
 
+  const totalMessages = lengths.reduce((sum, l) => sum + l, 0)
+
   return {
     available: true,
     totalConversations: rows.length,
     medianLength: median(lengths.sort((a, b) => a - b)),
     suggestedShare: withQuestion > 0 ? suggested / withQuestion : null,
+    suggestedMessageShare: totalMessages > 0 ? suggested / totalMessages : null,
     clickedShare: rows.length > 0 ? clicked / rows.length : null,
     // Buckets in display order (1 → 11+), only the non-empty ones.
     lengthBuckets: LENGTH_BUCKETS.map(b => ({

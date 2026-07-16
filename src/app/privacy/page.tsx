@@ -29,29 +29,34 @@ export default function PrivacyPage() {
           We use two privacy-respecting tools to understand how the site is
           used. Matomo, running in cookieless mode, gives us anonymous,
           aggregated statistics like page views and referrers. Our own
-          first-party analytics records page visits and which listings and links
-          get clicked; it stores a random ID in your browser&apos;s local
-          storage so we can count unique visitors, but that ID is not tied to
-          your name, email, or IP address, and it never follows you to other
-          sites.
+          first-party analytics records page visits, clicks on listings and
+          links, and when the chatbot gets opened; it stores a random ID in your
+          browser&apos;s local storage so we can count unique visitors, but that
+          ID is not tied to your name, email, or IP address, and it never
+          follows you to other sites.
         </p>
 
         <h3 className="padding-bottom-16px">The chatbot</h3>
         <p className="color-teal-300 padding-bottom-40px">
-          Conversations with our chatbot are saved so we can improve it — the
-          messages, the page you were on, how you arrived at the site, and your
-          approximate location (city and country, estimated from your IP
-          address, which we don&apos;t keep). Conversations may be reviewed by
-          the AISafety.com team and trusted partners — the chat tells you this
-          before you start typing. Please don&apos;t share sensitive personal
-          information in the chat, and if you&apos;d like a conversation
-          deleted, contact us using the form below.
+          The chatbot is powered by Claude, an AI model from Anthropic — your
+          messages are sent to Anthropic to generate each reply, and Anthropic
+          doesn&apos;t train its models on them. Conversations are saved so we
+          can improve the chatbot — the messages, the page you were on, how you
+          arrived at the site, and your approximate location (city and country,
+          estimated from your IP address, which we don&apos;t keep).
+          Conversations may be reviewed by the AISafety.com team and trusted
+          partners, and we use Claude to summarize the common topics people ask
+          about — the chat tells you it&apos;s recorded before you start typing.
+          Please don&apos;t share sensitive personal information in the chat,
+          and if you&apos;d like a conversation deleted, contact us using the
+          form below.
         </p>
 
         <h3 className="padding-bottom-16px">Services we rely on</h3>
         <p className="color-teal-300 padding-bottom-40px">
           The site runs on Vercel (hosting), Matomo Cloud (analytics), Airtable
-          (our listings database, forms, and chatbot logs), and ipapi.co (the
+          (our listings database, forms, and chatbot logs), Anthropic (Claude,
+          the AI model behind the chatbot), and ipapi.co (the
           approximate-location lookup for chatbot conversations). Our
           newsletters are hosted on Substack — when you subscribe there,
           Substack&apos;s own privacy policy applies.

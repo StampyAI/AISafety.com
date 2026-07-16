@@ -1087,7 +1087,7 @@ function ChatbotView({
                 value={share(conv.suggestedShare)}
               />
               <Stat
-                label="of messages clicked a follow-up suggestion (conversation starters excluded)"
+                label="of messages were a follow-up suggestion (conversation starters excluded)"
                 value={share(conv.followUpMessageShare)}
               />
               <Stat

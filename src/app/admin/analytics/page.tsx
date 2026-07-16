@@ -15,7 +15,6 @@ import {
   type TopQuestion,
 } from '@/lib/analytics/conversations'
 import { readQuestionThemes, type ThemeSummary } from '@/lib/analytics/themes'
-import { isOwner } from '@/lib/admin/auth'
 import RefreshThemesButton from './RefreshThemesButton'
 import { getFunders } from '@/lib/data/funding'
 import { getCourses } from '@/lib/data/self-study'
@@ -281,7 +280,7 @@ export default async function AnalyticsPage({
   const tabReq = tabRaw === 'funnel' ? 'chatbot' : tabRaw
   const onResourceTab = tabReq != null && !OVERVIEW_KEYS.has(tabReq)
 
-  const [data, funders, convStats, themes, owner] = await Promise.all([
+  const [data, funders, convStats, themes] = await Promise.all([
     readDashboard(
       range,
       onResourceTab ? tabReq : undefined,
@@ -293,7 +292,6 @@ export default async function AnalyticsPage({
     // fetch the (ever-growing) conversation log when it's the active tab.
     tabReq === 'chatbot' ? readConversationStats(range) : null,
     tabReq === 'chatbot' ? readQuestionThemes() : null,
-    isOwner(),
   ])
 
   // Resource-page tabs: every page in PAGE_NAV always gets one (so quiet pages
@@ -439,7 +437,6 @@ export default async function AnalyticsPage({
               destinations={data.chatbot.destinations}
               conv={convStats}
               themes={themes}
-              owner={owner}
               unique={unique}
             />
           )}
@@ -1037,7 +1034,6 @@ function ChatbotView({
   destinations,
   conv,
   themes,
-  owner,
   unique,
 }: {
   funnel: ChatbotFunnel
@@ -1045,7 +1041,6 @@ function ChatbotView({
   destinations: ChatbotDestination[]
   conv: ConversationStats | null
   themes: ThemeSummary | null
-  owner: boolean
   unique: boolean
 }) {
   const usersHead = unique ? 'Users' : undefined
@@ -1143,16 +1138,10 @@ function ChatbotView({
 
           <Panel title="What people ask about">
             <ThemesTable summary={themes} />
-            {(owner || themes) && (
-              <p className={styles.caption}>
-                {owner && (
-                  <>
-                    <RefreshThemesButton />{' '}
-                  </>
-                )}
-                {themes && <>Last updated {formatTime(themes.generatedAt)}.</>}
-              </p>
-            )}
+            <p className={styles.caption}>
+              <RefreshThemesButton />{' '}
+              {themes && <>Last updated {formatTime(themes.generatedAt)}.</>}
+            </p>
             <p className={styles.caption}>
               Every typed question (suggested-chip clicks excluded), grouped
               into themes by Claude across the whole log — a fixed weekly

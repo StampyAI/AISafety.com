@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isOwner } from '@/lib/admin/auth'
+import { canViewAnalytics } from '@/lib/admin/auth'
 import { refreshQuestionThemes } from '@/lib/analytics/themes'
 
 export const runtime = 'nodejs'
@@ -18,9 +18,11 @@ async function refresh(): Promise<Response> {
   }
 }
 
-/** The dashboard's owner-only Refresh button. */
+/** The dashboard's Refresh button — anyone who can see the analytics (owner
+ *  or volunteer password) can refresh; the Successif log-only password
+ *  can't. */
 export async function POST() {
-  if (!(await isOwner())) {
+  if (!(await canViewAnalytics())) {
     return new Response('Unauthorized', { status: 401 })
   }
   return refresh()

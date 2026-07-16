@@ -1,0 +1,95 @@
+# AISafety.com Data API (v1)
+
+A public, read-only JSON API over the AISafety.com directories, so other sites
+and tools in the AI-safety ecosystem can embed live data (events, communities,
+organizations, and more) without maintaining their own copy.
+
+- **Human docs:** `/developers`
+- **Index (self-describing):** `GET /api/v1`
+- **OpenAPI 3.1 spec:** `GET /api/v1/openapi.json`
+- **License:** [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/) (also surfaced in every response's `meta` and on `/developers`).
+
+## Design
+
+The API is a thin HTTP skin over the existing typed data layer in
+`src/lib/data/*.ts`. Each endpoint reuses that module's `getX()` function, so
+data shaping lives in exactly one place and the API stays consistent with the
+site.
+
+- **Source of truth:** Airtable base `appF8XfZUGXtfi40E` (same as the site).
+- **Caching / rate limits:** responses set `Cache-Control: s-maxage` for the CDN,
+  and the underlying Airtable fetch uses Next's Data Cache (hourly). This keeps
+  Airtable calls well under its 5 req/sec per-base limit regardless of API
+  traffic. There is no separate datastore.
+- **Access:** fully open, no API key, permissive CORS (`*`), `GET`/`OPTIONS` only.
+- **Versioning:** path-versioned under `/api/v1`. Breaking changes go to `/api/v2`.
+
+## Response shape
+
+Every collection endpoint returns a wrapped envelope:
+
+```json
+{
+  "data": [{ "id": "rec...", "name": "...", "...": "..." }],
+  "meta": {
+    "count": 1,
+    "license": "CC-BY-4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "AISafety.com",
+    "source": "https://aisafety.com",
+    "generatedAt": "2026-06-16T00:00:00.000Z"
+  }
+}
+```
+
+- IDs are stable Airtable record IDs.
+- Image fields (`logo`, `image`, `mapLogo`) are absolute URLs on the serving
+  origin (the build-time image cache), not Airtable's expiring attachment URLs.
+- Dates are ISO-8601 strings.
+
+## Filtering
+
+- `?<field>=value` does a case-insensitive substring match on a whitelisted field.
+- `?<field>=a,b` treats commas as OR.
+- Multiple params are AND'd across fields.
+- `?q=text` does a free-text search across all fields.
+
+Whitelisted filter fields per endpoint live in `src/lib/api/registry.ts`.
+
+## Endpoints
+
+`communities`, `organizations`, `events`, `jobs`, `funding`, `courses`,
+`advisors`, `media-channels`, `founder-resources`, `projects`.
+
+## Privacy
+
+Endpoints serve only what is already public on the site. Internal and personal
+fields are excluded by allowlist.
+
+## Code map
+
+```
+src/lib/api/
+  constants.ts   license / attribution / base path
+  registry.ts    single source of truth for endpoints (filters, fields, TTLs)
+  response.ts    CORS, envelope, meta, absolute-URL helper
+  filter.ts      in-memory query/search
+  handler.ts     createCollectionHandler() + OPTIONS
+src/lib/data/events.ts            events normalizer (shared with the chatbot)
+src/app/api/v1/<entity>/route.ts  one thin route per endpoint
+src/app/api/v1/route.ts           index
+src/app/api/v1/openapi.json/route.ts  generated spec
+src/app/developers/page.tsx       human docs
+```
+
+## Known limitations and future work
+
+- **Image freshness:** images come from the build-time cache. A brand-new image
+  in Airtable appears after the next redeploy (same model as the site). If an
+  image-bearing collection is fetched at runtime before a redeploy and a new
+  image was just added, that request can 503 until the redeploy, then self-heals.
+  A streaming image proxy would remove this entirely (deferred).
+- **Per-dataset `lastUpdated`** in `meta` (deferred; `generatedAt` is provided).
+- **Pagination** and **server-side sorting** (deferred; collections are small).
+- **UI embed widget**, a zero-code drop-in for non-technical chapters (deferred).
+- **API keys**, only if abuse appears (intentionally keyless for now).

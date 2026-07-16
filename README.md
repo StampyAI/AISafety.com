@@ -59,8 +59,16 @@ backup/
 ├── *.html                  # Original WebFlow exports (reference only)
 ```
 
+## Public Data API
+
+A read-only JSON API exposes the directories (communities, events, organizations,
+jobs, funding, …) for reuse by other AI-safety sites and tools, with no API key,
+CORS open, data licensed CC-BY-4.0. Human docs at `/developers`; spec at
+`/api/v1/openapi.json`. See [docs/api.md](./docs/api.md).
+
 ## Documentation
 
+- [Data API](./docs/api.md)
 - [Project Overview](./docs/project-overview.md)
 - [Architecture](./docs/architecture.md)
 - [Development Guide](./docs/development-guide.md)

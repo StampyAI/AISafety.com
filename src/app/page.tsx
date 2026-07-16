@@ -332,8 +332,8 @@ export default async function Home() {
               <h3>grantmaking.ai</h3>
             </div>
             <p className="padding-bottom-24px">
-              Public database of AI safety projects seeking funding, now
-              running a $1M grant round.
+              Public database of AI safety projects seeking funding, now running
+              a $1M grant round.
             </p>
             <TrackedLink
               href="https://www.grantmaking.ai/"

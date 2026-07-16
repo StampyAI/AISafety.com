@@ -2,7 +2,6 @@ import {
   fetchAirtableRecords,
   fieldAttachmentUrl,
   fieldFeatured,
-  fieldNumber,
   fieldString,
   fieldText,
   publishedFormula,
@@ -30,7 +29,6 @@ const FIELD = {
 export interface FounderResource {
   id: string
   name: string
-  sort: number | null
   type: string
   image: string | null
   description: string
@@ -60,7 +58,6 @@ export async function getFounderResources(): Promise<FounderResource[]> {
     results.push({
       id: record.id,
       name,
-      sort: fieldNumber(f[FIELD.sort]),
       type: fieldText(f[FIELD.type]),
       image: fieldAttachmentUrl(f[FIELD.image]),
       description: fieldString(f[FIELD.description]) || '',

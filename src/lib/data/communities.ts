@@ -48,7 +48,6 @@ export interface Community {
   joinLink: string
   location: string | null
   size: string | null
-  sort: number
   latitude: number | null
   longitude: number | null
   featured: '1' | '2' | null
@@ -83,7 +82,6 @@ export async function getCommunities(): Promise<Community[]> {
       joinLink: fieldString(f[FIELD.link]) || '#',
       location: fieldString(f[FIELD.locationIfInPerson]),
       size: fieldString(f[FIELD.size]),
-      sort: fieldNumber(f[FIELD.sort]) ?? 9999,
       latitude: fieldNumber(f[FIELD.latitude]),
       longitude: fieldNumber(f[FIELD.longitude]),
       featured: fieldFeatured(f[FIELD.featured]),

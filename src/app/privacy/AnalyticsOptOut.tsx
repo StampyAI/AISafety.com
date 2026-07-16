@@ -33,7 +33,11 @@ export default function AnalyticsOptOut() {
           ✓ Analytics is off in this browser{since ? ` (since ${since})` : ''}.
         </p>
       )}
-      <button type="button" className="button-secondary" onClick={handleToggle}>
+      <button
+        type="button"
+        className="button-secondary cursor-pointer"
+        onClick={handleToggle}
+      >
         {optedOut
           ? 'Turn analytics back on'
           : 'Turn off analytics in this browser'}

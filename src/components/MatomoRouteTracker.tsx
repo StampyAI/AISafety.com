@@ -2,9 +2,11 @@
 
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
+import { trackPageView } from '@/lib/analytics'
 
 /**
- * Notifies Matomo about Next.js client-side route changes.
+ * Notifies Matomo AND our first-party analytics about page views on Next.js
+ * client-side route changes.
  *
  * The Matomo tracker snippet in layout.tsx only fires `trackPageView` once on
  * initial load. Without this component, navigations between pages via Next.js
@@ -15,8 +17,22 @@ export default function MatomoRouteTracker() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const isFirstRender = useRef(true)
+  const lastFirstParty = useRef<string | null>(null)
 
   useEffect(() => {
+    // First-party page view: every pathname change INCLUDING the initial load
+    // (no snippet fires one for us). Only on pathname changes — filter/search
+    // query-param changes aren't new page visits. Admin pages are internal
+    // and never counted.
+    if (
+      pathname &&
+      pathname !== lastFirstParty.current &&
+      !pathname.startsWith('/admin')
+    ) {
+      lastFirstParty.current = pathname
+      trackPageView(pathname)
+    }
+
     // Skip the very first render — the Matomo snippet already fires
     // trackPageView once on initial load, so we'd otherwise double-count.
     if (isFirstRender.current) {

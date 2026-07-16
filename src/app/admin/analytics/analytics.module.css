@@ -636,6 +636,14 @@
   gap: 8px;
 }
 
+/* Funnel-style stat tiles stacked one per row — for a stat group living in a
+   half-width grid column, where a horizontal row would cramp the labels. */
+.statStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .funnelStage {
   flex: 1;
   min-width: 120px;

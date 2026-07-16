@@ -120,7 +120,7 @@ export default function Assistant() {
       void fireLog({ kind: 'open', trigger, currentPage })
       // First-party funnel: unique users who open the chatbot. The page and
       // trigger feed the admin dashboard's "where/how it's opened" panels.
-      trackEvent('chatbot_open', { page: currentPage, source: trigger })
+      trackEvent('chatbot_open', { page: currentPage })
     },
     [currentPage, fireLog]
   )

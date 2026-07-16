@@ -431,7 +431,6 @@ export default async function AnalyticsPage({
             <ChatbotView
               funnel={data.funnel}
               opensByPage={data.chatbot.opensByPage}
-              opensByTrigger={data.chatbot.opensByTrigger}
               destinations={data.chatbot.destinations}
               conv={convStats}
               unique={unique}
@@ -1028,14 +1027,12 @@ function OverallListingsTable({
 function ChatbotView({
   funnel,
   opensByPage,
-  opensByTrigger,
   destinations,
   conv,
   unique,
 }: {
   funnel: ChatbotFunnel
   opensByPage: Counted[]
-  opensByTrigger: Counted[]
   destinations: ChatbotDestination[]
   conv: ConversationStats | null
   unique: boolean
@@ -1063,32 +1060,17 @@ function ChatbotView({
         <Funnel funnel={funnel} />
       </Panel>
 
-      <div className={styles.grid}>
-        <Panel title="Where it's opened">
-          <CountTable
-            rows={opensByPage}
-            labelHead="Page"
-            countHead={usersHead ?? 'Opens'}
-            total={sum(opensByPage)}
-          />
-          <p className={styles.caption}>
-            The page visitors were on when they opened the chat panel.
-          </p>
-        </Panel>
-        <Panel title="How it's opened">
-          <CountTable
-            rows={opensByTrigger}
-            labelHead="Opened via"
-            countHead={usersHead ?? 'Opens'}
-            total={sum(opensByTrigger)}
-          />
-          <p className={styles.caption}>
-            The pill button, a suggested-question chip, or the keyboard
-            shortcut. Tracked from 15 July 2026 — earlier opens show as
-            Untracked.
-          </p>
-        </Panel>
-      </div>
+      <Panel title="Where it's opened">
+        <CountTable
+          rows={opensByPage}
+          labelHead="Page"
+          countHead={usersHead ?? 'Opens'}
+          total={sum(opensByPage)}
+        />
+        <p className={styles.caption}>
+          The page visitors were on when they opened the chat panel.
+        </p>
+      </Panel>
 
       {conv && !conv.available && (
         <div className={styles.empty}>

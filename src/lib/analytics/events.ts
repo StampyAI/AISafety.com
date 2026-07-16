@@ -283,10 +283,6 @@ export interface ChatbotPanelData {
    *  Older opens carry no explicit page, so it's recovered from the beacon's
    *  referer; opens where neither is known fall into 'Unknown'. */
   opensByPage: Counted[]
-  /** Opens bucketed by what opened the panel: the floating pill, a suggested
-   *  question chip, or the keyboard shortcut. The trigger is only stamped on
-   *  opens recorded from 15 July 2026 — older ones show as 'Untracked'. */
-  opensByTrigger: Counted[]
   /** Listings and links visitors clicked inside chatbot replies, busiest
    *  first. `name` is the link's visible text when the click carried one,
    *  otherwise the raw url (the dashboard prettifies it). */
@@ -381,7 +377,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   bySource: [],
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
-  chatbot: { opensByPage: [], opensByTrigger: [], destinations: [] },
+  chatbot: { opensByPage: [], destinations: [] },
   visits: { byPage: [], totalViews: 0, uniqueVisitors: 0, visitCount: 0 },
   correlations: [],
   recent: [],
@@ -762,13 +758,6 @@ function chatbotPage(e: AnalyticsEvent): string | undefined {
   }
 }
 
-/** How a chatbot open's stored trigger reads in the dashboard. */
-const TRIGGER_LABELS: Record<string, string> = {
-  pill: 'Pill button',
-  chip: 'Suggested question chip',
-  keyboard: 'Keyboard shortcut',
-}
-
 /** Bucket events by a key, counting either distinct users per bucket (matching
  *  the funnel's unique-user semantics; events with no visitor id each count
  *  once) or raw events. */
@@ -804,11 +793,6 @@ function chatbotPanels(
   const clicks = inRange.filter(e => e.type === 'chatbot_click')
 
   const opensByPage = tallyBy(opens, e => chatbotPage(e) ?? 'Unknown', unique)
-  const opensByTrigger = tallyBy(
-    opens,
-    e => (e.source ? (TRIGGER_LABELS[e.source] ?? e.source) : 'Untracked'),
-    unique
-  )
 
   // Reply clicks bucketed by destination url; the most recent click's label
   // (clicks are newest-first) names the row when one was recorded.
@@ -827,7 +811,7 @@ function chatbotPanels(
   }
   const destinations = [...byUrl.values()].sort((a, b) => b.count - a.count)
 
-  return { opensByPage, opensByTrigger, destinations }
+  return { opensByPage, destinations }
 }
 
 /** Distinct users in a set of events: distinct vids, plus each vid-less event

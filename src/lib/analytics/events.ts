@@ -62,6 +62,10 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   'chatbot_open',
   'chatbot_message',
   'chatbot_click',
+  // The privacy page's analytics switch: the opt-out is the browser's last
+  // recorded event, the opt-in its first after coming back.
+  'analytics_optout',
+  'analytics_optin',
 ])
 
 // ─── Redis backend ───────────────────────────────────────────────────────────
@@ -347,6 +351,10 @@ export interface DashboardData {
   funnel: ChatbotFunnel
   /** The Chatbot tab's event-derived panels (opens and reply clicks). */
   chatbot: ChatbotPanelData
+  /** Browsers that used the privacy page's analytics switch in range: `off` =
+   *  turned analytics off, `on` = turned it back on. Unique browsers, always —
+   *  toggling twice isn't two people changing their mind. */
+  optOuts: { off: number; on: number }
   /** First-party page views (recorded from 15 July 2026). */
   visits: VisitsData
   /** Cross-interest overlaps between pages (and the chatbot), from anonymous
@@ -378,6 +386,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
   chatbot: { opensByPage: [], destinations: [] },
+  optOuts: { off: 0, on: 0 },
   visits: { byPage: [], totalViews: 0, uniqueVisitors: 0, visitCount: 0 },
   correlations: [],
   recent: [],
@@ -615,6 +624,10 @@ function aggregate(
       clicked: usersOf('chatbot_click'),
     },
     chatbot: chatbotPanels(inRange, unique),
+    optOuts: {
+      off: usersOf('analytics_optout'),
+      on: usersOf('analytics_optin'),
+    },
     visits: visitsData(inRange, unique),
     correlations: correlations(inRange),
     // Newest-first already; page views are left out so the feed stays a log

@@ -108,8 +108,9 @@ export default function Footer() {
               Maintained by AI safety community-builders
             </p>
           </div>
-          <p className="paragraph-xs opacity-80">
-            (ɔ) 2026 · This site is released under a CC BY-SA license
+          <p className={`paragraph-xs opacity-80 ${styles.links}`}>
+            (ɔ) 2026 · This site is released under a CC BY-SA license ·{' '}
+            <Link href="/privacy">Privacy</Link>
           </p>
         </div>
       </div>

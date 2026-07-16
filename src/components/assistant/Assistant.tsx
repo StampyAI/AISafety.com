@@ -102,6 +102,9 @@ export default function Assistant() {
   const shiftedRight = currentPage === '/map'
 
   const fireLog = useCallback(async (event: object) => {
+    // The "exclude this browser" switch (privacy page/admin) covers the
+    // assistant's open/click/suggest log too, not just conversation turns.
+    if (isTrackingOptedOut()) return
     try {
       await fetch('/api/assistant/log', {
         method: 'POST',

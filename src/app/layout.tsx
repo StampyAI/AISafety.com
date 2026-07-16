@@ -61,8 +61,15 @@ export default async function RootLayout({
           {`
             var _paq = window._paq = window._paq || [];
             _paq.push(["disableCookies"]);
-            _paq.push(['trackPageView']);
-            _paq.push(['enableLinkTracking']);
+            // 'aisafety_no_track' mirrors OPTOUT_KEY in src/lib/analytics.ts —
+            // browsers opted out via the privacy page (or admin) send Matomo
+            // nothing, matching the first-party analytics behavior.
+            var noTrack = false;
+            try { noTrack = !!localStorage.getItem('aisafety_no_track'); } catch (e) {}
+            if (!noTrack) {
+              _paq.push(['trackPageView']);
+              _paq.push(['enableLinkTracking']);
+            }
             (function() {
               var u="https://aisafety.matomo.cloud/";
               _paq.push(['setTrackerUrl', u+'matomo.php']);

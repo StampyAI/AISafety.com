@@ -111,6 +111,14 @@ body {
   line-height: 160%;
 }
 
+/* The privacy page shifts the top background up so only its bottom half sits
+   behind the intro text, matching the redesign's sub-page treatment (the
+   development branch applies the same -250px to every non-home page; that
+   site-wide rule supersedes this one when it lands on main). */
+body:has(.privacy-page) {
+  background-position: center -250px;
+}
+
 h1 {
   font-size: 72px;
   font-weight: 400;

@@ -31,7 +31,7 @@ export default function PrivacyPage() {
               about page
             </Link>
             . Bryce Robertson, the site&apos;s project manager, is responsible
-            for how visitor data is handled – for anything privacy-related,{' '}
+            for how visitor data is handled. For anything privacy-related,{' '}
             <a
               href="https://airtable.com/appF8XfZUGXtfi40E/pagUmmzVb8OnVvTZS/form"
               target="_blank"

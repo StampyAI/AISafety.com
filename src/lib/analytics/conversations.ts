@@ -225,6 +225,21 @@ function median(sorted: number[]): number | null {
     : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
+/** The typed (non-suggested-chip) first message of every conversation in the
+ *  range — the input for the question-theme summarizer. Chip messages are
+ *  site-authored, so they'd pollute the themes with our own wording. */
+export async function listTypedQuestions(range: DateRange): Promise<string[]> {
+  const rows = await listConversationsForStats(range)
+  const out: string[] = []
+  for (const row of rows) {
+    const first = userMessages(row)[0]?.trim().replace(/\s+/g, ' ')
+    if (!first) continue
+    if (CHIP_TEXTS.has(first.toLowerCase())) continue
+    out.push(first)
+  }
+  return out
+}
+
 /** Cap on distinct questions sent to the browser — same reasoning as the click
  *  tables' row cap: organic data stays far below it. */
 const MAX_QUESTIONS = 500

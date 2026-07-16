@@ -14,6 +14,9 @@ import {
   type ConversationStats,
   type TopQuestion,
 } from '@/lib/analytics/conversations'
+import { readQuestionThemes, type ThemeSummary } from '@/lib/analytics/themes'
+import { isOwner } from '@/lib/admin/auth'
+import RefreshThemesButton from './RefreshThemesButton'
 import { getFunders } from '@/lib/data/funding'
 import { getCourses } from '@/lib/data/self-study'
 import { getAdvisors } from '@/lib/data/advisors'
@@ -278,7 +281,7 @@ export default async function AnalyticsPage({
   const tabReq = tabRaw === 'funnel' ? 'chatbot' : tabRaw
   const onResourceTab = tabReq != null && !OVERVIEW_KEYS.has(tabReq)
 
-  const [data, funders, convStats] = await Promise.all([
+  const [data, funders, convStats, themes, owner] = await Promise.all([
     readDashboard(
       range,
       onResourceTab ? tabReq : undefined,
@@ -289,6 +292,8 @@ export default async function AnalyticsPage({
     // The transcript-derived stats only render on the Chatbot tab, so only
     // fetch the (ever-growing) conversation log when it's the active tab.
     tabReq === 'chatbot' ? readConversationStats(range) : null,
+    tabReq === 'chatbot' ? readQuestionThemes() : null,
+    isOwner(),
   ])
 
   // Resource-page tabs: every page in PAGE_NAV always gets one (so quiet pages
@@ -433,6 +438,8 @@ export default async function AnalyticsPage({
               opensByPage={data.chatbot.opensByPage}
               destinations={data.chatbot.destinations}
               conv={convStats}
+              themes={themes}
+              owner={owner}
               unique={unique}
             />
           )}
@@ -1029,12 +1036,16 @@ function ChatbotView({
   opensByPage,
   destinations,
   conv,
+  themes,
+  owner,
   unique,
 }: {
   funnel: ChatbotFunnel
   opensByPage: Counted[]
   destinations: ChatbotDestination[]
   conv: ConversationStats | null
+  themes: ThemeSummary | null
+  owner: boolean
   unique: boolean
 }) {
   const usersHead = unique ? 'Users' : undefined
@@ -1130,12 +1141,32 @@ function ChatbotView({
             </Panel>
           </div>
 
-          <Panel title="Top questions">
-            <QuestionsTable rows={conv.topQuestions} />
+          <Panel title="What people ask about">
+            <ThemesTable summary={themes} />
+            {(owner || themes) && (
+              <p className={styles.caption}>
+                {owner && (
+                  <>
+                    <RefreshThemesButton />{' '}
+                  </>
+                )}
+                {themes && <>Last updated {formatTime(themes.generatedAt)}.</>}
+              </p>
+            )}
             <p className={styles.caption}>
-              Each conversation&apos;s first message. Suggested = matches one of
-              the chatbot&apos;s pre-written question chips, so it was started
-              with a chip click rather than typed.
+              Every typed question (suggested-chip clicks excluded), grouped
+              into themes by Claude across the whole log — a fixed weekly
+              snapshot, so the date range doesn&apos;t filter it.
+            </p>
+          </Panel>
+
+          <Panel title="Suggested questions">
+            <QuestionsTable
+              rows={conv.topQuestions.filter(q => q.suggested)}
+              showPill={false}
+            />
+            <p className={styles.caption}>
+              How often each pre-written question chip started a conversation.
             </p>
           </Panel>
         </>
@@ -1170,8 +1201,15 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** Top questions, with a pill marking the ones that match a suggested chip. */
-function QuestionsTable({ rows: allRows }: { rows: TopQuestion[] }) {
+/** Question rows with counts; the pill marks suggested-chip matches (off when
+ *  the table already holds only suggested questions). */
+function QuestionsTable({
+  rows: allRows,
+  showPill = true,
+}: {
+  rows: TopQuestion[]
+  showPill?: boolean
+}) {
   if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
   const rows = allRows.slice(0, MAX_TABLE_ROWS)
   const total = allRows.reduce((s, r) => s + r.count, 0)
@@ -1190,7 +1228,9 @@ function QuestionsTable({ rows: allRows }: { rows: TopQuestion[] }) {
             <tr key={i}>
               <td className={styles.nameCell}>
                 <span>{r.text}</span>
-                {r.suggested && <span className={styles.pill}>Suggested</span>}
+                {showPill && r.suggested && (
+                  <span className={styles.pill}>Suggested</span>
+                )}
               </td>
               <td className={styles.numCol}>{r.count.toLocaleString()}</td>
               <td className={styles.pctCol}>{pct1(r.count, total)}</td>
@@ -1209,6 +1249,52 @@ function QuestionsTable({ rows: allRows }: { rows: TopQuestion[] }) {
         <TruncationNote shown={rows.length} of={allRows.length} />
       )}
     </>
+  )
+}
+
+/** Claude-generated question themes with counts and verbatim examples. */
+function ThemesTable({ summary }: { summary: ThemeSummary | null }) {
+  if (!summary || summary.themes.length === 0) {
+    return (
+      <p className={styles.dim}>
+        No summary yet — refresh to generate one (it runs weekly on its own).
+      </p>
+    )
+  }
+  const total = summary.totalQuestions
+  return (
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th>Theme</th>
+          <th className={styles.numCol}>Conversations</th>
+          <th className={styles.pctCol}>%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {summary.themes.map((t, i) => (
+          <tr key={i}>
+            <td>
+              <div>{t.name}</div>
+              {t.examples.length > 0 && (
+                <div className={styles.dim}>
+                  {t.examples.map(e => `“${e}”`).join(' · ')}
+                </div>
+              )}
+            </td>
+            <td className={styles.numCol}>{t.count.toLocaleString()}</td>
+            <td className={styles.pctCol}>{pct1(t.count, total)}</td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr className={styles.totalRow}>
+          <td className={styles.totalLabel}>Total</td>
+          <td className={styles.numCol}>{total.toLocaleString()}</td>
+          <td className={styles.pctCol}>{pct1(total, total)}</td>
+        </tr>
+      </tfoot>
+    </table>
   )
 }
 

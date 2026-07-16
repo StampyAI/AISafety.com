@@ -53,6 +53,16 @@ export async function canViewAnalytics(): Promise<boolean> {
   return got != null && accepted.includes(got)
 }
 
+/** True only for the primary owner password's cookie. Actions that spend
+ *  money or rewrite stored data (e.g. re-running the question summarizer)
+ *  are gated on this, not on the shareable passwords. */
+export async function isOwner(): Promise<boolean> {
+  const p = process.env.ADMIN_PASSWORD
+  if (!p) return false
+  const c = await cookies()
+  return c.get(COOKIE_NAME)?.value === cookieValueFor(p)
+}
+
 export async function setAdminCookie(password: string): Promise<void> {
   // Only mint a cookie for a password we actually accept.
   if (!validPasswords().includes(password)) return

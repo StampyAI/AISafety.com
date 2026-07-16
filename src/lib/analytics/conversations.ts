@@ -33,14 +33,13 @@ export interface ConversationStats {
   /** Share (0–1) of conversations whose first message is one of the suggested
    *  question chips, or null with no data. */
   suggestedShare: number | null
-  /** Share (0–1) of ALL user messages that were a suggested pill rather than
-   *  typed — the message-level "pills vs chat window" split. Counts both the
-   *  starter chips (a first message matching the site's chip texts) and the
-   *  follow-up pills the bot offers after every reply (a message matching a
-   *  `[[chip:…]]` the previous reply carried). Computed over the stored
-   *  histories, so both sides of the fraction cover the same messages. Null
-   *  with no data. */
-  suggestedMessageShare: number | null
+  /** Share (0–1) of ALL user messages that clicked one of the follow-up
+   *  pills the bot offers after each reply (a message matching a `[[chip:…]]`
+   *  the previous reply carried). Conversation-STARTING chips are deliberately
+   *  excluded — they're `suggestedShare`'s job — so the two tiles never count
+   *  the same click. Computed over the stored histories, so both sides of the
+   *  fraction cover the same messages. Null with no data. */
+  followUpMessageShare: number | null
   /** Share (0–1) of conversations where the visitor clicked a listing card or
    *  link out of a reply, or null with no data. */
   clickedShare: number | null
@@ -57,7 +56,7 @@ const EMPTY_STATS: ConversationStats = {
   totalConversations: 0,
   medianLength: null,
   suggestedShare: null,
-  suggestedMessageShare: null,
+  followUpMessageShare: null,
   clickedShare: null,
   lengthBuckets: [],
   languages: [],
@@ -235,21 +234,21 @@ function median(sorted: number[]): number | null {
     : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
-/** A conversation's user messages, and how many of them were pill clicks:
- *  the first message matching one of the site's starter chips, or any message
- *  matching a `[[chip:…]]` follow-up the previous reply offered (the stored
- *  history keeps the raw markers the visitor-facing chat strips). A visitor
- *  who types an offered suggestion verbatim counts as a click — they took the
- *  suggestion either way. */
-function countPillMessages(row: ConversationRow): {
+/** A conversation's user messages, and how many of them clicked a follow-up
+ *  pill: a message matching a `[[chip:…]]` suggestion the previous reply
+ *  offered (the stored history keeps the raw markers the visitor-facing chat
+ *  strips). Conversation-starting chips are NOT counted here — the
+ *  started-from-a-suggestion stat covers those. A visitor who types an
+ *  offered suggestion verbatim counts as a click — they took the suggestion
+ *  either way. */
+function countFollowUpMessages(row: ConversationRow): {
   messages: number
-  pills: number
+  followUps: number
 } {
   const history = row.data?.history ?? []
   let messages = 0
-  let pills = 0
+  let followUps = 0
   let offered = new Set<string>()
-  let isFirst = true
   for (const turn of history) {
     if (turn.role === 'assistant') {
       offered = new Set(extractChips(turn.content).map(normalize))
@@ -257,18 +256,13 @@ function countPillMessages(row: ConversationRow): {
     }
     if (!turn.content) continue
     messages += 1
-    const key = normalize(turn.content)
-    if ((isFirst && CHIP_TEXTS.has(key)) || offered.has(key)) pills += 1
-    isFirst = false
+    if (offered.has(normalize(turn.content))) followUps += 1
     offered = new Set() // an offer only applies to the very next message
   }
   // Rows with no stored history but a latest message (e.g. an abandoned
   // first turn) still count that one message.
-  if (messages === 0 && row.data?.user) {
-    messages = 1
-    if (CHIP_TEXTS.has(normalize(row.data.user))) pills = 1
-  }
-  return { messages, pills }
+  if (messages === 0 && row.data?.user) messages = 1
+  return { messages, followUps }
 }
 
 /** The typed (non-suggested-chip) first message of every conversation in the
@@ -324,9 +318,9 @@ export async function readConversationStats(
       languages.push(detectLanguage(messages))
     }
     if (row.clickedCitations.length > 0) clicked += 1
-    const pills = countPillMessages(row)
+    const pills = countFollowUpMessages(row)
     totalMessages += pills.messages
-    pillMessages += pills.pills
+    pillMessages += pills.followUps
 
     const first = messages[0]?.trim().replace(/\s+/g, ' ')
     if (!first) continue
@@ -353,7 +347,7 @@ export async function readConversationStats(
     totalConversations: rows.length,
     medianLength: median(lengths.sort((a, b) => a - b)),
     suggestedShare: withQuestion > 0 ? suggested / withQuestion : null,
-    suggestedMessageShare:
+    followUpMessageShare:
       totalMessages > 0 ? pillMessages / totalMessages : null,
     clickedShare: rows.length > 0 ? clicked / rows.length : null,
     // Buckets in display order (1 → 11+), only the non-empty ones.

@@ -113,9 +113,9 @@ export default function PrivacyPage() {
             >
               sending us a message
             </a>
-            . Because our analytics is anonymous, chatbot conversations are
-            usually the only thing we can link to you – mention roughly when the
-            conversation happened and what it was about, and we&apos;ll find and
+            . Because our analytics is anonymous, a chatbot conversation is
+            usually the only thing of yours we&apos;d be able to find – mention
+            roughly when it happened and what it was about, and we&apos;ll
             delete it.
           </p>
 

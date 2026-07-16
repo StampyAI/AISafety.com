@@ -292,6 +292,40 @@ export async function listConversationsPage(opts: {
   }
 }
 
+/** Every conversation created inside the given window (epoch-ms bounds, either
+ *  side open), fetched with only the fields the analytics dashboard's chatbot
+ *  panels read — Data (the transcript) and Clicked — so the payload stays as
+ *  small as the ever-growing log allows. */
+export async function listConversationsForStats(range: {
+  startMs: number | null
+  endMs: number | null
+}): Promise<ConversationRow[]> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  // IS_AFTER/IS_BEFORE are strict, so widen each bound by 1ms to keep the
+  // range's own endpoints included.
+  const parts: string[] = []
+  if (range.startMs != null) {
+    const iso = new Date(range.startMs - 1).toISOString()
+    parts.push(`IS_AFTER(CREATED_TIME(), '${iso}')`)
+  }
+  if (range.endMs != null) {
+    const iso = new Date(range.endMs + 1).toISOString()
+    parts.push(`IS_BEFORE(CREATED_TIME(), '${iso}')`)
+  }
+  const params = new URLSearchParams()
+  if (parts.length > 0) {
+    params.set(
+      'filterByFormula',
+      parts.length === 1 ? parts[0] : `AND(${parts.join(', ')})`
+    )
+  }
+  params.set('returnFieldsByFieldId', 'true')
+  params.append('fields[]', FIELD.data)
+  params.append('fields[]', FIELD.clicked)
+  const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
+  return rows.map(rowToConversation)
+}
+
 export async function updateConversation(
   id: string,
   patch: { notes?: string; tags?: string[] }

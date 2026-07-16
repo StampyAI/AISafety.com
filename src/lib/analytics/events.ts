@@ -57,6 +57,7 @@ export interface AnalyticsEvent {
  *  the public endpoint rejects anything not in this set, which bounds what an
  *  abusive caller can write. */
 export const ALLOWED_EVENT_TYPES = new Set<string>([
+  'page_view',
   'listing_click',
   'chatbot_open',
   'chatbot_message',
@@ -95,16 +96,18 @@ const MONTHS_KEY = 'aisafety:analytics:months'
 // place so a rolled-back deployment still finds its data.
 const LEGACY_EVENTS_KEY = 'aisafety:analytics:events'
 const MIGRATED_KEY = 'aisafety:analytics:legacy-migrated'
-// Backstop only — never reached by real traffic (~15k events/month, ~300 bytes
-// each, as of July 2026; this is ~3× headroom). It bounds what a scripted
-// abuser who stays under the per-IP rate limit can grow a month list to: at
-// the cap a month is ~15 MB of organic events, or ~90 MB if an attacker maxes
-// every length-capped field — either way comfortably inside the shared
-// free-tier database's 256 MB, which the chatbot rate limiter also lives in.
+// Backstop only — never reached by real traffic. Clicks and chatbot events ran
+// ~15k/month as of July 2026; page-view tracking (added 15 July 2026) is
+// estimated to lift organic volume to ~50–100k/month, so this is ~1.5–3×
+// headroom. It bounds what a scripted abuser who stays under the per-IP rate
+// limit can grow a month list to: at the cap a month is ~45 MB of organic
+// events, inside the shared free-tier database's 256 MB (which the chatbot
+// rate limiter also lives in) — but if months ever actually run near the cap,
+// that database needs a paid plan or per-day rollups, not just a bigger cap.
 // recordEvent warns in the logs whenever the cap actually trims, and the
 // dashboard shows a warning banner from MONTH_CAP_WARN_RATIO up — so organic
 // growth approaching the cap is visible well before data quietly disappears.
-const MONTH_CAP = 50_000
+const MONTH_CAP = 150_000
 // Share of MONTH_CAP at which the dashboard starts warning: early enough to
 // raise the cap (one constant, redeploy) before anything is actually trimmed.
 const MONTH_CAP_WARN_RATIO = 0.75
@@ -270,6 +273,48 @@ export interface ChatbotFunnel {
   clicked: number
 }
 
+export interface ChatbotDestination extends Counted {
+  /** Destination url — for the favicon and link in the dashboard table. */
+  url?: string
+}
+
+export interface ChatbotPanelData {
+  /** Opens bucketed by the page they happened on ('/funding', '/map', …).
+   *  Older opens carry no explicit page, so it's recovered from the beacon's
+   *  referer; opens where neither is known fall into 'Unknown'. */
+  opensByPage: Counted[]
+  /** Listings and links visitors clicked inside chatbot replies, busiest
+   *  first. `name` is the link's visible text when the click carried one,
+   *  otherwise the raw url (the dashboard prettifies it). */
+  destinations: ChatbotDestination[]
+}
+
+export interface VisitsData {
+  /** Page views bucketed by page, busiest first — visitors or raw views,
+   *  depending on the dashboard's count mode. */
+  byPage: Counted[]
+  /** Raw page views in range. */
+  totalViews: number
+  /** Distinct visitors among the page views in range. */
+  uniqueVisitors: number
+  /** Browsing sessions: one visitor's page views separated by 30+ minutes of
+   *  inactivity count as separate visits (the definition Matomo uses too). */
+  visitCount: number
+}
+
+export interface CorrelationRow {
+  /** The pair of interests, e.g. 'Map' and 'Events' — resource pages, plus
+   *  'Chatbot' for chatbot use. */
+  a: string
+  b: string
+  /** Visitors who engaged with BOTH (visited the page, or clicked one of its
+   *  listings — clicks reach back before page-view tracking began). */
+  both: number
+  /** Visitors who engaged with each side at all, the overlap denominators. */
+  aTotal: number
+  bTotal: number
+}
+
 export interface DashboardData {
   /** Which backend served this data — surfaced in the UI so it's obvious in dev. */
   source: 'redis' | 'local-file' | 'none'
@@ -300,6 +345,15 @@ export interface DashboardData {
    *  'untracked'), or null for all sources. Only ever set on map pages. */
   selectedSource: string | null
   funnel: ChatbotFunnel
+  /** The Chatbot tab's event-derived panels (opens and reply clicks). */
+  chatbot: ChatbotPanelData
+  /** First-party page views (recorded from 15 July 2026). */
+  visits: VisitsData
+  /** Cross-interest overlaps between pages (and the chatbot), from anonymous
+   *  visitor ids: pairs ranked by how many visitors engaged with both. */
+  correlations: CorrelationRow[]
+  /** Recent clicks and chatbot events — page views are excluded so the feed
+   *  stays an activity log rather than a firehose. */
   recent: AnalyticsEvent[]
   /** Timestamp of the oldest event in the WHOLE store (not just the selected
    *  range) — lets the dashboard say how far back its data actually goes.
@@ -323,6 +377,9 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   bySource: [],
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
+  chatbot: { opensByPage: [], destinations: [] },
+  visits: { byPage: [], totalViews: 0, uniqueVisitors: 0, visitCount: 0 },
+  correlations: [],
   recent: [],
   nearCap: [],
 }
@@ -426,8 +483,10 @@ function aggregate(
   })
   // Every click table below derives from this set. In unique mode it's deduped
   // to one click per visitor per listing per day, so repeat clicks don't inflate
-  // the counts; in total mode every click is counted.
-  const pageHits = inRange.filter(e => e.page)
+  // the counts; in total mode every click is counted. Filtered by type, not by
+  // "has a page": chatbot events also carry the page they happened on, and must
+  // not count as listing clicks.
+  const pageHits = inRange.filter(e => e.type === 'listing_click' && e.page)
   const clicks = unique ? uniqueClicks(pageHits) : pageHits
   const usersOf = (type: string) =>
     uniqueUsers(inRange.filter(e => e.type === type))
@@ -555,8 +614,204 @@ function aggregate(
       typed: usersOf('chatbot_message'),
       clicked: usersOf('chatbot_click'),
     },
-    recent: inRange.slice(0, 50), // already newest-first
+    chatbot: chatbotPanels(inRange, unique),
+    visits: visitsData(inRange, unique),
+    correlations: correlations(inRange),
+    // Newest-first already; page views are left out so the feed stays a log
+    // of actions rather than a firehose of visits.
+    recent: inRange.filter(e => e.type !== 'page_view').slice(0, 50),
   }
+}
+
+/** Page paths as their resource-page analytics names, so page views line up
+ *  with the names listing clicks already use ('/funding' and 'Funding' are the
+ *  same interest). Unknown paths pass through as-is. */
+const PAGE_NAME_BY_PATH: Record<string, string> = {
+  '/': 'Home',
+  '/map': 'Map',
+  '/communities': 'Communities',
+  '/self-study': 'Self-study',
+  '/jobs': 'Jobs',
+  '/funding': 'Funding',
+  '/media-channels': 'Media channels',
+  '/advisors': 'Advisors',
+  '/projects': 'Projects',
+  '/founders': 'Founders',
+  '/events-and-training': 'Events',
+  '/donation-guide': 'Donation guide',
+  '/about': 'About',
+  '/poster-map': 'Poster map',
+}
+
+/** The visits panel: page views bucketed by page. */
+function visitsData(inRange: AnalyticsEvent[], unique: boolean): VisitsData {
+  const views = inRange.filter(e => e.type === 'page_view')
+  return {
+    byPage: tallyBy(
+      views,
+      e => (e.page ? (PAGE_NAME_BY_PATH[e.page] ?? e.page) : 'Unknown'),
+      unique
+    ),
+    totalViews: views.length,
+    uniqueVisitors: uniqueUsers(views),
+    visitCount: countVisits(views),
+  }
+}
+
+/** A returning visitor starts a new visit after this much inactivity. */
+const SESSION_GAP_MS = 30 * 60_000
+
+/** Browsing sessions among the page views: each visitor's views are grouped,
+ *  and a gap of SESSION_GAP_MS or more starts a new visit. Views with no
+ *  visitor id (private browsing) can't be grouped, so each counts as its own
+ *  visit — same spirit as uniqueUsers. */
+function countVisits(views: AnalyticsEvent[]): number {
+  const byVid = new Map<string, number[]>()
+  let visits = 0
+  for (const e of views) {
+    if (!e.vid) {
+      visits++
+      continue
+    }
+    const t = Date.parse(e.ts)
+    if (Number.isNaN(t)) continue
+    const times = byVid.get(e.vid) ?? []
+    times.push(t)
+    byVid.set(e.vid, times)
+  }
+  for (const times of byVid.values()) {
+    times.sort((a, b) => a - b)
+    visits++
+    for (let i = 1; i < times.length; i++) {
+      if (times[i] - times[i - 1] >= SESSION_GAP_MS) visits++
+    }
+  }
+  return visits
+}
+
+/** The interest an event expresses, for the correlations table: the page it
+ *  belongs to (viewed, or clicked a listing on), or 'Chatbot' for chatbot
+ *  use. Listing clicks reach back to 20 June 2026, so pairs have history even
+ *  though page views only started on 15 July 2026. */
+function interestOf(e: AnalyticsEvent): string | undefined {
+  if (e.type === 'page_view')
+    return e.page ? (PAGE_NAME_BY_PATH[e.page] ?? e.page) : undefined
+  if (e.type === 'listing_click') return e.page
+  if (e.type.startsWith('chatbot')) return 'Chatbot'
+  return undefined
+}
+
+/** Cross-interest overlaps: for every pair of interests, how many visitors
+ *  engaged with both. Needs the anonymous visitor id, so events without one
+ *  (private browsing) can't contribute. Pairs seen only once are noise and
+ *  dropped. */
+function correlations(inRange: AnalyticsEvent[]): CorrelationRow[] {
+  const byVid = new Map<string, Set<string>>()
+  for (const e of inRange) {
+    if (!e.vid) continue
+    const interest = interestOf(e)
+    if (!interest) continue
+    const set = byVid.get(e.vid) ?? new Set<string>()
+    set.add(interest)
+    byVid.set(e.vid, set)
+  }
+
+  const totals = new Map<string, number>()
+  const pairs = new Map<string, number>()
+  for (const set of byVid.values()) {
+    const interests = [...set].sort()
+    for (const i of interests) totals.set(i, (totals.get(i) ?? 0) + 1)
+    for (let x = 0; x < interests.length; x++) {
+      for (let y = x + 1; y < interests.length; y++) {
+        const key = `${interests[x]}\n${interests[y]}`
+        pairs.set(key, (pairs.get(key) ?? 0) + 1)
+      }
+    }
+  }
+
+  return [...pairs.entries()]
+    .filter(([, both]) => both >= 2)
+    .map(([key, both]) => {
+      const [a, b] = key.split('\n')
+      return {
+        a,
+        b,
+        both,
+        aTotal: totals.get(a) ?? 0,
+        bTotal: totals.get(b) ?? 0,
+      }
+    })
+    .sort((p, q) => q.both - p.both)
+    .slice(0, 100)
+}
+
+/** The page a chatbot event happened on: the explicitly stamped page when the
+ *  event carries one (from 15 July 2026), else the path of the beacon's referer
+ *  (which every earlier open still has). */
+function chatbotPage(e: AnalyticsEvent): string | undefined {
+  if (e.page) return e.page
+  if (!e.ref) return undefined
+  try {
+    return new URL(e.ref).pathname || '/'
+  } catch {
+    return undefined
+  }
+}
+
+/** Bucket events by a key, counting either distinct users per bucket (matching
+ *  the funnel's unique-user semantics; events with no visitor id each count
+ *  once) or raw events. */
+function tallyBy(
+  events: AnalyticsEvent[],
+  keyOf: (e: AnalyticsEvent) => string,
+  unique: boolean
+): Counted[] {
+  if (!unique) return tally(events.map(keyOf))
+  const seen = new Set<string>()
+  const counts = new Map<string, number>()
+  for (const e of events) {
+    const key = keyOf(e)
+    if (e.vid) {
+      const dedupe = `${key}\n${e.vid}`
+      if (seen.has(dedupe)) continue
+      seen.add(dedupe)
+    }
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** The Chatbot tab's event-derived panels. `unique` mirrors the dashboard's
+ *  count mode: unique users per bucket, or every event. */
+function chatbotPanels(
+  inRange: AnalyticsEvent[],
+  unique: boolean
+): ChatbotPanelData {
+  const opens = inRange.filter(e => e.type === 'chatbot_open')
+  const clicks = inRange.filter(e => e.type === 'chatbot_click')
+
+  const opensByPage = tallyBy(opens, e => chatbotPage(e) ?? 'Unknown', unique)
+
+  // Reply clicks bucketed by destination url; the most recent click's label
+  // (clicks are newest-first) names the row when one was recorded.
+  const byUrl = new Map<string, { name: string; url?: string; count: number }>()
+  const seen = new Set<string>()
+  for (const e of clicks) {
+    const url = e.url ?? e.label ?? '(unknown)'
+    if (unique && e.vid) {
+      const dedupe = `${url}\n${e.vid}`
+      if (seen.has(dedupe)) continue
+      seen.add(dedupe)
+    }
+    const g = byUrl.get(url) ?? { name: e.label ?? url, url: e.url, count: 0 }
+    g.count += 1
+    byUrl.set(url, g)
+  }
+  const destinations = [...byUrl.values()].sort((a, b) => b.count - a.count)
+
+  return { opensByPage, destinations }
 }
 
 /** Distinct users in a set of events: distinct vids, plus each vid-less event

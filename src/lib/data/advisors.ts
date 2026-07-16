@@ -1,18 +1,30 @@
-import { fetchAirtableRecords } from './airtable'
+import {
+  fetchAirtableRecords,
+  fieldAttachmentUrl,
+  fieldFeatured,
+  fieldString,
+  fieldText,
+  publishedFormula,
+} from './airtable'
 
 const TABLE_ID = 'tblf3KKYnmgcjVGhD'
 const VIEW_ID = 'viwIdRmaCar2Y6gPi'
 
-interface AirtableRecord {
-  fields: {
-    Name?: string
-    Description?: string
-    Logo?: Array<{ url: string }>
-    Focus?: string | string[]
-    Status?: string | string[]
-    Link?: string
-  }
-}
+// Permanent Airtable field IDs for the Advisors table. Fetching, filtering
+// and sorting by ID keeps the page working when fields are renamed.
+const FIELD = {
+  name: 'fldDCHQmcF8HLOz5S', // Name
+  description: 'fldKAGrIoU5VBZJ85', // Description
+  logo: 'fldlN4rEUvhZBt8Bk', // Logo
+  focus: 'fldJw9XfXOInZ7mCq', // Focus
+  status: 'flduXnbMW0gaLpSgE', // Status
+  link: 'fldAOckkk19f4aNTm', // Link
+  featured: 'fldEp3grkZngt3fmk', // Featured
+  featuredTagline: 'fldqzI3RhC7hwYJN2', // Featured tagline
+  sort: 'fldbIK2vKzWm61CGr', // Sort
+  publish: 'fldaOmFd67ORPMfTC', // Publish?
+  hide: 'fldBOSo9B5KSaTZRq', // Hide?
+} as const
 
 export interface Advisor {
   id: string
@@ -22,38 +34,35 @@ export interface Advisor {
   focus: string
   status: string
   url: string
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getAdvisors(): Promise<Advisor[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
-    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
-    sort: [{ field: 'Sort', direction: 'asc' }],
+    returnFieldsByFieldId: true,
+    filterByFormula: publishedFormula(FIELD.publish, FIELD.hide),
+    sort: [{ field: FIELD.sort, direction: 'asc' }],
   })
 
   const results: Advisor[] = []
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
-    if (!fields.Name) continue
-
-    let logo: string | null = null
-    if (fields.Logo && fields.Logo.length > 0) {
-      logo = fields.Logo[0].url
-    }
+    const f = record.fields
+    const name = fieldString(f[FIELD.name])
+    if (!name) continue
 
     results.push({
       id: record.id,
-      name: fields.Name,
-      description: fields.Description || '',
-      logo,
-      focus: Array.isArray(fields.Focus)
-        ? fields.Focus.join(', ')
-        : fields.Focus || '',
-      status: Array.isArray(fields.Status)
-        ? fields.Status.join(', ')
-        : fields.Status || '',
-      url: fields.Link || '#',
+      name,
+      description: fieldString(f[FIELD.description]) || '',
+      logo: fieldAttachmentUrl(f[FIELD.logo]),
+      focus: fieldText(f[FIELD.focus]),
+      status: fieldText(f[FIELD.status]),
+      url: fieldString(f[FIELD.link]) || '#',
+      featured: fieldFeatured(f[FIELD.featured]),
+      featuredTagline: fieldString(f[FIELD.featuredTagline]),
     })
   }
 

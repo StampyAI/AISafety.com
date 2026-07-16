@@ -1,6 +1,6 @@
 # CSS Guidelines
 
-This project uses a **constraint-based design system**. These rules ensure visual consistency and prevent arbitrary styling decisions. **Always use utility classes from `globals.css` first.** Only create new classes in rare cases when utility classes can't solve the problem.
+This project uses a **constraint-based design system**. These rules ensure visual consistency and prevent arbitrary styling decisions. **Always use utility classes from `globals.css` first.** Only create new classes in rare cases when utility classes can't solve the problem. The most important part of this system is the file 'globals.css', which defines the styling for the entire site. Familiarize yourself with this file! Please read this walkthrough of the sections in the file.
 
 ## Walkthrough 'globals.css'
 
@@ -224,8 +224,7 @@ The site uses **one breakpoint: `991px`**. Do not introduce other breakpoints. `
 Only create a new class when:
 
 - You need component-specific styling that utility classes can't provide
-- The styling involves complex selectors, pseudo-elements, or animations
-- Multiple CSS properties need to work together as a unit
+- The styling involves complex selectors or pseudo-elements (if you don't know what this means, just ignore this line)
 
 Where to put new classes:
 

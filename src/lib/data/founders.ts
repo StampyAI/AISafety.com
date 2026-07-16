@@ -1,17 +1,30 @@
-import { fetchAirtableRecords } from './airtable'
+import {
+  fetchAirtableRecords,
+  fieldAttachmentUrl,
+  fieldFeatured,
+  fieldString,
+  fieldText,
+  publishedFormula,
+} from './airtable'
 
 const TABLE_ID = 'tbl59Ye8oxvPjoVJv'
 const VIEW_ID = 'viwzMBhPBk1GpQXnn'
 
-interface AirtableRecord {
-  fields: {
-    Name?: string
-    Type?: string | string[]
-    Image?: Array<{ url: string }>
-    Description?: string
-    Website?: string
-  }
-}
+// Permanent Airtable field IDs for the Founder toolkit table. Fetching,
+// filtering and sorting by ID keeps the page working when fields are
+// renamed.
+const FIELD = {
+  name: 'fldylwo2fwYtfMqM8', // Name
+  sort: 'fldBoK9MKNijwTzBl', // Sort
+  type: 'fldu8ymguU2ndeGgF', // Type
+  image: 'fld2MY1ilx2i6Gqll', // Image
+  description: 'fld904S9bZ6oECDte', // Description
+  website: 'fldWDaTU33sdnQC5A', // Website
+  featured: 'fldzM3TDpR4RGllFT', // Featured
+  featuredTagline: 'fldhf703nHwICgQyl', // Featured tagline
+  publish: 'fld9Epdrxu9n0FV20', // Publish?
+  hide: 'fldPKsUP3i4UVujDf', // Hide?
+} as const
 
 export interface FounderResource {
   id: string
@@ -20,38 +33,37 @@ export interface FounderResource {
   image: string | null
   description: string
   website: string
+  featured: '1' | '2' | null
+  featuredTagline: string | null
 }
 
 export async function getFounderResources(): Promise<FounderResource[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
-    filterByFormula: 'AND({Publish?} = TRUE(), {Hide?} = FALSE())',
+    returnFieldsByFieldId: true,
+    filterByFormula: publishedFormula(FIELD.publish, FIELD.hide),
     sort: [
-      { field: 'Sort', direction: 'asc' },
-      { field: 'Name', direction: 'asc' },
+      { field: FIELD.sort, direction: 'asc' },
+      { field: FIELD.name, direction: 'asc' },
     ],
   })
 
   const results: FounderResource[] = []
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
-    if (!fields.Name) continue
-
-    let image: string | null = null
-    if (fields.Image && fields.Image.length > 0) {
-      image = fields.Image[0].url
-    }
+    const f = record.fields
+    const name = fieldString(f[FIELD.name])
+    if (!name) continue
 
     results.push({
       id: record.id,
-      name: fields.Name,
-      type: Array.isArray(fields.Type)
-        ? fields.Type.join(', ')
-        : fields.Type || '',
-      image,
-      description: fields.Description || '',
-      website: fields.Website || '#',
+      name,
+      type: fieldText(f[FIELD.type]),
+      image: fieldAttachmentUrl(f[FIELD.image]),
+      description: fieldString(f[FIELD.description]) || '',
+      website: fieldString(f[FIELD.website]) || '#',
+      featured: fieldFeatured(f[FIELD.featured]),
+      featuredTagline: fieldString(f[FIELD.featuredTagline]),
     })
   }
 

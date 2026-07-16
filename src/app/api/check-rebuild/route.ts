@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
+import { fetchAirtableWithRetry } from '@/lib/data/airtable'
 
 // Force dynamic - this endpoint must run fresh on every cron invocation
 export const dynamic = 'force-dynamic'
 
 // Airtable tables whose changes should trigger a rebuild. The filter mirrors
 // what the corresponding page actually displays, so internal-only edits on
-// unpublished records don't cause unnecessary rebuilds.
+// unpublished records don't cause unnecessary rebuilds. Filters reference
+// fields by permanent field ID (rename-proof).
 const TABLES: Array<{
   name: string
   tableId: string
@@ -14,41 +16,53 @@ const TABLES: Array<{
   {
     name: 'communities',
     tableId: 'tbluI5Dll697WiSm8',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldV8RYP1CVzOvHpf} = TRUE()', // Publish?
   },
   {
     name: 'funding',
     tableId: 'tblzMTLDZWZKqTxrq',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldoH88AbtQLEViD7} = TRUE()', // Publish?
   },
   {
     name: 'self-study',
     tableId: 'tblRNYJ0m1cmJXKKk',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldWShxP7GkMeh6rg} = TRUE()', // Publish?
   },
   { name: 'map', tableId: 'tblvzbGL9q9dOO9Nc' },
   {
     name: 'advisors',
     tableId: 'tblf3KKYnmgcjVGhD',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldaOmFd67ORPMfTC} = TRUE()', // Publish?
   },
   {
     name: 'projects',
     tableId: 'tblHT29QNgMYKB8iW',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldrGDtZxpFLQfjMz} = TRUE()', // Publish?
   },
   {
     name: 'media-channels',
     tableId: 'tblCTOMzyH3vILL5I',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldMN0TF3kz41HTQc} = TRUE()', // Publish?
   },
   {
     name: 'founders',
     tableId: 'tbl59Ye8oxvPjoVJv',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fld9Epdrxu9n0FV20} = TRUE()', // Publish?
   },
   { name: 'events', tableId: 'tblx0L8qJEaLBxJFS' },
 ]
+
+// Module-level cooldowns prevent hammering the Vercel deploy hook. The hook is
+// rate-limited (~1 per 60s) and Vercel will temporarily lock it out under spam.
+// These reset on cold start, which is fine — a new instance means time has
+// passed anyway.
+let lastTriggerAt = 0
+let lastRateLimitedAt = 0
+// After a successful trigger, suppress further triggers for this long so the
+// in-flight build can finish and advance BUILD_TIME.
+const POST_TRIGGER_COOLDOWN_MS = 10 * 60 * 1000
+// After a 429, back off entirely so we stop adding to Vercel's rate-limit count.
+const RATE_LIMIT_COOLDOWN_MS = 15 * 60 * 1000
 
 // Uses LAST_MODIFIED_TIME() (a formula function) rather than any table's
 // "Last modified" field. The field may be configured as date-only, which
@@ -70,8 +84,7 @@ async function hasChangesSince(
   url.searchParams.set('filterByFormula', formula)
   url.searchParams.set('maxRecords', '1')
 
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await fetchAirtableWithRetry(url.toString(), token, {
     cache: 'no-store',
   })
 
@@ -146,12 +159,48 @@ export async function GET(request: Request) {
     })
   }
 
+  const now = Date.now()
+
+  if (now - lastTriggerAt < POST_TRIGGER_COOLDOWN_MS) {
+    return NextResponse.json({
+      triggered: false,
+      reason: 'recent-trigger-cooldown',
+      buildTime: buildDate.toISOString(),
+      changedTables,
+    })
+  }
+
+  if (now - lastRateLimitedAt < RATE_LIMIT_COOLDOWN_MS) {
+    return NextResponse.json({
+      triggered: false,
+      reason: 'rate-limit-cooldown',
+      buildTime: buildDate.toISOString(),
+      changedTables,
+    })
+  }
+
   const hookResponse = await fetch(deployHookUrl, { method: 'POST' })
+
+  if (hookResponse.status === 429) {
+    lastRateLimitedAt = now
+    console.warn(
+      `Deploy hook rate-limited (429); backing off for ${RATE_LIMIT_COOLDOWN_MS / 60000} min`
+    )
+    return NextResponse.json({
+      triggered: false,
+      reason: 'rate-limited',
+      buildTime: buildDate.toISOString(),
+      changedTables,
+    })
+  }
+
   if (!hookResponse.ok) {
     throw new Error(
       `Deploy hook failed: ${hookResponse.status} ${hookResponse.statusText}`
     )
   }
+
+  lastTriggerAt = now
 
   return NextResponse.json({
     triggered: true,

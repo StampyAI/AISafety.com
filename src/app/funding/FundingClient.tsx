@@ -5,8 +5,10 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { Funder } from '@/lib/data/funding'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface FundingClientProps {
   funders: Funder[]
@@ -26,6 +28,10 @@ export default function FundingClient({ funders }: FundingClientProps) {
   const [selectedAccepting, setSelectedAccepting] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
+  // Each funder's slot in the full (unfiltered) page order, so a click is
+  // tagged with the rank Bryce set — not its position within an active filter.
+  const placements = useMemo(() => placementsById(funders), [funders])
+
   const filteredFunders = useMemo(() => {
     return funders.filter(funder => {
       if (searchQuery) {
@@ -39,22 +45,16 @@ export default function FundingClient({ funders }: FundingClientProps) {
       }
 
       if (selectedAccepting.length > 0) {
-        const hasMatch = selectedAccepting.some(a =>
-          (funder.acceptingApplications || '')
-            .toLowerCase()
-            .includes(a.toLowerCase())
-        )
+        // Airtable values are prefixed: "Yes – rolling basis", "Yes – closes …", or "No".
+        // Match on the prefix so the Yes/No filter catches all variants.
+        const accepting = funder.acceptingApplications || ''
+        const hasMatch = selectedAccepting.some(a => accepting.startsWith(a))
         if (!hasMatch) return false
       }
 
       if (selectedTypes.length > 0) {
-        const funderTypes = (funder.type || '')
-          .toLowerCase()
-          .split(',')
-          .map(t => t.trim())
-        const hasMatch = selectedTypes.some(t =>
-          funderTypes.some(ft => ft.includes(t.toLowerCase()))
-        )
+        const funderTypes = (funder.type || '').split(',').map(t => t.trim())
+        const hasMatch = selectedTypes.some(t => funderTypes.includes(t))
         if (!hasMatch) return false
       }
 
@@ -65,13 +65,11 @@ export default function FundingClient({ funders }: FundingClientProps) {
   const acceptingCounts = useMemo(() => {
     return funders.reduce(
       (counts, funder) => {
+        const accepting = funder.acceptingApplications || ''
         for (const option of acceptingOptions) {
-          if (
-            (funder.acceptingApplications || '')
-              .toLowerCase()
-              .includes(option.toLowerCase())
-          ) {
+          if (accepting.startsWith(option)) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts
@@ -83,12 +81,9 @@ export default function FundingClient({ funders }: FundingClientProps) {
   const typeCounts = useMemo(() => {
     return funders.reduce(
       (counts, funder) => {
-        const types = (funder.type || '')
-          .toLowerCase()
-          .split(',')
-          .map(t => t.trim())
+        const types = (funder.type || '').split(',').map(t => t.trim())
         for (const option of typeOptions) {
-          if (types.some(t => t.includes(option.toLowerCase()))) {
+          if (types.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -124,13 +119,10 @@ export default function FundingClient({ funders }: FundingClientProps) {
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search funders by name or description"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search funders by name or description"
           />
         </div>
 
@@ -143,7 +135,13 @@ export default function FundingClient({ funders }: FundingClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Funding', funder.name, funder.url)
+                trackListingClick(
+                  'Funding',
+                  funder.name,
+                  funder.url,
+                  funder.id,
+                  placements.get(funder.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
@@ -209,6 +207,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="funder"
+          suggestEntryDescription="Suggest a funder to be published here"
           suggestCorrectionDescription="Let us know of any changes that should be made"
         />
       </div>

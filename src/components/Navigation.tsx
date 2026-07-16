@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   useCallback,
   useEffect,
@@ -9,6 +10,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { SearchButton, SearchProvider } from './SearchTrigger'
 import styles from './Navigation.module.css'
 
 const navItems = [
@@ -55,6 +57,15 @@ export default function Navigation({
   const [visibleCount, setVisibleCount] = useState(
     navItems.length - MIN_OVERFLOW
   )
+  const pathname = usePathname()
+
+  // Close the mobile menu only once the new route is actually active.
+  // Closing on link click instead snaps the overlay shut before the new
+  // page has rendered, producing a flash of the previous page.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: react to route change driven by Link clicks outside this component
+    setIsMenuOpen(false)
+  }, [pathname])
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLElement>(null)
   const navOuterRef = useRef<HTMLDivElement>(null)
@@ -65,14 +76,14 @@ export default function Navigation({
     mode: 'top' as 'top' | 'scrolling' | 'hidden' | 'revealed',
   })
 
-  const overflowCount = navItems.length - visibleCount
   const visibleItems = navItems.slice(0, visibleCount)
   const overflowItems = navItems.slice(visibleCount)
 
   const calculateFromCachedWidths = useCallback(() => {
     if (!navRef.current || itemWidths.current.length === 0) return
     const navWidth = navRef.current.offsetWidth
-    const overflowButtonWidth = 60
+    // Reserves space for both the +N pill and the standalone search icon.
+    const overflowButtonWidth = 110
     const gap = 8
     let usedWidth = 0
     let count = 0
@@ -192,7 +203,7 @@ export default function Navigation({
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
   return (
-    <>
+    <SearchProvider counts={counts}>
       <div ref={navOuterRef} className={`${styles.nav} ${styles['nav-fixed']}`}>
         <div className={styles['nav-container']}>
           <Link href="/" className="padding-right-24px">
@@ -237,7 +248,7 @@ export default function Navigation({
               className={styles['nav-item-last']}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <p className="paragraph-small-bold">+{overflowCount}</p>
+              <p className="paragraph-small-bold">+{overflowItems.length}</p>
               {isDropdownOpen && (
                 <div className={styles['nav-dropdown']}>
                   {overflowItems.map(item => (
@@ -267,6 +278,32 @@ export default function Navigation({
                 </div>
               )}
             </div>
+
+            <SearchButton
+              className={`${styles['nav-search-button']} flex items-center justify-center color-white`}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="9"
+                  cy="9"
+                  r="6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M13.5 13.5L17 17"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </SearchButton>
           </nav>
 
           <button
@@ -289,7 +326,7 @@ export default function Navigation({
         className={`${styles['mobile-menu']} ${isMenuOpen ? styles['mobile-menu-visible'] : ''}`}
       >
         <div className={styles['mobile-menu-header']}>
-          <Link href="/" onClick={() => setIsMenuOpen(false)}>
+          <Link href="/">
             <Image
               src="/images/logo.svg"
               alt="AI Safety logo"
@@ -316,7 +353,6 @@ export default function Navigation({
               key={item.href}
               href={item.href}
               className={styles['nav-item']}
-              onClick={() => setIsMenuOpen(false)}
             >
               <div className={styles['nav-item-icon']}>
                 <Image
@@ -334,8 +370,17 @@ export default function Navigation({
               )}
             </Link>
           ))}
+          <SearchButton
+            className={styles['nav-item']}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            <div className={styles['nav-item-icon']}>
+              <Image width={16} height={16} alt="" src="/images/search.svg" />
+            </div>
+            <p className="paragraph-default-bold">Search</p>
+          </SearchButton>
         </nav>
       </div>
-    </>
+    </SearchProvider>
   )
 }

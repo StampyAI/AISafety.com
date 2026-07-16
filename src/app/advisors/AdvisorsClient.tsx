@@ -5,8 +5,10 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { Advisor } from '@/lib/data/advisors'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface AdvisorsClientProps {
   advisors: Advisor[]
@@ -19,6 +21,10 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFocus, setSelectedFocus] = useState<string[]>([])
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Active'])
+
+  // Each advisor's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(advisors), [advisors])
 
   const filteredAdvisors = useMemo(() => {
     return advisors.filter(advisor => {
@@ -33,17 +39,11 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
       }
 
       if (selectedFocus.length > 0) {
-        const hasMatch = selectedFocus.some(f =>
-          advisor.focus.toLowerCase().includes(f.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedFocus.includes(advisor.focus)) return false
       }
 
       if (selectedStatus.length > 0) {
-        const hasMatch = selectedStatus.some(s =>
-          advisor.status.toLowerCase().includes(s.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedStatus.includes(advisor.status)) return false
       }
 
       return true
@@ -54,8 +54,9 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
     return advisors.reduce(
       (counts, advisor) => {
         for (const option of focusOptions) {
-          if (advisor.focus.toLowerCase().includes(option.toLowerCase())) {
+          if (advisor.focus === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts
@@ -68,8 +69,9 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
     return advisors.reduce(
       (counts, advisor) => {
         for (const option of statusOptions) {
-          if (advisor.status.toLowerCase().includes(option.toLowerCase())) {
+          if (advisor.status === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts
@@ -104,13 +106,10 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search advisors by name or description"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search advisors by name or description"
           />
         </div>
 
@@ -123,7 +122,13 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Advisors', advisor.name, advisor.url)
+                trackListingClick(
+                  'Advisors',
+                  advisor.name,
+                  advisor.url,
+                  advisor.id,
+                  placements.get(advisor.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
@@ -187,7 +192,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="advisor"
-          suggestEntryDescription="Suggest a resource to be published here"
+          suggestEntryDescription="Suggest an advisor to be published here"
           suggestCorrectionDescription="Let us know of changes that should be made"
           extraLinks={[
             {

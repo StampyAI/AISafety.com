@@ -1,0 +1,23 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Make room for the clear button; .text-field already sets width: 100%. */
+.input {
+  padding-right: 52px;
+}
+
+/* Only the overlay positioning and button reset live here — flex centering,
+   cursor, and color come from globals.css utility classes on the element. */
+.clearButton {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: none;
+  background-color: transparent;
+}

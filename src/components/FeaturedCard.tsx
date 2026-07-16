@@ -15,6 +15,10 @@ interface FeaturedCardProps {
   logo?: string
   metadata: MetadataField[]
   trackingPage: string
+  /** Slot this featured card occupies ('F1'/'F2'), recorded with the click. */
+  trackingPosition?: string
+  /** Click source ('cards' on map pages), so map vs card clicks can be split. */
+  trackingSource?: string
 }
 
 export default function FeaturedCard({
@@ -25,6 +29,8 @@ export default function FeaturedCard({
   logo,
   metadata,
   trackingPage,
+  trackingPosition,
+  trackingSource,
 }: FeaturedCardProps) {
   const cardInner = (
     <div className={`${styles.card} ${href ? '' : styles.cardStatic}`}>
@@ -47,6 +53,7 @@ export default function FeaturedCard({
               width={64}
               height={64}
               className="card-image"
+              unoptimized
             />
           </div>
           <h3>{name}</h3>
@@ -90,6 +97,8 @@ export default function FeaturedCard({
       className="flex flex-col-mobile"
       trackingPage={trackingPage}
       trackingName={name}
+      trackingPosition={trackingPosition}
+      trackingSource={trackingSource}
     >
       {cardInner}
     </TrackedLink>

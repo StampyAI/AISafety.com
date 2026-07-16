@@ -1,0 +1,1136 @@
+/* Admin: utilitarian. Same dark teal palette as the site, plain Inter,
+   simple labels, square corners. Zero decoration. */
+
+.adminWrap {
+  min-height: 100vh;
+  background-color: var(--teal-900);
+  color: var(--white);
+}
+
+/* ─── Top bar ─────────────────────────────────────────────────────────── */
+
+.adminHeader {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--teal-850);
+  border-bottom: 1px solid var(--teal-800);
+}
+
+.adminHeaderInner {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 14px 24px;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.adminBrand {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--white);
+  text-decoration: none;
+}
+
+.adminNav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.adminNavLink {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--teal-300);
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.adminNavLink:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.adminNavLinkActive {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.adminNavDivider {
+  align-self: center;
+  width: 1px;
+  height: 18px;
+  margin: 0 8px;
+  background-color: var(--teal-700);
+}
+
+.adminHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminBackLink {
+  font-size: 12px;
+  color: var(--teal-300);
+  text-decoration: none;
+}
+
+.adminBackLink:hover {
+  color: var(--white);
+}
+
+.adminLogoutButton {
+  background: transparent;
+  border: 1px solid var(--teal-700);
+  color: var(--white);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.adminLogoutButton:hover {
+  background-color: var(--teal-800);
+}
+
+/* ─── Login ───────────────────────────────────────────────────────────── */
+
+.loginWrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.loginCard {
+  width: 100%;
+  max-width: 360px;
+  padding: 28px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+}
+
+.loginTitle {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-left: 0;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loginInput {
+  height: 40px;
+  padding: 0 12px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+
+.loginInput:focus {
+  border-color: var(--teal-500);
+}
+
+.loginButton {
+  height: 40px;
+  padding: 0 12px;
+  background-color: var(--bright-teal-300);
+  color: var(--teal-900);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.loginButton:hover:not(:disabled) {
+  background-color: var(--bright-teal-500);
+}
+
+.loginButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.loginError {
+  font-size: 12px;
+  color: #ff8b8b;
+  padding: 8px 10px;
+  background-color: rgba(255, 100, 100, 0.08);
+  border: 1px solid rgba(255, 100, 100, 0.2);
+  border-radius: 6px;
+}
+
+/* ─── Page wrap + heading ─────────────────────────────────────────────── */
+
+.consoleWrap {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.pageHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin-left: 0;
+  line-height: 1.2;
+}
+
+.pageMeta {
+  font-size: 12px;
+  color: var(--teal-400);
+}
+
+.pageMetaValue {
+  color: var(--bright-teal-300);
+}
+
+/* ─── Playground split ───────────────────────────────────────────────── */
+
+.consoleSplit {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 991px) {
+  .consoleSplit {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Inline chat host (production chrome inline) ────────────────────── */
+
+.chatHost {
+  position: relative;
+  height: min(76vh, 720px);
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chatHostHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--teal-800);
+}
+
+.chatHostBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.chatHostBadgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--bright-green);
+  box-shadow: 0 0 6px rgba(122, 255, 178, 0.5);
+}
+
+.chatHostClear {
+  background: transparent;
+  border: 1px solid var(--teal-700);
+  color: var(--teal-300);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chatHostClear:hover {
+  background-color: var(--teal-800);
+  color: var(--white);
+}
+
+/* ─── Editor column ───────────────────────────────────────────────────── */
+
+.editorColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.editorBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+}
+
+.editorBlockHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editorBlockTitle {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-left: 0;
+  line-height: 1.2;
+}
+
+.sectionHint {
+  font-size: 12px;
+  color: var(--teal-300);
+  letter-spacing: -0.1px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sectionHint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background-color: var(--teal-900);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--bright-teal-300);
+}
+
+.editorRow {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.editorRowLabel {
+  font-size: 12px;
+  color: var(--teal-400);
+}
+
+.editorInput,
+.editorSelect {
+  height: 32px;
+  padding: 0 10px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.editorInput:focus,
+.editorSelect:focus {
+  border-color: var(--teal-500);
+}
+
+.editorTextarea {
+  width: 100%;
+  min-height: 320px;
+  padding: 12px 14px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  outline: none;
+  resize: vertical;
+}
+
+.editorTextarea:focus {
+  border-color: var(--teal-500);
+}
+
+.editorToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editorButton,
+.editorButtonPrimary {
+  border: none;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.editorButton {
+  background-color: transparent;
+  border: 1px solid var(--teal-700);
+  color: var(--white);
+}
+
+.editorButton:hover {
+  background-color: var(--teal-800);
+}
+
+.editorButtonPrimary {
+  background-color: var(--bright-teal-300);
+  color: var(--teal-900);
+}
+
+.editorButtonPrimary:hover {
+  background-color: var(--bright-teal-500);
+}
+
+.editorStatus {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.editorStatusSaving {
+  color: var(--bright-teal-300);
+}
+
+/* ─── Saved versions list ────────────────────────────────────────────── */
+
+.editorVersionList {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--teal-800);
+}
+
+.editorVersionListToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  color: var(--teal-300);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.editorVersionListToggle:hover {
+  color: var(--white);
+}
+
+.editorVersionListBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.editorVersionRow {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.editorVersionPick {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition:
+    border-color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.editorVersionPick:hover {
+  border-color: var(--teal-600);
+}
+
+.editorVersionRowActive .editorVersionPick {
+  background-color: var(--teal-800);
+  border-color: var(--bright-teal-500);
+}
+
+.editorVersionName {
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editorVersionActiveDot {
+  font-size: 9px;
+  color: var(--bright-teal-300);
+  line-height: 1;
+}
+
+.editorVersionMeta {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.editorVersionDelete {
+  background: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--teal-400);
+  font-size: 16px;
+  min-width: 30px;
+  padding: 0 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color var(--hover-transition),
+    background-color var(--hover-transition),
+    color var(--hover-transition);
+}
+
+.editorVersionDelete:hover {
+  background-color: var(--teal-800);
+  color: var(--white);
+}
+
+.editorVersionDeleteArmed,
+.editorVersionDeleteArmed:hover {
+  background-color: rgba(255, 100, 100, 0.12);
+  border-color: #ff8b8b;
+  color: #ff8b8b;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+/* ─── Conversations ─────────────────────────────────────────────────── */
+
+/* Readable centered column on wide screens; the full console width makes
+   the preview lines far too long. */
+.convPage {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.conversationsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.convFilters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.convSearch {
+  height: 32px;
+  min-width: 260px;
+  padding: 0 12px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.convSearch:focus {
+  border-color: var(--teal-500);
+}
+
+.convSearch::placeholder {
+  color: var(--teal-500);
+}
+
+.convFilters label {
+  font-size: 12px;
+  color: var(--teal-300);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.convList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.convDayDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal-300);
+}
+
+.convDayDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--teal-800);
+}
+
+.convList > .convDayDivider:first-child {
+  margin-top: 0;
+}
+
+.convLoadMore {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.convRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--white);
+}
+
+.convRow:hover {
+  border-color: var(--teal-700);
+}
+
+.convRowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.convRowMeta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.convRowDate {
+  color: var(--teal-300);
+}
+
+.convRowPage {
+  padding: 1px 7px;
+  background-color: var(--teal-800);
+  border-radius: 999px;
+  color: var(--teal-300);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.convRowZero {
+  color: #ffb87a;
+  font-weight: 600;
+}
+
+.convRowAbandoned {
+  color: #ffb87a;
+  font-weight: 600;
+}
+
+.convRowError {
+  color: #ff8b8b;
+  font-weight: 600;
+}
+
+.convRowQuery {
+  font-size: 14px;
+  color: var(--white);
+}
+
+/* Chats this browser has already opened read like seen emails — the question
+   drops from white to muted so unreviewed rows stand out. */
+.convRowViewed .convRowQuery {
+  color: var(--teal-300);
+}
+
+.convDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  margin-top: -2px;
+}
+
+.convDetailField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.convDetailLabel {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.convDetailValue {
+  font-size: 13px;
+  color: var(--white);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.convTranscript {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The chatbot's opening message for the page — shown subtly at the top of the
+ * transcript for context, since visitors are often replying to it. Not a logged
+ * turn, so it's plain muted text rather than a bordered bubble. */
+.convGreeting {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--teal-500);
+  line-height: 1.5;
+  padding: 0 2px 2px;
+  opacity: 0.7;
+}
+
+/* The suggestion chips offered alongside the greeting — dimmed context like
+ * the greeting itself, except the one the visitor actually pressed. */
+.convGreetingChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 2px 4px;
+}
+
+.convGreetingChips .convChip {
+  opacity: 0.7;
+}
+
+.convGreetingChips .convChipPressed {
+  opacity: 1;
+  border-color: var(--bright-teal-300);
+  color: var(--white);
+}
+
+.convChipPressedTag {
+  margin-left: 5px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-radius: 999px;
+}
+
+.convTurnUser,
+.convTurnAssistant {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--teal-800);
+}
+
+.convTurnUser {
+  background-color: var(--teal-850);
+}
+
+.convTurnAssistant {
+  background-color: var(--teal-900);
+}
+
+.convTurnRole {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--teal-400);
+  margin-bottom: 4px;
+}
+
+.convTurnTime {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--teal-500);
+}
+
+.convTurnContent {
+  font-size: 13px;
+  color: var(--white);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* "Visited the web" note on a chatbot turn — one entry per live page read
+ * (read_listing_page) the bot made while composing that reply. */
+.convTurnVisited {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 11px;
+  color: var(--teal-400);
+  margin-bottom: 6px;
+}
+
+.convTurnVisited a {
+  color: var(--teal-300);
+  text-decoration: underline;
+}
+
+/* ─── Rendered assistant message ──────────────────────────────────────── */
+
+.convMsg {
+  font-size: 13px;
+  color: var(--white);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.convMsg p {
+  margin: 0 0 10px;
+}
+
+.convMsg ul,
+.convMsg ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.convMsg li {
+  margin-bottom: 3px;
+}
+
+.convMsg > :last-child {
+  margin-bottom: 0;
+}
+
+.convLink {
+  color: var(--bright-teal-300);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.convLink:hover {
+  color: var(--bright-teal-500);
+}
+
+/* Inline link the visitor actually clicked: brighter, with a small ✓ badge. */
+.convLinkClicked {
+  color: var(--bright-teal-300);
+  font-weight: 600;
+}
+
+.convLinkClickedTag {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-radius: 999px;
+  padding: 0 4px;
+  text-decoration: none;
+  vertical-align: 1px;
+}
+
+.convThinking {
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--teal-700);
+  color: var(--teal-400);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.convThinkingLabel {
+  display: block;
+  font-size: 10px;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--teal-500);
+  margin-bottom: 2px;
+}
+
+.convCards {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.convCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--white);
+}
+
+.convCardType {
+  padding: 1px 7px;
+  background-color: var(--teal-800);
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--bright-teal-300);
+}
+
+.convCardLogo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Cards that resolved to a listing become links to it. */
+.convCardLink {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.convCardLink:hover {
+  border-color: var(--bright-teal-300);
+  background-color: var(--teal-800);
+}
+
+.convCardName {
+  font-weight: 600;
+  color: var(--white);
+}
+
+.convCardNote {
+  color: var(--teal-300);
+}
+
+/* Card the visitor actually clicked: brighter border + a small badge. */
+.convCardClickedRow {
+  border-color: var(--bright-teal-300);
+}
+
+.convCardClicked {
+  padding: 1px 7px;
+  background-color: var(--bright-teal-300);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--teal-900);
+  white-space: nowrap;
+}
+
+/* Card the visitor never got: their chat showed a generic "Browse X"
+   resource-page link instead (the model wrote the card without retrieving
+   the listing). The link is rendered as they saw it; the note next to it is
+   admin-only annotation. */
+.convCardDegradedRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.convCardFallback {
+  border-style: dashed;
+  border-color: rgba(255, 170, 90, 0.4);
+}
+
+.convCardFallbackNote {
+  font-size: 11px;
+  color: #ffb96b;
+}
+
+/* Card the visitor's chat dropped entirely (no listing AND no parseable type
+   to fall back to). Nothing rendered live, so nothing card-like here either —
+   just a dimmed admin-only marker. */
+.convCardGhost {
+  display: inline-flex;
+  padding: 5px 10px;
+  border: 1px dashed var(--teal-600);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--teal-300);
+  opacity: 0.65;
+}
+
+/* Token the live renderer stripped (malformed directive) or a reference that
+   resolved to nothing — the visitor saw no trace of it. */
+.convStripped {
+  color: var(--teal-300);
+  opacity: 0.6;
+}
+
+/* Block the visitor's chat hid entirely (a cards block where nothing could
+   render, plus its dangling lead-in sentence). Dimmed rather than hidden so
+   the reviewer still sees what the model wrote. */
+.convNotShown {
+  opacity: 0.45;
+}
+
+.convCardInline {
+  display: inline;
+  padding: 0 5px;
+  background-color: var(--teal-800);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--bright-teal-300);
+}
+
+.convChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.convChip {
+  padding: 3px 10px;
+  background-color: var(--teal-800);
+  border: 1px solid var(--teal-700);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--teal-300);
+}
+
+.convError {
+  font-size: 11px;
+  color: #ff8b8b;
+}
+
+.convNotes {
+  width: 100%;
+  min-height: 70px;
+  padding: 8px 10px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  color: var(--white);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+}
+
+.convNotes:focus {
+  border-color: var(--teal-500);
+}
+
+.convStatus {
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.convTzNote {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--teal-400);
+  cursor: default;
+}
+
+/* ─── "Exclude this browser" control (in the conversation filter row) ──── */
+
+.excludeMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.excludeMetaOn {
+  color: var(--bright-teal-300);
+}
+
+.excludeLink {
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--teal-400);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color var(--hover-transition);
+}
+
+.excludeLink:hover {
+  color: var(--white);
+}
+
+/* ─── Empty / disabled state notice ───────────────────────────────────── */
+
+.notice {
+  padding: 14px 16px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--teal-300);
+}

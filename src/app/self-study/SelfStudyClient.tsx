@@ -5,16 +5,18 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
-import { Course } from '@/lib/data/self-study'
+import SearchBar from '@/components/SearchBar'
+import type { Course } from '@/lib/data/self-study'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface SelfStudyClientProps {
   courses: Course[]
 }
 
 const categoryOptions = [
-  'Introductory',
-  'Technical Alignment',
+  'General intro',
+  'Technical alignment',
   'Governance',
   'Strategy',
 ]
@@ -25,6 +27,10 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+
+  // Each course's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(courses), [courses])
 
   const filteredCourses = useMemo(() => {
     return courses.filter(course => {
@@ -40,21 +46,16 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
       }
 
       if (selectedCategories.length > 0) {
-        const courseCategories = course.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const courseCategories = course.category.split(',').map(c => c.trim())
         const hasMatchingCategory = selectedCategories.some(cat =>
-          courseCategories.some(cc => cc.includes(cat.toLowerCase()))
+          courseCategories.includes(cat)
         )
         if (!hasMatchingCategory) return false
       }
 
       if (selectedTypes.length > 0) {
-        const courseType = course.courseType.toLowerCase().trim()
-        const hasMatchingType = selectedTypes.some(t =>
-          courseType.includes(t.toLowerCase())
-        )
+        const courseTypes = course.courseType.split(',').map(t => t.trim())
+        const hasMatchingType = selectedTypes.some(t => courseTypes.includes(t))
         if (!hasMatchingType) return false
       }
 
@@ -65,13 +66,9 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const categoryCounts = useMemo(() => {
     return courses.reduce(
       (counts, course) => {
-        const courseCategories = course.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const courseCategories = course.category.split(',').map(c => c.trim())
         for (const category of categoryOptions) {
-          const catLower = category.toLowerCase()
-          if (courseCategories.some(cc => cc.includes(catLower))) {
+          if (courseCategories.includes(category)) {
             counts[category] = (counts[category] || 0) + 1
           }
         }
@@ -84,9 +81,9 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const typeCounts = useMemo(() => {
     return courses.reduce(
       (counts, course) => {
-        const courseType = course.courseType.toLowerCase().trim()
+        const courseTypes = course.courseType.split(',').map(t => t.trim())
         for (const type of typeOptions) {
-          if (courseType.includes(type.toLowerCase())) {
+          if (courseTypes.includes(type)) {
             counts[type] = (counts[type] || 0) + 1
           }
         }
@@ -122,13 +119,10 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search courses by name, description, or creator"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search courses by name, description, or creator"
           />
         </div>
 
@@ -141,7 +135,13 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Self-study', course.name, course.url)
+                trackListingClick(
+                  'Self-study',
+                  course.name,
+                  course.url,
+                  course.id,
+                  placements.get(course.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">
@@ -167,7 +167,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
                 {course.description}
               </p>
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Category
+                Focus
               </p>
               <p className="paragraph-small padding-bottom-16px">
                 {course.category}
@@ -187,7 +187,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
       <div className="hide-mobile">
         <FilterSidebar>
           <FilterGroup
-            title="Category"
+            title="Focus"
             options={categoryOptions}
             selected={selectedCategories}
             counts={categoryCounts}
@@ -196,7 +196,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
             }
           />
           <FilterGroup
-            title="Type"
+            title="Format"
             options={typeOptions}
             selected={selectedTypes}
             counts={typeCounts}
@@ -207,6 +207,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="course"
+          suggestEntryDescription="Suggest a course to be published here"
         />
       </div>
     </div>

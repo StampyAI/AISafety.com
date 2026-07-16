@@ -3,9 +3,10 @@
 import { usePathname } from 'next/navigation'
 import Navigation from './Navigation'
 import Footer from './Footer'
+import Assistant from './assistant/Assistant'
 
-// Routes that render without Navigation/Footer (e.g. poster-map is for printing)
-const standaloneRoutes = ['/poster-map']
+// Routes that render without Navigation/Footer/Assistant
+const standaloneRoutes = ['/poster-map', '/admin']
 
 export default function LayoutShell({
   children,
@@ -15,8 +16,8 @@ export default function LayoutShell({
   counts: Partial<Record<string, number>>
 }) {
   const pathname = usePathname()
-  const isStandalone = standaloneRoutes.some(route =>
-    pathname.startsWith(route)
+  const isStandalone = standaloneRoutes.some(
+    route => pathname === route || pathname.startsWith(`${route}/`)
   )
 
   if (isStandalone) {
@@ -28,6 +29,7 @@ export default function LayoutShell({
       <Navigation counts={counts} />
       {children}
       <Footer />
+      <Assistant />
     </>
   )
 }

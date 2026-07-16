@@ -6,6 +6,9 @@ interface FilterGroupProps {
   selected: string[]
   counts: Record<string, number>
   onToggle: (value: string) => void
+  // Optional map from option value to the label shown to the user. Filtering
+  // and counts still run on the raw option values; only the display changes.
+  labels?: Record<string, string>
 }
 
 export default function FilterGroup({
@@ -14,6 +17,7 @@ export default function FilterGroup({
   selected,
   counts,
   onToggle,
+  labels,
 }: FilterGroupProps) {
   return (
     <div className="padding-bottom-40px">
@@ -30,7 +34,7 @@ export default function FilterGroup({
               className="checkbox"
             />
             <span className="paragraph-small color-teal-300">
-              {option}
+              {labels?.[option] ?? option}
               <span className="filter-count"> ({counts[option] || 0})</span>
             </span>
           </label>

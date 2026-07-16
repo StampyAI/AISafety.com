@@ -29,7 +29,7 @@ const ENVELOPE = `{
       "type": "Conference",
       "location": "Europe",
       "startDate": "2026-07-01",
-      "registrationCloses": "2026-06-20",
+      "applicationsClose": "2026-06-20",
       "url": "https://..."
     }
   ],

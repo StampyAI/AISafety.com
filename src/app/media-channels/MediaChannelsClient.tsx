@@ -5,8 +5,10 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { MediaChannel } from '@/lib/data/media-channels'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface MediaChannelsClientProps {
   channels: MediaChannel[]
@@ -29,6 +31,10 @@ export default function MediaChannelsClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
+  // Each channel's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(channels), [channels])
+
   const filteredChannels = useMemo(() => {
     return channels.filter(channel => {
       if (searchQuery) {
@@ -42,9 +48,8 @@ export default function MediaChannelsClient({
       }
 
       if (selectedTypes.length > 0) {
-        const hasMatch = selectedTypes.some(t =>
-          channel.type.toLowerCase().includes(t.toLowerCase())
-        )
+        const channelTypes = channel.type.split(',').map(t => t.trim())
+        const hasMatch = selectedTypes.some(t => channelTypes.includes(t))
         if (!hasMatch) return false
       }
 
@@ -55,8 +60,9 @@ export default function MediaChannelsClient({
   const typeCounts = useMemo(() => {
     return channels.reduce(
       (counts, channel) => {
+        const channelTypes = channel.type.split(',').map(t => t.trim())
         for (const option of typeOptions) {
-          if (channel.type.toLowerCase().includes(option.toLowerCase())) {
+          if (channelTypes.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -88,13 +94,10 @@ export default function MediaChannelsClient({
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search sources by name or description"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search sources by name or description"
           />
         </div>
 
@@ -107,7 +110,13 @@ export default function MediaChannelsClient({
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Media channels', channel.name, channel.url)
+                trackListingClick(
+                  'Media channels',
+                  channel.name,
+                  channel.url,
+                  channel.id,
+                  placements.get(channel.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">

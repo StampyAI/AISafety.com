@@ -6,7 +6,9 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 import styles from './page.module.css'
 
 const D3Map = dynamic(() => import('./D3Map'), {
@@ -80,6 +82,11 @@ export default function MapClient({
   const [showInactive, setShowInactive] = useState(false)
   const mapWrapperRef = useRef<HTMLDivElement>(null)
 
+  // Each org's slot in the list below the map, stamped onto a list click so the
+  // dashboard can tie clicks to position. (Clicks on the map itself are
+  // geographic, not ranked, so they carry no slot.)
+  const placements = useMemo(() => placementsById(orgs), [orgs])
+
   const scrollToCards = () => {
     if (!mapWrapperRef.current) return
     const mapRect = mapWrapperRef.current.getBoundingClientRect()
@@ -123,12 +130,9 @@ export default function MapClient({
       }
 
       if (selectedCategories.length > 0) {
-        const orgCategories = org.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const orgCategories = org.category.split(',').map(c => c.trim())
         const hasMatchingCategory = selectedCategories.some(cat =>
-          orgCategories.some(orgCat => orgCat.includes(cat.toLowerCase()))
+          orgCategories.includes(cat)
         )
         if (!hasMatchingCategory) return false
       }
@@ -151,13 +155,9 @@ export default function MapClient({
     return orgs.reduce(
       (counts, org) => {
         if (org.isMagic) return counts
-        const orgCategories = org.category
-          .toLowerCase()
-          .split(',')
-          .map(c => c.trim())
+        const orgCategories = org.category.split(',').map(c => c.trim())
         for (const category of categories) {
-          const catLower = category.toLowerCase()
-          if (orgCategories.some(orgCat => orgCat.includes(catLower))) {
+          if (orgCategories.includes(category)) {
             counts[category] = (counts[category] || 0) + 1
           }
         }
@@ -223,13 +223,10 @@ export default function MapClient({
         <div className="database-outer-grid">
           <div>
             <div className="padding-bottom-40px">
-              <input
-                type="text"
-                className="text-field"
-                placeholder="Search listings by name or description"
-                maxLength={256}
+              <SearchBar
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={setSearchQuery}
+                placeholder="Search listings by name or description"
               />
             </div>
 
@@ -241,7 +238,16 @@ export default function MapClient({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="card"
-                  onClick={() => trackListingClick('Map', org.title, org.link)}
+                  onClick={() =>
+                    trackListingClick(
+                      'Map',
+                      org.title,
+                      org.link,
+                      org.id,
+                      placements.get(org.id),
+                      'cards'
+                    )
+                  }
                 >
                   <div className="flex items-center gap-16px padding-bottom-24px">
                     <div className="featured-img">
@@ -253,7 +259,6 @@ export default function MapClient({
                           width={64}
                           height={64}
                           unoptimized
-                          loading="eager"
                           onError={e => {
                             ;(e.target as HTMLImageElement).style.display =
                               'none'
@@ -309,7 +314,7 @@ export default function MapClient({
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}
               noun="listing"
-              suggestEntryDescription="Suggest a resource to be published here"
+              suggestEntryDescription="Suggest an org, project, or program to be published here"
               extraLinks={[
                 {
                   label: 'View raw data',

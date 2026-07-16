@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { Project } from '@/lib/data/projects'
 
 interface ProjectsClientProps {
@@ -29,10 +30,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
       }
 
       if (selectedStatus.length > 0) {
-        const hasMatch = selectedStatus.some(s =>
-          project.status.toLowerCase().includes(s.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedStatus.includes(project.status)) return false
       }
 
       return true
@@ -43,8 +41,9 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
     return projects.reduce(
       (counts, project) => {
         for (const option of statusOptions) {
-          if (project.status.toLowerCase().includes(option.toLowerCase())) {
+          if (project.status === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts
@@ -75,13 +74,10 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search projects by name or description"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search projects by name or description"
           />
         </div>
 
@@ -125,6 +121,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="project"
+          suggestEntryDescription="Suggest a project to be published here"
           suggestCorrectionDescription="Propose changes to a project listing"
         />
       </div>

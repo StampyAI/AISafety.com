@@ -5,8 +5,10 @@ import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { FounderResource } from '@/lib/data/founders'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface FoundersClientProps {
   resources: FounderResource[]
@@ -23,6 +25,10 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
+  // Each resource's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(resources), [resources])
+
   const filteredResources = useMemo(() => {
     return resources.filter(resource => {
       if (searchQuery) {
@@ -36,10 +42,8 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
       }
 
       if (selectedTypes.length > 0) {
-        const resourceType = resource.type.toLowerCase().trim()
-        const hasMatch = selectedTypes.some(t =>
-          resourceType.includes(t.toLowerCase())
-        )
+        const resourceTypes = resource.type.split(',').map(t => t.trim())
+        const hasMatch = selectedTypes.some(t => resourceTypes.includes(t))
         if (!hasMatch) return false
       }
 
@@ -50,9 +54,9 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
   const typeCounts = useMemo(() => {
     return resources.reduce(
       (counts, resource) => {
-        const resourceType = resource.type.toLowerCase().trim()
+        const resourceTypes = resource.type.split(',').map(t => t.trim())
         for (const option of typeOptions) {
-          if (resourceType.includes(option.toLowerCase())) {
+          if (resourceTypes.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -84,13 +88,10 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search listings by name or description"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search listings by name or description"
           />
         </div>
 
@@ -103,7 +104,13 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Founders', resource.name, resource.website)
+                trackListingClick(
+                  'Founders',
+                  resource.name,
+                  resource.website,
+                  resource.id,
+                  placements.get(resource.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">

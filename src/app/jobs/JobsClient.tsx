@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
+import SearchBar from '@/components/SearchBar'
 import { Job } from '@/lib/data/jobs'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
+import { setPageContext } from '@/lib/assistant/page-context'
 
 interface JobsClientProps {
   jobs: Job[]
@@ -51,6 +54,10 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<string[]>([])
   const savedScrollY = useRef<number | null>(null)
 
+  // Each job's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(jobs), [jobs])
+
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
       if (searchQuery) {
@@ -65,39 +72,27 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       }
 
       if (selectedSkills.length > 0) {
-        const jobSkills = job.skillSet
-          .toLowerCase()
-          .split(',')
-          .map(s => s.trim())
-        const hasMatch = selectedSkills.some(s =>
-          jobSkills.some(js => js.includes(s.toLowerCase()))
-        )
+        const jobSkills = job.skillSet.split(',').map(s => s.trim())
+        const hasMatch = selectedSkills.some(s => jobSkills.includes(s))
         if (!hasMatch) return false
       }
 
       if (selectedExperience.length > 0) {
-        const hasMatch = selectedExperience.some(e =>
-          job.minimumExperience.toLowerCase().includes(e.toLowerCase())
-        )
+        const jobExperience = job.minimumExperience
+          .split(',')
+          .map(e => e.trim())
+        const hasMatch = selectedExperience.some(e => jobExperience.includes(e))
         if (!hasMatch) return false
       }
 
       if (selectedRoles.length > 0) {
-        const jobRoles = job.roleType
-          .toLowerCase()
-          .split(',')
-          .map(r => r.trim())
-        const hasMatch = selectedRoles.some(r =>
-          jobRoles.some(jr => jr.includes(r.toLowerCase()))
-        )
+        const jobRoles = job.roleType.split(',').map(r => r.trim())
+        const hasMatch = selectedRoles.some(r => jobRoles.includes(r))
         if (!hasMatch) return false
       }
 
       if (selectedWorkLocation.length > 0) {
-        const hasMatch = selectedWorkLocation.some(w =>
-          job.workLocation.toLowerCase().includes(w.toLowerCase())
-        )
-        if (!hasMatch) return false
+        if (!selectedWorkLocation.includes(job.workLocation)) return false
       }
 
       return true
@@ -114,12 +109,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const skillCounts = useMemo(() => {
     return jobs.reduce(
       (counts, job) => {
-        const skills = job.skillSet
-          .toLowerCase()
-          .split(',')
-          .map(s => s.trim())
+        const skills = job.skillSet.split(',').map(s => s.trim())
         for (const option of skillSetOptions) {
-          if (skills.some(s => s.includes(option.toLowerCase()))) {
+          if (skills.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -132,10 +124,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const experienceCounts = useMemo(() => {
     return jobs.reduce(
       (counts, job) => {
+        const jobExperience = job.minimumExperience
+          .split(',')
+          .map(e => e.trim())
         for (const option of experienceOptions) {
-          if (
-            job.minimumExperience.toLowerCase().includes(option.toLowerCase())
-          ) {
+          if (jobExperience.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -148,12 +141,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   const roleCounts = useMemo(() => {
     return jobs.reduce(
       (counts, job) => {
-        const roles = job.roleType
-          .toLowerCase()
-          .split(',')
-          .map(r => r.trim())
+        const roles = job.roleType.split(',').map(r => r.trim())
         for (const option of roleTypeOptions) {
-          if (roles.some(r => r.includes(option.toLowerCase()))) {
+          if (roles.includes(option)) {
             counts[option] = (counts[option] || 0) + 1
           }
         }
@@ -167,8 +157,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     return jobs.reduce(
       (counts, job) => {
         for (const option of workLocationOptions) {
-          if (job.workLocation.toLowerCase().includes(option.toLowerCase())) {
+          if (job.workLocation === option) {
             counts[option] = (counts[option] || 0) + 1
+            break
           }
         }
         return counts
@@ -197,17 +188,35 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     }
   }, [filteredJobs])
 
+  // Publish current filter + search state for the assistant to read
+  useEffect(() => {
+    const state: Record<string, unknown> = {}
+    if (selectedSkills.length) state.skills = selectedSkills
+    if (selectedExperience.length) state.experience = selectedExperience
+    if (selectedRoles.length) state.roleTypes = selectedRoles
+    if (selectedWorkLocation.length) state.workLocation = selectedWorkLocation
+    if (searchQuery) state.search = searchQuery
+    setPageContext({
+      page: '/jobs',
+      filters: Object.keys(state).length > 0 ? state : undefined,
+    })
+    return () => setPageContext(null)
+  }, [
+    selectedSkills,
+    selectedExperience,
+    selectedRoles,
+    selectedWorkLocation,
+    searchQuery,
+  ])
+
   return (
     <div className="database-outer-grid">
       <div>
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            className="text-field"
-            placeholder="Search jobs by title, organization, or location"
-            maxLength={256}
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            placeholder="Search jobs by title, organization, or location"
           />
         </div>
 
@@ -223,7 +232,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                 trackListingClick(
                   'Jobs',
                   `${job.name} – ${job.organization}`,
-                  job.url
+                  job.url,
+                  job.id,
+                  placements.get(job.id)
                 )
               }
             >

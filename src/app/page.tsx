@@ -5,6 +5,10 @@ import TrackedLink from '@/components/TrackedLink'
 import { fetchAllLastUpdated } from '@/lib/data/last-updated'
 import styles from './page.module.css'
 
+export const metadata = {
+  alternates: { canonical: '/' },
+}
+
 export default async function Home() {
   const dates = await fetchAllLastUpdated()
 
@@ -166,7 +170,7 @@ export default async function Home() {
             opportunities, and connect.
           </p>
           <TrackedLink
-            href="https://join.slack.com/t/ai-alignment/shared_invite/zt-3oytsoq2q-nzMwWJqs5fl4H~VXA6FQTA"
+            href="https://join.slack.com/t/ai-alignment/shared_invite/zt-3zncuyguu-fO8vQTa6d7jEFomFZ9qZXA"
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"
@@ -314,30 +318,30 @@ export default async function Home() {
               height={32}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
-              Best for medium to large projects
+              Best for small, quick grants
             </p>
             <div className={`${styles['icon-row']} padding-bottom-24px`}>
               <Image
                 loading="lazy"
-                src="/images/sff.png"
+                src="/images/grantmaking.svg"
                 alt=""
                 className={styles['icon-homepage']}
                 width={56}
                 height={56}
               />
-              <h3>Survival and Flourishing Fund</h3>
+              <h3>grantmaking.ai</h3>
             </div>
             <p className="padding-bottom-24px">
-              Funds orgs working to improve humanity&apos;s long-term prospects
-              for survival and flourishing.
+              Public database of AI safety projects seeking funding, now running
+              a $1M grant round.
             </p>
             <TrackedLink
-              href="https://survivalandflourishing.fund/"
+              href="https://www.grantmaking.ai/"
               target="_blank"
               rel="noopener noreferrer"
               className="button-secondary"
               trackingPage="Home"
-              trackingName="Survival and Flourishing Fund"
+              trackingName="grantmaking.ai"
             >
               Learn more
             </TrackedLink>
@@ -370,17 +374,17 @@ export default async function Home() {
         <div className={styles['card-third-width-2']}>
           <div className={styles['card-half-width-main-text']}>
             <p className="paragraph-small-bold padding-bottom-8px">
-              Volunteer projects
+              Found an organization
             </p>
             <h3 className="padding-bottom-32px">
-              Build online tools to support the AI safety ecosystem
+              Resources for starting and growing an AI safety organization
             </h3>
-            <Link href="/projects" className="button-primary drop-shadow">
-              View all projects
+            <Link href="/founders" className="button-primary drop-shadow">
+              View founder toolkit
             </Link>
-            {dates.projects && (
+            {dates.founders && (
               <RelativeDate
-                iso={dates.projects}
+                iso={dates.founders}
                 className={`${styles['date-alt']} paragraph-xs`}
               />
             )}
@@ -395,19 +399,19 @@ export default async function Home() {
               height={32}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
-              Featured project
+              Featured fiscal sponsor
             </p>
             <div className={`${styles['icon-row']} padding-bottom-24px`}>
-              <h3>AI Safety Feed</h3>
+              <h3>Ashgro</h3>
             </div>
             <div className="block">
               <TrackedLink
-                href="https://aisafetyfeed.com/"
+                href="https://www.ashgro.org/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="button-secondary"
                 trackingPage="Home"
-                trackingName="AI Safety Feed"
+                trackingName="Ashgro"
               >
                 Learn more
               </TrackedLink>

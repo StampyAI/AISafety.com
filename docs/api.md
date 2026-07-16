@@ -75,7 +75,7 @@ src/lib/api/
   response.ts    CORS, envelope, meta, absolute-URL helper
   filter.ts      in-memory query/search
   handler.ts     createCollectionHandler() + OPTIONS
-src/lib/data/events.ts            new normalizer (events was iframe-only before)
+src/lib/data/events.ts            events normalizer (shared with the chatbot)
 src/app/api/v1/<entity>/route.ts  one thin route per endpoint
 src/app/api/v1/route.ts           index
 src/app/api/v1/openapi.json/route.ts  generated spec

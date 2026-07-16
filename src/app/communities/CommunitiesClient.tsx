@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import SearchBar from '@/components/SearchBar'
 import { Community } from '@/lib/data/communities'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface CommunitiesClientProps {
   communities: Community[]
@@ -37,6 +39,10 @@ export default function CommunitiesClient({
   const [platformFilters, setPlatformFilters] = useState<string[]>([])
   const [activityFilters, setActivityFilters] = useState<string[]>([])
   const [focusFilters, setFocusFilters] = useState<string[]>([])
+
+  // Each community's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(communities), [communities])
 
   const filteredCommunities = useMemo(() => {
     return communities.filter(community => {
@@ -115,6 +121,26 @@ export default function CommunitiesClient({
 
   const savedScrollY = useRef<number | null>(null)
 
+  // Card images are below the map and load lazily as they scroll into view.
+  // After 7 s — by which time the map's tooltip logos should be done
+  // preloading — proactively warm the browser cache for every card logo so
+  // someone scrolling quickly down doesn't have to wait. The refs keep the
+  // preloaded Image objects alive so their decoded bitmaps stay cached.
+  const preloadedCardLogosRef = useRef<HTMLImageElement[]>([])
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      communities.forEach(c => {
+        if (!c.logo) return
+        const img = new window.Image()
+        img.decoding = 'async'
+        img.src = c.logo
+        img.decode().catch(() => {})
+        preloadedCardLogosRef.current.push(img)
+      })
+    }, 7000)
+    return () => clearTimeout(timer)
+  }, [communities])
+
   const toggleFilter = (
     value: string,
     current: string[],
@@ -138,14 +164,11 @@ export default function CommunitiesClient({
   return (
     <div className="database-outer-grid">
       <div>
-        {/* Search Bar */}
         <div className="padding-bottom-40px">
-          <input
-            type="text"
-            placeholder="Search communities by title, description, or location"
+          <SearchBar
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="text-field"
+            onChange={setSearchQuery}
+            placeholder="Search communities by title, description, or location"
           />
         </div>
 
@@ -154,63 +177,84 @@ export default function CommunitiesClient({
           {filteredCommunities.length === 0 ? (
             <p className="paragraph-small color-teal-300">Nothing found.</p>
           ) : (
-            filteredCommunities.map(community => (
-              <Link
-                key={community.id}
-                href={community.joinLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="card"
-                onClick={() =>
-                  trackListingClick(
-                    'Communities',
-                    community.name,
-                    community.joinLink
-                  )
-                }
-              >
-                <div className="flex items-center gap-16px padding-bottom-24px">
-                  {community.logo && (
-                    <div className="featured-img">
-                      <Image
-                        src={community.logo}
-                        alt={`${community.name} logo`}
-                        width={64}
-                        height={64}
-                        className="card-image"
-                        unoptimized
-                        loading="eager"
-                        onError={e => {
-                          ;(e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                    </div>
+            filteredCommunities.map(community => {
+              const hasLink =
+                Boolean(community.joinLink) && community.joinLink !== '#'
+              const cardContent = (
+                <>
+                  <div className="flex items-center gap-16px padding-bottom-24px">
+                    {community.logo && (
+                      <div className="featured-img">
+                        <Image
+                          src={community.logo}
+                          alt={`${community.name} logo`}
+                          width={64}
+                          height={64}
+                          className="card-image"
+                          unoptimized
+                          onError={e => {
+                            ;(e.target as HTMLImageElement).style.display =
+                              'none'
+                          }}
+                        />
+                      </div>
+                    )}
+                    <h3>{community.name}</h3>
+                  </div>
+                  {community.description && (
+                    <p className="paragraph-small padding-bottom-24px">
+                      {community.description}
+                    </p>
                   )}
-                  <h3>{community.name}</h3>
-                </div>
-                {community.description && (
-                  <p className="paragraph-small padding-bottom-24px">
-                    {community.description}
+                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
+                    Platform
                   </p>
-                )}
-                <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                  Platform
-                </p>
-                <p className="paragraph-small padding-bottom-16px">
-                  {community.platformText || community.platform.join(', ')}
-                </p>
-                <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                  Activity level
-                </p>
-                <p className="paragraph-small padding-bottom-16px">
-                  {community.activityLevel}
-                </p>
-                <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                  Focus
-                </p>
-                <p className="paragraph-small">{community.focus}</p>
-              </Link>
-            ))
+                  <p className="paragraph-small padding-bottom-16px">
+                    {community.platformText || community.platform.join(', ')}
+                  </p>
+                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
+                    Activity level
+                  </p>
+                  <p className="paragraph-small padding-bottom-16px">
+                    {community.activityLevel}
+                  </p>
+                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
+                    Focus
+                  </p>
+                  <p className="paragraph-small">{community.focus}</p>
+                </>
+              )
+
+              if (!hasLink) {
+                return (
+                  <div key={community.id} className="card card-static">
+                    {cardContent}
+                  </div>
+                )
+              }
+
+              return (
+                <Link
+                  key={community.id}
+                  href={community.joinLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="card"
+                  onClick={() =>
+                    trackListingClick(
+                      'Communities',
+                      community.name,
+                      community.joinLink,
+                      community.id,
+                      placements.get(community.id),
+                      'cards'
+                    )
+                  }
+                >
+                  {cardContent}
+                </Link>
+              )
+            })
           )}
         </div>
       </div>
@@ -251,6 +295,7 @@ export default function CommunitiesClient({
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="community"
+          suggestEntryDescription="Suggest a community to be published here"
         />
       </aside>
     </div>

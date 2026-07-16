@@ -29,10 +29,11 @@ export default function PrivacyPage() {
           We use two privacy-respecting tools to understand how the site is
           used. Matomo, running in cookieless mode, gives us anonymous,
           aggregated statistics like page views and referrers. Our own
-          first-party analytics records which listings and links get clicked; it
-          stores a random ID in your browser&apos;s local storage so we can
-          count unique visitors, but that ID is not tied to your name, email, or
-          IP address, and it never follows you to other sites.
+          first-party analytics records page visits and which listings and links
+          get clicked; it stores a random ID in your browser&apos;s local
+          storage so we can count unique visitors, but that ID is not tied to
+          your name, email, or IP address, and it never follows you to other
+          sites.
         </p>
 
         <h3 className="padding-bottom-16px">The chatbot</h3>

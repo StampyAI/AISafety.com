@@ -1083,15 +1083,15 @@ function ChatbotView({
               />
               <Stat label="Median messages sent" value={medianLength} />
               <Stat
-                label="Started from a suggested question"
+                label="of conversations started from a suggested question"
                 value={share(conv.suggestedShare)}
               />
               <Stat
-                label="Messages from a follow-up suggestion (excludes conversation starters)"
+                label="of messages clicked a follow-up suggestion (conversation starters excluded)"
                 value={share(conv.followUpMessageShare)}
               />
               <Stat
-                label="Clicked a card or link"
+                label="of conversations included a card or link click"
                 value={share(conv.clickedShare)}
               />
             </div>

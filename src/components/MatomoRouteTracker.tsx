@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef } from 'react'
-import { trackPageView } from '@/lib/analytics'
+import { trackPageView, isTrackingOptedOut } from '@/lib/analytics'
 
 /**
  * Notifies Matomo AND our first-party analytics about page views on Next.js
@@ -41,6 +41,10 @@ export default function MatomoRouteTracker() {
     }
 
     if (typeof window === 'undefined' || !window._paq) return
+
+    // Opted-out browsers (the privacy-page/admin switch) skip Matomo too —
+    // trackPageView above already checks the same flag internally.
+    if (isTrackingOptedOut()) return
 
     window._paq.push(['setCustomUrl', window.location.href])
     window._paq.push(['setDocumentTitle', document.title])

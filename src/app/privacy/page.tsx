@@ -1,3 +1,6 @@
+import Link from 'next/link'
+import AnalyticsOptOut from './AnalyticsOptOut'
+
 export const metadata = {
   title: 'Privacy – AISafety.com',
   description:
@@ -17,15 +20,40 @@ export default function PrivacyPage() {
           collect, why, and the choices you have.
         </p>
 
+        <h3 className="padding-bottom-16px">Who we are</h3>
+        <p className="color-teal-300 padding-bottom-40px">
+          AISafety.com is run by a small nonprofit team — you can meet us on the{' '}
+          <Link href="/about" className="color-light-teal">
+            about page
+          </Link>
+          . Bryce Robertson, the site&apos;s project manager, is responsible for
+          how visitor data is handled — for anything privacy-related,{' '}
+          <a
+            href="https://airtable.com/appF8XfZUGXtfi40E/pagUmmzVb8OnVvTZS/form"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="color-light-teal"
+          >
+            send us a message
+          </a>
+          .
+        </p>
+
         <h3 className="padding-bottom-16px">No cookies</h3>
         <p className="color-teal-300 padding-bottom-40px">
-          This site doesn&apos;t set cookies for visitors, which is why
-          there&apos;s no cookie banner. The only cookie we use anywhere is the
-          one our own team gets when signing in to the site&apos;s admin area.
+          This site doesn&apos;t set cookies for visitors. The only cookie we
+          use anywhere is the one our own team gets when signing in to the
+          site&apos;s admin area. The site does keep two small things in your
+          browser&apos;s own storage: your chatbot conversation, so it
+          isn&apos;t lost as you move between pages (it&apos;s cleared when you
+          close the tab), and the anonymous analytics ID described below, which
+          you can switch off. Nothing in your browser is used for advertising or
+          to track you across other sites — the things cookie banners exist to
+          ask consent for — which is why there&apos;s no banner.
         </p>
 
         <h3 className="padding-bottom-16px">Analytics</h3>
-        <p className="color-teal-300 padding-bottom-40px">
+        <p className="color-teal-300 padding-bottom-24px">
           We use two privacy-respecting tools to understand how the site is
           used. Matomo, running in cookieless mode, gives us anonymous,
           aggregated statistics like page views and referrers. Our own
@@ -35,6 +63,12 @@ export default function PrivacyPage() {
           ID is not tied to your name, email, or IP address, and it never
           follows you to other sites.
         </p>
+        <p className="color-teal-300 padding-bottom-24px">
+          If you&apos;d rather not be counted, you can switch analytics off for
+          this browser. This also stops your chatbot conversations from being
+          saved.
+        </p>
+        <AnalyticsOptOut />
 
         <h3 className="padding-bottom-16px">The chatbot</h3>
         <p className="color-teal-300 padding-bottom-40px">
@@ -81,7 +115,7 @@ export default function PrivacyPage() {
         </p>
 
         <p className="paragraph-small color-teal-300 padding-bottom-80px">
-          Last updated: 15 July 2026
+          Last updated: 16 July 2026
         </p>
       </div>
     </div>

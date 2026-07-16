@@ -5,6 +5,7 @@
 
 import { franc } from 'franc-min'
 import { PAGES, DEFAULT_CHIPS } from '@/lib/assistant/pages'
+import { extractChips } from '@/lib/assistant/tokens'
 import {
   isConversationsTableConfigured,
   listConversationsForStats,
@@ -32,6 +33,13 @@ export interface ConversationStats {
   /** Share (0–1) of conversations whose first message is one of the suggested
    *  question chips, or null with no data. */
   suggestedShare: number | null
+  /** Share (0–1) of ALL user messages that clicked one of the follow-up
+   *  pills the bot offers after each reply (a message matching a `[[chip:…]]`
+   *  the previous reply carried). Conversation-STARTING chips are deliberately
+   *  excluded — they're `suggestedShare`'s job — so the two tiles never count
+   *  the same click. Computed over the stored histories, so both sides of the
+   *  fraction cover the same messages. Null with no data. */
+  followUpMessageShare: number | null
   /** Share (0–1) of conversations where the visitor clicked a listing card or
    *  link out of a reply, or null with no data. */
   clickedShare: number | null
@@ -48,6 +56,7 @@ const EMPTY_STATS: ConversationStats = {
   totalConversations: 0,
   medianLength: null,
   suggestedShare: null,
+  followUpMessageShare: null,
   clickedShare: null,
   lengthBuckets: [],
   languages: [],
@@ -225,6 +234,37 @@ function median(sorted: number[]): number | null {
     : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
+/** A conversation's user messages, and how many of them clicked a follow-up
+ *  pill: a message matching a `[[chip:…]]` suggestion the previous reply
+ *  offered (the stored history keeps the raw markers the visitor-facing chat
+ *  strips). Conversation-starting chips are NOT counted here — the
+ *  started-from-a-suggestion stat covers those. A visitor who types an
+ *  offered suggestion verbatim counts as a click — they took the suggestion
+ *  either way. */
+function countFollowUpMessages(row: ConversationRow): {
+  messages: number
+  followUps: number
+} {
+  const history = row.data?.history ?? []
+  let messages = 0
+  let followUps = 0
+  let offered = new Set<string>()
+  for (const turn of history) {
+    if (turn.role === 'assistant') {
+      offered = new Set(extractChips(turn.content).map(normalize))
+      continue
+    }
+    if (!turn.content) continue
+    messages += 1
+    if (offered.has(normalize(turn.content))) followUps += 1
+    offered = new Set() // an offer only applies to the very next message
+  }
+  // Rows with no stored history but a latest message (e.g. an abandoned
+  // first turn) still count that one message.
+  if (messages === 0 && row.data?.user) messages = 1
+  return { messages, followUps }
+}
+
 /** The typed (non-suggested-chip) first message of every conversation in the
  *  range — the input for the question-theme summarizer. Chip messages are
  *  site-authored, so they'd pollute the themes with our own wording. */
@@ -267,6 +307,8 @@ export async function readConversationStats(
   let withQuestion = 0
   let suggested = 0
   let clicked = 0
+  let totalMessages = 0
+  let pillMessages = 0
 
   for (const row of rows) {
     const messages = userMessages(row)
@@ -276,6 +318,9 @@ export async function readConversationStats(
       languages.push(detectLanguage(messages))
     }
     if (row.clickedCitations.length > 0) clicked += 1
+    const pills = countFollowUpMessages(row)
+    totalMessages += pills.messages
+    pillMessages += pills.followUps
 
     const first = messages[0]?.trim().replace(/\s+/g, ' ')
     if (!first) continue
@@ -302,6 +347,8 @@ export async function readConversationStats(
     totalConversations: rows.length,
     medianLength: median(lengths.sort((a, b) => a - b)),
     suggestedShare: withQuestion > 0 ? suggested / withQuestion : null,
+    followUpMessageShare:
+      totalMessages > 0 ? pillMessages / totalMessages : null,
     clickedShare: rows.length > 0 ? clicked / rows.length : null,
     // Buckets in display order (1 → 11+), only the non-empty ones.
     lengthBuckets: LENGTH_BUCKETS.map(b => ({

@@ -1083,11 +1083,15 @@ function ChatbotView({
               />
               <Stat label="Median messages sent" value={medianLength} />
               <Stat
-                label="Started from a suggested question"
+                label="of conversations started from a suggested question"
                 value={share(conv.suggestedShare)}
               />
               <Stat
-                label="Clicked a card or link"
+                label="of messages were a follow-up suggestion (conversation starters excluded)"
+                value={share(conv.followUpMessageShare)}
+              />
+              <Stat
+                label="of conversations included a card or link click"
                 value={share(conv.clickedShare)}
               />
             </div>
@@ -1143,9 +1147,10 @@ function ChatbotView({
               {themes && <>Last updated {formatTime(themes.generatedAt)}.</>}
             </p>
             <p className={styles.caption}>
-              Every typed question (suggested-chip clicks excluded), grouped
-              into themes by Claude across the whole log — a fixed weekly
-              snapshot, so the date range doesn&apos;t filter it.
+              Every typed question since the chatbot launched (suggested-chip
+              clicks excluded), grouped into themes by Claude. Always covers the
+              whole log — the date range doesn&apos;t filter it — and
+              regenerates weekly, or whenever it&apos;s refreshed.
             </p>
           </Panel>
 

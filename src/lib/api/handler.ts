@@ -11,6 +11,18 @@ import {
 
 type Loader = () => Promise<readonly unknown[]>
 
+// Site curation metadata (drives the featured cards); internal, so stripped
+// from every endpoint's output.
+const INTERNAL_KEYS = ['featured', 'featuredTagline']
+
+function stripInternal(
+  record: Record<string, unknown>
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([key]) => !INTERNAL_KEYS.includes(key))
+  )
+}
+
 // Builds a GET route handler for a collection endpoint:
 //   load → filter (whitelist + free-text q) → absolutize asset URLs → envelope.
 // The loader reuses the existing src/lib/data getX() functions, so data shaping
@@ -21,8 +33,11 @@ export function createCollectionHandler(slug: string, loader: Loader) {
   return async function GET(request: Request): Promise<Response> {
     try {
       const all = (await loader()) as Record<string, unknown>[]
+      // Strip before filtering so the free-text `q` search can't match on
+      // hidden values.
+      const visible = all.map(stripInternal)
       const { searchParams } = new URL(request.url)
-      const filtered = applyQuery(all, searchParams, def.filterFields)
+      const filtered = applyQuery(visible, searchParams, def.filterFields)
       const origin = getOrigin(request)
       const data = filtered.map(record => absolutizeAssets(record, origin))
       return jsonResponse(

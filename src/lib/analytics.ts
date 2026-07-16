@@ -147,6 +147,17 @@ export function trackListingClick(
 }
 
 /**
+ * Track a page visit. Fired on every route change, initial load included (see
+ * MatomoRouteTracker). Matomo records its own page views via its snippet —
+ * this is the first-party copy that ad blockers can't strip, and it carries
+ * the visitor id that makes cross-page interest analysis possible.
+ */
+export function trackPageView(path: string): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({ type: 'page_view', page: path })
+}
+
+/**
  * Track an arbitrary first-party event (e.g. a chatbot open, newsletter signup,
  * or donate click). Send-only — does not touch Matomo. Lets us start capturing
  * new actions without a schema change on the server.

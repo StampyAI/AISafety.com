@@ -6,6 +6,7 @@ import {
   type DateRange,
   type ChatbotFunnel,
   type ChatbotDestination,
+  type CorrelationRow,
   type OverallListingRow,
 } from '@/lib/analytics/events'
 import {
@@ -65,6 +66,7 @@ const PAGE_NAV: { name: string; label: string; icon: string }[] = [
 const OVERVIEW_TABS: { key: string; label: string }[] = [
   { key: 'pages', label: 'Overview' },
   { key: 'chatbot', label: 'Chatbot' },
+  { key: 'correlations', label: 'Correlations' },
 ]
 const OVERVIEW_KEYS = new Set(OVERVIEW_TABS.map(t => t.key))
 
@@ -436,14 +438,48 @@ export default async function AnalyticsPage({
             />
           )}
 
-          {activeTab === 'pages' && (
-            <Panel title="Clicks by page">
-              <CountTable
-                rows={data.byPage}
-                labelHead="Page"
-                total={totalClicks}
+          {activeTab === 'correlations' && (
+            <Panel title="Shared interests">
+              <CorrelationsTable
+                rows={data.correlations}
+                labelFor={name => labelByPage.get(name) ?? name}
               />
+              <p className={styles.caption}>
+                Visitors (by anonymous browser id) who engaged with both of a
+                pair — visited the page or clicked one of its listings, with
+                chatbot use as its own row. Clicks give this history back to 20
+                June 2026; page views count from 15 July 2026, so overlaps get
+                richer as views accumulate. Pairs shared by only one visitor are
+                hidden.
+              </p>
             </Panel>
+          )}
+
+          {activeTab === 'pages' && (
+            <div className={styles.grid}>
+              <Panel title="Visits by page">
+                <CountTable
+                  rows={data.visits.byPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
+                  labelHead="Page"
+                  countHead={unique ? 'Visitors' : 'Views'}
+                  total={data.visits.byPage.reduce((s, r) => s + r.count, 0)}
+                />
+                <p className={styles.caption}>
+                  First-party page views — ad blockers can&apos;t strip these,
+                  unlike Matomo&apos;s. Recording since 15 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Clicks by page">
+                <CountTable
+                  rows={data.byPage}
+                  labelHead="Page"
+                  total={totalClicks}
+                />
+              </Panel>
+            </div>
           )}
 
           {onResourceView && (
@@ -1167,6 +1203,57 @@ function QuestionsTable({ rows: allRows }: { rows: TopQuestion[] }) {
         <TruncationNote shown={rows.length} of={allRows.length} />
       )}
     </>
+  )
+}
+
+/** Cross-interest overlaps, one row per pair of pages (or page + chatbot),
+ *  most-shared first. */
+function CorrelationsTable({
+  rows: allRows,
+  labelFor,
+}: {
+  rows: CorrelationRow[]
+  labelFor: (name: string) => string
+}) {
+  if (allRows.length === 0) {
+    return (
+      <p className={styles.dim}>
+        No overlaps in this range yet — they build up as visitors move between
+        pages.
+      </p>
+    )
+  }
+  const rows = allRows.slice(0, MAX_TABLE_ROWS)
+  return (
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th>Pages</th>
+          <th className={styles.numCol}>Shared visitors</th>
+          <th>Overlap</th>
+        </tr>
+      </thead>
+      <ExpandableBody colSpan={3}>
+        {rows.map((r, i) => {
+          const a = labelFor(r.a)
+          const b = labelFor(r.b)
+          return (
+            <tr key={i}>
+              <td className={styles.nameCell}>
+                <span>
+                  {a} + {b}
+                </span>
+              </td>
+              <td className={styles.numCol}>{r.both.toLocaleString()}</td>
+              <td>
+                {pct1(r.both, r.aTotal)} of {a} · {pct1(r.both, r.bTotal)} of{' '}
+                {b}
+              </td>
+            </tr>
+          )
+        })}
+      </ExpandableBody>
+    </table>
   )
 }
 

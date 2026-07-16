@@ -1,6 +1,7 @@
 'use client'
 
 import { useTrackingOptOut, formatExcludedSince } from '@/lib/useTrackingOptOut'
+import { trackEvent } from '@/lib/analytics'
 
 /** Visitor-facing analytics switch on the privacy page. Shares the one
  *  "exclude this browser" localStorage flag with the admin controls, so a
@@ -11,6 +12,20 @@ export default function AnalyticsOptOut() {
   const { marker, optedOut, setOptOut } = useTrackingOptOut()
   const since = optedOut ? formatExcludedSince(marker) : undefined
 
+  const handleToggle = () => {
+    if (!optedOut) {
+      // Count the opt-out itself (dashboard's "Analytics opt-outs" stat) —
+      // fired before the flag flips, as the browser's last analytics event.
+      // Only this public switch counts; the admin exclude-browser controls
+      // are the team's own testing and don't fire it.
+      trackEvent('analytics_optout', { page: 'Privacy' })
+      setOptOut(true)
+    } else {
+      setOptOut(false)
+      trackEvent('analytics_optin', { page: 'Privacy' })
+    }
+  }
+
   return (
     <div className="padding-bottom-40px">
       {optedOut && (
@@ -18,11 +33,7 @@ export default function AnalyticsOptOut() {
           ✓ Analytics is off in this browser{since ? ` (since ${since})` : ''}.
         </p>
       )}
-      <button
-        type="button"
-        className="button-secondary"
-        onClick={() => setOptOut(!optedOut)}
-      >
+      <button type="button" className="button-secondary" onClick={handleToggle}>
         {optedOut
           ? 'Turn analytics back on'
           : 'Turn off analytics in this browser'}

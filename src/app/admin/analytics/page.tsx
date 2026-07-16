@@ -205,10 +205,12 @@ function prettyUrl(url: string): string {
   }
 }
 
-const CHATBOT_LABELS: Record<string, string> = {
+const EVENT_LABELS: Record<string, string> = {
   chatbot_open: 'Opened the chatbot',
   chatbot_message: 'Sent a message',
   chatbot_click: 'Clicked a result',
+  analytics_optout: 'Turned analytics off',
+  analytics_optin: 'Turned analytics back on',
 }
 
 function pillFor(e: { page?: string; type: string }): string | null {
@@ -220,7 +222,7 @@ function pillFor(e: { page?: string; type: string }): string | null {
 }
 
 function labelFor(e: { label?: string; type: string }): string {
-  return e.label ?? CHATBOT_LABELS[e.type] ?? e.type
+  return e.label ?? EVENT_LABELS[e.type] ?? e.type
 }
 
 /** Conversion percentage of one funnel stage relative to the previous. */
@@ -473,12 +475,20 @@ export default async function AnalyticsPage({
                   label="Page views"
                   value={data.visits.totalViews.toLocaleString()}
                 />
+                <Stat
+                  label="Analytics opt-outs"
+                  value={data.optOuts.off.toLocaleString()}
+                />
               </div>
               <p className={styles.caption}>
                 First-party numbers, so ad blockers can&apos;t strip them.
                 Visitors = distinct browsers; one visitor&apos;s pages more than
                 30 minutes apart count as separate visits. Recording since 15
-                July 2026.
+                July 2026. Opt-outs = browsers that switched analytics off on
+                the privacy page (recording since 16 July 2026)
+                {data.optOuts.on > 0 &&
+                  ` — ${data.optOuts.on.toLocaleString()} turned it back on`}
+                .
               </p>
             </Panel>
           )}

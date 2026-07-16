@@ -1047,11 +1047,7 @@ function ChatbotView({
   }))
   const destUrlByName = new Map(destRows.map(d => [d.name, d.url]))
   const medianLength =
-    conv?.medianLength == null
-      ? '—'
-      : conv.medianLength === 1
-        ? '1 message'
-        : `${conv.medianLength} messages`
+    conv?.medianLength == null ? '—' : String(conv.medianLength)
   const share = (s: number | null) =>
     s == null ? '—' : `${Math.round(100 * s)}%`
   return (
@@ -1060,34 +1056,26 @@ function ChatbotView({
         <Funnel funnel={funnel} />
       </Panel>
 
-      <Panel title="Where it's opened">
-        <CountTable
-          rows={opensByPage}
-          labelHead="Page"
-          countHead={usersHead ?? 'Opens'}
-          total={sum(opensByPage)}
-        />
-        <p className={styles.caption}>
-          The page visitors were on when they opened the chat panel.
-        </p>
-      </Panel>
-
-      {conv && !conv.available && (
-        <div className={styles.empty}>
-          Couldn&apos;t reach the conversation log just now, so the conversation
-          panels are hidden — try refreshing in a moment.
-        </div>
-      )}
-
-      {conv?.available && (
-        <>
+      <div className={styles.grid}>
+        <Panel title="Where it's opened">
+          <CountTable
+            rows={opensByPage}
+            labelHead="Page"
+            countHead={usersHead ?? 'Opens'}
+            total={sum(opensByPage)}
+          />
+          <p className={styles.caption}>
+            The page visitors were on when they opened the chat panel.
+          </p>
+        </Panel>
+        {conv?.available && (
           <Panel title="Conversations">
             <div className={styles.funnel}>
               <Stat
                 label="Conversations"
                 value={conv.totalConversations.toLocaleString()}
               />
-              <Stat label="Median length" value={medianLength} />
+              <Stat label="Median messages sent" value={medianLength} />
               <Stat
                 label="Started from a suggested question"
                 value={share(conv.suggestedShare)}
@@ -1104,7 +1092,18 @@ function ChatbotView({
               Unique/Total toggle doesn&apos;t apply to them.
             </p>
           </Panel>
+        )}
+      </div>
 
+      {conv && !conv.available && (
+        <div className={styles.empty}>
+          Couldn&apos;t reach the conversation log just now, so the conversation
+          panels are hidden — try refreshing in a moment.
+        </div>
+      )}
+
+      {conv?.available && (
+        <>
           <div className={styles.grid}>
             <Panel title="Conversation length">
               <CountTable

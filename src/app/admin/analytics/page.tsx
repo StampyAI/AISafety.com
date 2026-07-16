@@ -1076,7 +1076,7 @@ function ChatbotView({
         </Panel>
         {conv?.available && (
           <Panel title="Conversations">
-            <div className={styles.funnel}>
+            <div className={styles.statStack}>
               <Stat
                 label="Conversations"
                 value={conv.totalConversations.toLocaleString()}

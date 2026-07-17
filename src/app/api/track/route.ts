@@ -22,6 +22,12 @@ function str(v: unknown, max: number): string | undefined {
   return s.length > max ? s.slice(0, max) : s
 }
 
+/** Coerce an unknown to a capped non-negative integer, or undefined. */
+function count(v: unknown, max: number): number | undefined {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return undefined
+  return Math.min(Math.round(v), max)
+}
+
 export async function POST(req: NextRequest) {
   let body: unknown
   try {
@@ -47,6 +53,8 @@ export async function POST(req: NextRequest) {
     label: str(b.label, 300),
     position: str(b.position, 16),
     source: str(b.source, 16),
+    query: str(b.query, 200),
+    results: count(b.results, 100_000),
     url: str(b.url, 600),
     ref: str(req.headers.get('referer'), 600),
     vid: str(b.vid, 64),

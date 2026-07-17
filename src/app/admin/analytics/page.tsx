@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -5,9 +6,10 @@ import {
   type Counted,
   type DateRange,
   type ChatbotFunnel,
-  type ChatbotDestination,
+  type ClickDestination,
   type CorrelationRow,
   type OverallListingRow,
+  type SearchPanelData,
 } from '@/lib/analytics/events'
 import {
   readConversationStats,
@@ -68,6 +70,7 @@ const PAGE_NAV: { name: string; label: string; icon: string }[] = [
 const OVERVIEW_TABS: { key: string; label: string }[] = [
   { key: 'pages', label: 'Overview' },
   { key: 'chatbot', label: 'Chatbot' },
+  { key: 'search', label: 'Search' },
   { key: 'correlations', label: 'Correlations' },
 ]
 const OVERVIEW_KEYS = new Set(OVERVIEW_TABS.map(t => t.key))
@@ -213,15 +216,33 @@ const EVENT_LABELS: Record<string, string> = {
   analytics_optin: 'Turned analytics back on',
 }
 
+/** Feed lines for search opens, by how the modal was opened. */
+const SEARCH_OPEN_LABELS: Record<string, string> = {
+  button: 'Opened search',
+  'cmd-k': 'Opened search (⌘K)',
+  slash: 'Opened search (/)',
+}
+
 function pillFor(e: { page?: string; type: string }): string | null {
-  // Chatbot first: chatbot events carry the page they happened on too, but in
-  // the feed they should read as chatbot activity, not page clicks.
+  // Chatbot/search first: their events carry the page they happened on too,
+  // but in the feed they should read as chatbot/search activity, not clicks.
   if (e.type.startsWith('chatbot')) return 'Chatbot'
+  if (e.type.startsWith('search')) return 'Search'
   if (e.page) return e.page
   return null
 }
 
-function labelFor(e: { label?: string; type: string }): string {
+function labelFor(e: {
+  label?: string
+  type: string
+  source?: string
+  query?: string
+}): string {
+  if (e.type === 'search_open')
+    return SEARCH_OPEN_LABELS[e.source ?? ''] ?? 'Opened search'
+  if (e.type === 'search_query')
+    return e.query ? `Searched for “${e.query}”` : 'Searched'
+  // search_click carries the result's title as its label, like listing clicks.
   return e.label ?? EVENT_LABELS[e.type] ?? e.type
 }
 
@@ -443,6 +464,10 @@ export default async function AnalyticsPage({
             />
           )}
 
+          {activeTab === 'search' && (
+            <SearchView search={data.search} unique={unique} />
+          )}
+
           {activeTab === 'correlations' && (
             <Panel title="Shared interests">
               <CorrelationsTable
@@ -452,10 +477,10 @@ export default async function AnalyticsPage({
               <p className={styles.caption}>
                 Visitors (by anonymous browser id) who engaged with both of a
                 pair — visited the page or clicked one of its listings, with
-                chatbot use as its own row. Clicks give this history back to 20
-                June 2026; page views count from 15 July 2026, so overlaps get
-                richer as views accumulate. Pairs shared by only one visitor are
-                hidden.
+                chatbot and search use as rows of their own. Clicks give this
+                history back to 20 June 2026; page views count from 15 July
+                2026, so overlaps get richer as views accumulate. Pairs shared
+                by only one visitor are hidden.
               </p>
             </Panel>
           )}
@@ -1048,7 +1073,7 @@ function ChatbotView({
 }: {
   funnel: ChatbotFunnel
   opensByPage: Counted[]
-  destinations: ChatbotDestination[]
+  destinations: ClickDestination[]
   conv: ConversationStats | null
   themes: ThemeSummary | null
   unique: boolean
@@ -1069,7 +1094,13 @@ function ChatbotView({
   return (
     <>
       <Panel title="Funnel · unique users">
-        <Funnel funnel={funnel} />
+        <Funnel
+          stages={[
+            { label: 'Opened', value: funnel.opened },
+            { label: 'Sent a message', value: funnel.typed },
+            { label: 'Clicked a result', value: funnel.clicked },
+          ]}
+        />
       </Panel>
 
       <div className={styles.grid}>
@@ -1188,6 +1219,108 @@ function ChatbotView({
         <p className={styles.caption}>
           The listing cards and links visitors opened from the chatbot&apos;s
           replies.
+        </p>
+      </Panel>
+    </>
+  )
+}
+
+/** The Search tab: how often site search gets used (and how it's opened),
+ *  what people search for, which searches come back empty, and what gets
+ *  clicked out of the results. */
+function SearchView({
+  search,
+  unique,
+}: {
+  search: SearchPanelData
+  unique: boolean
+}) {
+  const usersHead = unique ? 'Users' : undefined
+  const sum = (rows: Counted[]) => rows.reduce((s, r) => s + r.count, 0)
+  // Rows whose click carried no title read better as a prettified url.
+  const destRows = search.destinations.map(d => ({
+    ...d,
+    name: d.url && d.name === d.url ? prettyUrl(d.url) : d.name,
+  }))
+  const destUrlByName = new Map(destRows.map(d => [d.name, d.url]))
+  return (
+    <>
+      <Panel title="Funnel · unique users">
+        <Funnel
+          stages={[
+            { label: 'Opened search', value: search.funnel.opened },
+            { label: 'Typed a search', value: search.funnel.searched },
+            { label: 'Clicked a result', value: search.funnel.clicked },
+          ]}
+        />
+        <p className={styles.caption}>Recording since 16 July 2026.</p>
+      </Panel>
+
+      <div className={styles.grid}>
+        <Panel title="How it's opened">
+          <CountTable
+            rows={search.openMethods}
+            labelHead="Method"
+            countHead={usersHead ?? 'Opens'}
+            total={sum(search.openMethods)}
+          />
+          <p className={styles.caption}>
+            The magnifying-glass button, or a keyboard shortcut (⌘K also counts
+            Ctrl+K).
+          </p>
+        </Panel>
+        <Panel title="Where it's opened">
+          <CountTable
+            rows={search.opensByPage}
+            labelHead="Page"
+            countHead={usersHead ?? 'Opens'}
+            total={sum(search.opensByPage)}
+          />
+          <p className={styles.caption}>
+            The page visitors were on when they opened search.
+          </p>
+        </Panel>
+      </div>
+
+      <div className={styles.grid}>
+        <Panel title="What people search for">
+          <CountTable
+            rows={search.topQueries}
+            labelHead="Search"
+            countHead={usersHead ?? 'Searches'}
+            total={sum(search.topQueries)}
+          />
+          <p className={styles.caption}>
+            A search is recorded once the visitor pauses typing, so a few
+            half-typed words are normal.
+          </p>
+        </Panel>
+        <Panel title="Searches with no results">
+          <CountTable
+            rows={search.noResultQueries}
+            labelHead="Search"
+            countHead={usersHead ?? 'Searches'}
+            total={sum(search.noResultQueries)}
+          />
+          <p className={styles.caption}>
+            What visitors looked for and didn&apos;t find — worth scanning for
+            things the site should cover.
+          </p>
+        </Panel>
+      </div>
+
+      <Panel title="Clicked from search">
+        <CountTable
+          rows={destRows}
+          labelHead="Result"
+          countHead={usersHead ?? 'Clicks'}
+          logoFor={name => faviconFor(destUrlByName.get(name))}
+          linkFor={name => destUrlByName.get(name)}
+          total={sum(destRows)}
+        />
+        <p className={styles.caption}>
+          The results visitors opened from search, with the page or listing each
+          one leads to.
         </p>
       </Panel>
     </>
@@ -1353,14 +1486,17 @@ function CorrelationsTable({
   )
 }
 
-function Funnel({ funnel }: { funnel: ChatbotFunnel }) {
+/** A row of funnel stages, with each arrow showing the conversion from the
+ *  stage before it. */
+function Funnel({ stages }: { stages: { label: string; value: number }[] }) {
   return (
     <div className={styles.funnel}>
-      <FunnelStage label="Opened" value={funnel.opened} />
-      <FunnelArrow pct={pct(funnel.typed, funnel.opened)} />
-      <FunnelStage label="Sent a message" value={funnel.typed} />
-      <FunnelArrow pct={pct(funnel.clicked, funnel.typed)} />
-      <FunnelStage label="Clicked a result" value={funnel.clicked} />
+      {stages.map((s, i) => (
+        <Fragment key={s.label}>
+          {i > 0 && <FunnelArrow pct={pct(s.value, stages[i - 1].value)} />}
+          <FunnelStage label={s.label} value={s.value} />
+        </Fragment>
+      ))}
     </div>
   )
 }

@@ -41,8 +41,16 @@ export interface AnalyticsEvent {
   position?: string
   /** Where on the page the click came from. Only set to 'map' on the two pages
    *  with a map (Map, Communities) when the click is on the map itself; every
-   *  other click (cards, featured cards) is left unset and treated as a card. */
+   *  other click (cards, featured cards) is left unset and treated as a card.
+   *  Search events reuse it: on search_open it's how the modal was opened
+   *  ('button' | 'cmd-k' | 'slash'); on search_query, the active type filter. */
   source?: string
+  /** Site-search events: the query text as typed — the subject of a
+   *  search_query, and on a search_click the query that produced the result. */
+  query?: string
+  /** search_query only: how many results the query returned. 0 means the
+   *  visitor searched for something the site has nothing for. */
+  results?: number
   /** Destination / relevant URL. */
   url?: string
   /** Referrer path, if available. */
@@ -66,6 +74,10 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   // recorded event, the opt-in its first after coming back.
   'analytics_optout',
   'analytics_optin',
+  // Site search: opening the modal, a settled query, and a result click.
+  'search_open',
+  'search_query',
+  'search_click',
 ])
 
 // ─── Redis backend ───────────────────────────────────────────────────────────
@@ -277,7 +289,10 @@ export interface ChatbotFunnel {
   clicked: number
 }
 
-export interface ChatbotDestination extends Counted {
+/** A clicked-out destination (from chatbot replies or search results). `name`
+ *  is the link's visible text when the click carried one, otherwise the raw
+ *  url (the dashboard prettifies it). */
+export interface ClickDestination extends Counted {
   /** Destination url — for the favicon and link in the dashboard table. */
   url?: string
 }
@@ -288,9 +303,28 @@ export interface ChatbotPanelData {
    *  referer; opens where neither is known fall into 'Unknown'. */
   opensByPage: Counted[]
   /** Listings and links visitors clicked inside chatbot replies, busiest
-   *  first. `name` is the link's visible text when the click carried one,
-   *  otherwise the raw url (the dashboard prettifies it). */
-  destinations: ChatbotDestination[]
+   *  first. */
+  destinations: ClickDestination[]
+}
+
+export interface SearchPanelData {
+  /** Unique users at each step of using site search. */
+  funnel: {
+    opened: number
+    searched: number
+    clicked: number
+  }
+  /** How search gets opened: the nav button, ⌘K, or the / key. */
+  openMethods: Counted[]
+  /** The pages visitors were on when they opened search (site page names). */
+  opensByPage: Counted[]
+  /** What people search for, busiest first (lowercased so casings group). */
+  topQueries: Counted[]
+  /** Searches that returned nothing — what visitors looked for and the site
+   *  couldn't answer. A subset of topQueries. */
+  noResultQueries: Counted[]
+  /** The results visitors clicked out of search, busiest first. */
+  destinations: ClickDestination[]
 }
 
 export interface VisitsData {
@@ -351,6 +385,8 @@ export interface DashboardData {
   funnel: ChatbotFunnel
   /** The Chatbot tab's event-derived panels (opens and reply clicks). */
   chatbot: ChatbotPanelData
+  /** The Search tab's event-derived panels (opens, queries, result clicks). */
+  search: SearchPanelData
   /** Browsers that used the privacy page's analytics switch in range: `off` =
    *  turned analytics off, `on` = turned it back on. Unique browsers, always —
    *  toggling twice isn't two people changing their mind. */
@@ -360,8 +396,8 @@ export interface DashboardData {
   /** Cross-interest overlaps between pages (and the chatbot), from anonymous
    *  visitor ids: pairs ranked by how many visitors engaged with both. */
   correlations: CorrelationRow[]
-  /** Recent clicks and chatbot events — page views are excluded so the feed
-   *  stays an activity log rather than a firehose. */
+  /** Recent clicks and chatbot/search events — page views are excluded so the
+   *  feed stays an activity log rather than a firehose. */
   recent: AnalyticsEvent[]
   /** Timestamp of the oldest event in the WHOLE store (not just the selected
    *  range) — lets the dashboard say how far back its data actually goes.
@@ -386,6 +422,14 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   selectedSource: null,
   funnel: { opened: 0, typed: 0, clicked: 0 },
   chatbot: { opensByPage: [], destinations: [] },
+  search: {
+    funnel: { opened: 0, searched: 0, clicked: 0 },
+    openMethods: [],
+    opensByPage: [],
+    topQueries: [],
+    noResultQueries: [],
+    destinations: [],
+  },
   optOuts: { off: 0, on: 0 },
   visits: { byPage: [], totalViews: 0, uniqueVisitors: 0, visitCount: 0 },
   correlations: [],
@@ -624,6 +668,7 @@ function aggregate(
       clicked: usersOf('chatbot_click'),
     },
     chatbot: chatbotPanels(inRange, unique),
+    search: searchPanels(inRange, unique),
     optOuts: {
       off: usersOf('analytics_optout'),
       on: usersOf('analytics_optin'),
@@ -703,14 +748,15 @@ function countVisits(views: AnalyticsEvent[]): number {
 }
 
 /** The interest an event expresses, for the correlations table: the page it
- *  belongs to (viewed, or clicked a listing on), or 'Chatbot' for chatbot
- *  use. Listing clicks reach back to 20 June 2026, so pairs have history even
- *  though page views only started on 15 July 2026. */
+ *  belongs to (viewed, or clicked a listing on), with 'Chatbot' and 'Search'
+ *  as interests of their own. Listing clicks reach back to 20 June 2026, so
+ *  pairs have history even though page views only started on 15 July 2026. */
 function interestOf(e: AnalyticsEvent): string | undefined {
   if (e.type === 'page_view')
     return e.page ? (PAGE_NAME_BY_PATH[e.page] ?? e.page) : undefined
   if (e.type === 'listing_click') return e.page
   if (e.type.startsWith('chatbot')) return 'Chatbot'
+  if (e.type.startsWith('search')) return 'Search'
   return undefined
 }
 
@@ -796,19 +842,13 @@ function tallyBy(
     .sort((a, b) => b.count - a.count)
 }
 
-/** The Chatbot tab's event-derived panels. `unique` mirrors the dashboard's
- *  count mode: unique users per bucket, or every event. */
-function chatbotPanels(
-  inRange: AnalyticsEvent[],
+/** Clicked-out destinations bucketed by url, busiest first; the most recent
+ *  click's label (event lists are newest-first) names the row when one was
+ *  recorded. In unique mode each visitor counts once per destination. */
+function destinationRows(
+  clicks: AnalyticsEvent[],
   unique: boolean
-): ChatbotPanelData {
-  const opens = inRange.filter(e => e.type === 'chatbot_open')
-  const clicks = inRange.filter(e => e.type === 'chatbot_click')
-
-  const opensByPage = tallyBy(opens, e => chatbotPage(e) ?? 'Unknown', unique)
-
-  // Reply clicks bucketed by destination url; the most recent click's label
-  // (clicks are newest-first) names the row when one was recorded.
+): ClickDestination[] {
   const byUrl = new Map<string, { name: string; url?: string; count: number }>()
   const seen = new Set<string>()
   for (const e of clicks) {
@@ -822,9 +862,66 @@ function chatbotPanels(
     g.count += 1
     byUrl.set(url, g)
   }
-  const destinations = [...byUrl.values()].sort((a, b) => b.count - a.count)
+  return [...byUrl.values()].sort((a, b) => b.count - a.count)
+}
 
-  return { opensByPage, destinations }
+/** The Chatbot tab's event-derived panels. `unique` mirrors the dashboard's
+ *  count mode: unique users per bucket, or every event. */
+function chatbotPanels(
+  inRange: AnalyticsEvent[],
+  unique: boolean
+): ChatbotPanelData {
+  const opens = inRange.filter(e => e.type === 'chatbot_open')
+  const clicks = inRange.filter(e => e.type === 'chatbot_click')
+  return {
+    opensByPage: tallyBy(opens, e => chatbotPage(e) ?? 'Unknown', unique),
+    destinations: destinationRows(clicks, unique),
+  }
+}
+
+/** Dashboard labels for how the search modal was opened (search_open.source). */
+const SEARCH_OPEN_LABEL: Record<string, string> = {
+  button: 'Search button',
+  'cmd-k': '⌘K shortcut',
+  slash: '/ shortcut',
+}
+
+/** The Search tab's panels. The funnel always counts unique users; the other
+ *  panels follow the dashboard's count mode via `unique`, like the chatbot's.
+ *  Queries are grouped lowercased so casings don't split a search across rows.
+ *  A search_query without text (not something the site's own beacons send) is
+ *  ignored rather than counted as an empty search. */
+function searchPanels(
+  inRange: AnalyticsEvent[],
+  unique: boolean
+): SearchPanelData {
+  const opens = inRange.filter(e => e.type === 'search_open')
+  const queries = inRange.filter(e => e.type === 'search_query' && e.query)
+  const clicks = inRange.filter(e => e.type === 'search_click')
+  return {
+    funnel: {
+      opened: uniqueUsers(opens),
+      searched: uniqueUsers(queries),
+      clicked: uniqueUsers(clicks),
+    },
+    openMethods: tallyBy(
+      opens,
+      e => SEARCH_OPEN_LABEL[e.source ?? ''] ?? 'Unknown',
+      unique
+    ),
+    opensByPage: tallyBy(
+      opens,
+      e => (e.page ? (PAGE_NAME_BY_PATH[e.page] ?? e.page) : 'Unknown'),
+      unique
+    ),
+    topQueries: tallyBy(queries, e => e.query!.toLowerCase(), unique),
+    noResultQueries: tallyBy(
+      queries.filter(e => e.results === 0),
+      e => e.query!.toLowerCase(),
+      unique
+    ),
+    destinations: destinationRows(clicks, unique),
+  }
 }
 
 /** Distinct users in a set of events: distinct vids, plus each vid-less event

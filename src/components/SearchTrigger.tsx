@@ -11,6 +11,7 @@ import {
 import type { ReactNode } from 'react'
 import type { LoadState } from '@/lib/search'
 import type { SearchEntry } from '@/lib/data/search-index'
+import { trackSearchOpen, type SearchOpenMethod } from '@/lib/analytics'
 import SearchModal from './SearchModal'
 
 interface SearchContextValue {
@@ -54,11 +55,15 @@ export function SearchProvider({
     }
   }, [])
 
-  const handleOpen = useCallback(() => {
-    triggerElRef.current = document.activeElement as HTMLElement | null
-    fetchIndex()
-    setOpen(true)
-  }, [fetchIndex])
+  const handleOpen = useCallback(
+    (method: SearchOpenMethod) => {
+      triggerElRef.current = document.activeElement as HTMLElement | null
+      fetchIndex()
+      setOpen(true)
+      trackSearchOpen(method)
+    },
+    [fetchIndex]
+  )
 
   const handleClose = useCallback(() => {
     setOpen(false)
@@ -80,7 +85,7 @@ export function SearchProvider({
         if (open) {
           handleClose()
         } else {
-          handleOpen()
+          handleOpen('cmd-k')
         }
         return
       }
@@ -92,7 +97,7 @@ export function SearchProvider({
           (target?.isContentEditable ?? false)
         if (isTyping) return
         e.preventDefault()
-        handleOpen()
+        handleOpen('slash')
       }
     }
     window.addEventListener('keydown', handler, true)
@@ -100,7 +105,10 @@ export function SearchProvider({
   }, [open, handleOpen, handleClose])
 
   return (
-    <SearchContext.Provider value={{ open: handleOpen, prefetch: fetchIndex }}>
+    <SearchContext.Provider
+      // The context's open() is only reachable from the SearchButtons.
+      value={{ open: () => handleOpen('button'), prefetch: fetchIndex }}
+    >
       {children}
       <SearchModal
         open={open}

@@ -26,8 +26,13 @@ interface TrackPayload {
    *  dashboard tie clicks to the rank that produced them. */
   position?: string
   /** 'map' when the click came from a page's map (Map, Communities); left unset
-   *  for card clicks, which the dashboard treats as the default. */
+   *  for card clicks, which the dashboard treats as the default. Search events
+   *  reuse it for how the modal was opened / the active type filter. */
   source?: string
+  /** Site-search events: the query text as typed. */
+  query?: string
+  /** search_query only: how many results the query returned. */
+  results?: number
 }
 
 const VID_KEY = 'aisafety_vid'
@@ -155,6 +160,64 @@ export function trackListingClick(
 export function trackPageView(path: string): void {
   if (typeof window === 'undefined') return
   sendTrackEvent({ type: 'page_view', page: path })
+}
+
+/** How the search modal was opened: the nav's magnifying-glass button,
+ *  ⌘K/Ctrl+K, or the / key. */
+export type SearchOpenMethod = 'button' | 'cmd-k' | 'slash'
+
+/** Track the site-search modal opening, and how it was opened. */
+export function trackSearchOpen(method: SearchOpenMethod): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({
+    type: 'search_open',
+    source: method,
+    page: window.location.pathname,
+  })
+}
+
+/**
+ * Track a settled site-search query — fired once the visitor pauses typing,
+ * or immediately if they click a result / close search before the pause.
+ * `results` is how many results the query returned (0 = the site had nothing
+ * for it); `filter` is the active type filter, when the search was narrowed
+ * to one resource type.
+ */
+export function trackSearchQuery(
+  query: string,
+  results: number,
+  filter?: string
+): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({
+    type: 'search_query',
+    query,
+    results,
+    source: filter,
+    page: window.location.pathname,
+  })
+}
+
+/**
+ * Track a click on a site-search result. `query` is what was typed when the
+ * result was clicked (empty when browsing a type filter without typing);
+ * `position` is the result's rank in the list, counted from 1.
+ */
+export function trackSearchClick(
+  query: string,
+  title: string,
+  url: string,
+  position: string
+): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({
+    type: 'search_click',
+    query: query || undefined,
+    label: title,
+    url,
+    position,
+    page: window.location.pathname,
+  })
 }
 
 /**

@@ -756,11 +756,15 @@ function countVisits(views: AnalyticsEvent[]): number {
 
 /** The interest an event expresses, for the correlations table: the page it
  *  belongs to (viewed, or clicked a listing on), with 'Chatbot' and 'Search'
- *  as interests of their own. Listing clicks reach back to 20 June 2026, so
- *  pairs have history even though page views only started on 15 July 2026. */
+ *  as interests of their own. Home isn't an interest — nearly everyone passes
+ *  through it, so its pairs say nothing. Listing clicks reach back to 20 June
+ *  2026, so pairs have history even though page views only started on 15 July
+ *  2026. */
 function interestOf(e: AnalyticsEvent): string | undefined {
   if (e.type === 'page_view')
-    return e.page ? (PAGE_NAME_BY_PATH[e.page] ?? e.page) : undefined
+    return e.page && e.page !== '/'
+      ? (PAGE_NAME_BY_PATH[e.page] ?? e.page)
+      : undefined
   if (e.type === 'listing_click') return e.page
   if (e.type.startsWith('chatbot')) return 'Chatbot'
   if (e.type.startsWith('search')) return 'Search'

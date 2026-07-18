@@ -146,7 +146,13 @@ export async function POST(req: NextRequest) {
       const citationRefs = [...cardedIds]
         .map(id => citedById.get(id))
         .filter((c): c is (typeof citations)[number] => Boolean(c))
-        .map(c => ({ id: c.id, name: c.name, url: c.url, logo: c.logo }))
+        .map(c => ({
+          id: c.id,
+          name: c.name,
+          organization: c.organization,
+          url: c.url,
+          logo: c.logo,
+        }))
 
       // after() keeps the serverless function alive until the write completes.
       // A bare fire-and-forget promise gets frozen (and usually lost) the

@@ -27,7 +27,8 @@ interface TrackPayload {
   position?: string
   /** 'map' when the click came from a page's map (Map, Communities); left unset
    *  for card clicks, which the dashboard treats as the default. Search events
-   *  reuse it for how the modal was opened / the active type filter. */
+   *  reuse it: how the modal was opened (search_open), the active type filter
+   *  (search_query), or the clicked result's type (search_click). */
   source?: string
   /** Site-search events: the query text as typed. */
   query?: string
@@ -201,13 +202,17 @@ export function trackSearchQuery(
 /**
  * Track a click on a site-search result. `query` is what was typed when the
  * result was clicked (empty when browsing a type filter without typing);
- * `position` is the result's rank in the list, counted from 1.
+ * `position` is the result's rank in the list, counted from 1; `resultType`
+ * is the result's search type ('job', 'funder', …) — recorded so the
+ * dashboard can show which resource page the result belongs to even after
+ * the listing itself is gone from the index.
  */
 export function trackSearchClick(
   query: string,
   title: string,
   url: string,
-  position: string
+  position: string,
+  resultType: string
 ): void {
   if (typeof window === 'undefined') return
   sendTrackEvent({
@@ -216,6 +221,7 @@ export function trackSearchClick(
     label: title,
     url,
     position,
+    source: resultType,
     page: window.location.pathname,
   })
 }

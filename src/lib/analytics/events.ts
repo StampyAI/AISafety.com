@@ -43,7 +43,8 @@ export interface AnalyticsEvent {
    *  with a map (Map, Communities) when the click is on the map itself; every
    *  other click (cards, featured cards) is left unset and treated as a card.
    *  Search events reuse it: on search_open it's how the modal was opened
-   *  ('button' | 'cmd-k' | 'slash'); on search_query, the active type filter. */
+   *  ('button' | 'cmd-k' | 'slash'); on search_query, the active type filter;
+   *  on search_click, the clicked result's type ('job', 'funder', …). */
   source?: string
   /** Site-search events: the query text as typed — the subject of a
    *  search_query, and on a search_click the query that produced the result. */
@@ -295,6 +296,12 @@ export interface ChatbotFunnel {
 export interface ClickDestination extends Counted {
   /** Destination url — for the favicon and link in the dashboard table. */
   url?: string
+  /** Search rows only: the clicked result's search type ('job', 'funder', …),
+   *  from the most recent click that recorded one — so the dashboard can show
+   *  the resource page the result belongs to. Absent on clicks from before
+   *  the type was tracked (the dashboard falls back to matching the url
+   *  against the live search index). */
+  resultType?: string
 }
 
 export interface ChatbotPanelData {
@@ -844,12 +851,17 @@ function tallyBy(
 
 /** Clicked-out destinations bucketed by url, busiest first; the most recent
  *  click's label (event lists are newest-first) names the row when one was
- *  recorded. In unique mode each visitor counts once per destination. */
+ *  recorded. In unique mode each visitor counts once per destination.
+ *  `sourceIsType` is set by the search panels, whose clicks carry the result's
+ *  type in `source` — the first (newest) one seen becomes the row's
+ *  resultType. Chatbot clicks use `source` for something else ('card'/'link'),
+ *  so they leave it off. */
 function destinationRows(
   clicks: AnalyticsEvent[],
-  unique: boolean
+  unique: boolean,
+  sourceIsType = false
 ): ClickDestination[] {
-  const byUrl = new Map<string, { name: string; url?: string; count: number }>()
+  const byUrl = new Map<string, ClickDestination>()
   const seen = new Set<string>()
   for (const e of clicks) {
     const url = e.url ?? e.label ?? '(unknown)'
@@ -859,6 +871,7 @@ function destinationRows(
       seen.add(dedupe)
     }
     const g = byUrl.get(url) ?? { name: e.label ?? url, url: e.url, count: 0 }
+    if (sourceIsType && !g.resultType && e.source) g.resultType = e.source
     g.count += 1
     byUrl.set(url, g)
   }
@@ -920,7 +933,7 @@ function searchPanels(
       e => e.query!.toLowerCase(),
       unique
     ),
-    destinations: destinationRows(clicks, unique),
+    destinations: destinationRows(clicks, unique, true),
   }
 }
 

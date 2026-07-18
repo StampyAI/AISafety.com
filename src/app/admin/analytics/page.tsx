@@ -17,6 +17,12 @@ import {
   type TopQuestion,
 } from '@/lib/analytics/conversations'
 import { readQuestionThemes, type ThemeSummary } from '@/lib/analytics/themes'
+import {
+  buildSearchIndex,
+  type SearchEntry,
+  type SearchType,
+} from '@/lib/data/search-index'
+import { TYPE_ICON, TYPE_LABEL, TYPE_PATH } from '@/lib/search'
 import RefreshThemesButton from './RefreshThemesButton'
 import { getFunders } from '@/lib/data/funding'
 import { getCourses } from '@/lib/data/self-study'
@@ -182,6 +188,67 @@ function faviconFor(url?: string): string | undefined {
   }
 }
 
+/** A row's resource-page marker in the clicked-from-search table: the page's
+ *  nav icon, plus its name for the hover tooltip. */
+interface PageBadge {
+  icon: string | null
+  label: string
+}
+
+/** '/jobs' → 'job', '/funding' → 'funder', … — so a click on a resource page
+ *  itself (a 'page' search result) still resolves to that page's badge. */
+const SEARCH_TYPE_BY_PATH = new Map<string, SearchType>(
+  (Object.keys(TYPE_PATH) as SearchType[])
+    .filter(t => TYPE_PATH[t])
+    .map(t => [TYPE_PATH[t]!, t])
+)
+
+/** The resource page each clicked-from-search row belongs to. Newer clicks
+ *  record the result's type at click time; rows without one (clicks from
+ *  before the type was tracked) are matched against the live search index by
+ *  url, then title. A listing that has since left the index (closed job, past
+ *  event) can stay unresolved — its row just shows no page icon. */
+function searchPageBadges(
+  index: SearchEntry[],
+  rows: { name: string; url?: string; resultType?: string }[]
+): Map<string, PageBadge> {
+  // null marks a url/title claimed by entries of two different types —
+  // too ambiguous to resolve a page from.
+  const byUrl = new Map<string, SearchType | null>()
+  const byTitle = new Map<string, SearchType | null>()
+  const claim = (
+    m: Map<string, SearchType | null>,
+    key: string,
+    type: SearchType
+  ) => {
+    const prev = m.get(key)
+    if (prev === undefined) m.set(key, type)
+    else if (prev !== type) m.set(key, null)
+  }
+  for (const e of index) {
+    // Page entries resolve to the resource page their url is; non-resource
+    // pages (Home, About, …) resolve to nothing.
+    const type = e.type === 'page' ? SEARCH_TYPE_BY_PATH.get(e.url) : e.type
+    if (!type) continue
+    claim(byUrl, e.url, type)
+    claim(byTitle, e.title, type)
+  }
+  const out = new Map<string, PageBadge>()
+  for (const r of rows) {
+    const recorded =
+      r.resultType && r.resultType !== 'page' && r.resultType in TYPE_ICON
+        ? (r.resultType as SearchType)
+        : undefined
+    const matched =
+      (r.url ? byUrl.get(r.url) : undefined) || byTitle.get(r.name) || undefined
+    const type = recorded ?? matched
+    if (type && type !== 'page') {
+      out.set(r.name, { icon: TYPE_ICON[type], label: TYPE_LABEL[type] })
+    }
+  }
+  return out
+}
+
 /** en-GB so the date reads day-before-month (e.g. "19 Jun, 20:30"). */
 function formatTime(iso: string): string {
   try {
@@ -303,7 +370,7 @@ export default async function AnalyticsPage({
   const tabReq = tabRaw === 'funnel' ? 'chatbot' : tabRaw
   const onResourceTab = tabReq != null && !OVERVIEW_KEYS.has(tabReq)
 
-  const [data, funders, convStats, themes] = await Promise.all([
+  const [data, funders, convStats, themes, searchIndex] = await Promise.all([
     readDashboard(
       range,
       onResourceTab ? tabReq : undefined,
@@ -315,6 +382,11 @@ export default async function AnalyticsPage({
     // fetch the (ever-growing) conversation log when it's the active tab.
     tabReq === 'chatbot' ? readConversationStats(range) : null,
     tabReq === 'chatbot' ? readQuestionThemes() : null,
+    // Resolves clicked search results to their resource page; only the Search
+    // tab reads it. On error the page icons resolve from recorded types alone.
+    tabReq === 'search'
+      ? buildSearchIndex().catch(() => [] as SearchEntry[])
+      : ([] as SearchEntry[]),
   ])
 
   // Resource-page tabs: every page in PAGE_NAV always gets one (so quiet pages
@@ -465,7 +537,11 @@ export default async function AnalyticsPage({
           )}
 
           {activeTab === 'search' && (
-            <SearchView search={data.search} unique={unique} />
+            <SearchView
+              search={data.search}
+              index={searchIndex}
+              unique={unique}
+            />
           )}
 
           {activeTab === 'correlations' && (
@@ -886,6 +962,7 @@ function CountTable({
   logoFor,
   linkFor,
   rankFor,
+  pageFor,
   total,
 }: {
   rows: Counted[]
@@ -900,6 +977,9 @@ function CountTable({
    *  selectable/copyable. */
   linkFor?: (name: string) => string | undefined
   rankFor?: (name: string) => string | undefined
+  /** When set, adds a Page column: the resource page each row belongs to,
+   *  shown as the page's nav icon with its name as the hover tooltip. */
+  pageFor?: (name: string) => PageBadge | undefined
   /** When set, adds a % column (each row's share of this total) and a Total
    *  footer row. The total is the denominator, so for a sliced "top N" table it
    *  can exceed the sum of the visible rows. */
@@ -908,7 +988,7 @@ function CountTable({
   if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
   const rows = allRows.slice(0, MAX_TABLE_ROWS)
   const showPct = total != null && total > 0
-  const colSpan = (rankFor ? 1 : 0) + 2 + (showPct ? 1 : 0)
+  const colSpan = (rankFor ? 1 : 0) + 2 + (pageFor ? 1 : 0) + (showPct ? 1 : 0)
   return (
     <>
       <table className={styles.table}>
@@ -916,6 +996,7 @@ function CountTable({
           <tr>
             {rankFor && <th className={styles.rankCol}>{rankHead}</th>}
             <th>{labelHead}</th>
+            {pageFor && <th>Page</th>}
             <th className={styles.numCol}>{countHead}</th>
             {showPct && <th className={styles.pctCol}>%</th>}
           </tr>
@@ -925,6 +1006,7 @@ function CountTable({
             const rank = rankFor?.(r.name)
             const featured = rank?.startsWith('F')
             const href = linkFor?.(r.name)
+            const badge = pageFor?.(r.name)
             return (
               <tr key={i}>
                 {rankFor && (
@@ -953,6 +1035,20 @@ function CountTable({
                     ))}
                   <span>{r.name}</span>
                 </td>
+                {pageFor && (
+                  <td>
+                    {badge?.icon && (
+                      <span className={styles.pageTabIcon} title={badge.label}>
+                        <Image
+                          src={badge.icon}
+                          alt={badge.label}
+                          width={12}
+                          height={12}
+                        />
+                      </span>
+                    )}
+                  </td>
+                )}
                 <td className={styles.numCol}>{r.count.toLocaleString()}</td>
                 {showPct && (
                   <td className={styles.pctCol}>{pct1(r.count, total)}</td>
@@ -966,6 +1062,7 @@ function CountTable({
             <tr className={styles.totalRow}>
               {rankFor && <td className={styles.rankCol} />}
               <td className={styles.totalLabel}>Total</td>
+              {pageFor && <td />}
               <td className={styles.numCol}>{total.toLocaleString()}</td>
               {showPct && (
                 <td className={styles.pctCol}>{pct1(total, total)}</td>
@@ -1230,9 +1327,11 @@ function ChatbotView({
  *  clicked out of the results. */
 function SearchView({
   search,
+  index,
   unique,
 }: {
   search: SearchPanelData
+  index: SearchEntry[]
   unique: boolean
 }) {
   const usersHead = unique ? 'Users' : undefined
@@ -1243,6 +1342,7 @@ function SearchView({
     name: d.url && d.name === d.url ? prettyUrl(d.url) : d.name,
   }))
   const destUrlByName = new Map(destRows.map(d => [d.name, d.url]))
+  const pageBadges = searchPageBadges(index, destRows)
   return (
     <>
       <Panel title="Funnel · unique users">
@@ -1316,11 +1416,14 @@ function SearchView({
           countHead={usersHead ?? 'Clicks'}
           logoFor={name => faviconFor(destUrlByName.get(name))}
           linkFor={name => destUrlByName.get(name)}
+          pageFor={name => pageBadges.get(name)}
           total={sum(destRows)}
         />
         <p className={styles.caption}>
           The results visitors opened from search, with the page or listing each
-          one leads to.
+          one leads to. The page icon is the resource page the result belongs to
+          (hover it for the name); a row without one no longer matches anything
+          in the search index.
         </p>
       </Panel>
     </>

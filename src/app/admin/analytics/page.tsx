@@ -203,11 +203,14 @@ const SEARCH_TYPE_BY_PATH = new Map<string, SearchType>(
     .map(t => [TYPE_PATH[t]!, t])
 )
 
-/** The resource page each clicked-from-search row belongs to. Newer clicks
- *  record the result's type at click time; rows without one (clicks from
- *  before the type was tracked) are matched against the live search index by
- *  url, then title. A listing that has since left the index (closed job, past
- *  event) can stay unresolved — its row just shows no page icon. */
+/** The page each clicked-from-search row belongs to. Newer clicks record the
+ *  result's type at click time; rows without one (clicks from before the type
+ *  was tracked) are matched against the live search index by url, then title.
+ *  Resource-page rows get the page's icon and name; non-resource pages (Home,
+ *  About, …) get their own title and nav icon, when they have one — Home
+ *  renders as its title alone. A row that matches nothing — or
+ *  whose url/title is shared by listings on two different pages — stays
+ *  unresolved and shows no badge. */
 function searchPageBadges(
   index: SearchEntry[],
   rows: { name: string; url?: string; resultType?: string }[]
@@ -216,6 +219,10 @@ function searchPageBadges(
   // too ambiguous to resolve a page from.
   const byUrl = new Map<string, SearchType | null>()
   const byTitle = new Map<string, SearchType | null>()
+  // Non-resource pages, keyed by url and title — the badge is the page's own
+  // nav icon (when it has one, e.g. Home doesn't) and title.
+  const pageByUrl = new Map<string, PageBadge>()
+  const pageByTitle = new Map<string, PageBadge>()
   const claim = (
     m: Map<string, SearchType | null>,
     key: string,
@@ -227,9 +234,14 @@ function searchPageBadges(
   }
   for (const e of index) {
     // Page entries resolve to the resource page their url is; non-resource
-    // pages (Home, About, …) resolve to nothing.
+    // pages (Home, About, …) resolve to their own title.
     const type = e.type === 'page' ? SEARCH_TYPE_BY_PATH.get(e.url) : e.type
-    if (!type) continue
+    if (!type) {
+      const badge = { icon: e.logo, label: e.title }
+      pageByUrl.set(e.url, badge)
+      pageByTitle.set(e.title, badge)
+      continue
+    }
     claim(byUrl, e.url, type)
     claim(byTitle, e.title, type)
   }
@@ -244,7 +256,11 @@ function searchPageBadges(
     const type = recorded ?? matched
     if (type && type !== 'page') {
       out.set(r.name, { icon: TYPE_ICON[type], label: TYPE_LABEL[type] })
+      continue
     }
+    const page =
+      (r.url ? pageByUrl.get(r.url) : undefined) ?? pageByTitle.get(r.name)
+    if (page) out.set(r.name, page)
   }
   return out
 }
@@ -1037,16 +1053,18 @@ function CountTable({
                 </td>
                 {pageFor && (
                   <td>
-                    {badge?.icon && (
+                    {badge && (
                       <span className={styles.pageBadge}>
-                        <span className={styles.pageTabIcon}>
-                          <Image
-                            src={badge.icon}
-                            alt=""
-                            width={12}
-                            height={12}
-                          />
-                        </span>
+                        {badge.icon && (
+                          <span className={styles.pageTabIcon}>
+                            <Image
+                              src={badge.icon}
+                              alt=""
+                              width={12}
+                              height={12}
+                            />
+                          </span>
+                        )}
                         {badge.label}
                       </span>
                     )}
@@ -1424,8 +1442,8 @@ function SearchView({
         />
         <p className={styles.caption}>
           The results visitors opened from search, with the page or listing each
-          one leads to. The Page column is the resource page the result belongs
-          to; a row without one no longer matches anything in the search index.
+          one leads to. The Page column is the page the result belongs to; a row
+          without one can&apos;t be matched to a single page in the search index.
         </p>
       </Panel>
     </>

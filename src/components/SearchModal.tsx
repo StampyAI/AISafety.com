@@ -392,7 +392,8 @@ export default function SearchModal({
                         queryRef.current.trim(),
                         entry.title,
                         entry.url,
-                        String(flatIndex + 1)
+                        String(flatIndex + 1),
+                        entry.type
                       )
                     }}
                     onMouseMove={() => {

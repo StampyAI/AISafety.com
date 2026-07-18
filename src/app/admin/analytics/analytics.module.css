@@ -476,6 +476,16 @@
   white-space: nowrap;
 }
 
+/* A table row's resource-page marker: the page's nav icon (the same white
+   badge the tabs use) with the page's name beside it. */
+.pageBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--white);
+  white-space: nowrap;
+}
+
 .recentLabel {
   color: var(--white);
   flex: 1;

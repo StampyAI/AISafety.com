@@ -15,6 +15,11 @@ import styles from './Navigation.module.css'
 
 const navItems = [
   {
+    href: '/training',
+    label: 'Training programs',
+    icon: 'grad-cap.svg',
+  },
+  {
     href: '/events',
     label: 'Events',
     icon: 'calendar.svg',

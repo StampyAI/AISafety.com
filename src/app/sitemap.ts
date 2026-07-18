@@ -16,6 +16,7 @@ const ROUTES = [
   '/media-channels',
   '/projects',
   '/self-study',
+  '/training',
 ] as const
 
 export default function sitemap(): MetadataRoute.Sitemap {

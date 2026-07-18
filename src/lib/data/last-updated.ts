@@ -49,6 +49,15 @@ const configs: Record<string, ResourceConfig> = {
     viewId: 'viwblgaia3x1gsqBo',
     sortField: 'Last modified',
   },
+  // Like 'events', reads the legacy Events & training table until the new
+  // tables get a Last modified field (the API can't create that type) and
+  // become the source of truth at launch.
+  training: {
+    type: 'query',
+    tableId: 'tblx0L8qJEaLBxJFS',
+    viewId: 'viwHl72bJxCb2SfrL',
+    sortField: 'Last modified',
+  },
   jobs: {
     type: 'query',
     tableId: 'tblyLelYCQjP6w3nV',

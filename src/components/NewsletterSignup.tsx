@@ -6,7 +6,13 @@ import styles from './NewsletterSignup.module.css'
 
 const SUBSCRIBE_URL = 'https://aisafetyeventsandtraining.substack.com/subscribe'
 
-export default function NewsletterSignup() {
+// Temporary Substack subscribe box shared by /events and /training until the
+// custom newsletter platform lands.
+export default function NewsletterSignup({
+  heading = 'Get a weekly summary of upcoming events',
+}: {
+  heading?: string
+}) {
   const [email, setEmail] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
@@ -20,9 +26,7 @@ export default function NewsletterSignup() {
 
   return (
     <form className={`width-4-col ${styles.card}`} onSubmit={handleSubmit}>
-      <p className={`paragraph-small ${styles.heading}`}>
-        Get a weekly summary of upcoming events
-      </p>
+      <p className={`paragraph-small ${styles.heading}`}>{heading}</p>
       <div className={styles.field}>
         <input
           type="email"

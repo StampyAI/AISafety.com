@@ -1,0 +1,454 @@
+'use client'
+
+import { useMemo, useRef, useState, useLayoutEffect } from 'react'
+import Image from 'next/image'
+import ListingCard from '@/components/ListingCard'
+import FeaturedCard from '@/components/FeaturedCard'
+import ContributeButtons from '@/components/ContributeButtons'
+import FilterDropdown from '@/components/FilterDropdown'
+import {
+  LENGTH_BUCKETS,
+  STIPEND_OPTIONS,
+  TRAINING_TYPES,
+  trainingTypeColor,
+} from '@/lib/training-types'
+import type {
+  ProgramBase,
+  RecurringProgram,
+  TrainingProgram,
+} from '@/lib/data/training'
+import styles from './page.module.css'
+
+// TODO(bryce): swap for Training-table forms and share view before launch —
+// these still point at the events/legacy ones.
+const ADD_PROGRAM_URL =
+  'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form'
+const SUGGEST_CORRECTION_URL =
+  'https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form'
+const AIRTABLE_VIEW_URL =
+  'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
+
+const applicationOptions = ['Open', 'Closed']
+const locationOptions = ['Online', 'In person']
+
+type Mode = 'upcoming' | 'recurring'
+
+interface TrainingClientProps {
+  programs: TrainingProgram[]
+  recurring: RecurringProgram[]
+}
+
+function parseISO(date: string): Date {
+  return new Date(date + 'T00:00:00Z')
+}
+
+function formatShortDate(date: string): string {
+  const d = parseISO(date)
+  const month = new Intl.DateTimeFormat('en-GB', {
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(d)
+  return `${d.getUTCDate()} ${month} ${d.getUTCFullYear()}`
+}
+
+// "1 year", "3 months", "8 weeks", "6 days" — rounded to whichever unit
+// reads most naturally for the span.
+function durationLabel(
+  startDate: string | null,
+  endDate: string | null
+): string | null {
+  if (!startDate || !endDate || endDate < startDate) return null
+  const start = parseISO(startDate).getTime()
+  const end = parseISO(endDate).getTime()
+  const days = Math.round((end - start) / 86_400_000) + 1
+  if (days >= 330) {
+    const years = Math.max(1, Math.round(days / 365.25))
+    return years === 1 ? '1 year' : `${years} years`
+  }
+  const months = Math.round(days / 30.44)
+  if (months >= 1 && Math.abs(days - months * 30.44) <= 4) {
+    return months === 1 ? '1 month' : `${months} months`
+  }
+  if (days >= 14) {
+    return `${Math.round(days / 7)} weeks`
+  }
+  return days === 1 ? '1 day' : `${days} days`
+}
+
+function titleMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
+  const rows: { icon: string; value: string }[] = []
+  if (program.isOnline) {
+    rows.push({ icon: '/images/icons/computer.svg', value: 'Online' })
+  } else if (program.location) {
+    rows.push({ icon: '/images/icons/pin.svg', value: program.location })
+  }
+  if (upcoming?.startDate) {
+    const duration = durationLabel(upcoming.startDate, upcoming.endDate)
+    const starts = `Starts ${formatShortDate(upcoming.startDate)}`
+    rows.push({
+      icon: '/images/icons/calendar.svg',
+      value: duration ? `${duration} · ${starts}` : starts,
+    })
+  }
+  return rows
+}
+
+function bottomMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
+  const rows: { icon: string; value: string }[] = []
+  if (program.stipend) {
+    rows.push({
+      icon:
+        program.stipend === 'No stipend'
+          ? '/images/icons/money-off.svg'
+          : '/images/icons/money.svg',
+      value: program.stipend,
+    })
+  }
+  if (program.timeCommitment) {
+    rows.push({
+      icon: '/images/icons/timer.svg',
+      value: program.timeCommitment,
+    })
+  }
+  if (program.entryBar) {
+    rows.push({
+      icon: `/images/icons/entry-${program.entryBar.toLowerCase()}.svg`,
+      value: `Entry bar: ${program.entryBar.toLowerCase()}`,
+    })
+  }
+  if (program.focus) {
+    rows.push({
+      icon: '/images/icons/target.svg',
+      value: `Focus: ${program.focus}`,
+    })
+  }
+  if (upcoming) {
+    if (upcoming.notYetOpen) {
+      rows.push({
+        icon: '/images/icons/paper.svg',
+        value: 'Applications not yet open',
+      })
+    } else if (upcoming.applicationsClose) {
+      rows.push({
+        icon: '/images/icons/paper.svg',
+        value:
+          upcoming.applicationStatus === 'Open'
+            ? `Apply by ${formatShortDate(upcoming.applicationsClose)}`
+            : 'Applications closed',
+      })
+    }
+  }
+  return rows
+}
+
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: Mode
+  onChange: (m: Mode) => void
+}) {
+  const tab = (value: Mode, icon: string, label: string) => (
+    <button
+      type="button"
+      className={`paragraph-small-bold ${styles.modeTab} ${mode === value ? styles.modeTabActive : ''}`}
+      aria-pressed={mode === value}
+      onClick={() => onChange(value)}
+    >
+      <Image src={icon} alt="" width={16} height={16} unoptimized />
+      {label}
+    </button>
+  )
+  return (
+    <div className={styles.modeToggle} role="group" aria-label="Program set">
+      {tab('upcoming', '/images/icons/calendar.svg', 'Upcoming')}
+      {tab('recurring', '/images/icons/repeat.svg', 'Recurring')}
+    </div>
+  )
+}
+
+export default function TrainingClient({
+  programs,
+  recurring,
+}: TrainingClientProps) {
+  const [mode, setMode] = useState<Mode>('upcoming')
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [selectedStipend, setSelectedStipend] = useState<string[]>([])
+  const [selectedLength, setSelectedLength] = useState<string[]>([])
+  const [selectedLocation, setSelectedLocation] = useState<string[]>([])
+
+  const modePrograms: ProgramBase[] = mode === 'upcoming' ? programs : recurring
+
+  const featuredPrograms = useMemo(
+    () =>
+      (['1', '2'] as const)
+        .map(rank => modePrograms.find(p => p.featured === rank))
+        .filter((p): p is ProgramBase => p != null),
+    [modePrograms]
+  )
+
+  const matchesShared = (
+    program: ProgramBase,
+    types: string[],
+    stipend: string[],
+    location: string[]
+  ) => {
+    if (types.length > 0 && !program.type.some(t => types.includes(t)))
+      return false
+    if (
+      stipend.length > 0 &&
+      !(program.stipend && stipend.includes(program.stipend))
+    )
+      return false
+    if (location.length > 0) {
+      const value = program.isOnline ? 'Online' : 'In person'
+      if (!location.includes(value)) return false
+    }
+    return true
+  }
+
+  const filtered = useMemo(() => {
+    if (mode === 'recurring') {
+      return recurring.filter(p =>
+        matchesShared(p, selectedTypes, selectedStipend, selectedLocation)
+      )
+    }
+    return programs.filter(p => {
+      if (
+        selectedStatus.length > 0 &&
+        !selectedStatus.includes(p.applicationStatus)
+      )
+        return false
+      if (
+        selectedLength.length > 0 &&
+        !(p.lengthBucket && selectedLength.includes(p.lengthBucket))
+      )
+        return false
+      return matchesShared(p, selectedTypes, selectedStipend, selectedLocation)
+    })
+  }, [
+    mode,
+    programs,
+    recurring,
+    selectedStatus,
+    selectedTypes,
+    selectedStipend,
+    selectedLength,
+    selectedLocation,
+  ])
+
+  const countBy = (extract: (p: ProgramBase) => string[]) => {
+    const counts: Record<string, number> = {}
+    for (const p of modePrograms)
+      for (const key of extract(p)) counts[key] = (counts[key] || 0) + 1
+    return counts
+  }
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const p of programs)
+      counts[p.applicationStatus] = (counts[p.applicationStatus] || 0) + 1
+    return counts
+  }, [programs])
+
+  /* eslint-disable react-hooks/exhaustive-deps -- countBy is stable per render; the data it closes over is modePrograms */
+  const typeCounts = useMemo(() => countBy(p => p.type), [modePrograms])
+  const stipendCounts = useMemo(
+    () => countBy(p => (p.stipend ? [p.stipend] : [])),
+    [modePrograms]
+  )
+  const locationCounts = useMemo(
+    () => countBy(p => [p.isOnline ? 'Online' : 'In person']),
+    [modePrograms]
+  )
+  /* eslint-enable react-hooks/exhaustive-deps */
+  const lengthCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const p of programs)
+      if (p.lengthBucket)
+        counts[p.lengthBucket] = (counts[p.lengthBucket] || 0) + 1
+    return counts
+  }, [programs])
+
+  const savedScrollY = useRef<number | null>(null)
+  const toggleFilter = (
+    value: string,
+    current: string[],
+    setter: (v: string[]) => void
+  ) => {
+    savedScrollY.current = window.scrollY
+    setter(
+      current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+    )
+  }
+  useLayoutEffect(() => {
+    if (savedScrollY.current !== null) {
+      window.scrollTo(0, savedScrollY.current)
+      savedScrollY.current = null
+    }
+  }, [filtered])
+
+  const anyFilterActive =
+    selectedTypes.length > 0 ||
+    selectedStipend.length > 0 ||
+    selectedLocation.length > 0 ||
+    (mode === 'upcoming' &&
+      (selectedStatus.length > 0 || selectedLength.length > 0))
+
+  return (
+    <>
+      <div className="padding-bottom-40px">
+        <ModeToggle mode={mode} onChange={setMode} />
+      </div>
+
+      {featuredPrograms.length > 0 && (
+        <div className="flex flex-wrap gap-56px padding-bottom-80px">
+          {featuredPrograms.map((program, i) => (
+            <FeaturedCard
+              key={program.id}
+              className="width-6-col"
+              href={program.url !== '#' ? program.url : undefined}
+              tagline={
+                program.featuredTagline ??
+                (program.type[0]
+                  ? `Featured ${program.type[0].toLowerCase()}`
+                  : 'Featured program')
+              }
+              name={program.name}
+              description={program.description}
+              logo={program.logo}
+              accentClass={
+                program.type[0] ? trainingTypeColor(program.type[0]) : undefined
+              }
+              titleMeta={titleMetaFor(
+                program,
+                mode === 'upcoming' ? (program as TrainingProgram) : undefined
+              )}
+              meta={bottomMetaFor(
+                program,
+                mode === 'upcoming' ? (program as TrainingProgram) : undefined
+              )}
+              trackingPage="Training"
+              index={i}
+              count={featuredPrograms.length}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="width-9-col">
+        <div
+          className={`flex items-center justify-between gap-16px padding-bottom-40px ${styles.sectionRow}`}
+        >
+          <h3>
+            {mode === 'upcoming'
+              ? 'Upcoming training programs'
+              : 'Recurring training programs'}
+          </h3>
+          <div
+            className="flex items-center gap-8px"
+            style={{ flexWrap: 'wrap' }}
+          >
+            {mode === 'upcoming' && (
+              <FilterDropdown
+                title="Applications"
+                options={applicationOptions}
+                selected={selectedStatus}
+                counts={statusCounts}
+                onToggle={v =>
+                  toggleFilter(v, selectedStatus, setSelectedStatus)
+                }
+              />
+            )}
+            <FilterDropdown
+              title="Type"
+              options={[...TRAINING_TYPES]}
+              selected={selectedTypes}
+              counts={typeCounts}
+              onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+            />
+            <FilterDropdown
+              title="Stipend"
+              options={[...STIPEND_OPTIONS]}
+              selected={selectedStipend}
+              counts={stipendCounts}
+              onToggle={v =>
+                toggleFilter(v, selectedStipend, setSelectedStipend)
+              }
+            />
+            {mode === 'upcoming' && (
+              <FilterDropdown
+                title="Length"
+                options={[...LENGTH_BUCKETS]}
+                selected={selectedLength}
+                counts={lengthCounts}
+                onToggle={v =>
+                  toggleFilter(v, selectedLength, setSelectedLength)
+                }
+              />
+            )}
+            <FilterDropdown
+              title="Location"
+              options={locationOptions}
+              selected={selectedLocation}
+              counts={locationCounts}
+              onToggle={v =>
+                toggleFilter(v, selectedLocation, setSelectedLocation)
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-56px">
+        <div className="width-9-col padding-bottom-80px">
+          <div className="collection-list">
+            {filtered.map(program => (
+              <ListingCard
+                key={program.id}
+                href={program.url}
+                name={program.name}
+                description={program.description}
+                logo={program.logo}
+                pills={program.type.map(t => ({
+                  label: t,
+                  colorClass: trainingTypeColor(t),
+                }))}
+                titleMeta={titleMetaFor(
+                  program,
+                  mode === 'upcoming' ? (program as TrainingProgram) : undefined
+                )}
+                meta={bottomMetaFor(
+                  program,
+                  mode === 'upcoming' ? (program as TrainingProgram) : undefined
+                )}
+                trackingPage="Training"
+              />
+            ))}
+          </div>
+          {filtered.length === 0 && (
+            <p className="paragraph-small color-teal-300">
+              {anyFilterActive
+                ? 'No results found based on these filters. Try adjusting them.'
+                : mode === 'upcoming'
+                  ? 'No upcoming training programs right now.'
+                  : 'No recurring training programs right now.'}
+            </p>
+          )}
+        </div>
+
+        <div className={`hide-mobile width-3-col ${styles.sidebar}`}>
+          <ContributeButtons
+            suggestEntryUrl={ADD_PROGRAM_URL}
+            suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
+            noun="program"
+            airtableUrl={AIRTABLE_VIEW_URL}
+          />
+        </div>
+      </div>
+    </>
+  )
+}

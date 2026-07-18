@@ -1,0 +1,61 @@
+.heroRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 56px;
+}
+
+.heroHeader {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.heroHeader h2 {
+  margin-bottom: 24px;
+}
+
+.newsletterSlot {
+  margin-top: 72px;
+}
+
+.modeToggle {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.modeTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--white);
+  cursor: pointer;
+  transition: border-color var(--hover-transition);
+}
+
+.modeTabActive {
+  border-color: color-mix(in srgb, var(--bright-teal-500) 30%, transparent);
+}
+
+.sidebar {
+  margin-top: 49px;
+}
+
+@media (max-width: 991px) {
+  .heroRow {
+    flex-direction: column;
+    gap: 24px;
+  }
+  .newsletterSlot {
+    flex: 1 1 auto;
+    width: 100%;
+    margin-top: 0;
+  }
+  .sectionRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

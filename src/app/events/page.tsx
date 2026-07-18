@@ -3,7 +3,7 @@ import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
 import { getEvents } from '@/lib/data/events'
 import EventsClient from './EventsClient'
-import NewsletterSignup from './NewsletterSignup'
+import NewsletterSignup from '@/components/NewsletterSignup'
 import styles from './page.module.css'
 
 export default async function EventsPage() {

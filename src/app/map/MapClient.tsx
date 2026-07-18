@@ -215,9 +215,9 @@ export default function MapClient({
         <h2 className="width-7-col padding-bottom-56px">
           An overview of the key{' '}
           <span className="color-light-teal">
-            organizations, programs, and projects
+            organizations, programs, and other resources
           </span>{' '}
-          operating in the AI safety space.
+          in the AI safety space.
         </h2>
 
         <div className="database-outer-grid">

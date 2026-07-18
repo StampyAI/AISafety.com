@@ -6,7 +6,8 @@ import styles from './Assistant.module.css'
 
 interface Props {
   citation: CitationRef
-  /** Optional bot-written annotation that appears below the meta line */
+  /** Optional bot-written annotation shown under the name/org (replaces the
+   *  meta line) */
   note?: string
   onClick?: (c: CitationRef) => void
 }
@@ -90,7 +91,6 @@ function TypeIcon({ type }: { type: ListingType }) {
 
 function metaSummary(c: CitationRef): string {
   const parts: string[] = []
-  if (c.organization) parts.push(c.organization)
   if (c.type === 'job') {
     if (c.meta.workLocation) parts.push(c.meta.workLocation)
     if (c.meta.minimumExperience) parts.push(c.meta.minimumExperience)
@@ -149,6 +149,14 @@ export default function CitationCard({ citation, note, onClick }: Props) {
       </span>
       <span className={styles.citationBody}>
         <span className={styles.citationName}>{citation.name}</span>
+        {/* The org behind the listing (jobs, courses) always renders, even
+            when a note replaces the meta line — a job card without its hiring
+            org is unidentifiable. */}
+        {citation.organization &&
+          citation.organization !== citation.name &&
+          citation.organization !== note && (
+            <span className={styles.citationMeta}>{citation.organization}</span>
+          )}
         {note ? (
           <span className={styles.citationNote}>{note}</span>
         ) : summary ? (

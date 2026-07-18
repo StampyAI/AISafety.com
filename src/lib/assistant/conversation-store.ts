@@ -23,7 +23,13 @@ export interface StoredTurn {
    *  fallback link (or nothing) instead of a real card in the visitor's chat. */
   fallbackCards: string[]
   citations: string[]
-  citationRefs: { id: string; name: string; url: string; logo?: string }[]
+  citationRefs: {
+    id: string
+    name: string
+    organization?: string
+    url: string
+    logo?: string
+  }[]
   zeroMatches: boolean
   /** Set when the turn produced no usable reply: 'abandoned' (visitor left
    *  before/without an answer) or 'error' (generation failed). Absent on

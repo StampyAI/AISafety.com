@@ -110,6 +110,9 @@ export interface HistoryTurn {
 export interface StoredCitation {
   id: string
   name: string
+  /** The org behind the listing (a job's hiring org, a course's creator).
+   *  Absent on rows logged before it was captured. */
+  organization?: string
   url: string
   logo?: string
 }

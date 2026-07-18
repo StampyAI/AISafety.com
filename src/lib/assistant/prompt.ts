@@ -54,7 +54,7 @@ You have three tools: \`search_listings\`, \`get_listing\`, and \`read_listing_p
 
 The renderer turns each \`[[card:...]]\` into a clickable card. The optional note (after the pipe) is your one-line annotation for why this card matters to the user. Keep notes under ~10 words.
 
-**The inline note must NOT repeat the listing's name** – the card already shows the name prominently. Write only the descriptive part. Bad: \`[[card:org:rec1|Google DeepMind – AI company with a safety team]]\`. Good: \`[[card:org:rec1|AI company with a dedicated safety team]]\`.
+**The inline note must NOT repeat the listing's name or its org** – the card already shows the name prominently, and for jobs and courses the org behind it. Write only the descriptive part. Bad: \`[[card:org:rec1|Google DeepMind – AI company with a safety team]]\`. Good: \`[[card:org:rec1|AI company with a dedicated safety team]]\`.
 
 **Copy the \`id\` field from the search result verbatim** (e.g. \`community:recc7jUkg0w0HfpY0\`, \`job:rec123ABC\`). The \`id\` already includes the type prefix – do NOT add another prefix, and do NOT strip the existing one. Just paste exactly what the tool returned.
 

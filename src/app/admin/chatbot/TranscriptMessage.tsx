@@ -16,6 +16,8 @@ import styles from '../admin.module.css'
 
 export interface ListingInfo {
   name: string
+  /** The org behind the listing (a job's hiring org, a course's creator). */
+  organization?: string
   logo?: string
   /** External listing URL (the live card's destination). */
   url?: string
@@ -553,6 +555,11 @@ function CardPill({
         </span>
       )}
       <span className={styles.convCardName}>{primary}</span>
+      {info?.organization &&
+        info.organization !== primary &&
+        info.organization !== card.note && (
+          <span className="color-teal-300">{info.organization}</span>
+        )}
       {showNote && <span className={styles.convCardNote}>{card.note}</span>}
       {wasClicked && <span className={styles.convCardClicked}>✓ clicked</span>}
     </>

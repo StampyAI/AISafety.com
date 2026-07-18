@@ -92,6 +92,7 @@ export async function GET(req: NextRequest) {
 
   type ListingInfo = {
     name: string
+    organization?: string
     logo?: string
     url?: string
     pageUrl?: string
@@ -104,6 +105,7 @@ export async function GET(req: NextRequest) {
     for (const l of catalog.listings) {
       const info = {
         name: l.name,
+        organization: l.organization,
         logo: l.logo,
         url: l.url,
         pageUrl: l.pageUrl,
@@ -128,7 +130,12 @@ export async function GET(req: NextRequest) {
   for (const c of filtered) {
     for (const ref of c.data?.citationRefs ?? []) {
       if (listings[ref.id]) continue
-      const info: ListingInfo = { name: ref.name, logo: ref.logo, url: ref.url }
+      const info: ListingInfo = {
+        name: ref.name,
+        organization: ref.organization,
+        logo: ref.logo,
+        url: ref.url,
+      }
       listings[ref.id] = info
       const rec = REC_RE.exec(ref.id)?.[0]
       if (rec && !listings[rec]) listings[rec] = info

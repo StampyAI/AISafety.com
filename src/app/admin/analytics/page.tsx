@@ -189,7 +189,7 @@ function faviconFor(url?: string): string | undefined {
 }
 
 /** A row's resource-page marker in the clicked-from-search table: the page's
- *  nav icon, plus its name for the hover tooltip. */
+ *  nav icon plus its name. */
 interface PageBadge {
   icon: string | null
   label: string
@@ -978,7 +978,7 @@ function CountTable({
   linkFor?: (name: string) => string | undefined
   rankFor?: (name: string) => string | undefined
   /** When set, adds a Page column: the resource page each row belongs to,
-   *  shown as the page's nav icon with its name as the hover tooltip. */
+   *  shown as the page's nav icon and name. */
   pageFor?: (name: string) => PageBadge | undefined
   /** When set, adds a % column (each row's share of this total) and a Total
    *  footer row. The total is the denominator, so for a sliced "top N" table it
@@ -1038,13 +1038,16 @@ function CountTable({
                 {pageFor && (
                   <td>
                     {badge?.icon && (
-                      <span className={styles.pageTabIcon} title={badge.label}>
-                        <Image
-                          src={badge.icon}
-                          alt={badge.label}
-                          width={12}
-                          height={12}
-                        />
+                      <span className={styles.pageBadge}>
+                        <span className={styles.pageTabIcon}>
+                          <Image
+                            src={badge.icon}
+                            alt=""
+                            width={12}
+                            height={12}
+                          />
+                        </span>
+                        {badge.label}
                       </span>
                     )}
                   </td>
@@ -1421,9 +1424,8 @@ function SearchView({
         />
         <p className={styles.caption}>
           The results visitors opened from search, with the page or listing each
-          one leads to. The page icon is the resource page the result belongs to
-          (hover it for the name); a row without one no longer matches anything
-          in the search index.
+          one leads to. The Page column is the resource page the result belongs
+          to; a row without one no longer matches anything in the search index.
         </p>
       </Panel>
     </>

@@ -567,12 +567,11 @@ export default async function AnalyticsPage({
                 labelFor={name => labelByPage.get(name) ?? name}
               />
               <p className={styles.caption}>
-                Visitors (by anonymous browser id) who engaged with both of a
-                pair — visited the page or clicked one of its listings, with
-                chatbot and search use as rows of their own. Clicks give this
-                history back to 20 June 2026; page views count from 15 July
-                2026, so overlaps get richer as views accumulate. Pairs shared
-                by only one visitor are hidden.
+                Visitors who engaged with both of a pair — visited the page or
+                clicked one of its listings, with chatbot and search use as
+                rows of their own. Clicks give this history back to 20 June
+                2026; page views count from 15 July 2026, so overlaps get
+                richer as views accumulate.
               </p>
             </Panel>
           )}

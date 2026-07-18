@@ -544,7 +544,14 @@ function CardPill({
           onError={() => setImgFailed(true)}
         />
       ) : null}
-      {card.type && <span className={styles.convCardType}>{card.type}</span>}
+      {card.type && (
+        <span className={styles.convCardType}>
+          {/* The internal listing type for field-map entries is 'org', but
+           *  only about half of them are organizations — label them by their
+           *  page instead so the chip doesn't misdescribe the listing. */}
+          {card.type === 'org' ? 'map' : card.type}
+        </span>
+      )}
       <span className={styles.convCardName}>{primary}</span>
       {showNote && <span className={styles.convCardNote}>{card.note}</span>}
       {wasClicked && <span className={styles.convCardClicked}>✓ clicked</span>}

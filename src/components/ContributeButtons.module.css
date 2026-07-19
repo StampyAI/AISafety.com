@@ -44,19 +44,16 @@
 
 .airtableArrow {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  /* Per the Figma mockup: a larger --teal-800 circle overlapping the
-     illustration's top-right corner, with the white hairline arrow (the
-     Figma arrow SVG bakes in its in-badge proportions). */
-  width: 28px;
-  height: 28px;
+  top: 8px;
+  right: 8px;
+  /* A --teal-800 circle over the illustration's top-right corner, with the
+     white hairline arrow (the Figma arrow SVG bakes in its proportions). */
   background-color: var(--teal-800);
 }
 
-/* Push the label down past the illustration into the faded area — the
-   Figma card is taller than wide-format, with the label in the lower half. */
+/* Push the label down past the illustration's rows into the faded area —
+   the Figma card is compact, with the label starting just past halfway. */
 .airtableTextWrap {
   position: relative;
-  padding-top: 76px;
+  padding-top: 36px;
 }

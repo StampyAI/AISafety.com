@@ -78,7 +78,7 @@ export default function Navigation({
     lastY: 0,
     mode: 'top' as 'top' | 'scrolling' | 'hidden' | 'revealed',
   })
-  const offsetRaf = useRef(0)
+  const slideRaf = useRef(0)
 
   const visibleItems = navItems.slice(0, visibleCount)
   const overflowItems = navItems.slice(visibleCount)
@@ -144,6 +144,43 @@ export default function Navigation({
   }, [isDropdownOpen])
 
   useLayoutEffect(() => {
+    // A StickyBar toggle click announces its programmatic jump-to-top so the
+    // upward scroll it causes doesn't reveal the nav over the fresh content.
+    let suppressRevealUntil = 0
+    const onScrollJump = () => {
+      suppressRevealUntil = performance.now() + 500
+    }
+
+    const publishOffset = (el: HTMLElement) => {
+      // The nav's live bottom edge — page-level sticky elements (the
+      // events/training mode toggles) sit below it instead of under it.
+      document.documentElement.style.setProperty(
+        '--nav-offset',
+        `${Math.max(0, el.getBoundingClientRect().bottom)}px`
+      )
+    }
+
+    // Slide the nav with JS instead of a CSS transition: transitions advance
+    // AFTER rAF callbacks run, so anything tracking the nav via --nav-offset
+    // would read last frame's position and trail behind, opening a gap. One
+    // rAF loop moves the nav and publishes its edge in the same frame.
+    const easeInOutCubic = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    const slideNav = (el: HTMLElement, to: number) => {
+      cancelAnimationFrame(slideRaf.current)
+      el.style.transition = 'none'
+      const from = el.getBoundingClientRect().top
+      const start = performance.now()
+      const frame = (now: number) => {
+        const p = Math.min(1, (now - start) / 300)
+        const y = from + (to - from) * easeInOutCubic(p)
+        el.style.transform = `translateY(${y}px)`
+        publishOffset(el)
+        if (p < 1) slideRaf.current = requestAnimationFrame(frame)
+      }
+      slideRaf.current = requestAnimationFrame(frame)
+    }
+
     const handleScroll = () => {
       const el = navOuterRef.current
       if (!el) return
@@ -154,12 +191,14 @@ export default function Navigation({
 
       if (y <= 0) {
         // At the very top - reset
+        cancelAnimationFrame(slideRaf.current)
         el.style.transition = 'none'
         el.style.transform = 'translateY(0)'
         scrollInfo.current.mode = 'top'
       } else if (goingDown) {
         if (mode === 'top' || mode === 'scrolling') {
           // Scrolling down from top - move naturally with the page
+          cancelAnimationFrame(slideRaf.current)
           const navHeight = el.offsetHeight
           if (y >= navHeight) {
             el.style.transition = 'none'
@@ -172,16 +211,17 @@ export default function Navigation({
           }
         } else if (mode === 'revealed') {
           // Was revealed by scroll-up, now scrolling down again - animate away
-          el.style.transition = 'transform 0.3s ease-in-out'
-          el.style.transform = 'translateY(-100%)'
+          slideNav(el, -el.offsetHeight)
           scrollInfo.current.mode = 'hidden'
         }
         // 'hidden' stays hidden
       } else if (goingUp) {
-        if (mode === 'hidden' || mode === 'scrolling') {
+        if (
+          (mode === 'hidden' || mode === 'scrolling') &&
+          performance.now() >= suppressRevealUntil
+        ) {
           // Scrolling up - reveal with smooth animation
-          el.style.transition = 'transform 0.3s ease-in-out'
-          el.style.transform = 'translateY(0)'
+          slideNav(el, 0)
           scrollInfo.current.mode = 'revealed'
         }
         // Near the top, switch back to natural mode
@@ -200,37 +240,20 @@ export default function Navigation({
       const m = scrollInfo.current.mode
       el.classList.toggle(blurClass, m === 'revealed' || m === 'hidden')
 
-      // Publish the nav's real bottom edge as --nav-offset so page-level
-      // sticky elements (the events/training mode toggles) sit below it
-      // instead of being covered. Re-read every frame for 400ms so the
-      // toggles track the nav exactly through its 0.3s slide — a static
-      // value would let the two move at different speeds and open a gap.
-      // --nav-height feeds "jump back to just below the nav" scrolling.
-      document.documentElement.style.setProperty(
-        '--nav-height',
-        `${el.offsetHeight}px`
-      )
-      cancelAnimationFrame(offsetRaf.current)
-      const started = performance.now()
-      const publishOffset = () => {
-        const bottom = Math.max(0, el.getBoundingClientRect().bottom)
-        document.documentElement.style.setProperty(
-          '--nav-offset',
-          `${bottom}px`
-        )
-        if (performance.now() - started < 400) {
-          offsetRaf.current = requestAnimationFrame(publishOffset)
-        }
-      }
-      publishOffset()
+      publishOffset(el)
 
       scrollInfo.current.lastY = y
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('stickybar:scroll-jump', onScrollJump)
     handleScroll()
     document.documentElement.classList.remove('is-reload')
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('stickybar:scroll-jump', onScrollJump)
+      cancelAnimationFrame(slideRaf.current)
+    }
   }, [])
   return (
     <SearchProvider counts={counts}>

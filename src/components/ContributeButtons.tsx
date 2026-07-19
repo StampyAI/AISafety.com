@@ -106,8 +106,8 @@ export default function ContributeButtons({
           <Image
             src="/images/icons/arrow-up-right-figma.svg"
             alt=""
-            width={28}
-            height={28}
+            width={24}
+            height={24}
             unoptimized
           />
         </span>

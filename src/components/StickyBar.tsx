@@ -3,19 +3,18 @@
 import { useEffect, useRef, useState } from 'react'
 import styles from './StickyBar.module.css'
 
-// Scroll so `anchor` (an element placed just above a StickyBar) sits right
-// below the global nav — used when a toggle inside the bar swaps the page's
+// Scroll so `anchor` (an element placed just above a StickyBar) sits at the
+// top of the viewport — used when a toggle inside the bar swaps the page's
 // content, so the user sees the new set from its top. Never scrolls down.
+// Announces the jump first so the nav doesn't treat it as a scroll-up and
+// reveal itself over the fresh content.
 export function scrollToAnchor(anchor: HTMLElement | null) {
   if (!anchor) return
-  const navHeight =
-    parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(
-        '--nav-height'
-      )
-    ) || 0
-  const target = anchor.getBoundingClientRect().top + window.scrollY - navHeight
-  if (window.scrollY > target) window.scrollTo(0, Math.max(0, target))
+  const target = anchor.getBoundingClientRect().top + window.scrollY
+  if (window.scrollY > target) {
+    window.dispatchEvent(new Event('stickybar:scroll-jump'))
+    window.scrollTo(0, Math.max(0, target))
+  }
 }
 
 // Sticks its children to the top of the viewport once the page scrolls past

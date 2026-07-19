@@ -92,7 +92,7 @@ export default function ContributeButtons({
         href={airtableUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={`border-only border-hover color-teal-bright-300 hover-white ${styles.airtableCard}`}
+        className={`border-only border-hover color-teal-300 hover-white ${styles.airtableCard}`}
       >
         <Image
           src="/images/airtable-vector.svg"
@@ -102,14 +102,12 @@ export default function ContributeButtons({
           unoptimized
           className={styles.airtableImg}
         />
-        <span
-          className={`bg-teal-bright-850 ${styles.badge} ${styles.airtableArrow}`}
-        >
+        <span className={`${styles.badge} ${styles.airtableArrow}`}>
           <Image
-            src="/images/arrow-up-right.svg"
+            src="/images/icons/arrow-up-right-figma.svg"
             alt=""
-            width={16}
-            height={16}
+            width={24}
+            height={24}
             unoptimized
           />
         </span>

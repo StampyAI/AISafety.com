@@ -5,7 +5,9 @@ import Image from 'next/image'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
+import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
+import StickyBar from '@/components/StickyBar'
 import {
   ENTRY_BARS,
   LENGTH_BUCKETS,
@@ -77,6 +79,20 @@ function durationLabel(
   return days === 1 ? '1 day' : `${days} days`
 }
 
+function monthKey(startDate: string | null): string {
+  if (!startDate) return 'tbc'
+  const d = parseISO(startDate)
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth()).padStart(2, '0')}`
+}
+function monthLabel(startDate: string | null): string {
+  if (!startDate) return 'Dates to be confirmed'
+  return new Intl.DateTimeFormat('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(parseISO(startDate))
+}
+
 function titleMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
   const rows: { icon: string; value: string }[] = []
   if (program.isOnline) {
@@ -130,16 +146,18 @@ function bottomMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
   if (upcoming) {
     if (upcoming.notYetOpen) {
       rows.push({
-        icon: '/images/icons/paper.svg',
+        icon: '/images/icons/paper-closed.svg',
         value: 'Applications not yet open',
       })
     } else if (upcoming.applicationsClose) {
+      const open = upcoming.applicationStatus === 'Open'
       rows.push({
-        icon: '/images/icons/paper.svg',
-        value:
-          upcoming.applicationStatus === 'Open'
-            ? `Apply by ${formatShortDate(upcoming.applicationsClose)}`
-            : 'Applications closed',
+        icon: open
+          ? '/images/icons/paper.svg'
+          : '/images/icons/paper-closed.svg',
+        value: open
+          ? `Apply by ${formatShortDate(upcoming.applicationsClose)}`
+          : 'Applications closed',
       })
     }
   }
@@ -302,6 +320,27 @@ export default function TrainingClient({
     selectedLocation,
   ])
 
+  // Upcoming programs group under month-of-start headings, mirroring
+  // /events; recurring programs have no dates and stay one flat A–Z grid.
+  const monthGroups = useMemo(() => {
+    if (mode !== 'upcoming') return []
+    const groups: {
+      key: string
+      label: string
+      programs: TrainingProgram[]
+    }[] = []
+    for (const program of filtered as TrainingProgram[]) {
+      const key = monthKey(program.startDate)
+      let group = groups.find(g => g.key === key)
+      if (!group) {
+        group = { key, label: monthLabel(program.startDate), programs: [] }
+        groups.push(group)
+      }
+      group.programs.push(program)
+    }
+    return groups
+  }, [mode, filtered])
+
   const savedScrollY = useRef<number | null>(null)
   const toggleFilter = (
     value: string,
@@ -331,12 +370,35 @@ export default function TrainingClient({
     (mode === 'upcoming' &&
       (selectedStatus.length > 0 || selectedLength.length > 0))
 
+  const renderCard = (program: ProgramBase) => (
+    <ListingCard
+      key={program.id}
+      href={program.url}
+      name={program.name}
+      description={program.description}
+      logo={program.logo}
+      pills={program.type.map(t => ({
+        label: t,
+        colorClass: trainingTypeColor(t),
+      }))}
+      titleMeta={titleMetaFor(
+        program,
+        mode === 'upcoming' ? (program as TrainingProgram) : undefined
+      )}
+      meta={bottomMetaFor(
+        program,
+        mode === 'upcoming' ? (program as TrainingProgram) : undefined
+      )}
+      trackingPage="Training"
+    />
+  )
+
   return (
     <>
       {/* Sticky so it's always clear which of the two program sets is shown */}
-      <div className={`${styles.stickyBar} margin-bottom-32px`}>
+      <StickyBar className="margin-bottom-32px">
         <ModeToggle mode={mode} onChange={setMode} />
-      </div>
+      </StickyBar>
 
       {featuredPrograms.length > 0 && (
         <div className="flex flex-wrap gap-56px padding-bottom-80px">
@@ -373,108 +435,90 @@ export default function TrainingClient({
         </div>
       )}
 
-      <div
-        className={`flex items-center justify-between gap-16px padding-bottom-40px ${styles.sectionRow}`}
+      <FilterBar
+        count={filtered.length}
+        noun="program"
+        className={styles.filterBar}
+        label={`${filtered.length} ${mode} training program${
+          filtered.length === 1 ? '' : 's'
+        }`}
       >
-        <h3 style={{ whiteSpace: 'nowrap' }}>
-          {mode === 'upcoming'
-            ? 'Upcoming training programs'
-            : 'Recurring training programs'}
-        </h3>
-        <div className="flex items-center gap-8px" style={{ flexWrap: 'wrap' }}>
-          {mode === 'upcoming' && (
-            <FilterDropdown
-              title="Applications"
-              options={applicationOptions}
-              selected={selectedStatus}
-              counts={statusCounts}
-              onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
-            />
-          )}
+        {mode === 'upcoming' && (
           <FilterDropdown
-            title="Type"
-            options={[...TRAINING_TYPES]}
-            selected={selectedTypes}
-            counts={typeCounts}
-            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+            title="Applications"
+            options={applicationOptions}
+            selected={selectedStatus}
+            counts={statusCounts}
+            onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
           />
+        )}
+        <FilterDropdown
+          title="Type"
+          options={[...TRAINING_TYPES]}
+          selected={selectedTypes}
+          counts={typeCounts}
+          onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+        />
+        <FilterDropdown
+          title="Focus"
+          options={focusOptions}
+          selected={selectedFocus}
+          counts={focusCounts}
+          onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
+        />
+        <FilterDropdown
+          title="Entry bar"
+          options={[...ENTRY_BARS]}
+          selected={selectedEntryBar}
+          counts={entryBarCounts}
+          onToggle={v => toggleFilter(v, selectedEntryBar, setSelectedEntryBar)}
+        />
+        <FilterDropdown
+          title="Stipend"
+          options={[...STIPEND_OPTIONS]}
+          selected={selectedStipend}
+          counts={stipendCounts}
+          onToggle={v => toggleFilter(v, selectedStipend, setSelectedStipend)}
+        />
+        {mode === 'upcoming' && (
           <FilterDropdown
-            title="Focus"
-            options={focusOptions}
-            selected={selectedFocus}
-            counts={focusCounts}
-            onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
+            title="Length"
+            options={[...LENGTH_BUCKETS]}
+            selected={selectedLength}
+            counts={lengthCounts}
+            onToggle={v => toggleFilter(v, selectedLength, setSelectedLength)}
           />
-          <FilterDropdown
-            title="Entry bar"
-            options={[...ENTRY_BARS]}
-            selected={selectedEntryBar}
-            counts={entryBarCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedEntryBar, setSelectedEntryBar)
-            }
-          />
-          <FilterDropdown
-            title="Stipend"
-            options={[...STIPEND_OPTIONS]}
-            selected={selectedStipend}
-            counts={stipendCounts}
-            onToggle={v => toggleFilter(v, selectedStipend, setSelectedStipend)}
-          />
-          {mode === 'upcoming' && (
-            <FilterDropdown
-              title="Length"
-              options={[...LENGTH_BUCKETS]}
-              selected={selectedLength}
-              counts={lengthCounts}
-              onToggle={v => toggleFilter(v, selectedLength, setSelectedLength)}
-            />
-          )}
-          <FilterDropdown
-            title="Location"
-            options={locationOptions}
-            selected={selectedLocation}
-            counts={locationCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedLocation, setSelectedLocation)
-            }
-          />
-          <p
-            className="paragraph-small color-teal-300"
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            {filtered.length} {mode} training program
-            {filtered.length === 1 ? '' : 's'}
-          </p>
-        </div>
-      </div>
+        )}
+        <FilterDropdown
+          title="Location"
+          options={locationOptions}
+          selected={selectedLocation}
+          counts={locationCounts}
+          onToggle={v => toggleFilter(v, selectedLocation, setSelectedLocation)}
+        />
+      </FilterBar>
 
       <div className="flex gap-56px">
         <div className="width-9-col padding-bottom-80px">
-          <div className="collection-list">
-            {filtered.map(program => (
-              <ListingCard
-                key={program.id}
-                href={program.url}
-                name={program.name}
-                description={program.description}
-                logo={program.logo}
-                pills={program.type.map(t => ({
-                  label: t,
-                  colorClass: trainingTypeColor(t),
-                }))}
-                titleMeta={titleMetaFor(
-                  program,
-                  mode === 'upcoming' ? (program as TrainingProgram) : undefined
-                )}
-                meta={bottomMetaFor(
-                  program,
-                  mode === 'upcoming' ? (program as TrainingProgram) : undefined
-                )}
-                trackingPage="Training"
-              />
-            ))}
-          </div>
+          {mode === 'upcoming' ? (
+            monthGroups.map((group, i) => (
+              <div
+                key={group.key}
+                className={i === 0 ? undefined : 'padding-top-32px'}
+              >
+                <p className="paragraph-small color-teal-300 padding-bottom-24px">
+                  {group.label}
+                </p>
+                <div className="collection-list">
+                  {group.programs.map(program => renderCard(program))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="collection-list">
+              {filtered.map(program => renderCard(program))}
+            </div>
+          )}
           {filtered.length === 0 && (
             <p className="paragraph-small color-teal-300">
               {anyFilterActive

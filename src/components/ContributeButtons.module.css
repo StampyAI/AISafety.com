@@ -45,6 +45,9 @@
   position: absolute;
   top: 8px;
   right: 8px;
+  /* Per the Figma mockup: --teal-800 circle with the white hairline arrow
+     (the Figma arrow SVG bakes in its in-badge proportions). */
+  background-color: var(--teal-800);
 }
 
 /* Push the label down past the illustration into the faded area. */

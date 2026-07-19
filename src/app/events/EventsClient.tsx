@@ -7,6 +7,7 @@ import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
+import StickyBar from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
@@ -408,9 +409,9 @@ export default function EventsClient({ events }: EventsClientProps) {
   return (
     <>
       {/* Sticky so it's always clear which of the two event sets is shown */}
-      <div className={`${styles.stickyBar} margin-bottom-32px`}>
+      <StickyBar className="margin-bottom-32px">
         <ModeToggle mode={mode} onChange={switchMode} />
-      </div>
+      </StickyBar>
 
       {featuredEvents.length > 0 && (
         <div className="flex flex-wrap gap-56px padding-bottom-80px">

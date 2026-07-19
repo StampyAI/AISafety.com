@@ -1,0 +1,16 @@
+.bar {
+  position: sticky;
+  /* Sit below the global nav when it's revealed; 0.3s ease-in-out matches
+     the nav's own slide animation so the two move together. */
+  top: var(--nav-offset, 0px);
+  z-index: 5; /* under the filter popovers (10) and the nav */
+  padding: 8px 0;
+  transition:
+    top 0.3s ease-in-out,
+    background-color 0.15s ease-in-out;
+}
+
+.stuck {
+  background-color: color-mix(in srgb, var(--teal-900) 85%, transparent);
+  backdrop-filter: blur(8px);
+}

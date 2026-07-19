@@ -199,6 +199,14 @@ export default function Navigation({
       const m = scrollInfo.current.mode
       el.classList.toggle(blurClass, m === 'revealed' || m === 'hidden')
 
+      // Publish the nav's current overlay height so page-level sticky
+      // elements (the events/training mode toggles) slide down below it
+      // when it reveals on scroll-up, instead of being covered.
+      document.documentElement.style.setProperty(
+        '--nav-offset',
+        m === 'revealed' ? `${el.offsetHeight}px` : '0px'
+      )
+
       scrollInfo.current.lastY = y
     }
 

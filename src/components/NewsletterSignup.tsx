@@ -9,7 +9,7 @@ const SUBSCRIBE_URL = 'https://aisafetyeventsandtraining.substack.com/subscribe'
 // Temporary Substack subscribe box shared by /events and /training until the
 // custom newsletter platform lands.
 export default function NewsletterSignup({
-  heading = 'Get a weekly summary of upcoming events',
+  heading = 'Get a weekly summary of all new events and training programs',
 }: {
   heading?: string
 }) {

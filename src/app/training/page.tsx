@@ -38,7 +38,7 @@ export default async function TrainingPage() {
         </div>
 
         <div className={styles.newsletterSlot}>
-          <NewsletterSignup heading="Get a weekly summary of all new events & training" />
+          <NewsletterSignup />
         </div>
       </div>
 

@@ -229,7 +229,7 @@
   align-items: center;
   gap: 6px;
   margin: -8px 0 24px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .clickToggleLabel {
@@ -237,13 +237,14 @@
   margin-right: 2px;
 }
 
+/* Compact pills matching the date-range presets above (see .presetBtn). */
 .clickToggleBtn {
-  padding: 4px 12px;
-  font-size: 13px;
+  padding: 3px 10px;
+  font-size: 12px;
   color: var(--teal-300);
   background-color: transparent;
   border: 1px solid var(--teal-800);
-  border-radius: 6px;
+  border-radius: 999px;
   text-decoration: none;
   transition:
     color var(--hover-transition),
@@ -561,14 +562,16 @@
   gap: 4px;
 }
 
+/* Filter controls (date range + count toggle) are compact pills, distinct
+   from the larger rectangular tabs below them. */
 .presetBtn {
-  padding: 6px 12px;
-  font-size: 13px;
+  padding: 3px 10px;
+  font-size: 12px;
   font-family: inherit;
   color: var(--teal-300);
   background-color: transparent;
   border: 1px solid var(--teal-800);
-  border-radius: 6px;
+  border-radius: 999px;
   cursor: pointer;
   transition:
     color var(--hover-transition),
@@ -594,14 +597,14 @@
 }
 
 .dateInput {
-  height: 32px;
-  padding: 0 8px;
-  font-size: 13px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
   font-family: inherit;
   color: var(--white);
   background-color: var(--teal-900);
   border: 1px solid var(--teal-800);
-  border-radius: 6px;
+  border-radius: 999px;
   color-scheme: dark;
 }
 
@@ -612,19 +615,19 @@
 
 .rangeDash {
   color: var(--teal-400);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .applyBtn {
-  height: 32px;
-  padding: 0 14px;
-  font-size: 13px;
+  height: 26px;
+  padding: 0 12px;
+  font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   color: var(--teal-900);
   background-color: var(--bright-teal-300);
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
   cursor: pointer;
 }
 

@@ -7,6 +7,7 @@ import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import FilterDropdown from '@/components/FilterDropdown'
 import {
+  ENTRY_BARS,
   LENGTH_BUCKETS,
   STIPEND_OPTIONS,
   TRAINING_TYPES,
@@ -29,6 +30,7 @@ const AIRTABLE_VIEW_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
 
 const applicationOptions = ['Open', 'Closed']
+const focusOptions = ['General', 'Technical', 'Governance & policy']
 const locationOptions = ['Online', 'In person']
 
 type Mode = 'upcoming' | 'recurring'
@@ -106,7 +108,10 @@ function bottomMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
   }
   if (program.timeCommitment) {
     rows.push({
-      icon: '/images/icons/timer.svg',
+      icon:
+        program.timeCommitment === 'Part-time'
+          ? '/images/icons/timer-half.svg'
+          : '/images/icons/timer.svg',
       value: program.timeCommitment,
     })
   }
@@ -174,6 +179,8 @@ export default function TrainingClient({
   const [mode, setMode] = useState<Mode>('upcoming')
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [selectedFocus, setSelectedFocus] = useState<string[]>([])
+  const [selectedEntryBar, setSelectedEntryBar] = useState<string[]>([])
   const [selectedStipend, setSelectedStipend] = useState<string[]>([])
   const [selectedLength, setSelectedLength] = useState<string[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string[]>([])
@@ -196,6 +203,8 @@ export default function TrainingClient({
     filtered,
     statusCounts,
     typeCounts,
+    focusCounts,
+    entryBarCounts,
     stipendCounts,
     lengthCounts,
     locationCounts,
@@ -215,6 +224,18 @@ export default function TrainingClient({
         skip !== 'type' &&
         selectedTypes.length > 0 &&
         !program.type.some(t => selectedTypes.includes(t))
+      )
+        return false
+      if (
+        skip !== 'focus' &&
+        selectedFocus.length > 0 &&
+        !(program.focus && selectedFocus.includes(program.focus))
+      )
+        return false
+      if (
+        skip !== 'entrybar' &&
+        selectedEntryBar.length > 0 &&
+        !(program.entryBar && selectedEntryBar.includes(program.entryBar))
       )
         return false
       if (
@@ -254,6 +275,10 @@ export default function TrainingClient({
         ? countBy('status', p => [(p as TrainingProgram).applicationStatus])
         : {},
       typeCounts: countBy('type', p => p.type),
+      focusCounts: countBy('focus', p => (p.focus ? [p.focus] : [])),
+      entryBarCounts: countBy('entrybar', p =>
+        p.entryBar ? [p.entryBar] : []
+      ),
       stipendCounts: countBy('stipend', p => (p.stipend ? [p.stipend] : [])),
       lengthCounts: upcoming
         ? countBy('length', p => {
@@ -270,6 +295,8 @@ export default function TrainingClient({
     modePrograms,
     selectedStatus,
     selectedTypes,
+    selectedFocus,
+    selectedEntryBar,
     selectedStipend,
     selectedLength,
     selectedLocation,
@@ -297,6 +324,8 @@ export default function TrainingClient({
 
   const anyFilterActive =
     selectedTypes.length > 0 ||
+    selectedFocus.length > 0 ||
+    selectedEntryBar.length > 0 ||
     selectedStipend.length > 0 ||
     selectedLocation.length > 0 ||
     (mode === 'upcoming' &&
@@ -304,7 +333,8 @@ export default function TrainingClient({
 
   return (
     <>
-      <div className="padding-bottom-40px">
+      {/* Sticky so it's always clear which of the two program sets is shown */}
+      <div className={`${styles.stickyBar} margin-bottom-32px`}>
         <ModeToggle mode={mode} onChange={setMode} />
       </div>
 
@@ -343,67 +373,79 @@ export default function TrainingClient({
         </div>
       )}
 
-      <div className="width-9-col">
-        <div
-          className={`flex items-center justify-between gap-16px padding-bottom-40px ${styles.sectionRow}`}
-        >
-          <h3>
-            {mode === 'upcoming'
-              ? 'Upcoming training programs'
-              : 'Recurring training programs'}
-          </h3>
-          <div
-            className="flex items-center gap-8px"
-            style={{ flexWrap: 'wrap' }}
+      <div
+        className={`flex items-center justify-between gap-16px padding-bottom-40px ${styles.sectionRow}`}
+      >
+        <h3 style={{ whiteSpace: 'nowrap' }}>
+          {mode === 'upcoming'
+            ? 'Upcoming training programs'
+            : 'Recurring training programs'}
+        </h3>
+        <div className="flex items-center gap-8px" style={{ flexWrap: 'wrap' }}>
+          {mode === 'upcoming' && (
+            <FilterDropdown
+              title="Applications"
+              options={applicationOptions}
+              selected={selectedStatus}
+              counts={statusCounts}
+              onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
+            />
+          )}
+          <FilterDropdown
+            title="Type"
+            options={[...TRAINING_TYPES]}
+            selected={selectedTypes}
+            counts={typeCounts}
+            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+          />
+          <FilterDropdown
+            title="Focus"
+            options={focusOptions}
+            selected={selectedFocus}
+            counts={focusCounts}
+            onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
+          />
+          <FilterDropdown
+            title="Entry bar"
+            options={[...ENTRY_BARS]}
+            selected={selectedEntryBar}
+            counts={entryBarCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedEntryBar, setSelectedEntryBar)
+            }
+          />
+          <FilterDropdown
+            title="Stipend"
+            options={[...STIPEND_OPTIONS]}
+            selected={selectedStipend}
+            counts={stipendCounts}
+            onToggle={v => toggleFilter(v, selectedStipend, setSelectedStipend)}
+          />
+          {mode === 'upcoming' && (
+            <FilterDropdown
+              title="Length"
+              options={[...LENGTH_BUCKETS]}
+              selected={selectedLength}
+              counts={lengthCounts}
+              onToggle={v => toggleFilter(v, selectedLength, setSelectedLength)}
+            />
+          )}
+          <FilterDropdown
+            title="Location"
+            options={locationOptions}
+            selected={selectedLocation}
+            counts={locationCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedLocation, setSelectedLocation)
+            }
+          />
+          <p
+            className="paragraph-small color-teal-300"
+            style={{ whiteSpace: 'nowrap' }}
           >
-            {mode === 'upcoming' && (
-              <FilterDropdown
-                title="Applications"
-                options={applicationOptions}
-                selected={selectedStatus}
-                counts={statusCounts}
-                onToggle={v =>
-                  toggleFilter(v, selectedStatus, setSelectedStatus)
-                }
-              />
-            )}
-            <FilterDropdown
-              title="Type"
-              options={[...TRAINING_TYPES]}
-              selected={selectedTypes}
-              counts={typeCounts}
-              onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-            />
-            <FilterDropdown
-              title="Stipend"
-              options={[...STIPEND_OPTIONS]}
-              selected={selectedStipend}
-              counts={stipendCounts}
-              onToggle={v =>
-                toggleFilter(v, selectedStipend, setSelectedStipend)
-              }
-            />
-            {mode === 'upcoming' && (
-              <FilterDropdown
-                title="Length"
-                options={[...LENGTH_BUCKETS]}
-                selected={selectedLength}
-                counts={lengthCounts}
-                onToggle={v =>
-                  toggleFilter(v, selectedLength, setSelectedLength)
-                }
-              />
-            )}
-            <FilterDropdown
-              title="Location"
-              options={locationOptions}
-              selected={selectedLocation}
-              counts={locationCounts}
-              onToggle={v =>
-                toggleFilter(v, selectedLocation, setSelectedLocation)
-              }
-            />
-          </div>
+            {filtered.length} {mode} training program
+            {filtered.length === 1 ? '' : 's'}
+          </p>
         </div>
       </div>
 
@@ -450,6 +492,7 @@ export default function TrainingClient({
             suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
             noun="program"
             airtableUrl={AIRTABLE_VIEW_URL}
+            airtableNote="(includes past programs)"
           />
         </div>
       </div>

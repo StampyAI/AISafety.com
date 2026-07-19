@@ -407,7 +407,8 @@ export default function EventsClient({ events }: EventsClientProps) {
 
   return (
     <>
-      <div className="padding-bottom-40px">
+      {/* Sticky so it's always clear which of the two event sets is shown */}
+      <div className={`${styles.stickyBar} margin-bottom-32px`}>
         <ModeToggle mode={mode} onChange={switchMode} />
       </div>
 
@@ -534,6 +535,7 @@ export default function EventsClient({ events }: EventsClientProps) {
             suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
             noun="event"
             airtableUrl={AIRTABLE_VIEW_URL}
+            airtableNote="(includes past events)"
           />
         </div>
       </div>

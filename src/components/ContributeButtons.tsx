@@ -14,6 +14,8 @@ interface ContributeButtonsProps {
   noun: string
   /** Airtable grid/view URL for the "View data in Airtable" card. */
   airtableUrl?: string
+  /** Extra line under "View data in Airtable", e.g. "(includes past events)". */
+  airtableNote?: string
   /** Extra contribute actions beyond add + suggest correction. */
   extraLinks?: ExtraLink[]
 }
@@ -52,6 +54,7 @@ export default function ContributeButtons({
   suggestCorrectionUrl,
   noun,
   airtableUrl = '#',
+  airtableNote,
   extraLinks,
 }: ContributeButtonsProps) {
   return (
@@ -113,6 +116,12 @@ export default function ContributeButtons({
         <div className={styles.airtableTextWrap}>
           <p className="paragraph-xs padding-left-16px padding-bottom-12px">
             View data in Airtable
+            {airtableNote && (
+              <>
+                <br />
+                {airtableNote}
+              </>
+            )}
           </p>
         </div>
       </a>

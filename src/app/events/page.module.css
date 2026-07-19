@@ -18,6 +18,18 @@
   margin-top: 72px;
 }
 
+/* Keeps the Online/In person toggle visible while scrolling the grid, so it
+   stays clear which of the two event sets is on screen. Sits under the
+   filter popovers (z-index 10) and the navigation. Mirrors /training. */
+.stickyBar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 8px 0;
+  background-color: color-mix(in srgb, var(--teal-900) 85%, transparent);
+  backdrop-filter: blur(8px);
+}
+
 .modeToggle {
   display: inline-flex;
   gap: 8px;

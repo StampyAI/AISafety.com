@@ -20,7 +20,7 @@ ARGUMENTS:
 
   Per type:
     job: skillSet ("Policy"|"Research"|"Software engineering"|"Operations"|"Outreach"|"Strategy"|"Legal"|"Data"|"Information security"|"Management"), minimumExperience ("Entry-level"|"Junior"|"Mid"|"Senior"), roleType ("Full-time"|"Part-time"|"Internship"|"Fellowship"|"Volunteering"|"Funding"), workLocation ("Remote"|"On-site"), location (city or country)
-    funder: type ("Fund"|"Grant program"|"Prize"), recipientType ("Individuals"|"Organizations"), acceptingApplications ("Yes"|"No")
+    funder: type ("Fund"|"Grant program"|"Platform"), recipientType ("Individuals"|"Organizations"), acceptingApplications ("Yes"|"No")
     community: platform ("Slack"|"Discord"|"In-person"), type, activityLevel ("Active"|"Quiet"), location
     course: category, courseType
     advisor: focus, status

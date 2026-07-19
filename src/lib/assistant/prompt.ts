@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-18-01'
+export const PROMPT_VERSION = '2026-07-18-02'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -127,7 +127,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
   - Each job result carries a \`datePublished\` meta field. Results come newest-first, so for a vague "show me jobs" take them in order. When you surface an older posting (several months old) as a specific match, lean toward more recent ones where the fit is comparable, and you may note an old one was "posted a while ago" since it's likelier to be filled – don't present a months-old listing as freshly opened.
 
 - **funder**:
-  - \`type\`: "Fund", "Grant program", "Grant-based fellowship", "Platform"
+  - \`type\`: "Fund", "Grant program", "Platform"
   - \`recipientType\`: free text – common values include "Individuals", "Organizations", "Both"
   - \`acceptingApplications\`: "Yes", "No"
 

@@ -21,10 +21,15 @@ export function trainingTypeColor(type: string): string {
 export const ENTRY_BARS = ['Low', 'Mid', 'High'] as const
 export type EntryBar = (typeof ENTRY_BARS)[number]
 
-// Options for the Stipend filter. Records may still hold the unresolved
-// third option "Living expenses covered" — those cards display the value
-// but only match the filter once the team settles the option set.
-export const STIPEND_OPTIONS = ['No stipend', 'Stipend included'] as const
+// Options for the Stipend filter — a ladder of support levels. "Expenses
+// covered" means the program directly provides costs like housing, food,
+// and travel but pays no cash; programs that pay cash (even alongside
+// covered expenses) are "Stipend included".
+export const STIPEND_OPTIONS = [
+  'No stipend',
+  'Expenses covered',
+  'Stipend included',
+] as const
 
 export const LENGTH_BUCKETS = [
   'Under 1 month',

@@ -309,60 +309,67 @@ export default function EventsClient({ events }: EventsClientProps) {
     [modeEvents]
   )
 
-  const filteredEvents = useMemo(() => {
-    return modeEvents.filter(event => {
-      if (
-        selectedStatus.length > 0 &&
-        !selectedStatus.includes(event.applicationStatus)
-      )
-        return false
-      if (
-        selectedTypes.length > 0 &&
-        !event.type.some(t => selectedTypes.includes(t))
-      )
-        return false
-      if (
-        selectedCost.length > 0 &&
-        !event.cost.some(c => selectedCost.includes(c))
-      )
-        return false
-      if (
-        mode === 'in-person' &&
-        selectedCity &&
-        event.location !== selectedCity
-      )
-        return false
-      return true
-    })
-  }, [
-    modeEvents,
-    selectedStatus,
-    selectedTypes,
-    selectedCost,
-    mode,
-    selectedCity,
-  ])
+  // Each dropdown's counts are faceted (like the 80,000 Hours job board):
+  // an option's number is how many events would show if you picked it,
+  // i.e. it respects every OTHER active filter (including the city) but not
+  // the dropdown's own, so multi-selecting within one dropdown stays
+  // possible. Mirrors TrainingClient.
+  const { filteredEvents, statusCounts, typeCounts, costCounts } =
+    useMemo(() => {
+      const matchesFilters = (event: EventListing, skip?: string) => {
+        if (
+          skip !== 'status' &&
+          selectedStatus.length > 0 &&
+          !selectedStatus.includes(event.applicationStatus)
+        )
+          return false
+        if (
+          skip !== 'type' &&
+          selectedTypes.length > 0 &&
+          !event.type.some(t => selectedTypes.includes(t))
+        )
+          return false
+        if (
+          skip !== 'cost' &&
+          selectedCost.length > 0 &&
+          !event.cost.some(c => selectedCost.includes(c))
+        )
+          return false
+        if (
+          mode === 'in-person' &&
+          selectedCity &&
+          event.location !== selectedCity
+        )
+          return false
+        return true
+      }
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const e of modeEvents)
-      counts[e.applicationStatus] = (counts[e.applicationStatus] || 0) + 1
-    return counts
-  }, [modeEvents])
+      const countBy = (
+        skip: string,
+        extract: (e: EventListing) => string[]
+      ) => {
+        const counts: Record<string, number> = {}
+        for (const e of modeEvents) {
+          if (!matchesFilters(e, skip)) continue
+          for (const key of extract(e)) counts[key] = (counts[key] || 0) + 1
+        }
+        return counts
+      }
 
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const e of modeEvents)
-      for (const t of e.type) counts[t] = (counts[t] || 0) + 1
-    return counts
-  }, [modeEvents])
-
-  const costCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const e of modeEvents)
-      for (const c of e.cost) counts[c] = (counts[c] || 0) + 1
-    return counts
-  }, [modeEvents])
+      return {
+        filteredEvents: modeEvents.filter(e => matchesFilters(e)),
+        statusCounts: countBy('status', e => [e.applicationStatus]),
+        typeCounts: countBy('type', e => e.type),
+        costCounts: countBy('cost', e => e.cost),
+      }
+    }, [
+      modeEvents,
+      selectedStatus,
+      selectedTypes,
+      selectedCost,
+      mode,
+      selectedCity,
+    ])
 
   const monthGroups = useMemo(() => {
     const groups: { key: string; label: string; events: EventListing[] }[] = []

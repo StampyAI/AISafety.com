@@ -7,7 +7,7 @@ import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
-import StickyBar from '@/components/StickyBar'
+import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
@@ -283,9 +283,14 @@ export default function EventsClient({ events }: EventsClientProps) {
   const [selectedCost, setSelectedCost] = useState<string[]>([])
   const [selectedCity, setSelectedCity] = useState('')
 
+  const toggleAnchorRef = useRef<HTMLDivElement>(null)
+
+  // Switching sets replaces the whole grid, so jump back to the top of the
+  // listings (just below the global nav) for the new set.
   function switchMode(next: Mode) {
     if (next === 'online') setSelectedCity('')
     setMode(next)
+    scrollToAnchor(toggleAnchorRef.current)
   }
 
   const modeEvents = useMemo(
@@ -409,6 +414,7 @@ export default function EventsClient({ events }: EventsClientProps) {
   return (
     <>
       {/* Sticky so it's always clear which of the two event sets is shown */}
+      <div ref={toggleAnchorRef} aria-hidden="true" />
       <StickyBar className="margin-bottom-32px">
         <ModeToggle mode={mode} onChange={switchMode} />
       </StickyBar>

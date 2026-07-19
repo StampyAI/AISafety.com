@@ -31,11 +31,12 @@
   text-decoration: none;
 }
 
-/* The table illustration sits at the top; its baked-in gradient fades to
-   --teal-900 (the page bg) so the label below reads cleanly over it. */
+/* The table illustration sits at the top, inset slightly below the border
+   per the Figma card; its baked-in gradient fades to --teal-900 (the page
+   bg) so the label below reads cleanly over it. */
 .airtableImg {
   position: absolute;
-  top: 0;
+  top: 8px;
   left: 0;
   width: 100%;
   height: auto;
@@ -43,15 +44,19 @@
 
 .airtableArrow {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  /* Per the Figma mockup: --teal-800 circle with the white hairline arrow
-     (the Figma arrow SVG bakes in its in-badge proportions). */
+  top: 16px;
+  right: 16px;
+  /* Per the Figma mockup: a larger --teal-800 circle overlapping the
+     illustration's top-right corner, with the white hairline arrow (the
+     Figma arrow SVG bakes in its in-badge proportions). */
+  width: 28px;
+  height: 28px;
   background-color: var(--teal-800);
 }
 
-/* Push the label down past the illustration into the faded area. */
+/* Push the label down past the illustration into the faded area — the
+   Figma card is taller than wide-format, with the label in the lower half. */
 .airtableTextWrap {
   position: relative;
-  padding-top: 64px;
+  padding-top: 76px;
 }

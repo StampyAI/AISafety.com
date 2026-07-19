@@ -1,13 +1,16 @@
 .bar {
   position: sticky;
-  /* Sit below the global nav when it's revealed; 0.3s ease-in-out matches
-     the nav's own slide animation so the two move together. */
+  /* Sit below the global nav. The nav publishes its live bottom edge every
+     frame (including mid-slide), so top needs no transition of its own —
+     the bar tracks the nav exactly with no gap. */
   top: var(--nav-offset, 0px);
   z-index: 5; /* under the filter popovers (10) and the nav */
-  padding: 8px 0;
-  transition:
-    top 0.3s ease-in-out,
-    background-color 0.15s ease-in-out;
+  /* Full-bleed: stretch the stuck backdrop to the viewport edges like the
+     nav's, while the content stays aligned to the container. */
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 8px calc(50vw - 50%);
+  transition: background-color 0.15s ease-in-out;
 }
 
 .stuck {

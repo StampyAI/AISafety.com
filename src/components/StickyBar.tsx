@@ -3,6 +3,21 @@
 import { useEffect, useRef, useState } from 'react'
 import styles from './StickyBar.module.css'
 
+// Scroll so `anchor` (an element placed just above a StickyBar) sits right
+// below the global nav — used when a toggle inside the bar swaps the page's
+// content, so the user sees the new set from its top. Never scrolls down.
+export function scrollToAnchor(anchor: HTMLElement | null) {
+  if (!anchor) return
+  const navHeight =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        '--nav-height'
+      )
+    ) || 0
+  const target = anchor.getBoundingClientRect().top + window.scrollY - navHeight
+  if (window.scrollY > target) window.scrollTo(0, Math.max(0, target))
+}
+
 // Sticks its children to the top of the viewport once the page scrolls past
 // them (used for the events/training mode toggles). Slides down below the
 // global nav when that reveals on scroll-up — the nav publishes its overlay

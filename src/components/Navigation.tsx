@@ -78,6 +78,7 @@ export default function Navigation({
     lastY: 0,
     mode: 'top' as 'top' | 'scrolling' | 'hidden' | 'revealed',
   })
+  const offsetRaf = useRef(0)
 
   const visibleItems = navItems.slice(0, visibleCount)
   const overflowItems = navItems.slice(visibleCount)
@@ -199,13 +200,29 @@ export default function Navigation({
       const m = scrollInfo.current.mode
       el.classList.toggle(blurClass, m === 'revealed' || m === 'hidden')
 
-      // Publish the nav's current overlay height so page-level sticky
-      // elements (the events/training mode toggles) slide down below it
-      // when it reveals on scroll-up, instead of being covered.
+      // Publish the nav's real bottom edge as --nav-offset so page-level
+      // sticky elements (the events/training mode toggles) sit below it
+      // instead of being covered. Re-read every frame for 400ms so the
+      // toggles track the nav exactly through its 0.3s slide — a static
+      // value would let the two move at different speeds and open a gap.
+      // --nav-height feeds "jump back to just below the nav" scrolling.
       document.documentElement.style.setProperty(
-        '--nav-offset',
-        m === 'revealed' ? `${el.offsetHeight}px` : '0px'
+        '--nav-height',
+        `${el.offsetHeight}px`
       )
+      cancelAnimationFrame(offsetRaf.current)
+      const started = performance.now()
+      const publishOffset = () => {
+        const bottom = Math.max(0, el.getBoundingClientRect().bottom)
+        document.documentElement.style.setProperty(
+          '--nav-offset',
+          `${bottom}px`
+        )
+        if (performance.now() - started < 400) {
+          offsetRaf.current = requestAnimationFrame(publishOffset)
+        }
+      }
+      publishOffset()
 
       scrollInfo.current.lastY = y
     }

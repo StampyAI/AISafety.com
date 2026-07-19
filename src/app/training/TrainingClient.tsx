@@ -7,7 +7,7 @@ import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
-import StickyBar from '@/components/StickyBar'
+import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import {
   ENTRY_BARS,
   LENGTH_BUCKETS,
@@ -195,6 +195,15 @@ export default function TrainingClient({
   recurring,
 }: TrainingClientProps) {
   const [mode, setMode] = useState<Mode>('upcoming')
+  const toggleAnchorRef = useRef<HTMLDivElement>(null)
+
+  // Switching sets replaces the whole grid, so jump back to the top of the
+  // listings (just below the global nav) for the new set.
+  function switchMode(next: Mode) {
+    setMode(next)
+    scrollToAnchor(toggleAnchorRef.current)
+  }
+
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedFocus, setSelectedFocus] = useState<string[]>([])
@@ -396,8 +405,9 @@ export default function TrainingClient({
   return (
     <>
       {/* Sticky so it's always clear which of the two program sets is shown */}
+      <div ref={toggleAnchorRef} aria-hidden="true" />
       <StickyBar className="margin-bottom-32px">
-        <ModeToggle mode={mode} onChange={setMode} />
+        <ModeToggle mode={mode} onChange={switchMode} />
       </StickyBar>
 
       {featuredPrograms.length > 0 && (

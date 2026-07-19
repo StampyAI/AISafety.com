@@ -1,5 +1,7 @@
 import { fetchAirtableRecords } from './airtable'
+import { getEvents } from './events'
 import { getCourses } from './self-study'
+import { getTrainingPrograms, getRecurringPrograms } from './training'
 
 // Each resource's table ID, view to count from, and a minimal field to fetch.
 // adjust: manual correction for counts that don't match the live site exactly.
@@ -83,6 +85,10 @@ export async function fetchAllCounts(): Promise<
   // Derive redesigned pages' counts from the same data the page renders, so the
   // nav badge always matches the on-page total exactly.
   counts['/self-study'] = (await getCourses()).length
+  counts['/events'] = (await getEvents()).length
+  // Both program sets the page lists: upcoming + recurring.
+  counts['/training'] =
+    (await getTrainingPrograms()).length + (await getRecurringPrograms()).length
 
   return counts
 }

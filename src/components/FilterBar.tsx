@@ -11,9 +11,10 @@ interface FilterBarProps {
   className?: string
 }
 
-// Horizontal row of filter dropdowns with a result count on the right, sitting
-// above the listing grid (replacing the old vertical FilterSidebar). Static —
-// it scrolls away with the page.
+// Horizontal row of filter dropdowns with the result count flowing directly
+// after them (left-aligned, per the Figma — not pushed to the row's far end),
+// sitting above the listing grid (replacing the old vertical FilterSidebar).
+// Static — it scrolls away with the page.
 export default function FilterBar({
   children,
   count,
@@ -23,7 +24,7 @@ export default function FilterBar({
 }: FilterBarProps) {
   return (
     <div
-      className={`flex items-center justify-between gap-16px padding-bottom-40px${className ? ` ${className}` : ''}`}
+      className={`flex items-center gap-16px padding-bottom-40px${className ? ` ${className}` : ''}`}
     >
       <div className="flex items-center gap-8px" style={{ flexWrap: 'wrap' }}>
         {children}

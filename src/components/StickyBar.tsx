@@ -7,10 +7,18 @@ import styles from './StickyBar.module.css'
 // top of the viewport — used when a toggle inside the bar swaps the page's
 // content, so the user sees the new set from its top. Never scrolls down.
 // Announces the jump first so the nav doesn't treat it as a scroll-up and
-// reveal itself over the fresh content.
+// reveal itself over the fresh content. If the nav is ALREADY showing it
+// stays, so land the anchor just below it (--nav-offset is its live bottom
+// edge, 0 while hidden) — otherwise the bar would pin over the content.
 export function scrollToAnchor(anchor: HTMLElement | null) {
   if (!anchor) return
-  const target = anchor.getBoundingClientRect().top + window.scrollY
+  const navOffset =
+    parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        '--nav-offset'
+      )
+    ) || 0
+  const target = anchor.getBoundingClientRect().top + window.scrollY - navOffset
   if (window.scrollY > target) {
     window.dispatchEvent(new Event('stickybar:scroll-jump'))
     window.scrollTo(0, Math.max(0, target))

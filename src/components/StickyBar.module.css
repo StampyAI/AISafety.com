@@ -9,7 +9,7 @@
      nav's, while the content stays aligned to the container. */
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  padding: 16px calc(50vw - 50%);
+  padding: 12px calc(50vw - 50%);
   transition: background-color 0.15s ease-in-out;
 }
 

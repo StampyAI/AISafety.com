@@ -188,88 +188,92 @@ export default function TrainingClient({
     [modePrograms]
   )
 
-  const matchesShared = (
-    program: ProgramBase,
-    types: string[],
-    stipend: string[],
-    location: string[]
-  ) => {
-    if (types.length > 0 && !program.type.some(t => types.includes(t)))
-      return false
-    if (
-      stipend.length > 0 &&
-      !(program.stipend && stipend.includes(program.stipend))
-    )
-      return false
-    if (location.length > 0) {
-      const value = program.isOnline ? 'Online' : 'In person'
-      if (!location.includes(value)) return false
-    }
-    return true
-  }
+  // Each dropdown's counts are faceted (like the 80,000 Hours job board):
+  // an option's number is how many programs would show if you picked it,
+  // i.e. it respects every OTHER active filter but not the dropdown's own,
+  // so multi-selecting within one dropdown stays possible.
+  const {
+    filtered,
+    statusCounts,
+    typeCounts,
+    stipendCounts,
+    lengthCounts,
+    locationCounts,
+  } = useMemo(() => {
+    const upcoming = mode === 'upcoming'
 
-  const filtered = useMemo(() => {
-    if (mode === 'recurring') {
-      return recurring.filter(p =>
-        matchesShared(p, selectedTypes, selectedStipend, selectedLocation)
-      )
-    }
-    return programs.filter(p => {
+    const matchesFilters = (program: ProgramBase, skip?: string) => {
+      const dated = upcoming ? (program as TrainingProgram) : null
       if (
+        dated &&
+        skip !== 'status' &&
         selectedStatus.length > 0 &&
-        !selectedStatus.includes(p.applicationStatus)
+        !selectedStatus.includes(dated.applicationStatus)
       )
         return false
       if (
-        selectedLength.length > 0 &&
-        !(p.lengthBucket && selectedLength.includes(p.lengthBucket))
+        skip !== 'type' &&
+        selectedTypes.length > 0 &&
+        !program.type.some(t => selectedTypes.includes(t))
       )
         return false
-      return matchesShared(p, selectedTypes, selectedStipend, selectedLocation)
-    })
+      if (
+        skip !== 'stipend' &&
+        selectedStipend.length > 0 &&
+        !(program.stipend && selectedStipend.includes(program.stipend))
+      )
+        return false
+      if (
+        dated &&
+        skip !== 'length' &&
+        selectedLength.length > 0 &&
+        !(dated.lengthBucket && selectedLength.includes(dated.lengthBucket))
+      )
+        return false
+      if (
+        skip !== 'location' &&
+        selectedLocation.length > 0 &&
+        !selectedLocation.includes(program.isOnline ? 'Online' : 'In person')
+      )
+        return false
+      return true
+    }
+
+    const countBy = (skip: string, extract: (p: ProgramBase) => string[]) => {
+      const counts: Record<string, number> = {}
+      for (const p of modePrograms) {
+        if (!matchesFilters(p, skip)) continue
+        for (const key of extract(p)) counts[key] = (counts[key] || 0) + 1
+      }
+      return counts
+    }
+
+    return {
+      filtered: modePrograms.filter(p => matchesFilters(p)),
+      statusCounts: upcoming
+        ? countBy('status', p => [(p as TrainingProgram).applicationStatus])
+        : {},
+      typeCounts: countBy('type', p => p.type),
+      stipendCounts: countBy('stipend', p => (p.stipend ? [p.stipend] : [])),
+      lengthCounts: upcoming
+        ? countBy('length', p => {
+            const bucket = (p as TrainingProgram).lengthBucket
+            return bucket ? [bucket] : []
+          })
+        : {},
+      locationCounts: countBy('location', p => [
+        p.isOnline ? 'Online' : 'In person',
+      ]),
+    }
   }, [
     mode,
-    programs,
-    recurring,
+    modePrograms,
     selectedStatus,
     selectedTypes,
     selectedStipend,
     selectedLength,
     selectedLocation,
   ])
-
-  const countBy = (extract: (p: ProgramBase) => string[]) => {
-    const counts: Record<string, number> = {}
-    for (const p of modePrograms)
-      for (const key of extract(p)) counts[key] = (counts[key] || 0) + 1
-    return counts
-  }
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const p of programs)
-      counts[p.applicationStatus] = (counts[p.applicationStatus] || 0) + 1
-    return counts
-  }, [programs])
-
-  /* eslint-disable react-hooks/exhaustive-deps -- countBy is stable per render; the data it closes over is modePrograms */
-  const typeCounts = useMemo(() => countBy(p => p.type), [modePrograms])
-  const stipendCounts = useMemo(
-    () => countBy(p => (p.stipend ? [p.stipend] : [])),
-    [modePrograms]
-  )
-  const locationCounts = useMemo(
-    () => countBy(p => [p.isOnline ? 'Online' : 'In person']),
-    [modePrograms]
-  )
-  /* eslint-enable react-hooks/exhaustive-deps */
-  const lengthCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const p of programs)
-      if (p.lengthBucket)
-        counts[p.lengthBucket] = (counts[p.lengthBucket] || 0) + 1
-    return counts
-  }, [programs])
 
   const savedScrollY = useRef<number | null>(null)
   const toggleFilter = (

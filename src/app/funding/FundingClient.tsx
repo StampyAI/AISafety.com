@@ -19,7 +19,6 @@ const acceptingOptions = ['Yes', 'No']
 const typeOptions = [
   'Fund',
   'Grant program',
-  'Grant-based fellowship',
   'Platform',
 ]
 

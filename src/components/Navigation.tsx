@@ -173,7 +173,10 @@ export default function Navigation({
       const start = performance.now()
       const frame = (now: number) => {
         const p = Math.min(1, (now - start) / 300)
-        const y = from + (to - from) * easeInOutCubic(p)
+        // Whole pixels only: at fractional positions the nav's composited
+        // transform and the sticky toggles' layout `top` get anti-aliased
+        // differently, showing a hairline seam between their backdrops.
+        const y = Math.round(from + (to - from) * easeInOutCubic(p))
         el.style.transform = `translateY(${y}px)`
         publishOffset(el)
         if (p < 1) slideRaf.current = requestAnimationFrame(frame)

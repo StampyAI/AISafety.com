@@ -394,9 +394,10 @@ export interface DashboardData {
   chatbot: ChatbotPanelData
   /** The Search tab's event-derived panels (opens, queries, result clicks). */
   search: SearchPanelData
-  /** Browsers that used the privacy page's analytics switch in range: `off` =
-   *  turned analytics off, `on` = turned it back on. Unique browsers, always —
-   *  toggling twice isn't two people changing their mind. */
+  /** The privacy page's analytics switch, one bucket per browser by its latest
+   *  toggle in range: `off` = switched analytics off and hasn't switched it
+   *  back, `on` = switched it back on. Changing your mind moves a browser
+   *  between buckets rather than counting it in both. */
   optOuts: { off: number; on: number }
   /** First-party page views (recorded from 15 July 2026). */
   visits: VisitsData
@@ -514,7 +515,7 @@ function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
     const day = Number.isNaN(t)
       ? ''
       : new Date(t - 5 * 3_600_000).toISOString().slice(0, 10)
-    const key = `${e.vid} ${day} ${e.page ?? ''} ${listingMember(e)}`
+    const key = `${e.vid}\x00${day}\x00${e.page ?? ''}\x00${listingMember(e)}`
     if (seen.has(key)) continue
     seen.add(key)
     out.push(e)
@@ -616,7 +617,7 @@ function aggregate(
   >()
   for (const e of clicks) {
     const name = listingMember(e)
-    const key = `${e.page ?? ''} ${name}`
+    const key = `${e.page ?? ''}\x00${name}`
     // clicks is newest-first, so the first url seen for a listing is the latest.
     const g = perOverall.get(key) ?? {
       name,
@@ -676,10 +677,7 @@ function aggregate(
     },
     chatbot: chatbotPanels(inRange, unique),
     search: searchPanels(inRange, unique),
-    optOuts: {
-      off: usersOf('analytics_optout'),
-      on: usersOf('analytics_optin'),
-    },
+    optOuts: optOutSplit(inRange),
     visits: visitsData(inRange, unique),
     correlations: correlations(inRange),
     // Newest-first already; page views are left out so the feed stays a log
@@ -939,6 +937,33 @@ function searchPanels(
     ),
     destinations: destinationRows(clicks, unique, true),
   }
+}
+
+/** The privacy switch's toggle events bucketed by each browser's latest state:
+ *  `off` = the latest toggle turned analytics off, `on` = the latest toggle
+ *  turned it back on. Decided per vid by timestamp (ISO strings compare
+ *  chronologically), so flip-flopping counts the browser once, under where it
+ *  ended up. Vid-less events can't be paired with a later change of mind, so
+ *  each counts once under the state it reported. */
+function optOutSplit(events: AnalyticsEvent[]): { off: number; on: number } {
+  const latestByVid = new Map<string, AnalyticsEvent>()
+  let off = 0
+  let on = 0
+  for (const e of events) {
+    if (e.type !== 'analytics_optout' && e.type !== 'analytics_optin') continue
+    if (!e.vid) {
+      if (e.type === 'analytics_optout') off++
+      else on++
+      continue
+    }
+    const prev = latestByVid.get(e.vid)
+    if (!prev || e.ts > prev.ts) latestByVid.set(e.vid, e)
+  }
+  for (const e of latestByVid.values()) {
+    if (e.type === 'analytics_optout') off++
+    else on++
+  }
+  return { off, on }
 }
 
 /** Distinct users in a set of events: distinct vids, plus each vid-less event

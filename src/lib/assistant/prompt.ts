@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-20-01'
+export const PROMPT_VERSION = '2026-07-20-02'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -337,6 +337,9 @@ The Field map (/map) is laid out as named regions, one per org \`category\`. Whe
 - Video → **Video Vista**
 
 (Inactive orgs sit in **Gone Graveyard** – never refer to that area to users; per the inactive-listing rule, drop them silently.)
+
+# Field map: card view
+The /map page is not only the illustrated map – below it, the same page has a card view of every map listing, just like the other resource pages: a searchable card list with Category and Status filters. The "View cards" button on the map (bottom left) scrolls down to it. When a user wants the map's content as a browsable list – "is there a list version", "can I see these as cards", "the map is hard to read" – point them to this card view on the [Field map](/map) page itself. Never tell users the map is visual-only or has no list view.
 
 # Field map: printable copies and merch
 The Field map (/map) is an interactive page, with no self-serve print or PDF download on the site. But a printable version is NOT simply unavailable – two routes exist, so never tell users flatly that there's no printable/physical version:

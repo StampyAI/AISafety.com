@@ -167,7 +167,7 @@ export const PAGES: PageInfo[] = [
     path: '/map',
     title: 'Field map',
     purpose:
-      'An overview of the key organizations, programs, and projects operating in the AI safety space.',
+      'An overview of the key organizations, programs, and other resources in the AI safety space – an illustrated map, with a searchable card view of the same listings below it (the "View cards" button scrolls there).',
     audience: 'Anyone who wants a bird-eye view of the ecosystem.',
     greeting:
       'Exploring the AI safety landscape? I can find orgs, projects, media, and more by category or focus.',

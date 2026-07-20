@@ -245,7 +245,10 @@ export default function MapClient({
                       org.link,
                       org.id,
                       placements.get(org.id),
-                      'cards'
+                      'cards',
+                      // First category = the org's map area; the dashboard
+                      // groups Map-page activity by it.
+                      org.category.split(',')[0].trim() || undefined
                     )
                   }
                 >

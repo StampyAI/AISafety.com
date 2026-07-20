@@ -55,6 +55,7 @@ export default async function SelfStudyPage() {
                   { label: 'Created by', value: course.organizer },
                 ]}
                 trackingPage="Self-study"
+                trackingId={course.id}
                 trackingPosition={`F${course.featured}`}
               />
             ))}

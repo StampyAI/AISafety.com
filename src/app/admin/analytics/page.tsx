@@ -568,10 +568,10 @@ export default async function AnalyticsPage({
               />
               <p className={styles.caption}>
                 Visitors who engaged with both of a pair — visited the page or
-                clicked one of its listings, with chatbot and search use as
-                rows of their own. Clicks give this history back to 20 June
-                2026; page views count from 15 July 2026, so overlaps get
-                richer as views accumulate.
+                clicked one of its listings, with chatbot and search use as rows
+                of their own. Clicks give this history back to 20 June 2026;
+                page views count from 15 July 2026, so overlaps get richer as
+                views accumulate.
               </p>
             </Panel>
           )}
@@ -601,9 +601,10 @@ export default async function AnalyticsPage({
                 Visitors = distinct browsers; one visitor&apos;s pages more than
                 30 minutes apart count as separate visits. Recording since 15
                 July 2026. Opt-outs = browsers that switched analytics off on
-                the privacy page (recording since 16 July 2026)
+                the privacy page and haven&apos;t switched it back on (recording
+                since 16 July 2026)
                 {data.optOuts.on > 0 &&
-                  ` — ${data.optOuts.on.toLocaleString()} turned it back on`}
+                  ` – ${data.optOuts.on.toLocaleString()} more switched it back on`}
                 .
               </p>
             </Panel>
@@ -1442,7 +1443,8 @@ function SearchView({
         <p className={styles.caption}>
           The results visitors opened from search, with the page or listing each
           one leads to. The Page column is the page the result belongs to; a row
-          without one can&apos;t be matched to a single page in the search index.
+          without one can&apos;t be matched to a single page in the search
+          index.
         </p>
       </Panel>
     </>

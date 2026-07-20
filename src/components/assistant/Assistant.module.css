@@ -34,19 +34,6 @@
   transition: transform var(--hover-transition);
 }
 
-/* Shifted — when there's a fixed UI in the bottom-right (e.g. /map zoom
-   controls), the pill (and panel) move LEFT to clear them, not up.
-   Uses double-class specificity to win against the base .pill / .panel
-   right values regardless of cascade order. */
-
-.pill.pillShifted {
-  right: 80px;
-}
-
-.panel.panelShifted {
-  right: 80px;
-}
-
 .pillIconRotated {
   transform: rotate(0deg);
 }
@@ -1055,19 +1042,6 @@
     bottom: 16px;
     width: 48px;
     height: 48px;
-  }
-
-  /* Mobile /map: shift pill left + raise to align with zoom controls
-     bottom edge. Panel sits ABOVE the zoom stack so the controls stay
-     visible (but unusable) below the chat. */
-  .pill.pillShifted {
-    right: 80px;
-    bottom: 24px;
-  }
-
-  .panel.panelShifted {
-    right: 12px;
-    bottom: 160px;
   }
 
   .pillIcon {

@@ -98,8 +98,6 @@ export default function Assistant() {
   const currentPage = pathname || '/'
   const chips = useMemo(() => chipsFor(currentPage), [currentPage])
   const greeting = useMemo(() => greetingFor(currentPage), [currentPage])
-  // /map has fixed bottom-right zoom controls; shift pill+panel left to clear.
-  const shiftedRight = currentPage === '/map'
 
   const fireLog = useCallback(async (event: object) => {
     // The "exclude this browser" switch (privacy page/admin) covers the
@@ -260,7 +258,7 @@ export default function Assistant() {
     <>
       <button
         type="button"
-        className={`${styles.pill} drop-shadow-dark ${shiftedRight ? styles.pillShifted : ''}`}
+        className={`${styles.pill} drop-shadow-dark`}
         onClick={handleTogglePill}
         aria-label={
           isOpen ? 'Close the assistant' : 'Open the AISafety.com assistant'
@@ -299,7 +297,7 @@ export default function Assistant() {
       />
 
       <aside
-        className={`${styles.panel} ${isOpen ? styles.panelOpen : ''} ${isExpanded ? styles.panelExpanded : ''} ${shiftedRight && !isExpanded ? styles.panelShifted : ''}`}
+        className={`${styles.panel} ${isOpen ? styles.panelOpen : ''} ${isExpanded ? styles.panelExpanded : ''}`}
         role="dialog"
         aria-modal={isExpanded}
         aria-label="AISafety.com directory assistant"

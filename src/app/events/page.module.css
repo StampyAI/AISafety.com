@@ -42,7 +42,7 @@
 
 .nearMe {
   padding: 48px;
-  border: 1px solid color-mix(in srgb, var(--bright-green) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bright-teal-300) 20%, transparent);
   border-radius: 16px;
 }
 

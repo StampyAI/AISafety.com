@@ -50,14 +50,14 @@
   mask: url('/images/bookmark-small.svg') no-repeat center / contain;
 }
 
-/* Tagline pill: green-tinted outline, no fill. Padding + typography come from
+/* Tagline pill: teal-tinted outline, no fill. Padding + typography come from
    global utility classes in the JSX. */
 .pill {
   /* Hug contents instead of stretching to full width in the flex-column card. */
   align-self: flex-start;
   height: 24px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--bright-green) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bright-teal-300) 30%, transparent);
 }
 
 .dot {

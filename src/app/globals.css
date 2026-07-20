@@ -239,7 +239,7 @@ label {
   color: var(--bright-teal-500);
 }
 .color-light-teal {
-  color: var(--bright-green);
+  color: var(--bright-teal-300);
 }
 .color-white {
   color: #fff;
@@ -396,7 +396,11 @@ label {
 
 .underline {
   text-decoration: underline;
-  text-decoration-color: rgba(122, 255, 178, 0.3);
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--bright-teal-300) 30%,
+    transparent
+  );
   text-underline-offset: 6px;
   transition: all var(--hover-transition);
 }

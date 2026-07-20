@@ -83,8 +83,8 @@ a.endpointCard {
   flex: none;
   padding: 3px 8px;
   border-radius: 6px;
-  background-color: rgba(122, 255, 178, 0.12);
-  color: var(--bright-green);
+  background-color: color-mix(in srgb, var(--bright-teal-300) 12%, transparent);
+  color: var(--bright-teal-300);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;

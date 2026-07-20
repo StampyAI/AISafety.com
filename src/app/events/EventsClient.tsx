@@ -210,7 +210,7 @@ function CitySearch({
       <input
         type="text"
         className={`text-field ${styles.nearMeInput}`}
-        placeholder="Type your city"
+        placeholder="Type your city or country"
         maxLength={256}
         value={query}
         onFocus={() => setOpen(true)}

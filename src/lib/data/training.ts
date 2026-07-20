@@ -54,6 +54,7 @@ const RECURRING_FIELD = {
   entryBar: 'fld1FGDbT7BJpY7Vi',
   timeCommitment: 'fldU91KGSj2APdDRq',
   stipend: 'fldoHJPQyRJUA8gap',
+  typicalLength: 'fldYWSizGyk6GGrwu',
 } as const
 
 // Card fields shared by upcoming and recurring programs.
@@ -73,6 +74,8 @@ export interface ProgramBase {
   logo: string | null
   featured: '1' | '2' | null
   featuredTagline: string | null
+  /** From dates for upcoming programs, from "Typical length" for recurring. */
+  lengthBucket: LengthBucket | null
 }
 
 export interface TrainingProgram extends ProgramBase {
@@ -82,10 +85,12 @@ export interface TrainingProgram extends ProgramBase {
   applicationsClose: string | null
   /** Announced but not yet accepting applications (outranks the deadline). */
   notYetOpen: boolean
-  lengthBucket: LengthBucket | null
 }
 
-export type RecurringProgram = ProgramBase
+export interface RecurringProgram extends ProgramBase {
+  /** How long an iteration typically runs, e.g. "10 weeks", "3–6 months". */
+  typicalLength: string | null
+}
 
 function optionalString(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
@@ -117,6 +122,12 @@ function isUpcomingOrOngoing(
   return end >= Date.now()
 }
 
+function bucketForDays(days: number): LengthBucket {
+  if (days < 30) return 'Under 1 month'
+  if (days <= 92) return '1–3 months'
+  return '3+ months'
+}
+
 function lengthBucketFor(
   startDate: string | null,
   endDate: string | null
@@ -126,9 +137,31 @@ function lengthBucketFor(
   const end = new Date(endDate + 'T00:00:00Z').getTime()
   if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null
   const days = Math.round((end - start) / 86_400_000) + 1
-  if (days < 30) return 'Under 1 month'
-  if (days <= 92) return '1–3 months'
-  return '3+ months'
+  return bucketForDays(days)
+}
+
+const TYPICAL_UNIT_DAYS: Record<string, number> = {
+  day: 1,
+  week: 7,
+  month: 30.44,
+  year: 365,
+}
+
+// Bucket a "Typical length" string ("10 weeks", "3–6 months", "Up to 2
+// years") by the midpoint of its range, on the same thresholds as dated
+// programs.
+function lengthBucketForTypical(text: string | null): LengthBucket | null {
+  if (!text) return null
+  const m = text.match(
+    /(\d+(?:\.\d+)?)(?:\s*[–-]\s*(\d+(?:\.\d+)?))?\s*(day|week|month|year)s?/i
+  )
+  if (!m) {
+    console.warn(`[training] Can't parse Typical length "${text}"`)
+    return null
+  }
+  const lo = parseFloat(m[1])
+  const hi = m[2] ? parseFloat(m[2]) : lo
+  return bucketForDays(((lo + hi) / 2) * TYPICAL_UNIT_DAYS[m[3].toLowerCase()])
 }
 
 function validEntryBar(value: unknown, name: string): EntryBar | null {
@@ -199,6 +232,7 @@ function parseBase(
     logo: logoField?.[0]?.url ?? null,
     featured: featuredRaw === '1' || featuredRaw === '2' ? featuredRaw : null,
     featuredTagline: optionalString(fields[FIELD.featuredTagline]),
+    lengthBucket: null, // overridden by each caller from its own source
   }
 }
 
@@ -277,7 +311,12 @@ export async function getRecurringPrograms(): Promise<RecurringProgram[]> {
     if (f[RECURRING_FIELD.publish] !== true || f[RECURRING_FIELD.hide] === true)
       continue
 
-    results.push(parseBase(f, record.id, name, RECURRING_FIELD))
+    const typicalLength = optionalString(f[RECURRING_FIELD.typicalLength])
+    results.push({
+      ...parseBase(f, record.id, name, RECURRING_FIELD),
+      typicalLength,
+      lengthBucket: lengthBucketForTypical(typicalLength),
+    })
   }
 
   // Recurring programs have no dates — alphabetical keeps them scannable.

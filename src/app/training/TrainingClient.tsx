@@ -109,6 +109,12 @@ function titleMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
       icon: '/images/icons/calendar.svg',
       value: duration ? `${duration} · ${starts}` : starts,
     })
+  } else {
+    // Recurring programs have no dates, but most run a consistent length.
+    const typical = (program as RecurringProgram).typicalLength
+    if (typical) {
+      rows.push({ icon: '/images/icons/calendar.svg', value: typical })
+    }
   }
   return rows
 }
@@ -274,10 +280,9 @@ export default function TrainingClient({
       )
         return false
       if (
-        dated &&
         skip !== 'length' &&
         selectedLength.length > 0 &&
-        !(dated.lengthBucket && selectedLength.includes(dated.lengthBucket))
+        !(program.lengthBucket && selectedLength.includes(program.lengthBucket))
       )
         return false
       if (
@@ -309,12 +314,9 @@ export default function TrainingClient({
         p.entryBar ? [p.entryBar] : []
       ),
       stipendCounts: countBy('stipend', p => (p.stipend ? [p.stipend] : [])),
-      lengthCounts: upcoming
-        ? countBy('length', p => {
-            const bucket = (p as TrainingProgram).lengthBucket
-            return bucket ? [bucket] : []
-          })
-        : {},
+      lengthCounts: countBy('length', p =>
+        p.lengthBucket ? [p.lengthBucket] : []
+      ),
       locationCounts: countBy('location', p => [
         p.isOnline ? 'Online' : 'In person',
       ]),
@@ -378,8 +380,8 @@ export default function TrainingClient({
     selectedEntryBar.length > 0 ||
     selectedStipend.length > 0 ||
     selectedLocation.length > 0 ||
-    (mode === 'upcoming' &&
-      (selectedStatus.length > 0 || selectedLength.length > 0))
+    selectedLength.length > 0 ||
+    (mode === 'upcoming' && selectedStatus.length > 0)
 
   const renderCard = (program: ProgramBase) => (
     <ListingCard
@@ -492,15 +494,13 @@ export default function TrainingClient({
           counts={stipendCounts}
           onToggle={v => toggleFilter(v, selectedStipend, setSelectedStipend)}
         />
-        {mode === 'upcoming' && (
-          <FilterDropdown
-            title="Length"
-            options={[...LENGTH_BUCKETS]}
-            selected={selectedLength}
-            counts={lengthCounts}
-            onToggle={v => toggleFilter(v, selectedLength, setSelectedLength)}
-          />
-        )}
+        <FilterDropdown
+          title="Length"
+          options={[...LENGTH_BUCKETS]}
+          selected={selectedLength}
+          counts={lengthCounts}
+          onToggle={v => toggleFilter(v, selectedLength, setSelectedLength)}
+        />
         <FilterDropdown
           title="Location"
           options={locationOptions}

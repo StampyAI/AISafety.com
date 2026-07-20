@@ -156,13 +156,13 @@
   cursor: pointer;
 }
 
-/* Current page ("you are here") — the resting 30%-alpha green border lit up
+/* Current page ("you are here") — the resting 30%-alpha teal border lit up
    to full strength, plus the hover fill made persistent. Same border width,
    so no layout shift; the existing transition animates the ring on route
    change. aria-current is set in the JSX, one link at a time. */
 .nav-item[aria-current='page'],
 .nav-dropdown-item[aria-current='page'] {
-  border-color: var(--bright-green);
+  border-color: var(--bright-teal-300);
   background-color: var(--teal-850);
 }
 
@@ -177,7 +177,7 @@
 /* Ring-only hint on the +N pill when the current page's link is hidden
    inside the overflow dropdown. */
 .nav-item-last[data-active-inside] {
-  border-color: var(--bright-green);
+  border-color: var(--bright-teal-300);
 }
 
 .nav-search-button {

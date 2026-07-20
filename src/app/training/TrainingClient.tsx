@@ -1,7 +1,15 @@
 'use client'
 
-import { useMemo, useRef, useState, useLayoutEffect } from 'react'
+import {
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useLayoutEffect,
+} from 'react'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
@@ -198,6 +206,32 @@ function ModeToggle({
   )
 }
 
+// The active set is shareable: the non-default tab writes ?view= to the
+// address bar, the default keeps the bare URL. replaceState (not push) so
+// toggling never stacks history entries; history.state is passed through
+// untouched because Next.js keeps its routing internals there.
+function syncViewParam(next: Mode) {
+  const url = new URL(window.location.href)
+  if (next === 'upcoming') url.searchParams.delete('view')
+  else url.searchParams.set('view', next)
+  window.history.replaceState(window.history.state, '', url)
+}
+
+// Mirrors the URL back into state — reactively, not just on mount, because a
+// soft navigation can rewrite the query string without remounting the page
+// (e.g. clicking the nav's link for the page you're already on strips ?view=,
+// and the old set would stay up while the bare URL promises the default).
+// Lives in its own null-rendering leaf behind a Suspense boundary so
+// useSearchParams doesn't bail the statically-generated page out to client
+// rendering. Layout effect so a shared link swaps sets before first paint.
+function ViewParamSync({ onView }: { onView: (view: string | null) => void }) {
+  const view = useSearchParams().get('view')
+  useLayoutEffect(() => {
+    onView(view)
+  }, [view, onView])
+  return null
+}
+
 export default function TrainingClient({
   programs,
   recurring,
@@ -205,10 +239,17 @@ export default function TrainingClient({
   const [mode, setMode] = useState<Mode>('upcoming')
   const toggleAnchorRef = useRef<HTMLDivElement>(null)
 
+  // URL -> state, fed by ViewParamSync below. Unknown values fall through to
+  // the default; a deep link doesn't auto-scroll the way a click does.
+  const applyViewParam = useCallback((view: string | null) => {
+    setMode(view === 'recurring' ? 'recurring' : 'upcoming')
+  }, [])
+
   // Switching sets replaces the whole grid, so jump back to the top of the
   // listings (just below the global nav) for the new set.
   function switchMode(next: Mode) {
     setMode(next)
+    syncViewParam(next)
     scrollToAnchor(toggleAnchorRef.current)
   }
 
@@ -408,6 +449,9 @@ export default function TrainingClient({
 
   return (
     <>
+      <Suspense fallback={null}>
+        <ViewParamSync onView={applyViewParam} />
+      </Suspense>
       {/* Sticky so it's always clear which of the two program sets is shown */}
       <div ref={toggleAnchorRef} aria-hidden="true" />
       <StickyBar className="margin-bottom-32px">

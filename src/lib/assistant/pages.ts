@@ -170,11 +170,11 @@ export const PAGES: PageInfo[] = [
       'An overview of the key organizations, programs, and projects operating in the AI safety space.',
     audience: 'Anyone who wants a bird-eye view of the ecosystem.',
     greeting:
-      'Looking for orgs working on a specific area of AI safety? I can find them by category or focus.',
+      'Exploring the AI safety landscape? I can find orgs, projects, media, and more by category or focus.',
     chips: [
       'Alignment research orgs',
       'Advocacy organizations',
-      'Career-support orgs',
+      'Blogs and podcasts',
     ],
   },
   {

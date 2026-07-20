@@ -38,24 +38,45 @@ export default function StickyBar({
   className?: string
 }) {
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
   const [stuck, setStuck] = useState(false)
 
   useEffect(() => {
     const sentinel = sentinelRef.current
-    if (!sentinel) return
-    const observer = new IntersectionObserver(([entry]) =>
-      // Stuck once the sentinel has left past the TOP of the viewport —
-      // leaving past the bottom (page load, before scrolling) doesn't count.
-      setStuck(!entry.isIntersecting && entry.boundingClientRect.top < 0)
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
+    const bar = barRef.current
+    if (!sentinel || !bar) return
+    // Stuck = the bar is pinned away from its natural spot: the sentinel
+    // (which marks that spot) has passed above the bar's sticky top line.
+    // That line is usually 0 but grows to the nav's bottom edge while the
+    // nav is showing — so the bar can be pushed down (and need its backdrop)
+    // even before the page has scrolled past it. An IntersectionObserver
+    // against the viewport can't see that case.
+    const check = () => {
+      const stickyTop = parseFloat(getComputedStyle(bar).top) || 0
+      setStuck(sentinel.getBoundingClientRect().top < stickyTop)
+    }
+    check()
+    window.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('resize', check)
+    // Re-check when the nav publishes a new --nav-offset (set as an inline
+    // style on <html> every frame of its slide).
+    const observer = new MutationObserver(check)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style'],
+    })
+    return () => {
+      window.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+      observer.disconnect()
+    }
   }, [])
 
   return (
     <>
       <div ref={sentinelRef} aria-hidden="true" />
       <div
+        ref={barRef}
         className={`${styles.bar} ${stuck ? styles.stuck : ''}${className ? ` ${className}` : ''}`}
       >
         {children}

@@ -70,7 +70,9 @@ function durationLabel(
     return years === 1 ? '1 year' : `${years} years`
   }
   const months = Math.round(days / 30.44)
-  if (months >= 1 && Math.abs(days - months * 30.44) <= 4) {
+  // Anything over 8 weeks reads better in months ("33 weeks" -> "8 months");
+  // under that, use months only when the span is within days of a whole month.
+  if (days > 56 || (months >= 1 && Math.abs(days - months * 30.44) <= 4)) {
     return months === 1 ? '1 month' : `${months} months`
   }
   if (days >= 14) {

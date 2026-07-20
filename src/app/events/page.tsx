@@ -31,7 +31,7 @@ export default async function EventsPage() {
           />
           <Link href="/training" className="paragraph-small color-teal-300">
             For fellowships, bootcamps, and courses go to{' '}
-            <span className="color-white">Training</span> &rarr;
+            <span className="color-white">Training programs</span>&nbsp;&rarr;
           </Link>
         </div>
 

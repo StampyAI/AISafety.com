@@ -30,6 +30,9 @@ interface TrackPayload {
    *  reuse it: how the modal was opened (search_open), the active type filter
    *  (search_query), or the clicked result's type (search_click). */
   source?: string
+  /** The map-area dimension — the listing's FIRST category, stamped on
+   *  Map-page clicks and hovers so the dashboard can slice the map by area. */
+  area?: string
   /** Site-search events: the query text as typed. */
   query?: string
   /** search_query only: how many results the query returned. */
@@ -127,7 +130,8 @@ function sendTrackEvent(payload: TrackPayload): void {
  * Track a click on a listing (funder, job, event, course, etc.).
  * Matomo category is "Listings - <page>" to match the legacy Webflow format.
  * `listingId` is the Airtable record id when available, so clicks can be joined
- * back to the exact source record.
+ * back to the exact source record. `area` is the listing's first category —
+ * stamped on Map-page clicks only, where areas are how the map is grouped.
  */
 export function trackListingClick(
   page: string,
@@ -135,7 +139,8 @@ export function trackListingClick(
   url: string,
   listingId?: string,
   position?: string,
-  source?: string
+  source?: string,
+  area?: string
 ): void {
   if (typeof window === 'undefined') return
   // Opted-out browsers skip Matomo too, so the owner's clicks stay out of both.
@@ -149,6 +154,34 @@ export function trackListingClick(
     listingId,
     position,
     source,
+    area,
+  })
+}
+
+/**
+ * Track a hover on a map listing: on desktop the cursor rested on it for
+ * 500 ms, on mobile the first tap that opened its tooltip. First-party beacon
+ * only — no Matomo event, since hovers are a dashboard-only signal. `source`
+ * is always 'map': hovers can only happen on the map surface, never on cards.
+ * `area` is the listing's first category (stamped on the Map page only).
+ * Opt-out isn't checked here — sendTrackEvent already does that itself.
+ */
+export function trackListingHover(
+  page: string,
+  name: string,
+  url?: string,
+  listingId?: string,
+  area?: string
+): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({
+    type: 'listing_hover',
+    page,
+    label: name,
+    url,
+    listingId,
+    area,
+    source: 'map',
   })
 }
 

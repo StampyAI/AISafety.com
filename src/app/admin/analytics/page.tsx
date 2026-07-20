@@ -8,6 +8,7 @@ import {
   type ChatbotFunnel,
   type ClickDestination,
   type CorrelationRow,
+  type ListingRow,
   type OverallListingRow,
   type SearchPanelData,
 } from '@/lib/analytics/events'
@@ -31,7 +32,7 @@ import { getCommunities } from '@/lib/data/communities'
 import { getMediaChannels } from '@/lib/data/media-channels'
 import { getFounderResources } from '@/lib/data/founders'
 import { getJobs } from '@/lib/data/jobs'
-import { getMapData } from '@/lib/data/map'
+import { getMapData, type MapOrg } from '@/lib/data/map'
 import { getProjects } from '@/lib/data/projects'
 import DateRangePicker from './DateRangePicker'
 import ExcludeToggle from './ExcludeToggle'
@@ -80,6 +81,11 @@ const OVERVIEW_TABS: { key: string; label: string }[] = [
   { key: 'correlations', label: 'Correlations' },
 ]
 const OVERVIEW_KEYS = new Set(OVERVIEW_TABS.map(t => t.key))
+
+// Pages with a map (mirrors MAP_PAGES in the events store). Only these emit
+// listing_hover events, so only their tabs get the hovered-listings panel —
+// and only Map has areas, so the by-area rollup is Map-only.
+const MAP_PAGES = new Set(['Map', 'Communities'])
 
 // Bryce is in Colombia — fixed UTC-5, no DST — so day boundaries use -05:00.
 const TZ_OFFSET = '-05:00'
@@ -139,7 +145,9 @@ function resolveRange(sp: SearchParams): ResolvedRange {
 /** Real Airtable logos for the selected page's listings, keyed by the exact
  *  label each click was tracked under, so the top-listings table shows proper
  *  logos instead of favicons. Returns an empty map (→ favicons) on any error or
- *  for pages without listing data. */
+ *  for pages without listing data. The Map page isn't handled here — its
+ *  caller builds the logo map itself, from records it already fetched for the
+ *  by-area panel. */
 async function logosForPage(
   page: string | null
 ): Promise<Map<string, string | null>> {
@@ -165,8 +173,6 @@ async function logosForPage(
         return new Map(
           (await getJobs()).map(i => [`${i.name} – ${i.organization}`, i.logo])
         )
-      case 'Map':
-        return new Map((await getMapData()).records.map(i => [i.title, i.logo]))
       default:
         return new Map()
     }
@@ -186,6 +192,54 @@ function faviconFor(url?: string): string | undefined {
   } catch {
     return undefined
   }
+}
+
+/** The Map tab's per-area rollups: the page's clicks and hovers bucketed by
+ *  map area — one list per metric, each sorted by its own count. Newer events
+ *  carry their area stamped at click/hover time (what the visitor actually
+ *  saw); older rows are resolved against the current map records — by record
+ *  id, then exact name, then url — so history from before area tracking still
+ *  lands in the right bucket. Rows that match a record with no category show
+ *  as 'Other'; rows that match nothing (the listing was removed or renamed
+ *  since) show as 'No longer listed'. */
+function areaBreakdown(
+  clicks: ListingRow[],
+  hovers: ListingRow[],
+  records: MapOrg[]
+): { clicks: Counted[]; hovers: Counted[] } {
+  const byId = new Map(records.map(r => [r.id, r]))
+  // A record answers to both of its display names: card clicks are tracked
+  // under the card title, map tooltips under the (long) tooltip name.
+  const byName = new Map<string, MapOrg>()
+  for (const r of records) {
+    byName.set(r.title, r)
+    byName.set(r.tooltipTitle, r)
+  }
+  // '#' is the map's placeholder for a missing link, not a real url.
+  const byUrl = new Map(
+    records.filter(r => r.link && r.link !== '#').map(r => [r.link, r])
+  )
+  const areaOf = (row: ListingRow): string => {
+    if (row.area) return row.area
+    const rec =
+      (row.listingId ? byId.get(row.listingId) : undefined) ??
+      byName.get(row.name) ??
+      (row.url && row.url !== '#' ? byUrl.get(row.url) : undefined)
+    if (!rec) return 'No longer listed'
+    // The map files each listing under its first category — that's its area.
+    return rec.category.split(',')[0].trim() || 'Other'
+  }
+  const tally = (rows: ListingRow[]): Counted[] => {
+    const areas = new Map<string, number>()
+    for (const row of rows) {
+      const name = areaOf(row)
+      areas.set(name, (areas.get(name) ?? 0) + row.count)
+    }
+    return [...areas.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  }
+  return { clicks: tally(clicks), hovers: tally(hovers) }
 }
 
 /** A row's resource-page marker in the clicked-from-search table: the page's
@@ -427,20 +481,45 @@ export default async function AnalyticsPage({
   const tabKeys = new Set<string>([...OVERVIEW_KEYS, ...resourceNames])
   const activeTab = tabReq && tabKeys.has(tabReq) ? tabReq : 'pages'
   const onResourceView = !OVERVIEW_KEYS.has(activeTab)
-  const selectedLabel = data.selectedPage
-    ? (labelByPage.get(data.selectedPage) ?? data.selectedPage)
-    : null
+
+  // The Map tab needs the live map records twice — the by-area panel joins
+  // clicks and hovers back to them, and the logo maps below read from them —
+  // so they're fetched once here and shared. On error the tab degrades (area
+  // rows fall to 'No longer listed', logos to favicons) with a warning rather
+  // than taking the dashboard down.
+  const mapRecords: MapOrg[] =
+    data.selectedPage === 'Map'
+      ? await getMapData()
+          .then(d => d.records)
+          .catch(err => {
+            console.warn(
+              `[analytics] map data unavailable for the Map tab panels: ${
+                err instanceof Error ? err.message : String(err)
+              }`
+            )
+            return []
+          })
+      : []
 
   // logoById drives the recent-activity feed (funding listings, by record id).
   // logoByName drives the top-listings table for the selected page, fetched from
   // that page's Airtable data so every page shows real logos — not just funding.
-  // Funding reuses the already-fetched funders. Only needed on a resource view.
+  // Funding reuses the already-fetched funders, Map the already-fetched map
+  // records — keyed by both display names a Map event can be tracked under
+  // (card title and tooltip name). Only needed on a resource view.
   const logoById = new Map(funders.map(f => [f.id, f.logo]))
   const logoByName = !onResourceView
     ? new Map<string, string | null>()
     : data.selectedPage === 'Funding'
       ? new Map<string, string | null>(funders.map(f => [f.name, f.logo]))
-      : await logosForPage(data.selectedPage)
+      : data.selectedPage === 'Map'
+        ? new Map<string, string | null>(
+            mapRecords.flatMap((r): [string, string | null][] => [
+              [r.tooltipTitle, r.logo],
+              [r.title, r.logo],
+            ])
+          )
+        : await logosForPage(data.selectedPage)
 
   // Per-listing slot range + a url for the favicon, keyed by display name, for
   // whichever page is selected. The slot is stamped onto the click when it
@@ -450,6 +529,23 @@ export default async function AnalyticsPage({
     data.topListings.map(r => [r.name, r.position])
   )
   const urlByName = new Map(data.topListings.map(r => [r.name, r.url]))
+
+  // Same url lookup for the hovered-listings table — hover rows carry their
+  // own urls, independent of the click rows above.
+  const hoverUrlByName = new Map(data.topHovered.map(r => [r.name, r.url]))
+  // Every hover is by definition from the map, so hovers aren't split by
+  // source and the table's % denominator is simply the sum of its rows.
+  const hoverTotal = data.topHovered.reduce((sum, r) => sum + r.count, 0)
+  // The Map tab's by-area rollups (empty on every other tab). Built from
+  // areaClicks, not topListings — topListings narrows to the active ?source
+  // filter while hovers never do, and the two area panels should stay
+  // comparable side by side.
+  const areaData =
+    data.selectedPage === 'Map'
+      ? areaBreakdown(data.areaClicks, data.topHovered, mapRecords)
+      : { clicks: [] as Counted[], hovers: [] as Counted[] }
+  const areaClickTotal = areaData.clicks.reduce((sum, r) => sum + r.count, 0)
+  const areaHoverTotal = areaData.hovers.reduce((sum, r) => sum + r.count, 0)
 
   // Chart totals (also the % denominators). The listings total is the selected
   // page's whole click count, not just the rows currently revealed.
@@ -645,13 +741,9 @@ export default async function AnalyticsPage({
                 params={sp}
               />
               <div className={styles.grid}>
-                <Panel
-                  title={
-                    selectedLabel
-                      ? `Top ${selectedLabel} listings`
-                      : 'Top listings'
-                  }
-                >
+                {/* Titles skip the page name — the active tab already says
+                    which page these panels describe. */}
+                <Panel title="Top listings">
                   <CountTable
                     rows={data.topListings}
                     labelHead="Listing"
@@ -682,12 +774,64 @@ export default async function AnalyticsPage({
                   </p>
                 </Panel>
               </div>
+              {data.selectedPage === 'Map' && (
+                <div className={styles.grid}>
+                  <Panel title="Clicks by area">
+                    <CountTable
+                      rows={areaData.clicks}
+                      labelHead="Area"
+                      total={areaClickTotal}
+                    />
+                    <p className={styles.caption}>
+                      An area is the listing&apos;s first category. Clicks
+                      recorded before areas were tracked are matched against
+                      the current map listings – anything that no longer
+                      matches shows as No longer listed.
+                    </p>
+                  </Panel>
+                  <Panel title="Hovers by area">
+                    <CountTable
+                      rows={areaData.hovers}
+                      labelHead="Area"
+                      countHead="Hovers"
+                      total={areaHoverTotal}
+                    />
+                  </Panel>
+                </div>
+              )}
+              {data.selectedPage != null &&
+                MAP_PAGES.has(data.selectedPage) && (
+                  <div className={styles.grid}>
+                    <Panel title="Top hovered listings">
+                      {/* Stays 'Hovers' in unique mode: the count is one per
+                          visitor per DAY summed across days, not distinct
+                          users — same reason the sibling table keeps 'Clicks'.
+                          'Users' is reserved for true per-visitor tallies. */}
+                      <CountTable
+                        rows={data.topHovered}
+                        labelHead="Listing"
+                        countHead="Hovers"
+                        logoFor={name =>
+                          logoByName.get(name) ??
+                          faviconFor(hoverUrlByName.get(name))
+                        }
+                        linkFor={name => hoverUrlByName.get(name)}
+                        total={hoverTotal}
+                      />
+                      <p className={styles.caption}>
+                        A hover is recorded when the cursor rests on a map
+                        listing for half a second – or, on a phone, when a tap
+                        opens its tooltip.
+                      </p>
+                    </Panel>
+                  </div>
+                )}
             </div>
           )}
 
           {activeTab === 'pages' && (
             <div className={styles.grid}>
-              <Panel title="Most clicked listings overall">
+              <Panel title="Most clicked listings">
                 <OverallListingsTable
                   rows={overallListings}
                   total={totalClicks}
@@ -697,7 +841,7 @@ export default async function AnalyticsPage({
                   period. Open a page&apos;s tab for its own breakdown.
                 </p>
               </Panel>
-              <Panel title="Clicks by position overall">
+              <Panel title="Clicks by position">
                 <CountTable
                   rows={data.byPositionOverall}
                   labelHead="Slot"
@@ -1099,6 +1243,9 @@ function CountTable({
   )
 }
 
+/** The Map tab's per-area table: one row per map area with clicks and hovers
+ *  side by side. Two count columns, so CountTable doesn't fit; area counts are
+ *  bounded by the map's category list, so no show-more truncation either. */
 /** The Overview tab's site-wide listings leaderboard. Like CountTable, but each
  *  row carries the page it came from (shown as a pill) and always uses a favicon
  *  — listings here span every page, so there's no single page's logos to load.

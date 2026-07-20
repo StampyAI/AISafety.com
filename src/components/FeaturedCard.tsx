@@ -15,6 +15,9 @@ interface FeaturedCardProps {
   logo?: string
   metadata: MetadataField[]
   trackingPage: string
+  /** Airtable record id of the featured listing, recorded with the click so it
+   *  can be joined back to the source record. */
+  trackingId?: string
   /** Slot this featured card occupies ('F1'/'F2'), recorded with the click. */
   trackingPosition?: string
   /** Click source ('cards' on map pages), so map vs card clicks can be split. */
@@ -29,6 +32,7 @@ export default function FeaturedCard({
   logo,
   metadata,
   trackingPage,
+  trackingId,
   trackingPosition,
   trackingSource,
 }: FeaturedCardProps) {
@@ -97,6 +101,7 @@ export default function FeaturedCard({
       className="flex flex-col-mobile"
       trackingPage={trackingPage}
       trackingName={name}
+      trackingId={trackingId}
       trackingPosition={trackingPosition}
       trackingSource={trackingSource}
     >

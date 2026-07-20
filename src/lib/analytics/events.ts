@@ -46,6 +46,9 @@ export interface AnalyticsEvent {
    *  ('button' | 'cmd-k' | 'slash'); on search_query, the active type filter;
    *  on search_click, the clicked result's type ('job', 'funder', …). */
   source?: string
+  /** The map-area dimension — the listing's first category, stamped on
+   *  Map-page clicks and hovers so the dashboard can slice the map by area. */
+  area?: string
   /** Site-search events: the query text as typed — the subject of a
    *  search_query, and on a search_click the query that produced the result. */
   query?: string
@@ -68,6 +71,9 @@ export interface AnalyticsEvent {
 export const ALLOWED_EVENT_TYPES = new Set<string>([
   'page_view',
   'listing_click',
+  // A visitor resting on a map listing (Map, Communities): a 500 ms cursor
+  // dwell on desktop, or the tap that opens the tooltip on mobile.
+  'listing_hover',
   'chatbot_open',
   'chatbot_message',
   'chatbot_click',
@@ -264,6 +270,12 @@ export interface ListingRow extends Counted {
   /** A representative destination url (most recent click) — lets the dashboard
    *  show a favicon for pages whose listings have no Airtable logo. */
   url?: string
+  /** Airtable record id, from the most recent event in range that carried one
+   *  — the stable join key back to the source record. */
+  listingId?: string
+  /** The listing's first category (the map-area dimension), from the most
+   *  recent event in range that carried one. Map-page rows only. */
+  area?: string
 }
 
 export interface OverallListingRow extends Counted {
@@ -389,6 +401,18 @@ export interface DashboardData {
   /** The source the per-listing panels are filtered to ('map' | 'cards' |
    *  'untracked'), or null for all sources. Only ever set on map pages. */
   selectedSource: string | null
+  /** For pages with a map (Map, Communities): `selectedPage`'s most-hovered
+   *  map listings — tooltip dwells (500 ms cursor rest on desktop, first tap
+   *  on mobile), grouped like `topListings` and following the same unique/
+   *  total count mode. Never narrowed by `selectedSource` (every hover is by
+   *  definition from the map). Empty for pages without a map. */
+  topHovered: ListingRow[]
+  /** The Map tab's by-area rollup input: the page's clicks per listing with
+   *  the `selectedSource` filter ignored, so the rollup's click column shares
+   *  a basis with `topHovered` (which is never source-narrowed). Same rows as
+   *  `topListings` when no source is selected. Empty for every page but Map —
+   *  only the Map page has areas. */
+  areaClicks: ListingRow[]
   funnel: ChatbotFunnel
   /** The Chatbot tab's event-derived panels (opens and reply clicks). */
   chatbot: ChatbotPanelData
@@ -404,8 +428,8 @@ export interface DashboardData {
   /** Cross-interest overlaps between pages (and the chatbot), from anonymous
    *  visitor ids: pairs ranked by how many visitors engaged with both. */
   correlations: CorrelationRow[]
-  /** Recent clicks and chatbot/search events — page views are excluded so the
-   *  feed stays an activity log rather than a firehose. */
+  /** Recent clicks and chatbot/search events — page views and map hovers are
+   *  excluded so the feed stays an activity log rather than a firehose. */
   recent: AnalyticsEvent[]
   /** Timestamp of the oldest event in the WHOLE store (not just the selected
    *  range) — lets the dashboard say how far back its data actually goes.
@@ -428,6 +452,8 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   byPositionOverall: [],
   bySource: [],
   selectedSource: null,
+  topHovered: [],
+  areaClicks: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
   chatbot: { opensByPage: [], destinations: [] },
   search: {
@@ -497,8 +523,10 @@ function tallyPositions(positions: string[]): Counted[] {
     .sort((a, b) => positionSortKey(a.name) - positionSortKey(b.name))
 }
 
-/** Collapse repeat clicks so a visitor counts once per listing per day: keep
- *  only the most recent click per (visitor, day, page, listing). The day uses
+/** Collapse repeat events so a visitor counts once per listing per day: keep
+ *  only the most recent event per (visitor, day, page, listing). Used for
+ *  listing clicks, and by topHovered for map hovers — same key, same
+ *  semantics, and the two types are always deduped separately. The day uses
  *  Bryce's timezone (UTC-5), matching the date-range bounds. Clicks with no id
  *  (e.g. private browsing, where we can't tell visitors apart) are each kept.
  *  Expects a newest-first list, so the first time a key is seen is the most
@@ -521,6 +549,50 @@ function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
     out.push(e)
   }
   return out
+}
+
+/** Group events into one row per listing, ranked by count: the range of slots
+ *  it was hit at (from positions stamped at event time — hover events carry
+ *  none, so their rows get no slot) plus a representative url/id/area. Expects
+ *  a newest-first list, so the first url/id/area seen for a listing is the
+ *  most recent — older events only fill fields still missing. */
+function listingRows(events: AnalyticsEvent[]): ListingRow[] {
+  const perListing = new Map<
+    string,
+    {
+      count: number
+      positions: string[]
+      url?: string
+      listingId?: string
+      area?: string
+    }
+  >()
+  for (const e of events) {
+    const k = listingMember(e)
+    const g = perListing.get(k) ?? {
+      count: 0,
+      positions: [],
+      url: e.url,
+      listingId: e.listingId,
+      area: e.area,
+    }
+    g.count += 1
+    if (e.position) g.positions.push(e.position)
+    if (!g.url && e.url) g.url = e.url
+    if (!g.listingId && e.listingId) g.listingId = e.listingId
+    if (!g.area && e.area) g.area = e.area
+    perListing.set(k, g)
+  }
+  return [...perListing.entries()]
+    .map(([name, g]) => ({
+      name,
+      count: g.count,
+      position: positionRange(g.positions),
+      url: g.url,
+      listingId: g.listingId,
+      area: g.area,
+    }))
+    .sort((a, b) => b.count - a.count)
 }
 
 /** Aggregate a newest-first event list into the dashboard view, filtered to the
@@ -581,32 +653,12 @@ function aggregate(
   // For the selected page: total clicks per listing, the range of slots each was
   // clicked at (from positions stamped at click time, so it's period-accurate
   // even as the page is reordered), and a representative url for its favicon.
-  const pageClicksAll = clicks.filter(e => e.page === selectedPage)
-  const pageClicks = pageClicksAll.filter(matchesSource)
-  const perListing = new Map<
-    string,
-    { count: number; positions: string[]; url?: string }
-  >()
-  for (const e of pageClicks) {
-    // pageClicks is newest-first, so the first url we see is the most recent.
-    const k = listingMember(e)
-    const g = perListing.get(k) ?? { count: 0, positions: [], url: e.url }
-    g.count += 1
-    if (e.position) g.positions.push(e.position)
-    if (!g.url && e.url) g.url = e.url
-    perListing.set(k, g)
-  }
   // Every listing for the page, ranked by clicks — the dashboard shows the first
   // 50 and lets the user reveal more, so we return the full list rather than a
   // fixed top-N here.
-  const topListings: ListingRow[] = [...perListing.entries()]
-    .map(([name, g]) => ({
-      name,
-      count: g.count,
-      position: positionRange(g.positions),
-      url: g.url,
-    }))
-    .sort((a, b) => b.count - a.count)
+  const pageClicksAll = clicks.filter(e => e.page === selectedPage)
+  const pageClicks = pageClicksAll.filter(matchesSource)
+  const topListings: ListingRow[] = listingRows(pageClicks)
 
   // Site-wide leaderboards, independent of the selected page: the most-clicked
   // listings and the busiest slots across every page. Keyed by page+listing so
@@ -658,6 +710,34 @@ function aggregate(
     ].filter(r => r.count > 0)
   }
 
+  // Most-hovered map listings for the selected page — tooltip dwells
+  // (listing_hover events), grouped exactly like topListings but with no
+  // position (hovers aren't slotted) and no source narrowing (every hover is
+  // by definition from the map, so the ?source filter would be a no-op at
+  // best and confusing at worst). Follows the unique/total count mode via the
+  // same per-visitor-per-day dedupe as clicks. Map pages only — no other page
+  // emits hover events.
+  let topHovered: ListingRow[] = []
+  if (isMapPage) {
+    const hoverHits = inRange.filter(e => e.type === 'listing_hover' && e.page)
+    const hovers = (unique ? uniqueClicks(hoverHits) : hoverHits).filter(
+      e => e.page === selectedPage
+    )
+    topHovered = listingRows(hovers)
+  }
+
+  // The Map tab's by-area rollup compares clicks against hovers per area, and
+  // topHovered is never source-narrowed — so its click side must ignore the
+  // ?source filter too, or the two columns quietly stop sharing a basis the
+  // moment a source is selected. Same rows as topListings when no source is
+  // selected; empty on every other page (only the Map page has areas).
+  const areaClicks: ListingRow[] =
+    selectedPage === 'Map'
+      ? selectedSource
+        ? listingRows(pageClicksAll)
+        : topListings
+      : []
+
   return {
     totalEvents: inRange.length,
     byPage,
@@ -670,6 +750,8 @@ function aggregate(
     byPositionOverall,
     bySource,
     selectedSource,
+    topHovered,
+    areaClicks,
     funnel: {
       opened: usersOf('chatbot_open'),
       typed: usersOf('chatbot_message'),
@@ -680,9 +762,12 @@ function aggregate(
     optOuts: optOutSplit(inRange),
     visits: visitsData(inRange, unique),
     correlations: correlations(inRange),
-    // Newest-first already; page views are left out so the feed stays a log
-    // of actions rather than a firehose of visits.
-    recent: inRange.filter(e => e.type !== 'page_view').slice(0, 50),
+    // Newest-first already; page views and map hovers are left out so the
+    // feed stays a log of deliberate actions rather than a firehose of visits
+    // and passing cursors.
+    recent: inRange
+      .filter(e => e.type !== 'page_view' && e.type !== 'listing_hover')
+      .slice(0, 50),
   }
 }
 

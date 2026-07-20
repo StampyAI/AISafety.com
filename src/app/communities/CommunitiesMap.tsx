@@ -6,7 +6,7 @@ import Image from 'next/image'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
 import { positionTooltip } from '@/lib/mapTooltip'
-import { trackListingClick } from '@/lib/analytics'
+import { trackListingClick, trackListingHover } from '@/lib/analytics'
 
 interface CommunitiesMapProps {
   communities: Community[]
@@ -54,6 +54,9 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         else if (typeStr.includes('continent') || typeStr.includes('global'))
           locationType = 'continent'
         return {
+          // Airtable record id — lets analytics join map interactions back
+          // to the exact source record.
+          id: c.id,
           name: c.name,
           description: c.description,
           type: locationType,
@@ -198,6 +201,20 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       let hoveredPinId: number | null = null
       let tappedPinId: number | null = null
 
+      // Pending hover-analytics dwell. A desktop hover only counts once the
+      // cursor has rested on a pin for 500 ms — the timer restarts when the
+      // cursor enters a new pin and is canceled whenever it leaves the pins
+      // (mouseleave or the empty-features branch below), so drive-by mouse
+      // passes across the map don't record.
+      let hoverTimer: ReturnType<typeof setTimeout> | null = null
+
+      function cancelHoverTimer() {
+        if (hoverTimer !== null) {
+          clearTimeout(hoverTimer)
+          hoverTimer = null
+        }
+      }
+
       const geojsonData = {
         type: 'FeatureCollection' as const,
         features: mapCommunities.map((community, index) => ({
@@ -205,6 +222,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           id: index,
           properties: {
             id: index,
+            // Distinct name on purpose — `id` above is the feature index
+            // that the hover/tap state machine keys on; `recordId` is the
+            // Airtable record id that analytics reports.
+            recordId: community.id,
             name: community.name,
             description: community.description,
             type: community.type,
@@ -325,6 +346,8 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             resetHover()
             hoveredPinId = null
             tooltip.style.display = 'none'
+            // Cursor slid off the pins — an unfinished dwell doesn't count.
+            cancelHoverTimer()
           }
           return
         }
@@ -339,11 +362,26 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           hoveredPinId = currentFeatureId
           tooltip.innerHTML = buildTooltipHTML(feature.properties)
           tooltip.style.display = 'block'
+          // Restart the hover dwell — entering a new pin (including moving
+          // straight from one pin onto another) resets the 500 ms clock.
+          cancelHoverTimer()
+          const props = feature.properties
+          hoverTimer = setTimeout(() => {
+            hoverTimer = null
+            trackListingHover(
+              'Communities',
+              props?.name ?? '',
+              props?.link || undefined,
+              props?.recordId || undefined
+            )
+          }, 500)
         }
         updateTooltipPosition(e, tooltip, mapContainer)
       })
 
       map.on('mouseleave', 'community-pins', () => {
+        // Leaving before the dwell elapses means it wasn't a real hover.
+        cancelHoverTimer()
         if (isMobile()) return
         if (hoveredPinId !== null) {
           map.getCanvas().style.cursor = ''
@@ -382,7 +420,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
               'Communities',
               feature.properties?.name,
               link,
-              undefined,
+              feature.properties?.recordId || undefined,
               undefined,
               'map'
             )
@@ -407,7 +445,21 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             'data-link-title',
             feature.properties?.name || ''
           )
+          // Stash the record id too, so the tooltip-tap click below can
+          // report it — that handler has no feature in scope.
+          tooltip.setAttribute(
+            'data-listing-id',
+            feature.properties?.recordId || ''
+          )
           tooltip.style.display = 'block'
+          // A mobile "hover" is the first tap that opens the tooltip —
+          // there's no cursor to dwell, so it counts immediately.
+          trackListingHover(
+            'Communities',
+            feature.properties?.name ?? '',
+            link || undefined,
+            feature.properties?.recordId || undefined
+          )
         }
         updateTooltipPosition(e, tooltip, mapContainer)
       })
@@ -429,7 +481,8 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
                 'Communities',
                 title,
                 lnk,
-                undefined,
+                // Stashed on the tooltip by the first tap.
+                tooltip.getAttribute('data-listing-id') || undefined,
                 undefined,
                 'map'
               )
@@ -479,6 +532,8 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
       // Store cleanup function for useEffect teardown
       cleanupRef.current = () => {
+        // A pending hover dwell must not fire after unmount.
+        cancelHoverTimer()
         tooltip.removeEventListener('click', handleTooltipClick)
         document.removeEventListener('click', handleDocumentClick)
         resizeObserver.disconnect()

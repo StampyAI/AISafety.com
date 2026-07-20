@@ -55,6 +55,7 @@ export default async function FundingPage() {
                   },
                 ]}
                 trackingPage="Funding"
+                trackingId={funder.id}
                 trackingPosition={`F${funder.featured}`}
               />
             ))}

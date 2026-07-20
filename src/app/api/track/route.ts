@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
     label: str(b.label, 300),
     position: str(b.position, 16),
     source: str(b.source, 16),
+    area: str(b.area, 64),
     query: str(b.query, 200),
     results: count(b.results, 100_000),
     url: str(b.url, 600),

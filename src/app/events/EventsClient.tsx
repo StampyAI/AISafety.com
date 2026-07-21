@@ -29,7 +29,17 @@ const AIRTABLE_VIEW_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
 
 const applicationOptions = ['Open', 'Closed']
-const costOptions = ['Free', 'Paid', 'Paid (Stipend Available)']
+// Cards show the full Airtable Cost value ("Pay to attend (assistance
+// available)", "Free (cash prize available)", …); the filter collapses
+// them to two groups.
+const costOptions = ['Pay to attend', 'Free']
+
+function costGroup(cost: string): string {
+  if (cost.startsWith('Pay to attend')) return 'Pay to attend'
+  if (cost.startsWith('Free')) return 'Free'
+  console.warn(`Unknown Cost value from Airtable: ${cost}`)
+  return cost
+}
 
 type Mode = 'in-person' | 'online'
 
@@ -383,7 +393,7 @@ export default function EventsClient({ events }: EventsClientProps) {
         if (
           skip !== 'cost' &&
           selectedCost.length > 0 &&
-          !event.cost.some(c => selectedCost.includes(c))
+          !event.cost.some(c => selectedCost.includes(costGroup(c)))
         )
           return false
         if (
@@ -411,7 +421,7 @@ export default function EventsClient({ events }: EventsClientProps) {
         filteredEvents: modeEvents.filter(e => matchesFilters(e)),
         statusCounts: countBy('status', e => [e.applicationStatus]),
         typeCounts: countBy('type', e => e.type),
-        costCounts: countBy('cost', e => e.cost),
+        costCounts: countBy('cost', e => e.cost.map(costGroup)),
       }
     }, [
       modeEvents,

@@ -173,7 +173,20 @@ export default function SearchModal({
             `[data-result-index="${activeIndexRef.current}"]`
           )
           if (link) {
-            link.click()
+            if (e.metaKey || e.ctrlKey) {
+              // Cmd/Ctrl+Enter opens the result in a new tab. Borrow
+              // target=_blank on the real anchor for this one click so it
+              // stays an ad-blocker-safe anchor click (see note above).
+              const prevTarget = link.target
+              const prevRel = link.rel
+              link.target = '_blank'
+              link.rel = 'noopener noreferrer'
+              link.click()
+              link.target = prevTarget
+              link.rel = prevRel
+            } else {
+              link.click()
+            }
           } else {
             window.location.href = target.url
           }

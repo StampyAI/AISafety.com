@@ -497,11 +497,28 @@ export default function D3Map({ orgs }: D3MapProps) {
         svg.transition().duration(300).call(zoom.scaleBy, 0.75)
       }
     }
-    if (recenter) {
-      recenter.onclick = () => {
-        svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
-      }
+    const resetView = () => {
+      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
     }
+    if (recenter) {
+      recenter.onclick = resetView
+    }
+
+    // ESC resets the view, same as the recenter button. Skip while typing in
+    // a form field — ESC there shouldn't yank the map.
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      )
+        return
+      resetView()
+    }
+    document.addEventListener('keydown', handleEscKey)
 
     // Mobile: tapping the tooltip opens the stashed link in a new tab.
     const handleTooltipClick = (e: MouseEvent) => {
@@ -548,6 +565,7 @@ export default function D3Map({ orgs }: D3MapProps) {
       svgNode.removeEventListener('wheel', preventPageZoom)
       if (tooltipEl) tooltipEl.removeEventListener('click', handleTooltipClick)
       document.removeEventListener('click', handleDocumentClick)
+      document.removeEventListener('keydown', handleEscKey)
       if (container) {
         d3.select(container).select('svg').remove()
       }

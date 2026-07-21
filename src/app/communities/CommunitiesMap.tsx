@@ -107,6 +107,17 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     const resizeObserver = new ResizeObserver(() => map.resize())
     resizeObserver.observe(mapContainer)
 
+    const resetMapView = () => {
+      map.flyTo({
+        center: initialCenter,
+        zoom: initialZoom,
+        bearing: 0,
+        pitch: 0,
+        duration: 500,
+        essential: true,
+      })
+    }
+
     // Repurpose Mapbox's compass button as a "reset map view" button.
     // addControl synchronously inserts the compass into the DOM, so this
     // runs reliably without depending on the map 'load' event or pin image
@@ -131,14 +142,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         ev => {
           ev.preventDefault()
           ev.stopPropagation()
-          map.flyTo({
-            center: initialCenter,
-            zoom: initialZoom,
-            bearing: 0,
-            pitch: 0,
-            duration: 500,
-            essential: true,
-          })
+          resetMapView()
         },
         true
       )
@@ -527,8 +531,24 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         }
       }
 
+      // ESC resets the view, same as the reset button. Skip while typing in
+      // a form field — ESC there shouldn't yank the map.
+      const handleEscKey = function (e: KeyboardEvent) {
+        if (e.key !== 'Escape') return
+        const target = e.target as HTMLElement | null
+        if (
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable)
+        )
+          return
+        resetMapView()
+      }
+
       tooltip.addEventListener('click', handleTooltipClick)
       document.addEventListener('click', handleDocumentClick)
+      document.addEventListener('keydown', handleEscKey)
 
       // Store cleanup function for useEffect teardown
       cleanupRef.current = () => {
@@ -536,6 +556,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         cancelHoverTimer()
         tooltip.removeEventListener('click', handleTooltipClick)
         document.removeEventListener('click', handleDocumentClick)
+        document.removeEventListener('keydown', handleEscKey)
         resizeObserver.disconnect()
       }
     })

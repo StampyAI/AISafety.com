@@ -48,7 +48,9 @@ const navItems = [
   { href: '/donation-guide', label: 'Donation guide', icon: 'heart.svg' },
 ]
 
-const MIN_OVERFLOW = 5
+// Caps the visible row at 6 items — Funding and below live in the +N menu
+// (and the mobile menu, which always lists everything).
+const MIN_OVERFLOW = 6
 
 export default function Navigation({
   counts,

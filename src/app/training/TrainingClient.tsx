@@ -466,10 +466,9 @@ export default function TrainingClient({
               className="width-6-col"
               href={program.url !== '#' ? program.url : undefined}
               tagline={
-                program.featuredTagline ??
-                (program.type[0]
+                program.type[0]
                   ? `Featured ${program.type[0].toLowerCase()}`
-                  : 'Featured program')
+                  : 'Featured program'
               }
               name={program.name}
               description={program.description}

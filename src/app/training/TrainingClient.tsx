@@ -496,7 +496,7 @@ export default function TrainingClient({
       <FilterBar
         count={filtered.length}
         noun="program"
-        className={styles.filterBar}
+        className={`width-9-col ${styles.filterBar}`}
         label={`${filtered.length} ${mode} training program${
           filtered.length === 1 ? '' : 's'
         }`}

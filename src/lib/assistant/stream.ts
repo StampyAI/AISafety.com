@@ -5,6 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { auditCardCitations, extractCitations } from './citations'
 import { modelDisplayName } from './models'
+import { looksLikeAnswerText, splitAnswerRedoMessage } from './split-answer'
 import { TOOL_DEFINITIONS, executeTool } from './tools'
 import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
 
@@ -182,10 +183,12 @@ export async function runAssistantStream(
   const cited: Listing[] = []
   const toolCalls: ToolCallLogEntry[] = []
   let redoneFabrication = false
+  let redoneSplitAnswer = false
   // Where the final answer can begin at the earliest: the text length after
-  // the last tool round (or fabrication redo). Text before this point is
-  // definitionally reasoning — it preceded a tool call — which lets us
-  // repair a reply whose [[/thinking]] marker never arrived.
+  // the last tool round (or redo). Text before this point is treated as
+  // reasoning — it preceded a tool call — which lets us repair a reply whose
+  // [[/thinking]] marker never arrived. The split-answer redo below covers
+  // the case where that treatment would be wrong.
   let answerStartOffset = 0
 
   for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -331,6 +334,55 @@ export async function runAssistantStream(
         answerStartOffset = assistantText.length
         continue
       }
+      // The other way a "finished" reply can be broken: the model began its
+      // user-facing answer, then ran a tool round, then finished without
+      // emitting [[/thinking]] after it. Every renderer treats text before
+      // the last tool round as reasoning in that case, so the visitor would
+      // get a reply that opens mid-thought — a real visitor received "Two
+      // that could give you a useful second opinion:" as the whole reply and
+      // complained. Short pre-search narration is what the marker-injection
+      // repair below is for; when the text that injection would hide is too
+      // long to be narration, send the model back to rewrite the complete
+      // answer instead of amputating it. Skipped after a fabrication redo:
+      // there the pre-redo text is a discarded draft that SHOULD stay
+      // hidden, and the injection repair already handles it.
+      const hiddenIfInjected =
+        assistantText
+          .slice(0, answerStartOffset)
+          .split(/\[\[\s*\/\s*thinking\s*\]\]/i)
+          .pop() ?? ''
+      if (
+        answerStartOffset > 0 &&
+        !redoneFabrication &&
+        !redoneSplitAnswer &&
+        !signal?.aborted &&
+        iter < MAX_TOOL_ITERATIONS - 1 &&
+        !/\[\[\s*\/\s*thinking\s*\]\]/i.test(
+          assistantText.slice(answerStartOffset)
+        ) &&
+        looksLikeAnswerText(hiddenIfInjected)
+      ) {
+        redoneSplitAnswer = true
+        console.warn(
+          `[assistant] split answer — ${hiddenIfInjected.trim().length} chars of answer text sat before the last tool round with no [[/thinking]] after them; sending the model back to rewrite`
+        )
+        // Surfaces in the admin log's tool list, so redone turns are visible
+        // when skimming conversations.
+        toolCalls.push({
+          name: 'redo_after_split_answer',
+          input: { hiddenChars: hiddenIfInjected.trim().length },
+          ok: true,
+        })
+        apiMessages.push({ role: 'user', content: splitAnswerRedoMessage() })
+        // Close the discarded draft with a real marker, sent as a text delta
+        // so the live widget's boundary moves past the draft even if the
+        // rewrite forgets its own marker — and so the stored transcript and
+        // the client's own copy of the reply stay identical.
+        send('text', { delta: '\n[[/thinking]]\n' })
+        assistantText += '\n[[/thinking]]\n'
+        answerStartOffset = assistantText.length
+        continue
+      }
       break
     }
 
@@ -401,7 +453,12 @@ export async function runAssistantStream(
   // missing-marker repair below so it reflects what the model actually wrote.
   const markerCount =
     assistantText.match(/\[\[\s*\/\s*thinking\s*\]\]/gi)?.length ?? 0
-  const expectedMarkers = redoneFabrication ? 2 : 1
+  // Baseline 1; a fabrication redo adds the discarded draft's own marker; a
+  // split-answer redo adds the synthetic marker that closed the draft plus,
+  // at most, a marker the draft itself carried. Upper bounds, so the warn
+  // below still catches genuine mid-answer re-emission.
+  const expectedMarkers =
+    1 + (redoneFabrication ? 1 : 0) + (redoneSplitAnswer ? 2 : 0)
   if (markerCount > expectedMarkers) {
     console.warn(
       `[assistant] re-emitted [[/thinking]] mid-answer (${markerCount} markers, expected ${expectedMarkers}) — earlier answer text was hidden from the visitor`

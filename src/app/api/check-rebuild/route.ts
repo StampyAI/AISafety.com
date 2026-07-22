@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { fetchAirtableWithRetry } from '@/lib/data/airtable'
 
 // Force dynamic - this endpoint must run fresh on every cron invocation
@@ -158,6 +159,15 @@ export async function GET(request: Request) {
       changedTables: [],
     })
   }
+
+  // Static pages get fresh data from the rebuild below, but runtime consumers
+  // (assistant catalog, search index) read the shared data cache, which a
+  // rebuild does not clear. Invalidate it here so they refetch on their next
+  // request. Runs before the hook cooldowns on purpose: even when a rebuild
+  // can't be triggered yet, runtime data should not stay stale. 'max' =
+  // stale-while-revalidate; the cron re-fires every minute until the rebuild
+  // lands, so the background refresh converges within a couple of requests.
+  revalidateTag('airtable-records', 'max')
 
   const now = Date.now()
 

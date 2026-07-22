@@ -416,5 +416,9 @@ async function fetchAirtableRecordsImpl(
 export const fetchAirtableRecords = unstable_cache(
   fetchAirtableRecordsImpl,
   ['airtable-records', 'v2'],
-  { revalidate: 3600 }
+  // The tag lets /api/check-rebuild invalidate these entries the minute an
+  // Airtable change is detected, so runtime consumers (assistant catalog,
+  // search index) don't wait out the hourly revalidate that static pages
+  // bypass via rebuilds.
+  { revalidate: 3600, tags: ['airtable-records'] }
 )

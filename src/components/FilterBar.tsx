@@ -24,14 +24,16 @@ export default function FilterBar({
 }: FilterBarProps) {
   return (
     <div
-      className={`flex items-center gap-16px padding-bottom-40px${className ? ` ${className}` : ''}`}
+      className={`flex items-start gap-16px padding-bottom-40px${className ? ` ${className}` : ''}`}
     >
       <div className="flex items-center gap-8px" style={{ flexWrap: 'wrap' }}>
         {children}
       </div>
       <p
         className="paragraph-small color-teal-300"
-        style={{ whiteSpace: 'nowrap' }}
+        // line-height matches .pill height so the count centers on the first
+        // row of pills even when they wrap to more lines.
+        style={{ whiteSpace: 'nowrap', lineHeight: '40px' }}
       >
         {label ?? `${count} ${noun}${count === 1 ? '' : 's'}`}
       </p>

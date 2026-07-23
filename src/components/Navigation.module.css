@@ -156,6 +156,30 @@
   cursor: pointer;
 }
 
+/* Current page ("you are here") — the resting 30%-alpha teal border lit up
+   to full strength, plus the hover fill made persistent. Same border width,
+   so no layout shift; the existing transition animates the ring on route
+   change. aria-current is set in the JSX, one link at a time. */
+.nav-item[aria-current='page'],
+.nav-dropdown-item[aria-current='page'] {
+  border-color: var(--bright-teal-300);
+  background-color: var(--teal-850);
+}
+
+/* The active pill is already filled, so hover lifts it with the site's
+   card-hover color-mix instead. Also keeps hover visible on the active
+   dropdown item, whose fill blends into the teal-850 dropdown panel. */
+.nav-item[aria-current='page']:hover,
+.nav-dropdown-item[aria-current='page']:hover {
+  background-color: color-mix(in srgb, var(--teal-850) 60%, var(--teal-800));
+}
+
+/* Ring-only hint on the +N pill when the current page's link is hidden
+   inside the overflow dropdown. */
+.nav-item-last[data-active-inside] {
+  border-color: var(--bright-teal-300);
+}
+
 .nav-search-button {
   width: 40px;
   height: 40px;

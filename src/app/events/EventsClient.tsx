@@ -9,13 +9,13 @@ import {
   useState,
   useLayoutEffect,
 } from 'react'
-import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
+import ModeToggle from '@/components/ModeToggle'
 import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
@@ -161,32 +161,6 @@ function emptyStateMessage(
       ? ` with ${selectedStatus[0].toLowerCase()} applications`
       : ''
   return `No results found for ${cost}${noun} ${modeLabel}${applications}. Try adjusting the filters.`
-}
-
-function ModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: Mode
-  onChange: (m: Mode) => void
-}) {
-  const tab = (value: Mode, icon: string, label: string) => (
-    <button
-      type="button"
-      className={`paragraph-small-bold ${styles.modeTab} ${mode === value ? styles.modeTabActive : ''}`}
-      aria-pressed={mode === value}
-      onClick={() => onChange(value)}
-    >
-      <Image src={icon} alt="" width={16} height={16} unoptimized />
-      {label}
-    </button>
-  )
-  return (
-    <div className={styles.modeToggle} role="group" aria-label="Event format">
-      {tab('online', '/images/icons/computer.svg', 'Online')}
-      {tab('in-person', '/images/icons/pin.svg', 'In person')}
-    </div>
-  )
 }
 
 function CitySearch({
@@ -474,7 +448,23 @@ export default function EventsClient({ events }: EventsClientProps) {
       {/* Sticky so it's always clear which of the two event sets is shown */}
       <div ref={toggleAnchorRef} aria-hidden="true" />
       <StickyBar className="margin-bottom-32px">
-        <ModeToggle mode={mode} onChange={switchMode} />
+        <ModeToggle
+          mode={mode}
+          onChange={switchMode}
+          ariaLabel="Event format"
+          tabs={[
+            {
+              value: 'online',
+              icon: '/images/icons/computer.svg',
+              label: 'Online',
+            },
+            {
+              value: 'in-person',
+              icon: '/images/icons/pin.svg',
+              label: 'In person',
+            },
+          ]}
+        />
       </StickyBar>
 
       {featuredEvents.length > 0 && (
@@ -509,7 +499,6 @@ export default function EventsClient({ events }: EventsClientProps) {
         <FilterBar
           count={filteredEvents.length}
           noun="event"
-          className={styles.filterBar}
           label={`${filteredEvents.length} upcoming event${
             filteredEvents.length === 1 ? '' : 's'
           } ${mode === 'in-person' ? 'in person' : 'online'}`}
@@ -538,7 +527,7 @@ export default function EventsClient({ events }: EventsClientProps) {
         </FilterBar>
 
         {mode === 'in-person' && (
-          <div className={`${styles.nearMe} margin-bottom-32px`}>
+          <div className={`border-only margin-bottom-32px ${styles.nearMe}`}>
             <p className="paragraph-small padding-bottom-16px">
               Find events near you
             </p>
@@ -594,15 +583,14 @@ export default function EventsClient({ events }: EventsClientProps) {
           )}
         </div>
 
-        <div className={`hide-mobile width-3-col ${styles.sidebar}`}>
-          <ContributeButtons
-            suggestEntryUrl={ADD_EVENT_URL}
-            suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
-            noun="event"
-            airtableUrl={AIRTABLE_VIEW_URL}
-            airtableNote="(includes past events)"
-          />
-        </div>
+        <ContributeButtons
+          sidebar
+          suggestEntryUrl={ADD_EVENT_URL}
+          suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
+          noun="event"
+          airtableUrl={AIRTABLE_VIEW_URL}
+          airtableNote="(includes past events)"
+        />
       </div>
     </>
   )

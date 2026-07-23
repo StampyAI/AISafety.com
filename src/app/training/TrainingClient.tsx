@@ -8,13 +8,13 @@ import {
   useState,
   useLayoutEffect,
 } from 'react'
-import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
+import ModeToggle from '@/components/ModeToggle'
 import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import {
   ENTRY_BARS,
@@ -28,7 +28,6 @@ import type {
   RecurringProgram,
   TrainingProgram,
 } from '@/lib/data/training'
-import styles from './page.module.css'
 
 // TODO(bryce): swap for Training-table forms and share view before launch —
 // these still point at the events/legacy ones.
@@ -178,32 +177,6 @@ function bottomMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
     }
   }
   return rows
-}
-
-function ModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: Mode
-  onChange: (m: Mode) => void
-}) {
-  const tab = (value: Mode, icon: string, label: string) => (
-    <button
-      type="button"
-      className={`paragraph-small-bold ${styles.modeTab} ${mode === value ? styles.modeTabActive : ''}`}
-      aria-pressed={mode === value}
-      onClick={() => onChange(value)}
-    >
-      <Image src={icon} alt="" width={16} height={16} unoptimized />
-      {label}
-    </button>
-  )
-  return (
-    <div className={styles.modeToggle} role="group" aria-label="Program set">
-      {tab('upcoming', '/images/icons/calendar.svg', 'Upcoming')}
-      {tab('recurring', '/images/icons/repeat.svg', 'Recurring')}
-    </div>
-  )
 }
 
 // The active set is shareable: the non-default tab writes ?view= to the
@@ -455,7 +428,23 @@ export default function TrainingClient({
       {/* Sticky so it's always clear which of the two program sets is shown */}
       <div ref={toggleAnchorRef} aria-hidden="true" />
       <StickyBar className="margin-bottom-32px">
-        <ModeToggle mode={mode} onChange={switchMode} />
+        <ModeToggle
+          mode={mode}
+          onChange={switchMode}
+          ariaLabel="Program set"
+          tabs={[
+            {
+              value: 'upcoming',
+              icon: '/images/icons/calendar.svg',
+              label: 'Upcoming',
+            },
+            {
+              value: 'recurring',
+              icon: '/images/icons/repeat.svg',
+              label: 'Recurring',
+            },
+          ]}
+        />
       </StickyBar>
 
       {featuredPrograms.length > 0 && (
@@ -495,7 +484,6 @@ export default function TrainingClient({
       <FilterBar
         count={filtered.length}
         noun="program"
-        className={styles.filterBar}
         label={`${filtered.length} ${mode} training program${
           filtered.length === 1 ? '' : 's'
         }`}
@@ -585,15 +573,14 @@ export default function TrainingClient({
           )}
         </div>
 
-        <div className={`hide-mobile width-3-col ${styles.sidebar}`}>
-          <ContributeButtons
-            suggestEntryUrl={ADD_PROGRAM_URL}
-            suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
-            noun="program"
-            airtableUrl={AIRTABLE_VIEW_URL}
-            airtableNote="(includes past programs)"
-          />
-        </div>
+        <ContributeButtons
+          sidebar
+          suggestEntryUrl={ADD_PROGRAM_URL}
+          suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
+          noun="program"
+          airtableUrl={AIRTABLE_VIEW_URL}
+          airtableNote="(includes past programs)"
+        />
       </div>
     </>
   )

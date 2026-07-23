@@ -3,6 +3,12 @@
    (typography, colors, flex, spacing, .border-only/.border-hover/.hover-white)
    lives in the JSX; this module only holds the bits that don't map to one. */
 
+/* Sidebar placement on the listing pages: offset so the first card's top
+   aligns with the listing grid beside it, below the filter bar. */
+.sidebar {
+  margin-top: 49px;
+}
+
 .card {
   border-radius: 16px;
   padding: 12px 16px 16px 16px;

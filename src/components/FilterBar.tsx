@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import styles from './FilterBar.module.css'
 
 interface FilterBarProps {
   /** The FilterDropdown pills. */
@@ -8,7 +9,6 @@ interface FilterBarProps {
   /** Singular noun for the count, e.g. "course". Pluralized with an "s". */
   noun: string
   label?: ReactNode
-  className?: string
 }
 
 // Horizontal row of filter dropdowns with the result count flowing directly
@@ -20,21 +20,15 @@ export default function FilterBar({
   count,
   noun,
   label,
-  className,
 }: FilterBarProps) {
   return (
     <div
-      className={`flex items-start gap-16px padding-bottom-40px${className ? ` ${className}` : ''}`}
+      className={`flex items-start gap-16px padding-bottom-40px ${styles.bar}`}
     >
-      <div className="flex items-center gap-8px" style={{ flexWrap: 'wrap' }}>
+      <div className={`flex items-center gap-8px ${styles.pills}`}>
         {children}
       </div>
-      <p
-        className="paragraph-small color-teal-300"
-        // line-height matches .pill height so the count centers on the first
-        // row of pills even when they wrap to more lines.
-        style={{ whiteSpace: 'nowrap', lineHeight: '40px' }}
-      >
+      <p className={`paragraph-small color-teal-300 ${styles.count}`}>
         {label ?? `${count} ${noun}${count === 1 ? '' : 's'}`}
       </p>
     </div>

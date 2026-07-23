@@ -18,6 +18,9 @@ interface ContributeButtonsProps {
   airtableNote?: string
   /** Extra contribute actions beyond add + suggest correction. */
   extraLinks?: ExtraLink[]
+  /** Render as the listing pages' right column (desktop only, offset to
+      align with the listing grid beside it). */
+  sidebar?: boolean
 }
 
 // "a" vs "an" for the "Add a …" label.
@@ -56,8 +59,9 @@ export default function ContributeButtons({
   airtableUrl = '#',
   airtableNote,
   extraLinks,
+  sidebar,
 }: ContributeButtonsProps) {
-  return (
+  const cards = (
     <div className="flex flex-col gap-16px">
       {/* Contribute card */}
       <div className={`border-only ${styles.card}`}>
@@ -124,5 +128,11 @@ export default function ContributeButtons({
         </div>
       </a>
     </div>
+  )
+
+  if (!sidebar) return cards
+
+  return (
+    <div className={`hide-mobile width-3-col ${styles.sidebar}`}>{cards}</div>
   )
 }

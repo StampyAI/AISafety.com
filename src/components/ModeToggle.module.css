@@ -1,0 +1,22 @@
+.modeToggle {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.modeTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--white);
+  cursor: pointer;
+  transition: border-color var(--hover-transition);
+}
+
+.modeTabActive {
+  /* Same translucent border treatment as the global .border-only */
+  border-color: color-mix(in srgb, var(--teal-bright-500) 30%, transparent);
+}

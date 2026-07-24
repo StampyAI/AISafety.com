@@ -45,7 +45,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         c =>
           c.latitude !== null &&
           c.longitude !== null &&
-          !c.type.every(t => t.toLowerCase() === 'online')
+          !c.type.every(t => t.toLowerCase() === 'online') &&
+          // Inactive communities are left off the map on purpose; they stay
+          // in the cards below, where the Activity level filter shows them.
+          c.activityLevel !== 'Inactive'
       )
       .map(c => {
         const typeStr = c.type.join(' ').toLowerCase()
@@ -155,32 +158,16 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     // caused a race where the image resolved after the map event fired and
     // the listener attached too late — leaving the map pin-less on an
     // uncached first visit).
-    const pinImagePromise = new Promise<HTMLImageElement | HTMLCanvasElement>(
-      resolve => {
-        // No `crossOrigin` set — /images/pin.svg is same-origin, and
-        // setting it would cause the browser to issue a second fetch that
-        // doesn't match the `<link rel="preload">` hint.
-        const customPin = new window.Image()
-        customPin.onload = () => resolve(customPin)
-        customPin.onerror = () => {
-          // Fallback: generate a simple canvas pin if the SVG fails to load.
-          const canvas = document.createElement('canvas')
-          const size = 20
-          canvas.width = size
-          canvas.height = size
-          const ctx = canvas.getContext('2d')!
-          ctx.beginPath()
-          ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
-          ctx.fillStyle = '#14b8a6'
-          ctx.fill()
-          ctx.lineWidth = 1
-          ctx.strokeStyle = '#ffffff'
-          ctx.stroke()
-          resolve(canvas)
-        }
-        customPin.src = '/images/pin.svg'
-      }
-    )
+    const pinImagePromise = new Promise<HTMLImageElement | null>(resolve => {
+      // No `crossOrigin` set — /images/pin.svg is same-origin, and
+      // setting it would cause the browser to issue a second fetch that
+      // doesn't match the `<link rel="preload">` hint.
+      const customPin = new window.Image()
+      customPin.onload = () => resolve(customPin)
+      // null = fall back to a plain canvas-drawn pin in rasterizePin.
+      customPin.onerror = () => resolve(null)
+      customPin.src = '/images/pin.svg'
+    })
 
     // Use `style.load` instead of `load`. Mapbox's `load` event waits for
     // the first complete tile render before firing, which introduces a
@@ -198,8 +185,59 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     })
 
     Promise.all([pinImagePromise, styleLoadPromise]).then(([pinImage]) => {
-      if (!map.hasImage('custom-pin')) {
-        map.addImage('custom-pin', pinImage)
+      // Mapbox rasterizes an added image once and then scales that bitmap on
+      // the GPU, which is what made the pins blurry — one 128px raster was
+      // being resized for every pin size and screen density. Instead,
+      // re-render the SVG at each displayed size × devicePixelRatio and
+      // register the results as separate images, so pins map 1:1 onto
+      // physical pixels.
+      const dpr = window.devicePixelRatio || 1
+      // 128×140 is pin.svg's intrinsic size; the widths reproduce the old
+      // look (icon-size 0.25 / 0.35 / 0.45 of the 128px raster).
+      const PIN_ASPECT = 140 / 128
+      const pinWidths: Record<string, number> = {
+        city: 32,
+        country: 44.8,
+        continent: 57.6,
+      }
+
+      function rasterizePin(cssWidth: number) {
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(cssWidth * dpr)
+        canvas.height = Math.round(cssWidth * PIN_ASPECT * dpr)
+        const ctx = canvas.getContext('2d')!
+        if (pinImage) {
+          // Drawing an SVG <img> scaled makes the browser re-render the
+          // vector at the destination resolution — not resize a bitmap.
+          ctx.drawImage(pinImage, 0, 0, canvas.width, canvas.height)
+        } else {
+          // Fallback if pin.svg failed to load: a simple filled circle.
+          ctx.beginPath()
+          ctx.arc(
+            canvas.width / 2,
+            canvas.height / 2,
+            canvas.width / 2 - 2 * dpr,
+            0,
+            Math.PI * 2
+          )
+          ctx.fillStyle = '#14b8a6'
+          ctx.fill()
+          ctx.lineWidth = dpr
+          ctx.strokeStyle = '#ffffff'
+          ctx.stroke()
+        }
+        return ctx.getImageData(0, 0, canvas.width, canvas.height)
+      }
+
+      for (const [type, width] of Object.entries(pinWidths)) {
+        if (!map.hasImage(`pin-${type}`)) {
+          map.addImage(`pin-${type}`, rasterizePin(width), { pixelRatio: dpr })
+          // Hovered pins get their own full-resolution raster too, instead
+          // of GPU-upscaling the base image by 1.2.
+          map.addImage(`pin-${type}-hover`, rasterizePin(width * 1.2), {
+            pixelRatio: dpr,
+          })
+        }
       }
 
       let hoveredPinId: number | null = null
@@ -236,12 +274,6 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             link: community.link,
             location: community.location,
             logo: community.logo,
-            baseSize:
-              community.type === 'city'
-                ? 0.25
-                : community.type === 'country'
-                  ? 0.35
-                  : 0.45,
             hover: false,
           },
           geometry: {
@@ -258,12 +290,11 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         type: 'symbol',
         source: 'communities',
         layout: {
-          'icon-image': 'custom-pin',
-          'icon-size': [
-            'case',
-            ['boolean', ['get', 'hover'], false],
-            ['*', ['get', 'baseSize'], 1.2],
-            ['get', 'baseSize'],
+          'icon-image': [
+            'concat',
+            'pin-',
+            ['get', 'type'],
+            ['case', ['boolean', ['get', 'hover'], false], '-hover', ''],
           ],
           'icon-anchor': 'center',
           'icon-allow-overlap': true,

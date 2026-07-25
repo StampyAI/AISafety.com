@@ -27,11 +27,16 @@ export const MODELS: AssistantModel[] = [
   {
     id: 'claude-opus-4-8',
     shortLabel: 'Opus 4.8',
-    longLabel: 'Opus 4.8 — most capable',
+    longLabel: 'Opus 4.8',
+  },
+  {
+    id: 'claude-opus-5',
+    shortLabel: 'Opus 5',
+    longLabel: 'Opus 5 — most capable',
   },
 ]
 
-export const DEFAULT_MODEL_ID = 'claude-opus-4-8'
+export const DEFAULT_MODEL_ID = 'claude-opus-5'
 
 export function modelShortLabel(id: string): string {
   return MODELS.find(m => m.id === id)?.shortLabel ?? id

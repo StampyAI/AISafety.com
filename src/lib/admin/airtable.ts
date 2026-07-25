@@ -132,6 +132,11 @@ export interface ConversationData {
    *  that turn's user message arrived. Absent on rows written before this was
    *  tracked. */
   turnTimes?: unknown[]
+  /** One entry per logged turn (aligned with `tools`): the site page the
+   *  visitor was on when they sent that turn's message. The Page FIELD only
+   *  holds one value, so mid-conversation navigation is recorded here. Absent
+   *  on rows written before this was tracked. */
+  pages?: unknown[]
   citations: string[]
   /** Resolved name/url for each cited listing, so cards survive deletion. */
   citationRefs: StoredCitation[]
@@ -415,6 +420,7 @@ export async function upsertConversation(input: {
     turnTimes: previous
       ? [...(previous.turnTimes ?? []), input.turnAt]
       : [input.turnAt],
+    pages: previous ? [...(previous.pages ?? []), input.page] : [input.page],
     citations: previous
       ? Array.from(new Set([...previous.citations, ...input.citations]))
       : input.citations,
@@ -437,7 +443,12 @@ export async function upsertConversation(input: {
 
   const fields: ConversationFields = {
     [FIELD.session]: input.session ?? '',
-    [FIELD.page]: input.page,
+    // The page where the conversation STARTED — written on create, never
+    // patched. It has to match the greeting the visitor actually saw, and a
+    // real conversation once got stamped /self-study because its last turn
+    // overwrote the /map it began on. Per-turn pages (including any
+    // mid-conversation navigation) live in Data's `pages` array.
+    ...(existing ? {} : { [FIELD.page]: input.page }),
     [FIELD.latencyMs]: input.latencyMs,
     [FIELD.promptVersion]: input.promptVersion,
     [FIELD.data]: JSON.stringify(data),

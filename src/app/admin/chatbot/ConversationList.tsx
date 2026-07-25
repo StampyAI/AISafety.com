@@ -126,6 +126,10 @@ interface ConversationData {
   /** Per-turn (aligned with tools): ISO timestamp of when that turn's user
    *  message arrived. Absent on rows from before this was logged. */
   turnTimes?: unknown[]
+  /** Per-turn (aligned with tools): the site page the visitor was on when
+   *  they sent that turn's message. Absent on rows from before this was
+   *  logged. */
+  pages?: unknown[]
   citations: string[]
   citationRefs?: { id: string; name: string; url: string; logo?: string }[]
   geo: { city?: string; region?: string; country?: string } | null
@@ -230,6 +234,17 @@ function timeForUserMessage(
   if (sameDay) return time
   const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
   return `${day}, ${time}`
+}
+
+/** The page the visitor was on when they sent the user message at history
+ *  index msgIdx. Undefined for rows logged before per-turn pages were
+ *  tracked (same end-aligned turn resolution as timeForUserMessage). */
+function pageForUserMessage(
+  data: ConversationData,
+  msgIdx: number
+): string | undefined {
+  const page = turnEntryForMessage(data.history, data.pages ?? [], msgIdx + 1)
+  return typeof page === 'string' ? page : undefined
 }
 
 // Conversations this browser has already opened, so reviewed chats read as
@@ -508,6 +523,16 @@ function ConversationRow({
     }
     return s
   }, [conv.clickedCitations])
+  // Where the visitor ended up if they navigated mid-conversation. conv.page
+  // is the page the chat STARTED on (per-turn pages live in data.pages), so a
+  // differing last entry means the conversation moved — surface the hop in
+  // the collapsed row. Undefined on rows from before pages were logged.
+  const navigatedTo = useMemo(() => {
+    const pages = data?.pages
+    if (!Array.isArray(pages)) return undefined
+    const last = pages[pages.length - 1]
+    return typeof last === 'string' && last !== conv.page ? last : undefined
+  }, [data, conv.page])
   // Once the bot offered a "Suggest a listing" button, the "NO MATCH" badge is
   // redundant — the no-match was handled gracefully. Keep the badge only for
   // no-match conversations where no suggest form was offered.
@@ -556,7 +581,17 @@ function ConversationRow({
             <span className={styles.convRowDate}>
               {formatTime(conv.createdAt)}
             </span>
-            <span className={styles.convRowPage}>{conv.page}</span>
+            <span
+              className={styles.convRowPage}
+              title={
+                navigatedTo
+                  ? `The chat started on ${conv.page} and the visitor navigated to ${navigatedTo}`
+                  : undefined
+              }
+            >
+              {conv.page}
+              {navigatedTo && ` → ${navigatedTo}`}
+            </span>
             {turnCount > 1 && <span>{turnCount} turns</span>}
             {geo && <span>{geo}</span>}
             {data?.zeroMatches && !showedSuggest && (
@@ -601,6 +636,10 @@ function ConversationRow({
                 Transcript ({turnCount} turn{turnCount === 1 ? '' : 's'})
               </div>
               <div className={styles.convTranscript}>
+                {/* conv.page is the page the chat started on, so this is the
+                    greeting the visitor actually opened the widget under
+                    (from today's page config — old rows show the current
+                    wording). Mid-chat navigation appears as dividers below. */}
                 <div className={styles.convGreeting}>
                   {greetingFor(conv.page)}
                 </div>
@@ -644,51 +683,72 @@ function ConversationRow({
                             i
                           ).filter(c => c.name === 'read_listing_page')
                         : []
-                    return (
-                      <div
-                        key={i}
-                        className={
-                          t.role === 'user'
-                            ? styles.convTurnUser
-                            : styles.convTurnAssistant
+                    // The visitor moved to a different page before sending
+                    // this message — mark it so the transcript reads in the
+                    // context they actually saw.
+                    const navTo = (() => {
+                      if (t.role !== 'user') return undefined
+                      const page = pageForUserMessage(data, i)
+                      if (!page) return undefined
+                      for (let j = i - 1; j >= 0; j--) {
+                        if (data.history[j].role === 'user') {
+                          const prev = pageForUserMessage(data, j)
+                          return prev && prev !== page ? page : undefined
                         }
-                      >
-                        <div className={styles.convTurnRole}>
-                          {t.role === 'user' ? 'User' : 'Chatbot'}
-                          {t.role === 'user' &&
-                            (() => {
-                              const time = timeForUserMessage(
-                                data,
-                                i,
-                                conv.createdAt
-                              )
-                              return time ? (
-                                <span
-                                  className={styles.convTurnTime}
-                                  title="When the visitor sent this message (your browser's local timezone)"
-                                >
-                                  {time}
-                                </span>
-                              ) : null
-                            })()}
-                        </div>
-                        <VisitedPages reads={reads} />
-                        {t.role === 'user' ? (
-                          <div className={styles.convTurnContent}>
-                            {t.content}
+                      }
+                      return undefined
+                    })()
+                    return (
+                      <Fragment key={i}>
+                        {navTo && (
+                          <div className={styles.convNavDivider}>
+                            navigated to {navTo}
                           </div>
-                        ) : (
-                          <TranscriptMessage
-                            text={t.content}
-                            turnIndex={i}
-                            fallbackCardIds={fallbackCardsForMessage(
-                              data.history,
-                              data.fallbackCards,
-                              i
-                            )}
-                          />
                         )}
-                      </div>
+                        <div
+                          className={
+                            t.role === 'user'
+                              ? styles.convTurnUser
+                              : styles.convTurnAssistant
+                          }
+                        >
+                          <div className={styles.convTurnRole}>
+                            {t.role === 'user' ? 'User' : 'Chatbot'}
+                            {t.role === 'user' &&
+                              (() => {
+                                const time = timeForUserMessage(
+                                  data,
+                                  i,
+                                  conv.createdAt
+                                )
+                                return time ? (
+                                  <span
+                                    className={styles.convTurnTime}
+                                    title="When the visitor sent this message (your browser's local timezone)"
+                                  >
+                                    {time}
+                                  </span>
+                                ) : null
+                              })()}
+                          </div>
+                          <VisitedPages reads={reads} />
+                          {t.role === 'user' ? (
+                            <div className={styles.convTurnContent}>
+                              {t.content}
+                            </div>
+                          ) : (
+                            <TranscriptMessage
+                              text={t.content}
+                              turnIndex={i}
+                              fallbackCardIds={fallbackCardsForMessage(
+                                data.history,
+                                data.fallbackCards,
+                                i
+                              )}
+                            />
+                          )}
+                        </div>
+                      </Fragment>
                     )
                   })
                 ) : (

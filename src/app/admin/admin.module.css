@@ -779,6 +779,25 @@
   border-radius: 999px;
 }
 
+/* Marks the visitor moving to a different site page mid-conversation, so the
+ * turns above and below are read against the page they were actually on. */
+.convNavDivider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--teal-400);
+  margin: 2px 0;
+}
+
+.convNavDivider::before,
+.convNavDivider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--teal-800);
+}
+
 .convTurnUser,
 .convTurnAssistant {
   padding: 8px 10px;

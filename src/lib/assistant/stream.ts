@@ -217,6 +217,13 @@ export async function runAssistantStream(
       {
         model,
         max_tokens: MAX_TOKENS,
+        // Opus 5 turns API-level thinking ON when this field is omitted
+        // (earlier models defaulted to off). The assistant does its reasoning
+        // in visible text ending with the [[/thinking]] marker, and this loop
+        // only reconstructs text/tool_use blocks — API thinking blocks would
+        // be dropped from the echoed assistant turn, breaking tool rounds. So
+        // keep it explicitly off.
+        thinking: { type: 'disabled' },
         system: [
           { type: 'text', text: systemPrompt },
           { type: 'text', text: pagesBlock },

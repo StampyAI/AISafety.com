@@ -13,6 +13,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Redis } from '@upstash/redis'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { DEFAULT_MODEL_ID } from '@/lib/assistant/models'
 import { listTypedQuestions } from './conversations'
 
 export interface QuestionTheme {
@@ -70,7 +71,9 @@ async function storeSummary(summary: ThemeSummary): Promise<void> {
 
 // The latest Opus — Bryce wants the best grouping quality, and a weekly call
 // over a few hundred short questions costs cents even on the top model.
-const MODEL = 'claude-opus-4-8'
+// Anthropic offers no auto-updating "latest Opus" alias, so this tracks the
+// chatbot's default model (kept on the newest Opus): one bump upgrades both.
+const MODEL = DEFAULT_MODEL_ID
 // Far above organic volume (~130 conversations in month one). If the log ever
 // outgrows it, the newest questions win and the truncation is logged.
 const MAX_QUESTIONS = 800
@@ -115,7 +118,10 @@ Reply with ONLY this JSON, no other text:
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4000,
+    // Opus 5 thinks before answering out of this same budget, and the JSON
+    // for 800 questions is a few thousand tokens on its own — 4000 risked a
+    // truncated reply that would fail the JSON parse.
+    max_tokens: 16000,
     messages: [{ role: 'user', content: prompt }],
   })
   const text = response.content

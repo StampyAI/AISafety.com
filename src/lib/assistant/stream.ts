@@ -32,6 +32,23 @@ Your draft carded listing id(s) that do not exist in the catalog: ${ids.join(', 
 Redo the answer from scratch: run the search_listings call(s) you skipped, card ONLY ids copied verbatim from those fresh results, and if nothing fitting comes back, recommend what search DID return or link the relevant resource page in prose instead of carding anything. Format as always: any reasoning ends with [[/thinking]], then the visible answer, then follow-up chips. Do not apologize for or mention this correction — just deliver the corrected answer.`
 }
 
+/** Per-type suggest-form tags. Deliberately excludes correction, contact and
+ *  feedback, which have their own triggers and are never solicitation. */
+const PER_TYPE_SUGGEST_RE =
+  /\[\[suggest:(?:community|event|funder|course|media-channel|founder-resource|advisor|project|org):/i
+
+/** Corrective message injected when the model's finished answer both shows
+ *  listings and volunteers a per-type suggest form. The prompt forbids the
+ *  combination but the model keeps slipping into it, so the server enforces
+ *  it. The two legitimate pairings (the user asked to add/report something;
+ *  the "once it's up and running" note for someone planning their own) can't
+ *  be detected server-side, so the redo asks the model to re-judge them —
+ *  and the redo runs once, so a kept form on the rewrite is accepted. */
+function suggestGateRedoMessage(): string {
+  return `[AUTOMATED SUGGEST-FORM AUDIT — this is a server-side check, not the visitor. The visitor will not see your previous draft, so never reference it.]
+Your draft both shows listings and offers a suggest-a-listing form. That combination is not allowed: the form is only for turns with NOTHING to show, or for a user who explicitly asked to add, report, or get something listed (including the "once it's up and running" closing note for someone planning their own). Unless one of those exceptions genuinely applies to THIS turn, rewrite the complete answer without the [[suggest:...]] tag and without any "if you know of one that's missing" prose — the listings you showed plus a resource-page link already complete the answer. If an exception does apply, keep the form. Start your reply with [[/thinking]] on its own line, then the full final answer, then follow-up chips. Do not call any more tools, and do not apologize for or mention this correction — just deliver the final answer.`
+}
+
 /** Encodes a single SSE frame. */
 function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
@@ -184,6 +201,7 @@ export async function runAssistantStream(
   const toolCalls: ToolCallLogEntry[] = []
   let redoneFabrication = false
   let redoneSplitAnswer = false
+  let redoneSuggestGate = false
   // Where the final answer can begin at the earliest: the text length after
   // the last tool round (or redo). Text before this point is treated as
   // reasoning — it preceded a tool call — which lets us repair a reply whose
@@ -378,6 +396,42 @@ export async function runAssistantStream(
         // so the live widget's boundary moves past the draft even if the
         // rewrite forgets its own marker — and so the stored transcript and
         // the client's own copy of the reply stay identical.
+        send('text', { delta: '\n[[/thinking]]\n' })
+        assistantText += '\n[[/thinking]]\n'
+        answerStartOffset = assistantText.length
+        continue
+      }
+      // A third way a finished reply can be wrong: it shows listings AND
+      // volunteers a per-type suggest form. The prompt's Honest-failure rule
+      // forbids the combination, but the model keeps closing carded answers
+      // with "if you know of one that's missing…" anyway, so enforce it
+      // here. The redo asks the model to drop the form unless an exception
+      // applies (a judgment the server can't make); it runs once per turn,
+      // so a form kept on the rewrite is accepted.
+      const visibleAnswer =
+        assistantText.split(/\[\[\s*\/\s*thinking\s*\]\]/i).pop() ?? ''
+      if (
+        visibleAnswer.includes('[[card:') &&
+        PER_TYPE_SUGGEST_RE.test(visibleAnswer) &&
+        !redoneSuggestGate &&
+        !signal?.aborted &&
+        iter < MAX_TOOL_ITERATIONS - 1
+      ) {
+        redoneSuggestGate = true
+        console.warn(
+          '[assistant] unearned suggest form — the answer both cards listings and offers a suggest form; sending the model back to rewrite'
+        )
+        // Surfaces in the admin log's tool list, so redone turns are visible
+        // when skimming conversations.
+        toolCalls.push({
+          name: 'redo_after_unearned_suggest_form',
+          input: {},
+          ok: true,
+        })
+        apiMessages.push({ role: 'user', content: suggestGateRedoMessage() })
+        // Close the discarded draft with a real marker (same trick as the
+        // split-answer redo above) so the live widget's boundary moves past
+        // the draft even if the rewrite forgets its own marker.
         send('text', { delta: '\n[[/thinking]]\n' })
         assistantText += '\n[[/thinking]]\n'
         answerStartOffset = assistantText.length

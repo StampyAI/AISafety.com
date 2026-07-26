@@ -31,11 +31,11 @@ import type {
 
 // Each tab links to its own add form and share view; the correction form is
 // the sitewide one.
-// TODO(bryce): swap for Training/Recurring-table forms and share views before
-// launch — all four still point at the events/legacy ones.
+// TODO(bryce): swap the share views for Training/Recurring-table ones before
+// launch — they still point at the events/legacy share.
 const ADD_PROGRAM_URLS: Record<Mode, string> = {
-  upcoming: 'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form',
-  recurring: 'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form',
+  upcoming: 'https://airtable.com/appF8XfZUGXtfi40E/pagSB4ucUn38CvXFD/form',
+  recurring: 'https://airtable.com/appF8XfZUGXtfi40E/pagMXYNesOJse9Ga0/form',
 }
 const SUGGEST_CORRECTION_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form'

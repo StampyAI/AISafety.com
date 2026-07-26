@@ -29,14 +29,22 @@ import type {
   TrainingProgram,
 } from '@/lib/data/training'
 
-// TODO(bryce): swap for Training-table forms and share view before launch —
-// these still point at the events/legacy ones.
-const ADD_PROGRAM_URL =
-  'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form'
+// Each tab links to its own add form and share view; the correction form is
+// the sitewide one.
+// TODO(bryce): swap for Training/Recurring-table forms and share views before
+// launch — all four still point at the events/legacy ones.
+const ADD_PROGRAM_URLS: Record<Mode, string> = {
+  upcoming: 'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form',
+  recurring: 'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form',
+}
 const SUGGEST_CORRECTION_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form'
-const AIRTABLE_VIEW_URL =
-  'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
+const AIRTABLE_VIEW_URLS: Record<Mode, string> = {
+  upcoming:
+    'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on',
+  recurring:
+    'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on',
+}
 
 const applicationOptions = ['Open', 'Closed']
 const focusOptions = ['General', 'Technical', 'Governance & policy']
@@ -578,11 +586,13 @@ export default function TrainingClient({
 
         <ContributeButtons
           sidebar
-          suggestEntryUrl={ADD_PROGRAM_URL}
+          suggestEntryUrl={ADD_PROGRAM_URLS[mode]}
           suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
           noun="program"
-          airtableUrl={AIRTABLE_VIEW_URL}
-          airtableNote="(includes past programs)"
+          airtableUrl={AIRTABLE_VIEW_URLS[mode]}
+          airtableNote={
+            mode === 'upcoming' ? '(includes past programs)' : undefined
+          }
         />
       </div>
     </>

@@ -26,6 +26,7 @@ const TRAINING_FIELD = {
   type: 'fldYhxEyLrNOBWIpY',
   online: 'fld3mfwdhbXgLiIhs',
   startDate: 'fldQ173rUHJa5MHiA',
+  startDateApprox: 'flddeSidJxFZXXwDs',
   endDate: 'fld7Ec5O8m71oZV44',
   deadline: 'fldoBOQpi5ZC6TnwU',
   notYetOpen: 'fldEJLrVPCpawJ6vU',
@@ -84,6 +85,8 @@ export interface ProgramBase {
 
 export interface TrainingProgram extends ProgramBase {
   startDate: string | null
+  /** Org's own wording ("early September 2026"), shown instead of startDate. */
+  startDateApprox: string | null
   endDate: string | null
   applicationStatus: 'Open' | 'Closed'
   applicationsClose: string | null
@@ -280,6 +283,8 @@ export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
     results.push({
       ...parseBase(f, record.id, name, TRAINING_FIELD),
       startDate,
+      startDateApprox:
+        optionalString(f[TRAINING_FIELD.startDateApprox])?.trim() || null,
       endDate,
       applicationStatus,
       applicationsClose: closesOn,

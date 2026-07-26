@@ -109,9 +109,12 @@ function titleMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
   } else if (program.location) {
     rows.push({ icon: '/images/icons/pin.svg', value: program.location })
   }
-  if (upcoming?.startDate) {
+  const startText =
+    upcoming?.startDateApprox ??
+    (upcoming?.startDate ? formatShortDate(upcoming.startDate) : null)
+  if (upcoming && startText) {
     const duration = durationLabel(upcoming.startDate, upcoming.endDate)
-    const starts = `Starts ${formatShortDate(upcoming.startDate)}`
+    const starts = `Starts ${startText}`
     rows.push({
       icon: '/images/icons/calendar.svg',
       value: duration ? `${duration} · ${starts}` : starts,

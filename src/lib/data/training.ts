@@ -12,6 +12,10 @@ import {
 // that run repeatedly (shown under the Recurring toggle, without dates).
 const TRAINING_TABLE_ID = 'tbli1YSCpIuNY2DvL'
 const RECURRING_TABLE_ID = 'tblEEIbj6dW5oS4cX'
+// Grid view on "Recurring training" — records come back in the view's order
+// (driven by its Sort field), so the page mirrors the table as arranged in
+// Airtable.
+const RECURRING_VIEW_ID = 'viwbP4fD6gTUeWj49'
 
 // Permanent Airtable field IDs (returnFieldsByFieldId), rename-proof.
 const TRAINING_FIELD = {
@@ -299,6 +303,7 @@ export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
 export async function getRecurringPrograms(): Promise<RecurringProgram[]> {
   const raw = await fetchAirtableRecords({
     tableId: RECURRING_TABLE_ID,
+    viewId: RECURRING_VIEW_ID,
     returnFieldsByFieldId: true,
   })
 
@@ -319,8 +324,6 @@ export async function getRecurringPrograms(): Promise<RecurringProgram[]> {
     })
   }
 
-  // Recurring programs have no dates — alphabetical keeps them scannable.
-  results.sort((a, b) => a.name.localeCompare(b.name))
-
+  // Order comes from the Airtable view (RECURRING_VIEW_ID) — no sorting here.
   return results
 }

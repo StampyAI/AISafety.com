@@ -5,6 +5,7 @@ export const EVENT_TYPES = [
   'Meetup',
   'Talk',
   'Workshop',
+  'Other',
 ] as const
 
 export type EventType = (typeof EVENT_TYPES)[number]
@@ -16,6 +17,7 @@ const EVENT_TYPE_COLOR: Record<string, string> = {
   Meetup: 'color-blue',
   Hackathon: 'color-purple',
   Competition: 'color-yellow',
+  Other: 'color-teal-300',
 }
 
 export function eventTypeColor(type: string): string {

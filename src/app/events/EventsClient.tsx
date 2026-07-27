@@ -21,8 +21,10 @@ import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
 
+// TODO(bryce): swap the share view for an Events-table one before launch —
+// it still points at the events/legacy share.
 const ADD_EVENT_URL =
-  'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form'
+  'https://airtable.com/appF8XfZUGXtfi40E/pagns0zQqcM713eKk/form'
 const SUGGEST_CORRECTION_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form'
 const AIRTABLE_VIEW_URL =
@@ -322,8 +324,13 @@ export default function EventsClient({ events }: EventsClientProps) {
     scrollToAnchor(toggleAnchorRef.current)
   }
 
+  // Hybrid events belong to both views, so they stay visible whichever way
+  // the toggle is set.
   const modeEvents = useMemo(
-    () => events.filter(e => (mode === 'online' ? e.isOnline : !e.isOnline)),
+    () =>
+      events.filter(e =>
+        mode === 'online' ? e.mode !== 'In person' : e.mode !== 'Online'
+      ),
     [events, mode]
   )
 

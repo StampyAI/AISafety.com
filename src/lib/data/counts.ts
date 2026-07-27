@@ -11,12 +11,6 @@ import { getTrainingPrograms, getRecurringPrograms } from './training'
 // and needs no `adjust` hack. As more pages migrate, move them out of here.
 const resources = [
   {
-    path: '/events-and-training',
-    tableId: 'tblx0L8qJEaLBxJFS',
-    viewId: 'viwHl72bJxCb2SfrL',
-    field: 'Name',
-  },
-  {
     path: '/map',
     tableId: 'tblvzbGL9q9dOO9Nc',
     viewId: 'viwJgtDFDmaP8PyoI',

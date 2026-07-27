@@ -6,9 +6,11 @@ export type LoadState =
   | { status: 'ready'; index: SearchEntry[] }
   | { status: 'error'; message: string }
 
-// Order matches the global nav (Events first, etc.). 'page' omitted —
-// the nav links themselves are pages, so listing them again is noise.
+// Order matches the global nav (Training programs first, etc.). 'page'
+// omitted — the nav links themselves are pages, so listing them again is
+// noise.
 export const BROWSE_TYPES: SearchType[] = [
+  'training',
   'event',
   'map',
   'community',
@@ -25,13 +27,14 @@ export const TYPE_LABEL: Record<SearchType, string> = {
   advisor: 'Advisors',
   community: 'Communities',
   course: 'Self-study',
-  event: 'Events & training',
+  event: 'Events',
   founder: 'Founder toolkit',
   funder: 'Funding',
   job: 'Jobs',
   map: 'Field map',
   media: 'Media channels',
   project: 'Volunteer projects',
+  training: 'Training programs',
   page: 'Pages',
 }
 
@@ -46,6 +49,7 @@ export const TYPE_ICON: Record<SearchType, string | null> = {
   map: '/images/map.svg',
   media: '/images/megaphone.svg',
   project: '/images/clipboard.svg',
+  training: '/images/grad-cap.svg',
   page: null,
 }
 
@@ -56,13 +60,14 @@ export const TYPE_PATH: Record<SearchType, string | null> = {
   advisor: '/advisors',
   community: '/communities',
   course: '/self-study',
-  event: '/events-and-training',
+  event: '/events',
   founder: '/founders',
   funder: '/funding',
   job: '/jobs',
   map: '/map',
   media: '/media-channels',
   project: '/projects',
+  training: '/training',
   page: null,
 }
 

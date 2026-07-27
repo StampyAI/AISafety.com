@@ -1,13 +1,15 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { trackSearchClick, trackSearchQuery } from '@/lib/analytics'
 import type { SearchEntry, SearchType } from '@/lib/data/search-index'
 import {
   BROWSE_TYPES,
   TYPE_ICON,
   TYPE_LABEL,
+  TYPE_PATH,
   countsByType,
   groupByType,
   search,
@@ -44,6 +46,10 @@ export default function SearchModal({
   const activeIndexRef = useRef(0)
   const activeTypeRef = useRef<SearchType | null>(null)
   const queryRef = useRef('')
+  const indexReadyRef = useRef(false)
+  // The search already recorded this open of the modal (filter + lowercased
+  // text), so settling on the same search twice doesn't double-count it.
+  const lastTrackedQueryRef = useRef<string | null>(null)
 
   useEffect(() => {
     // createPortal needs document.body, which only exists after mount.
@@ -73,18 +79,49 @@ export default function SearchModal({
     activeIndexRef.current = activeIndex
     activeTypeRef.current = activeType
     queryRef.current = query
+    indexReadyRef.current = index != null
   })
+
+  // Record the current search for the analytics, if it hasn't been already.
+  // Reads refs only, so callers always see the latest state: the settle timer
+  // below calls it when typing pauses, and it's flushed early when a result is
+  // clicked or the modal closes first. Skipped while the index is still
+  // loading — the result count isn't known yet.
+  const recordQuery = useCallback(() => {
+    const text = queryRef.current.trim()
+    if (!text || !indexReadyRef.current) return
+    const key = `${activeTypeRef.current ?? ''}\n${text.toLowerCase()}`
+    if (lastTrackedQueryRef.current === key) return
+    lastTrackedQueryRef.current = key
+    trackSearchQuery(
+      text,
+      resultsArrRef.current.length,
+      activeTypeRef.current ?? undefined
+    )
+  }, [])
+
+  // A search counts once the visitor pauses typing; every keystroke or filter
+  // change restarts the clock, so half-typed words mostly stay out of the data.
+  useEffect(() => {
+    if (!open || !index || !query.trim()) return
+    const timer = setTimeout(recordQuery, 2000)
+    return () => clearTimeout(timer)
+  }, [open, index, query, activeType, recordQuery])
 
   useEffect(() => {
     if (open) {
       inputRef.current?.focus()
+      lastTrackedQueryRef.current = null
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset when modal transitions open/closed
       setActiveIndex(0)
     } else {
+      // Closing without clicking anything is the last chance to record what
+      // was searched (the refs still hold it; the reset lands next render).
+      recordQuery()
       setQuery('')
       setActiveType(null)
     }
-  }, [open])
+  }, [open, recordQuery])
 
   useEffect(() => {
     if (open) inputRef.current?.focus()
@@ -136,7 +173,20 @@ export default function SearchModal({
             `[data-result-index="${activeIndexRef.current}"]`
           )
           if (link) {
-            link.click()
+            if (e.metaKey || e.ctrlKey) {
+              // Cmd/Ctrl+Enter opens the result in a new tab. Borrow
+              // target=_blank on the real anchor for this one click so it
+              // stays an ad-blocker-safe anchor click (see note above).
+              const prevTarget = link.target
+              const prevRel = link.rel
+              link.target = '_blank'
+              link.rel = 'noopener noreferrer'
+              link.click()
+              link.target = prevTarget
+              link.rel = prevRel
+            } else {
+              link.click()
+            }
           } else {
             window.location.href = target.url
           }
@@ -349,7 +399,13 @@ export default function SearchModal({
                 <div
                   className={`${styles['group-label']} paragraph-xs-bold flex items-center gap-8px padding-top-16px padding-bottom-8px padding-left-12px padding-right-12px`}
                 >
-                  <span>{TYPE_LABEL[type]}</span>
+                  {TYPE_PATH[type] ? (
+                    <a href={TYPE_PATH[type]} className={styles['group-link']}>
+                      {TYPE_LABEL[type]}
+                    </a>
+                  ) : (
+                    <span>{TYPE_LABEL[type]}</span>
+                  )}
                   <span className={styles['group-count']}>{items.length}</span>
                 </div>
               )}
@@ -364,6 +420,17 @@ export default function SearchModal({
                     href={entry.url}
                     target={isExternal ? '_blank' : undefined}
                     rel={isExternal ? 'noopener noreferrer' : undefined}
+                    onClick={() => {
+                      // The search that led here may not have settled yet.
+                      recordQuery()
+                      trackSearchClick(
+                        queryRef.current.trim(),
+                        entry.title,
+                        entry.url,
+                        String(flatIndex + 1),
+                        entry.type
+                      )
+                    }}
                     onMouseMove={() => {
                       if (Date.now() - lastKeyNavRef.current < 300) return
                       setActiveIndex(flatIndex)

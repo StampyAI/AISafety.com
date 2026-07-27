@@ -54,6 +54,8 @@ export default async function AdvisorsPage() {
                   { label: 'Status', value: advisor.status },
                 ]}
                 trackingPage="Advisors"
+                trackingId={advisor.id}
+                trackingPosition={`F${advisor.featured}`}
               />
             ))}
         </div>

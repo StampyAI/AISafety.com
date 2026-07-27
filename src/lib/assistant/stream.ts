@@ -1,0 +1,621 @@
+// Shared streaming + tool-use loop for the assistant. Both the public
+// /api/assistant route and the admin /api/admin/test-run route call into
+// runAssistantStream so the protocol stays in lockstep.
+
+import Anthropic from '@anthropic-ai/sdk'
+import { auditCardCitations, extractCitations } from './citations'
+import { modelDisplayName } from './models'
+import { looksLikeAnswerText, splitAnswerRedoMessage } from './split-answer'
+import { TOOL_DEFINITIONS, executeTool } from './tools'
+import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
+
+// Generous so multi-card responses never truncate mid-token. Anthropic
+// requires this parameter, so it can't be "unlimited" — pick a value well
+// above any realistic response size.
+const MAX_TOKENS = 4096
+const MAX_HISTORY = 14
+const MAX_TOOL_ITERATIONS = 10
+// Hard server-side budget matching the prompt's "at most 5 page reads per
+// turn" rule — each read is a multi-second external fetch, so a runaway model
+// must not be able to chain 10 of them.
+const MAX_PAGE_READS_PER_TURN = 5
+
+export type SseSend = (event: string, data: unknown) => void
+
+/** Corrective message injected when the model's finished answer carded ids
+ *  that exist neither in this turn's tool results nor anywhere in the catalog.
+ *  Sent as a user turn so the model regenerates; the widget renders only what
+ *  follows the LAST [[/thinking]] marker, so the visitor never sees the draft. */
+function fabricationRedoMessage(ids: string[]): string {
+  return `[AUTOMATED CARD AUDIT — this is a server-side check, not the visitor. The visitor will not see your previous draft, so never reference it.]
+Your draft carded listing id(s) that do not exist in the catalog: ${ids.join(', ')}. No tool result in this turn returned these ids, so they are fabricated and their cards would render broken.
+Redo the answer from scratch: run the search_listings call(s) you skipped, card ONLY ids copied verbatim from those fresh results, and if nothing fitting comes back, recommend what search DID return or link the relevant resource page in prose instead of carding anything. Format as always: any reasoning ends with [[/thinking]], then the visible answer, then follow-up chips. Do not apologize for or mention this correction — just deliver the corrected answer.`
+}
+
+/** Per-type suggest-form tags. Deliberately excludes correction, contact and
+ *  feedback, which have their own triggers and are never solicitation. */
+const PER_TYPE_SUGGEST_RE =
+  /\[\[suggest:(?:community|event|funder|course|media-channel|founder-resource|advisor|project|org):/i
+
+/** Corrective message injected when the model's finished answer both shows
+ *  listings and volunteers a per-type suggest form. The prompt forbids the
+ *  combination but the model keeps slipping into it, so the server enforces
+ *  it. The two legitimate pairings (the user asked to add/report something;
+ *  the "once it's up and running" note for someone planning their own) can't
+ *  be detected server-side, so the redo asks the model to re-judge them —
+ *  and the redo runs once, so a kept form on the rewrite is accepted. */
+function suggestGateRedoMessage(): string {
+  return `[AUTOMATED SUGGEST-FORM AUDIT — this is a server-side check, not the visitor. The visitor will not see your previous draft, so never reference it.]
+Your draft both shows listings and offers a suggest-a-listing form. That combination is not allowed: the form is only for turns with NOTHING to show, or for a user who explicitly asked to add, report, or get something listed (including the "once it's up and running" closing note for someone planning their own). Unless one of those exceptions genuinely applies to THIS turn, rewrite the complete answer without the [[suggest:...]] tag and without any "if you know of one that's missing" prose — the listings you showed plus a resource-page link already complete the answer. If an exception does apply, keep the form. Start your reply with [[/thinking]] on its own line, then the full final answer, then follow-up chips. Do not call any more tools, and do not apologize for or mention this correction — just deliver the final answer.`
+}
+
+/** Encodes a single SSE frame. */
+function sseEvent(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+}
+
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream; charset=utf-8',
+  'Cache-Control': 'no-cache, no-transform',
+  Connection: 'keep-alive',
+  'X-Accel-Buffering': 'no',
+}
+
+interface GenerateContext {
+  send: SseSend
+  /** Aborted if the client disconnects mid-stream. Pass into Anthropic SDK
+   *  calls so token generation stops as soon as no one is listening. */
+  signal: AbortSignal
+}
+
+/** Wraps an async generator function in a streaming SSE Response. The
+ *  generator receives `send(event, data)` and an AbortSignal that fires when
+ *  the client disconnects. Errors thrown from the generator are emitted as
+ *  an `error` SSE event before the stream closes. */
+export function sseResponse(
+  generate: (ctx: GenerateContext) => Promise<void>
+): Response {
+  const encoder = new TextEncoder()
+  const ac = new AbortController()
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send: SseSend = (event, data) => {
+        if (ac.signal.aborted) return
+        try {
+          controller.enqueue(encoder.encode(sseEvent(event, data)))
+        } catch {
+          // Controller was closed (e.g. client disconnected mid-frame).
+        }
+      }
+      try {
+        await generate({ send, signal: ac.signal })
+      } catch (err) {
+        if (ac.signal.aborted) return
+        const message = err instanceof Error ? err.message : 'unknown error'
+        console.error('[assistant] stream error:', message)
+        send('error', { message })
+      } finally {
+        try {
+          controller.close()
+        } catch {
+          // Already closed.
+        }
+      }
+    },
+    cancel() {
+      ac.abort()
+    },
+  })
+  return new Response(stream, { headers: SSE_HEADERS })
+}
+
+/** Validates and normalises the incoming messages array. Throws on bad input
+ *  so the route can return a 400 with a useful message. */
+export function validateMessages(messages: unknown): ChatMessage[] {
+  if (!Array.isArray(messages)) throw new Error('messages must be an array')
+  const out: ChatMessage[] = []
+  for (const m of messages) {
+    if (!m || typeof m !== 'object') continue
+    const msg = m as { role?: unknown; content?: unknown }
+    if (msg.role !== 'user' && msg.role !== 'assistant') continue
+    if (typeof msg.content !== 'string') continue
+    if (msg.content.length === 0) continue
+    // User messages are bounded by the composer (4000 chars); assistant
+    // history is the bot's own raw replies (reasoning + tokens included),
+    // which routinely exceed 4000 — dropping those silently deleted long
+    // replies from the bot's memory and from the stored transcript.
+    if (msg.content.length > (msg.role === 'user' ? 4000 : 12000)) continue
+    out.push({ role: msg.role, content: msg.content })
+  }
+  if (out.length === 0) throw new Error('no valid messages')
+  if (out[out.length - 1].role !== 'user') {
+    throw new Error('last message must be from user')
+  }
+  return out.slice(-MAX_HISTORY)
+}
+
+/** Builds the Anthropic message list, prepending the context line to the
+ *  final user turn so the model sees it as ambient setup. */
+export function buildApiMessages(
+  messages: ChatMessage[],
+  contextLine: string
+): Anthropic.MessageParam[] {
+  return messages.map((m, idx) => {
+    if (idx === messages.length - 1 && m.role === 'user') {
+      return { role: m.role, content: `${contextLine}\n\n${m.content}` }
+    }
+    return { role: m.role, content: m.content }
+  })
+}
+
+interface ToolCallLogEntry {
+  name: string
+  input: unknown
+  ok: boolean
+}
+
+export interface AssistantRunResult {
+  assistantText: string
+  toolCalls: ToolCallLogEntry[]
+  citations: CitationRef[]
+  /** Card ids in the visible answer that the live widget degraded to a
+   *  generic "Browse X" fallback link (or dropped entirely) instead of a real
+   *  card — the model wrote them without a tool having returned the listing.
+   *  Logged per turn so the admin transcript can show the same degraded state
+   *  the visitor saw rather than a full card the model only pretended to have. */
+  fallbackCardIds: string[]
+}
+
+interface RunOptions {
+  client: Anthropic
+  systemPrompt: string
+  pagesBlock: string
+  donationGuide: string
+  model: string
+  apiMessages: Anthropic.MessageParam[]
+  catalog: Catalog
+  send: SseSend
+  /** Cancels the in-flight Anthropic call when the client disconnects. */
+  signal?: AbortSignal
+}
+
+/** Runs the assistant tool-use loop, streaming text deltas and tool events
+ *  via `send`, and returns the final assistant text + citations once the
+ *  model stops with a non-tool reason or hits MAX_TOOL_ITERATIONS. */
+export async function runAssistantStream(
+  opts: RunOptions
+): Promise<AssistantRunResult> {
+  const {
+    client,
+    systemPrompt,
+    pagesBlock,
+    donationGuide,
+    model,
+    apiMessages,
+    catalog,
+    send,
+    signal,
+  } = opts
+  let assistantText = ''
+  const cited: Listing[] = []
+  const toolCalls: ToolCallLogEntry[] = []
+  let redoneFabrication = false
+  let redoneSplitAnswer = false
+  let redoneSuggestGate = false
+  // Where the final answer can begin at the earliest: the text length after
+  // the last tool round (or redo). Text before this point is treated as
+  // reasoning — it preceded a tool call — which lets us repair a reply whose
+  // [[/thinking]] marker never arrived. The split-answer redo below covers
+  // the case where that treatment would be wrong.
+  let answerStartOffset = 0
+
+  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+    if (signal?.aborted) {
+      return { assistantText, toolCalls, citations: [], fallbackCardIds: [] }
+    }
+    const response = await client.messages.create(
+      {
+        model,
+        max_tokens: MAX_TOKENS,
+        // Opus 5 turns API-level thinking ON when this field is omitted
+        // (earlier models defaulted to off). The assistant does its reasoning
+        // in visible text ending with the [[/thinking]] marker, and this loop
+        // only reconstructs text/tool_use blocks — API thinking blocks would
+        // be dropped from the echoed assistant turn, breaking tool rounds. So
+        // keep it explicitly off.
+        thinking: { type: 'disabled' },
+        system: [
+          { type: 'text', text: systemPrompt },
+          { type: 'text', text: pagesBlock },
+          { type: 'text', text: donationGuide },
+          {
+            type: 'text',
+            text: `You are currently running on ${modelDisplayName(model)}. If a user asks what model powers you, this is the answer.`,
+            // Cache the whole static prefix (tools + all system blocks). The
+            // prefix is byte-identical across the up-to-10 tool-use iterations
+            // in a turn and across conversation turns, so after the first
+            // write each request reads it at ~0.1x cost. 5-minute TTL (the
+            // default) comfortably covers both. Render order is
+            // tools -> system -> messages, so this one breakpoint on the last
+            // system block caches the tool definitions too.
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        tools: TOOL_DEFINITIONS,
+        messages: apiMessages,
+        stream: true,
+      },
+      { signal }
+    )
+
+    // Reconstruct the assistant turn so we can append it to apiMessages and
+    // feed tool results back in the next iteration.
+    const blocks: Anthropic.ContentBlockParam[] = []
+    let currentTextBlock = ''
+    let currentToolUse: { id: string; name: string; inputJson: string } | null =
+      null
+    let stopReason: string | null = null
+
+    for await (const event of response) {
+      if (event.type === 'message_start') {
+        // One-line cache-stats log per API call so we can confirm prompt
+        // caching is working in the Vercel logs. `cache_read_input_tokens > 0`
+        // means the static tools+system prefix was served from cache.
+        const u = event.message.usage
+        console.log(
+          `[assistant] cache iter=${iter} read=${u.cache_read_input_tokens ?? 0} write=${u.cache_creation_input_tokens ?? 0} input=${u.input_tokens}`
+        )
+      } else if (event.type === 'content_block_start') {
+        if (event.content_block.type === 'text') {
+          currentTextBlock = ''
+        } else if (event.content_block.type === 'tool_use') {
+          currentToolUse = {
+            id: event.content_block.id,
+            name: event.content_block.name,
+            inputJson: '',
+          }
+          send('tool_call_start', {
+            id: event.content_block.id,
+            name: event.content_block.name,
+          })
+        }
+      } else if (event.type === 'content_block_delta') {
+        if (event.delta.type === 'text_delta') {
+          currentTextBlock += event.delta.text
+          assistantText += event.delta.text
+          send('text', { delta: event.delta.text })
+        } else if (event.delta.type === 'input_json_delta' && currentToolUse) {
+          currentToolUse.inputJson += event.delta.partial_json
+        }
+      } else if (event.type === 'content_block_stop') {
+        if (currentToolUse) {
+          let parsedInput: Record<string, unknown> = {}
+          try {
+            parsedInput = currentToolUse.inputJson
+              ? JSON.parse(currentToolUse.inputJson)
+              : {}
+          } catch (err) {
+            console.warn(
+              `[assistant] tool ${currentToolUse.name} sent malformed JSON, treating input as empty`,
+              err
+            )
+          }
+          blocks.push({
+            type: 'tool_use',
+            id: currentToolUse.id,
+            name: currentToolUse.name,
+            input: parsedInput,
+          })
+          currentToolUse = null
+        } else if (currentTextBlock) {
+          blocks.push({ type: 'text', text: currentTextBlock })
+          currentTextBlock = ''
+        }
+      } else if (event.type === 'message_delta') {
+        if (event.delta.stop_reason) stopReason = event.delta.stop_reason
+      }
+    }
+
+    apiMessages.push({ role: 'assistant', content: blocks })
+    if (stopReason !== 'tool_use') {
+      // The model considers its answer finished. Before accepting it, audit
+      // the [[card:...]] ids it wrote: an id matching neither a tool result
+      // from this turn nor any catalog listing is fabricated, and its card
+      // would render broken. Send the model back to redo the answer — once
+      // per turn, and only with enough iteration budget left for the search
+      // it skipped plus the regenerated answer. If the redo fabricates again,
+      // fall through to the existing graceful degradation (fallback link in
+      // the widget, UNRESOLVED badge in the admin).
+      const refsSoFar = new Map<string, CitationRef>()
+      for (const l of cited) refsSoFar.set(l.id, toCitationRef(l))
+      for (const c of extractCitations(assistantText, catalog)) {
+        refsSoFar.set(c.id, c)
+      }
+      const { fabricated } = auditCardCitations(
+        assistantText,
+        Array.from(refsSoFar.values()),
+        catalog
+      )
+      if (
+        fabricated.length > 0 &&
+        !redoneFabrication &&
+        iter < MAX_TOOL_ITERATIONS - 2
+      ) {
+        redoneFabrication = true
+        console.warn(
+          `[assistant] fabricated card id(s) ${fabricated.join(', ')} — sending the model back to redo the answer`
+        )
+        // Surfaces in the admin log's tool list, so redone turns are visible
+        // when skimming conversations.
+        toolCalls.push({
+          name: 'redo_after_fabricated_cards',
+          input: { fabricated },
+          ok: true,
+        })
+        apiMessages.push({
+          role: 'user',
+          content: fabricationRedoMessage(fabricated),
+        })
+        answerStartOffset = assistantText.length
+        continue
+      }
+      // The other way a "finished" reply can be broken: the model began its
+      // user-facing answer, then ran a tool round, then finished without
+      // emitting [[/thinking]] after it. Every renderer treats text before
+      // the last tool round as reasoning in that case, so the visitor would
+      // get a reply that opens mid-thought — a real visitor received "Two
+      // that could give you a useful second opinion:" as the whole reply and
+      // complained. Short pre-search narration is what the marker-injection
+      // repair below is for; when the text that injection would hide is too
+      // long to be narration, send the model back to rewrite the complete
+      // answer instead of amputating it. Skipped after a fabrication redo:
+      // there the pre-redo text is a discarded draft that SHOULD stay
+      // hidden, and the injection repair already handles it.
+      const hiddenIfInjected =
+        assistantText
+          .slice(0, answerStartOffset)
+          .split(/\[\[\s*\/\s*thinking\s*\]\]/i)
+          .pop() ?? ''
+      if (
+        answerStartOffset > 0 &&
+        !redoneFabrication &&
+        !redoneSplitAnswer &&
+        !signal?.aborted &&
+        iter < MAX_TOOL_ITERATIONS - 1 &&
+        !/\[\[\s*\/\s*thinking\s*\]\]/i.test(
+          assistantText.slice(answerStartOffset)
+        ) &&
+        looksLikeAnswerText(hiddenIfInjected)
+      ) {
+        redoneSplitAnswer = true
+        console.warn(
+          `[assistant] split answer — ${hiddenIfInjected.trim().length} chars of answer text sat before the last tool round with no [[/thinking]] after them; sending the model back to rewrite`
+        )
+        // Surfaces in the admin log's tool list, so redone turns are visible
+        // when skimming conversations.
+        toolCalls.push({
+          name: 'redo_after_split_answer',
+          input: { hiddenChars: hiddenIfInjected.trim().length },
+          ok: true,
+        })
+        apiMessages.push({ role: 'user', content: splitAnswerRedoMessage() })
+        // Close the discarded draft with a real marker, sent as a text delta
+        // so the live widget's boundary moves past the draft even if the
+        // rewrite forgets its own marker — and so the stored transcript and
+        // the client's own copy of the reply stay identical.
+        send('text', { delta: '\n[[/thinking]]\n' })
+        assistantText += '\n[[/thinking]]\n'
+        answerStartOffset = assistantText.length
+        continue
+      }
+      // A third way a finished reply can be wrong: it shows listings AND
+      // volunteers a per-type suggest form. The prompt's Honest-failure rule
+      // forbids the combination, but the model keeps closing carded answers
+      // with "if you know of one that's missing…" anyway, so enforce it
+      // here. The redo asks the model to drop the form unless an exception
+      // applies (a judgment the server can't make); it runs once per turn,
+      // so a form kept on the rewrite is accepted.
+      const visibleAnswer =
+        assistantText.split(/\[\[\s*\/\s*thinking\s*\]\]/i).pop() ?? ''
+      if (
+        visibleAnswer.includes('[[card:') &&
+        PER_TYPE_SUGGEST_RE.test(visibleAnswer) &&
+        !redoneSuggestGate &&
+        !signal?.aborted &&
+        iter < MAX_TOOL_ITERATIONS - 1
+      ) {
+        redoneSuggestGate = true
+        console.warn(
+          '[assistant] unearned suggest form — the answer both cards listings and offers a suggest form; sending the model back to rewrite'
+        )
+        // Surfaces in the admin log's tool list, so redone turns are visible
+        // when skimming conversations.
+        toolCalls.push({
+          name: 'redo_after_unearned_suggest_form',
+          input: {},
+          ok: true,
+        })
+        apiMessages.push({ role: 'user', content: suggestGateRedoMessage() })
+        // Close the discarded draft with a real marker (same trick as the
+        // split-answer redo above) so the live widget's boundary moves past
+        // the draft even if the rewrite forgets its own marker.
+        send('text', { delta: '\n[[/thinking]]\n' })
+        assistantText += '\n[[/thinking]]\n'
+        answerStartOffset = assistantText.length
+        continue
+      }
+      break
+    }
+
+    const toolUseBlocks = blocks.filter(
+      (b): b is Anthropic.ToolUseBlockParam => b.type === 'tool_use'
+    )
+    if (toolUseBlocks.length === 0) break
+
+    const toolResults: Anthropic.ToolResultBlockParam[] = []
+    for (const tu of toolUseBlocks) {
+      const overReadBudget =
+        tu.name === 'read_listing_page' &&
+        toolCalls.filter(c => c.name === 'read_listing_page').length >=
+          MAX_PAGE_READS_PER_TURN
+      const result = overReadBudget
+        ? {
+            ok: false,
+            content:
+              'Page-read budget for this turn is used up. Answer from what you already have — do not request another page read.',
+            listings: [],
+          }
+        : await executeTool(tu.name, tu.input as unknown, catalog)
+      toolCalls.push({ name: tu.name, input: tu.input, ok: result.ok })
+      cited.push(...result.listings)
+      const n = result.listings.length
+      const summary =
+        tu.name === 'search_listings'
+          ? `${n} match${n === 1 ? '' : 'es'}`
+          : tu.name === 'get_listing'
+            ? result.ok
+              ? 'fetched'
+              : 'not found'
+            : tu.name === 'read_listing_page'
+              ? result.ok
+                ? 'read'
+                : 'unreadable'
+              : 'done'
+      send('tool_call_done', {
+        id: tu.id,
+        name: tu.name,
+        ok: result.ok,
+        summary,
+        input: tu.input,
+        listings: result.listings.map(toCitationRef),
+      })
+      toolResults.push({
+        type: 'tool_result',
+        tool_use_id: tu.id,
+        content: result.content,
+        is_error: !result.ok,
+      })
+    }
+    apiMessages.push({ role: 'user', content: toolResults })
+    answerStartOffset = assistantText.length
+  }
+
+  // Citations come from the listings the model actually used (via tools).
+  // If it also wrote bare [[id:...]] markers, fold those in too.
+  const byId = new Map<string, CitationRef>()
+  for (const l of cited) byId.set(l.id, toCitationRef(l))
+  for (const c of extractCitations(assistantText, catalog)) byId.set(c.id, c)
+
+  // Telemetry: a reply should carry exactly one [[/thinking]] marker (two when
+  // the fabrication redo above injected a second generation). More than that
+  // means the model re-entered thinking mid-answer — the renderer keeps only
+  // what follows the LAST marker, so everything the model wrote before its
+  // spurious re-emission was hidden from the visitor. Counted before the
+  // missing-marker repair below so it reflects what the model actually wrote.
+  const markerCount =
+    assistantText.match(/\[\[\s*\/\s*thinking\s*\]\]/gi)?.length ?? 0
+  // Baseline 1; a fabrication redo adds the discarded draft's own marker; a
+  // split-answer redo adds the synthetic marker that closed the draft plus,
+  // at most, a marker the draft itself carried. Upper bounds, so the warn
+  // below still catches genuine mid-answer re-emission.
+  const expectedMarkers =
+    1 + (redoneFabrication ? 1 : 0) + (redoneSplitAnswer ? 2 : 0)
+  if (markerCount > expectedMarkers) {
+    console.warn(
+      `[assistant] re-emitted [[/thinking]] mid-answer (${markerCount} markers, expected ${expectedMarkers}) — earlier answer text was hidden from the visitor`
+    )
+  }
+
+  // The opposite failure: the model ran tools but never emitted [[/thinking]]
+  // after its last tool round, leaving pre-search narration ("I'll search
+  // for…") glued to the answer. The live widget hides that (its boundary
+  // falls back to the last tool call), but the stored transcript is a flat
+  // string with no tool positions, so the admin log — and the model reading
+  // its own history next turn — would see the leak. The server knows where
+  // the last tool round ended, which is exactly where the marker belongs, so
+  // repair the transcript by injecting it there.
+  if (
+    answerStartOffset > 0 &&
+    !/\[\[\s*\/\s*thinking\s*\]\]/i.test(assistantText.slice(answerStartOffset))
+  ) {
+    console.warn(
+      '[assistant] missing [[/thinking]] after the last tool call — injected the marker so the reasoning trail stays out of the stored answer'
+    )
+    assistantText = `${assistantText.slice(0, answerStartOffset).trimEnd()}\n[[/thinking]]\n${assistantText.slice(answerStartOffset).trimStart()}`
+  }
+
+  // The visible answer is whatever follows the last [[/thinking]] marker — a
+  // redone draft sits before its marker, so it drops out here.
+  const answer = assistantText.split(/\[\[\s*\/\s*thinking\s*\]\]/i).pop() ?? ''
+
+  // Audit the [[card:...]] ids in the visible answer. A card naming a REAL
+  // listing the model never tool-surfaced is backfilled so the stored snapshot
+  // carries it; a card naming NOTHING in the catalog is fabricated.
+  // Fabrications normally trigger the in-loop redo above, so anything still
+  // flagged here survived (or had no budget for) that redo — log it; the live
+  // renderer shows a "Browse X" link and the admin flags it UNRESOLVED.
+  const { backfill, fabricated } = auditCardCitations(
+    answer,
+    Array.from(byId.values()),
+    catalog
+  )
+  for (const ref of backfill) byId.set(ref.id, ref)
+  if (fabricated.length > 0) {
+    console.warn(
+      `[assistant] fabricated card id(s) with no matching listing: ${fabricated.join(', ')}`
+    )
+  }
+
+  // Which of the answer's cards did the live widget degrade to a "Browse X"
+  // fallback link? The widget resolves cards only against listings its tools
+  // returned during the conversation, so fabricated ids always degrade, and
+  // backfilled ids (real listings no tool surfaced this turn) degrade too —
+  // unless an earlier reply already carded the listing, in which case the
+  // widget still holds its citation and renders the real card. Prior replies
+  // are the history messages, whose content is a plain string (this run's own
+  // assistant turns were appended as content-block arrays).
+  const priorAssistantText = apiMessages
+    .filter(m => m.role === 'assistant' && typeof m.content === 'string')
+    .map(m => m.content as string)
+    .join('\n')
+  const fallbackCardIds = [
+    ...fabricated,
+    ...backfill
+      .map(ref => ref.id)
+      .filter(id => {
+        const rec = id.match(/rec[A-Za-z0-9]+$/)?.[0]
+        return !(rec && priorAssistantText.includes(rec))
+      }),
+  ]
+
+  // Telemetry: a turn that finishes with no user-facing answer (truly empty, or
+  // only a reasoning trail before [[/thinking]]) leaves the visitor with a blank
+  // reply. Log it so we can measure how often it happens instead of letting it
+  // pass silently. The client surfaces a retry prompt for the same condition.
+  if (!answer.trim()) {
+    console.warn(
+      `[assistant] blank answer — no user-facing text produced (chars=${assistantText.length}, toolCalls=${toolCalls.length})`
+    )
+  }
+
+  return {
+    assistantText,
+    toolCalls,
+    citations: Array.from(byId.values()),
+    fallbackCardIds,
+  }
+}
+
+function toCitationRef(l: Listing): CitationRef {
+  return {
+    id: l.id,
+    type: l.type,
+    name: l.name,
+    organization: l.organization,
+    logo: l.logo,
+    url: l.url,
+    pageUrl: l.pageUrl,
+    description: l.description,
+    meta: l.meta,
+  }
+}

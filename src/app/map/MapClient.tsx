@@ -8,6 +8,7 @@ import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 import styles from './page.module.css'
 
 const D3Map = dynamic(() => import('./D3Map'), {
@@ -80,6 +81,11 @@ export default function MapClient({
   const [showActive, setShowActive] = useState(true)
   const [showInactive, setShowInactive] = useState(false)
   const mapWrapperRef = useRef<HTMLDivElement>(null)
+
+  // Each org's slot in the list below the map, stamped onto a list click so the
+  // dashboard can tie clicks to position. (Clicks on the map itself are
+  // geographic, not ranked, so they carry no slot.)
+  const placements = useMemo(() => placementsById(orgs), [orgs])
 
   const scrollToCards = () => {
     if (!mapWrapperRef.current) return
@@ -209,9 +215,9 @@ export default function MapClient({
         <h2 className="width-7-col padding-bottom-56px">
           An overview of the key{' '}
           <span className="color-light-teal">
-            organizations, programs, and projects
+            organizations, programs, and other resources
           </span>{' '}
-          operating in the AI safety space.
+          in the AI safety space.
         </h2>
 
         <div className="flex gap-56px">
@@ -232,7 +238,19 @@ export default function MapClient({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="card"
-                  onClick={() => trackListingClick('Map', org.title, org.link)}
+                  onClick={() =>
+                    trackListingClick(
+                      'Map',
+                      org.title,
+                      org.link,
+                      org.id,
+                      placements.get(org.id),
+                      'cards',
+                      // First category = the org's map area; the dashboard
+                      // groups Map-page activity by it.
+                      org.category.split(',')[0].trim() || undefined
+                    )
+                  }
                 >
                   <div className="flex items-center gap-16px padding-bottom-24px">
                     <div className="featured-img">

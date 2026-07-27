@@ -14,6 +14,7 @@ const ROUTES = [
   '/jobs',
   '/map',
   '/media-channels',
+  '/privacy',
   '/projects',
   '/self-study',
   '/training',

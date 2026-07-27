@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
@@ -38,43 +39,75 @@ export default async function SelfStudyPage() {
         }
       />
 
-      {/* Featured Cards: two width-6-col cards tile to the full row with the
-          56px column gutter (gap-56px), and stack on mobile (width-6-col goes
-          full-width there). gap-56px must match GRID_GAP in FeaturedCard so the
-          shared gradient lines up. */}
-      <div className="flex flex-wrap gap-56px padding-bottom-80px">
-        {featuredCourses.map((course, i) => (
-          <FeaturedCard
-            key={course.id}
-            className="width-6-col"
-            href={course.url !== '#' ? course.url : undefined}
-            tagline={course.featuredTagline!}
-            name={course.name}
-            description={course.description}
-            logo={course.image ?? undefined}
-            titleMeta={
-              course.organizer
-                ? [
-                    {
-                      icon: '/images/author.svg',
-                      value: `By ${course.organizer}`,
-                    },
-                  ]
-                : undefined
-            }
-            meta={[
-              ...(course.category
-                ? [{ icon: '/images/category.svg', value: course.category }]
-                : []),
-              ...(course.courseType
-                ? [{ icon: '/images/type.svg', value: course.courseType }]
-                : []),
-            ]}
-            trackingPage="Self-study"
-            index={i}
-            count={featuredCourses.length}
-          />
-        ))}
+      {/* Featured Cards + Related Resources: the two cards share one gradient
+          row (gap-56px must match GRID_GAP in FeaturedCard) and flex-shrink to
+          leave room for the aside; everything stacks on mobile. */}
+      <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
+        <div className="flex flex-col-mobile gap-56px">
+          {featuredCourses.map((course, i) => (
+            <FeaturedCard
+              key={course.id}
+              href={course.url !== '#' ? course.url : undefined}
+              tagline={course.featuredTagline!}
+              name={course.name}
+              description={course.description}
+              logo={course.image ?? undefined}
+              titleMeta={
+                course.organizer
+                  ? [
+                      {
+                        icon: '/images/author.svg',
+                        value: `By ${course.organizer}`,
+                      },
+                    ]
+                  : undefined
+              }
+              meta={[
+                ...(course.category
+                  ? [{ icon: '/images/category.svg', value: course.category }]
+                  : []),
+                ...(course.courseType
+                  ? [{ icon: '/images/type.svg', value: course.courseType }]
+                  : []),
+              ]}
+              trackingPage="Self-study"
+              trackingId={course.id}
+              trackingPosition={`F${course.featured}`}
+              index={i}
+              count={featuredCourses.length}
+            />
+          ))}
+        </div>
+
+        <aside className="hide-mobile">
+          <p className="paragraph-small-bold padding-bottom-32px">
+            Related resources
+          </p>
+          <Link
+            href="/training"
+            className="block padding-bottom-40px hover-opacity-80"
+          >
+            <h3 className="padding-bottom-16px">
+              Training programs <span className="color-teal-400">&rarr;</span>
+            </h3>
+            <p className="paragraph-small color-teal-300">
+              Upcoming fellowships, facilitated courses, bootcamps etc.
+            </p>
+          </Link>
+          <a
+            href="https://theaidigest.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block hover-opacity-80"
+          >
+            <h3 className="padding-bottom-16px">
+              AI Digest <span className="color-teal-400">&rarr;</span>
+            </h3>
+            <p className="paragraph-small color-teal-300">
+              Interactive explainers of AI capabilities and trends
+            </p>
+          </a>
+        </aside>
       </div>
 
       {/* Main Content with Search, Cards, and Filters */}

@@ -1,39 +1,31 @@
-import { fetchAirtableRecords } from './airtable'
+import {
+  fetchAirtableRecords,
+  fieldAttachmentUrl,
+  fieldString,
+  fieldText,
+} from './airtable'
 
 const TABLE_ID = 'tblyLelYCQjP6w3nV'
 const VIEW_ID = 'viwBfn9CIUVqQHUy6'
 
-interface AirtableRecord {
-  fields: {
-    '!Title'?: string
-    '!Description'?: string
-    '!Org'?: string
-    "Org's logo"?: string | Array<{ url: string }>
-    'Skill set text'?: string | string[]
-    'Location (formatted)'?: string | string[]
-    '!MinimumExperienceLevel (text)'?: string | string[]
-    'Role type text'?: string | string[]
-    'Work location'?: string | string[]
-    "Org's vacancies page"?: string
-    'Vacancy Button'?: string
-    'Date published'?: string
-  }
-}
+// Permanent Airtable field IDs for the Jobs table. Fetching and selecting
+// by ID keeps the page working when fields are renamed.
+const FIELD = {
+  title: 'fldDVJcmd66eF3E7c', // !Title
+  description: 'fldZY5rS7RSw3G6vw', // !Description
+  org: 'fldG5yHF2GRnwXLcZ', // !Org
+  orgLogo: 'fld0HYRj3o8ZPzIpB', // Org's logo
+  skillSetText: 'fld7B5GTUR1kEj2wH', // Skill set text
+  locationFormatted: 'fldmUJTIPAi5YIv7P', // Location (formatted)
+  minimumExperienceText: 'fldAskPW25nc6R4GZ', // !MinimumExperienceLevel (text)
+  roleTypeText: 'fldCXYRLhvZbwf0Pp', // Role type text
+  workLocation: 'fldffza4UJBfsjL3v', // Work location
+  orgVacanciesPage: 'fldw33cUFdvqcOz64', // Org's vacancies page
+  vacancyButton: 'fldihcmZcHWNWPsxe', // Vacancy Button
+  datePublished: 'fldo9SdkQLyzUI9yp', // Date published
+} as const
 
-const FIELDS = [
-  '!Title',
-  '!Description',
-  '!Org',
-  "Org's logo",
-  'Skill set text',
-  'Location (formatted)',
-  '!MinimumExperienceLevel (text)',
-  'Role type text',
-  'Work location',
-  "Org's vacancies page",
-  'Vacancy Button',
-  'Date published',
-]
+const FIELDS = Object.values(FIELD)
 
 export interface Job {
   id: string
@@ -54,47 +46,36 @@ export async function getJobs(): Promise<Job[]> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
+    returnFieldsByFieldId: true,
     fields: FIELDS,
   })
 
   const results: Job[] = []
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
-    if (!fields['!Title']) continue
+    const f = record.fields
+    const name = fieldString(f[FIELD.title])
+    if (!name) continue
 
-    let logo: string | null = null
-    const logoField = fields["Org's logo"]
-    if (logoField) {
-      if (typeof logoField === 'string') {
-        logo = logoField
-      } else if (Array.isArray(logoField) && logoField.length > 0) {
-        logo = logoField[0].url
-      }
-    }
+    // Org's logo is usually a URL string, but has also held attachments.
+    const logoRaw = f[FIELD.orgLogo]
+    const logo = fieldString(logoRaw) ?? fieldAttachmentUrl(logoRaw)
 
     results.push({
       id: record.id,
-      name: fields['!Title'],
-      description: fields['!Description'] || '',
-      organization: fields['!Org'] || '',
+      name,
+      description: fieldString(f[FIELD.description]) || '',
+      organization: fieldString(f[FIELD.org]) || '',
       logo,
-      skillSet: Array.isArray(fields['Skill set text'])
-        ? fields['Skill set text'].join(', ')
-        : fields['Skill set text'] || '',
-      location: Array.isArray(fields['Location (formatted)'])
-        ? fields['Location (formatted)'].join(', ')
-        : fields['Location (formatted)'] || '',
-      minimumExperience: Array.isArray(fields['!MinimumExperienceLevel (text)'])
-        ? fields['!MinimumExperienceLevel (text)'].join(', ')
-        : fields['!MinimumExperienceLevel (text)'] || '',
-      roleType: Array.isArray(fields['Role type text'])
-        ? fields['Role type text'].join(', ')
-        : fields['Role type text'] || '',
-      workLocation: Array.isArray(fields['Work location'])
-        ? fields['Work location'].join(', ')
-        : fields['Work location'] || '',
-      url: fields['Vacancy Button'] || fields["Org's vacancies page"] || '#',
-      datePublished: fields['Date published'] || null,
+      skillSet: fieldText(f[FIELD.skillSetText]),
+      location: fieldText(f[FIELD.locationFormatted]),
+      minimumExperience: fieldText(f[FIELD.minimumExperienceText]),
+      roleType: fieldText(f[FIELD.roleTypeText]),
+      workLocation: fieldText(f[FIELD.workLocation]),
+      url:
+        fieldString(f[FIELD.vacancyButton]) ||
+        fieldString(f[FIELD.orgVacanciesPage]) ||
+        '#',
+      datePublished: fieldString(f[FIELD.datePublished]),
     })
   }
 

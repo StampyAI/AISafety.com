@@ -51,6 +51,8 @@ export default async function MediaChannelsPage() {
                 logo={channel.logo ?? undefined}
                 metadata={[{ label: 'Type', value: channel.type }]}
                 trackingPage="Media channels"
+                trackingId={channel.id}
+                trackingPosition={`F${channel.featured}`}
               />
             ))}
         </div>

@@ -280,6 +280,7 @@ export default function Navigation({
                 key={item.href}
                 href={item.href}
                 className={styles['nav-item']}
+                aria-current={pathname === item.href ? 'page' : undefined}
                 ref={el => {
                   itemRefs.current[i] = el
                 }}
@@ -304,6 +305,11 @@ export default function Navigation({
             <div
               ref={dropdownRef}
               className={styles['nav-item-last']}
+              data-active-inside={
+                overflowItems.some(item => item.href === pathname)
+                  ? ''
+                  : undefined
+              }
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
               <p className="paragraph-small-bold">+{overflowItems.length}</p>
@@ -314,6 +320,7 @@ export default function Navigation({
                       key={item.href}
                       href={item.href}
                       className={styles['nav-dropdown-item']}
+                      aria-current={pathname === item.href ? 'page' : undefined}
                       style={{ marginBottom: '8px' }}
                       onClick={() => setIsDropdownOpen(false)}
                     >
@@ -411,6 +418,7 @@ export default function Navigation({
               key={item.href}
               href={item.href}
               className={styles['nav-item']}
+              aria-current={pathname === item.href ? 'page' : undefined}
             >
               <div className={styles['nav-item-icon']}>
                 <Image

@@ -1,0 +1,701 @@
+/* Analytics dashboard. Same dark, utilitarian internal chrome as the rest of
+   /admin — panels on teal-850 with teal-800 borders, square-ish corners, all
+   colors from the existing design tokens. */
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.total {
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+/* How far back the stored data reaches, shown when the selected range extends
+ * beyond it. Dotted underline signals the tooltip carrying the full story. */
+.coverage {
+  font-size: 12px;
+  color: var(--teal-300);
+  border-bottom: 1px dotted var(--teal-500);
+  cursor: help;
+}
+
+/* A storage month nearing its safety cap — an act-now warning, so amber and
+ * impossible to miss, shown on every tab. Same warning tones as the admin
+ * log's degraded-card note. */
+.capWarning {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ffb96b;
+  background-color: rgba(255, 170, 90, 0.08);
+  border: 1px solid rgba(255, 170, 90, 0.4);
+  border-radius: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 991px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.panelTitle {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin-bottom: 14px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal-400);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--teal-800);
+}
+
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--teal-800);
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Every other body row gets a faint tint so wide rows are easier to track.
+   The show-more button row is a control, not data, so it stays untinted. */
+.table tbody tr:nth-child(even):not(.showMoreRow) {
+  background-color: color-mix(in srgb, var(--teal-850) 60%, var(--teal-800));
+}
+
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--white);
+}
+
+.nameCell span {
+  word-break: break-word;
+}
+
+.numCol {
+  text-align: right;
+  color: var(--bright-teal-300);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The base `.table th` rule (text-align:left) outranks `.numCol` by
+   specificity, so the numeric column header needs an explicit override to
+   line up over its right-aligned numbers. */
+.table th.numCol {
+  text-align: right;
+}
+
+/* Per-row share of the chart total — a secondary, dimmer column. */
+.pctCol {
+  text-align: right;
+  color: var(--teal-400);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.table th.pctCol {
+  text-align: right;
+}
+
+/* Total row: separated by the last body row's border, bold. */
+.table tfoot td {
+  padding-top: 8px;
+  font-weight: 600;
+}
+
+.totalLabel {
+  color: var(--teal-300);
+}
+
+/* Listing placement on the /funding page (F1/F2 featured, then 1, 2, 3…). */
+.rankCol {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--teal-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.table th.rankCol {
+  text-align: right;
+}
+
+.table td.rankCol {
+  vertical-align: middle;
+}
+
+.rankFeatured {
+  color: var(--bright-teal-300);
+  font-weight: 600;
+}
+
+.dim {
+  font-size: 13px;
+  color: var(--teal-400);
+}
+
+/* "Show more" row: a full-width button under a truncated listing table. */
+.showMoreRow td {
+  padding-top: 12px;
+  text-align: center;
+  border-bottom: none;
+}
+
+.showMoreBtn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.showMoreBtn:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.caption {
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--teal-400);
+}
+
+/* ─── Unique / total click toggle ─────────────────────────────────────── */
+
+.clickToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -8px 0 24px;
+  font-size: 12px;
+}
+
+.clickToggleLabel {
+  color: var(--teal-400);
+  margin-right: 2px;
+}
+
+/* Compact pills matching the date-range presets above (see .presetBtn). */
+.clickToggleBtn {
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 999px;
+  text-decoration: none;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.clickToggleBtn:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.clickToggleBtnActive,
+.clickToggleBtnActive:hover {
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
+/* ─── Exclude-my-activity control (in the header meta row) ─────────────── */
+
+.excludeMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.excludeMetaOn {
+  color: var(--bright-teal-300);
+}
+
+.excludeLink {
+  padding: 0;
+  font: inherit;
+  color: var(--teal-400);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color var(--hover-transition);
+}
+
+.excludeLink:hover {
+  color: var(--white);
+}
+
+/* ─── Clicks-by-source split (map pages) ──────────────────────────────── */
+
+.sourceSplitWrap {
+  margin-bottom: 16px;
+}
+
+.sourceSplit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.sourceSplitLabel {
+  color: var(--teal-400);
+  font-weight: 600;
+}
+
+.sourceStat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+}
+
+.sourceStatName {
+  color: var(--teal-300);
+}
+
+.sourceStatCount {
+  color: var(--white);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sourceStatPct {
+  color: var(--teal-400);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sourceStatLink {
+  text-decoration: none;
+  transition:
+    background-color var(--hover-transition),
+    border-color var(--hover-transition);
+}
+
+.sourceStatLink:hover {
+  background-color: var(--teal-800);
+}
+
+.sourceStatActive,
+.sourceStatActive:hover {
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
+/* On the active (light) pill, recolor every part for contrast. */
+.sourceStatActive .sourceStatName,
+.sourceStatActive .sourceStatCount,
+.sourceStatActive .sourceStatPct {
+  color: var(--teal-900);
+}
+
+/* ─── Per-page drill-down ─────────────────────────────────────────────── */
+
+.pageSection {
+  margin-bottom: 20px;
+}
+
+.pageTabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+/* Separates the two overview tabs from the resource-page tabs. */
+.tabDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 6px;
+  background-color: var(--teal-800);
+}
+
+.pageTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  /* Symmetric by default so text-only tabs (e.g. Home) stay centered. */
+  padding: 5px 12px;
+  font-size: 13px;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+/* Tabs with an icon badge get a tighter left pad so the badge sits near the edge. */
+.pageTab:has(.pageTabIcon) {
+  padding-left: 6px;
+}
+
+/* White badge behind the nav icon, mirroring the site nav, so the glyph reads
+   on both the dark tabs and the light active tab. */
+.pageTabIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background-color: var(--white);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pageTab:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.pageTabActive,
+.pageTabActive:hover {
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
+.empty {
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 10px;
+  padding: 28px;
+  font-size: 14px;
+  color: var(--teal-300);
+  line-height: 1.5;
+}
+
+.recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.recentItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--teal-800);
+  font-size: 13px;
+}
+
+.recentItem:last-child {
+  border-bottom: none;
+}
+
+.recentTime {
+  color: var(--teal-400);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  font-size: 11px;
+  color: var(--bright-teal-300);
+  border: 1px solid var(--teal-700);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* A table row's resource-page marker: the page's nav icon (the same white
+   badge the tabs use) with the page's name beside it. */
+.pageBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.recentLabel {
+  color: var(--white);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recentUrl {
+  color: var(--teal-300);
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+  transition: color var(--hover-transition);
+}
+
+.recentUrl:hover {
+  color: var(--white);
+}
+
+/* ─── Listing logos ───────────────────────────────────────────────────── */
+
+.logo,
+.logoFallback {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.logo {
+  object-fit: contain;
+}
+
+/* Wraps a row's logo to link out to the listing. Sized to the logo so the row
+   stays aligned; the name text beside it is intentionally left unlinked so it
+   can still be selected and copied. */
+.logoLink {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity var(--hover-transition);
+}
+
+.logoLink:hover {
+  opacity: 0.75;
+}
+
+.logoFallback {
+  display: inline-block;
+  background-color: var(--teal-800);
+}
+
+/* ─── Date-range picker ───────────────────────────────────────────────── */
+
+.rangeBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.presets {
+  display: flex;
+  gap: 4px;
+}
+
+/* Filter controls (date range + count toggle) are compact pills, distinct
+   from the larger rectangular tabs below them. */
+.presetBtn {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--teal-300);
+  background-color: transparent;
+  border: 1px solid var(--teal-800);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color var(--hover-transition),
+    background-color var(--hover-transition);
+}
+
+.presetBtn:hover {
+  color: var(--white);
+  background-color: var(--teal-800);
+}
+
+.presetBtnActive,
+.presetBtnActive:hover {
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border-color: var(--bright-teal-300);
+}
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dateInput {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--white);
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 999px;
+  color-scheme: dark;
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: var(--teal-500);
+}
+
+.rangeDash {
+  color: var(--teal-400);
+  font-size: 12px;
+}
+
+.applyBtn {
+  height: 26px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--teal-900);
+  background-color: var(--bright-teal-300);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.applyBtn:hover:not(:disabled) {
+  background-color: var(--bright-teal-500);
+}
+
+.applyBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Chatbot funnel ──────────────────────────────────────────────────── */
+
+.funnel {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Funnel-style stat tiles stacked one per row — for a stat group living in a
+   half-width grid column, where a horizontal row would cramp the labels. */
+.statStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.funnelStage {
+  flex: 1;
+  min-width: 120px;
+  padding: 16px;
+  text-align: center;
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+}
+
+.funnelValue {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--bright-teal-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.funnelLabel {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.funnelArrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 44px;
+}
+
+.funnelArrowGlyph {
+  font-size: 16px;
+  color: var(--teal-500);
+}
+
+.funnelPct {
+  font-size: 11px;
+  color: var(--teal-400);
+  font-variant-numeric: tabular-nums;
+}

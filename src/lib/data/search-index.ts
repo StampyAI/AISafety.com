@@ -69,7 +69,7 @@ const STATIC_PAGES: SearchEntry[] = [
     'Field map',
     '/map',
     '/images/map.svg',
-    'A visual map of organisations in AI safety.'
+    'A visual overview of the key organizations, programs, and other resources in AI safety.'
   ),
   page(
     'Communities',
@@ -270,7 +270,7 @@ export async function buildSearchIndex(): Promise<SearchEntry[]> {
       category: [c.platformText, c.focus, c.location ?? '']
         .filter(Boolean)
         .join(' · '),
-      url: c.joinLink || c.website || '/communities',
+      url: c.joinLink !== '#' ? c.joinLink : '/communities',
       logo: c.logo,
     })
   }

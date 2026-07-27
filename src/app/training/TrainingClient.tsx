@@ -47,7 +47,7 @@ const AIRTABLE_VIEW_URLS: Record<Mode, string> = {
 }
 
 const applicationOptions = ['Open', 'Closed']
-const focusOptions = ['General', 'Technical', 'Governance & policy']
+const focusOptions = ['General', 'Technical', 'Governance']
 const locationOptions = ['Online', 'In person']
 
 type Mode = 'upcoming' | 'recurring'

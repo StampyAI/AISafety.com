@@ -45,14 +45,14 @@ export default async function Home() {
       <div className={`${styles['card-full-width-1']} margin-bottom-40px`}>
         <div>
           <p className="paragraph-small-bold shadow-text padding-bottom-12px">
-            Attend an event or training program
+            Attend an event
           </p>
           <h2 className="shadow-text padding-bottom-40px">
-            Events and programs to build skills, meet others, and explore
-            opportunities in AI safety – online and in person
+            Conferences, talks, workshops, meetups, and competitions in AI
+            safety – online and in person
           </h2>
           <Link href="/events" className="button-primary drop-shadow">
-            View all events and programs
+            View all events
           </Link>
           {dates.events && (
             <RelativeDate
@@ -70,13 +70,27 @@ export default async function Home() {
             width={24}
             height={32}
           />
-          <h3 className="shadow-text padding-bottom-8px">
-            EA Global: New York City 2026
-          </h3>
-          <p className="paragraph-small-bold shadow-text padding-bottom-16px">
-            {/* Location omitted – obvious from event name. Format: "DATE – CITY, COUNTRY" */}
-            16–18 October 2026
-          </p>
+          <div className="flex items-start gap-16px padding-bottom-16px">
+            <div className="featured-img">
+              <Image
+                loading="lazy"
+                src="/images/ea-global-logo.webp"
+                alt="EA Global logo"
+                width={64}
+                height={64}
+                className="card-image"
+              />
+            </div>
+            <div>
+              <h3 className="shadow-text padding-bottom-8px">
+                EA Global: New York City 2026
+              </h3>
+              <p className="paragraph-small-bold shadow-text">
+                {/* Location omitted – obvious from event name. Format: "DATE – CITY, COUNTRY" */}
+                16–18 October 2026
+              </p>
+            </div>
+          </div>
           <p className="padding-bottom-40px">
             3-day conference with talks, workshops, and networking in AI safety
             and other effective altruism cause areas.

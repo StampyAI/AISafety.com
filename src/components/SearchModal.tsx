@@ -306,6 +306,28 @@ export default function SearchModal({
                   </button>
                 )
               })}
+              {/* The donation guide has no records to filter, so its card
+                  links straight to the page instead of scoping the search. */}
+              <a
+                href="/donation-guide"
+                className={`${styles['browse-card']} flex items-center gap-12px padding-top-8px padding-bottom-8px padding-left-8px padding-right-12px cursor-pointer`}
+              >
+                <div
+                  className={`${styles['browse-card-icon']} drop-shadow-light flex items-center justify-center`}
+                >
+                  <Image
+                    src="/images/heart.svg"
+                    alt=""
+                    width={14}
+                    height={14}
+                  />
+                </div>
+                <span
+                  className={`${styles['browse-card-title']} paragraph-small-bold`}
+                >
+                  Donation guide
+                </span>
+              </a>
             </div>
           )}
 

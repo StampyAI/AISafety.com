@@ -25,6 +25,7 @@ const TRAINING_FIELD = {
   url: 'fld1dv9ed8uwiaHh4',
   type: 'fldYhxEyLrNOBWIpY',
   online: 'fld3mfwdhbXgLiIhs',
+  mode: 'fldh2n93X7R478mDW',
   startDate: 'fldQ173rUHJa5MHiA',
   startDateApprox: 'flddeSidJxFZXXwDs',
   endDate: 'fld7Ec5O8m71oZV44',
@@ -49,6 +50,7 @@ const RECURRING_FIELD = {
   url: 'flda40IiCohiSbKoq',
   type: 'fld86l7WsvLm8jm86',
   online: 'flduUmcLQ4nsMQpwQ',
+  mode: 'fldZketwZonfcYWie',
   location: 'fld3wvi1BIj2QSXMV',
   host: 'fldaQgHIMc3RqnFqv',
   featured: 'fldonn5EmegA4Yqlf',
@@ -62,6 +64,13 @@ const RECURRING_FIELD = {
   typicalLength: 'fldYWSizGyk6GGrwu',
 } as const
 
+/**
+ * How participants attend, from the Mode single-select. Hybrid = the
+ * participant chooses between online and in-person, so the program shows
+ * under both the Online and In person filters.
+ */
+export type AttendMode = 'Online' | 'In person' | 'Hybrid'
+
 // Card fields shared by upcoming and recurring programs.
 export interface ProgramBase {
   id: string
@@ -70,7 +79,7 @@ export interface ProgramBase {
   url: string
   type: string[]
   location: string
-  isOnline: boolean
+  mode: AttendMode
   host: string
   focus: string | null
   entryBar: EntryBar | null
@@ -181,6 +190,29 @@ function validEntryBar(value: unknown, name: string): EntryBar | null {
   return null
 }
 
+/**
+ * Reads the Mode single-select. Records from before the field existed (or
+ * that a tool hasn't filled in yet) fall back to the legacy Online? checkbox,
+ * with a warning so they get fixed.
+ */
+export function parseAttendMode(
+  raw: unknown,
+  online: unknown,
+  location: string,
+  name: string,
+  source: string
+): AttendMode {
+  if (raw === 'Online' || raw === 'In person' || raw === 'Hybrid') return raw
+  console.warn(
+    `[${source}] "${name}" has ${
+      raw == null ? 'no Mode set' : `unexpected Mode "${raw}"`
+    } — falling back to the Online? checkbox`
+  )
+  return online === true || location.trim().toLowerCase() === 'online'
+    ? 'Online'
+    : 'In person'
+}
+
 function validTypes(value: unknown, name: string): string[] {
   const rawTypes = toArray(value)
   for (const t of rawTypes) {
@@ -201,6 +233,7 @@ interface BaseFieldIds {
   url: string
   type: string
   online: string
+  mode: string
   location: string
   host: string
   featured: string
@@ -218,8 +251,13 @@ function parseBase(
   FIELD: BaseFieldIds
 ): ProgramBase {
   const location = optionalString(fields[FIELD.location]) || ''
-  const isOnline =
-    fields[FIELD.online] === true || location.trim().toLowerCase() === 'online'
+  const mode = parseAttendMode(
+    fields[FIELD.mode],
+    fields[FIELD.online],
+    location,
+    name,
+    'training'
+  )
   const logoField = fields[FIELD.logo] as Array<{ url?: string }> | undefined
   const featuredRaw = fields[FIELD.featured]
 
@@ -230,7 +268,7 @@ function parseBase(
     url: normalizeUrl(optionalString(fields[FIELD.url]) || ''),
     type: validTypes(fields[FIELD.type], name),
     location,
-    isOnline,
+    mode,
     host: optionalString(fields[FIELD.host]) || '',
     focus: optionalString(fields[FIELD.focus]),
     entryBar: validEntryBar(fields[FIELD.entryBar], name),

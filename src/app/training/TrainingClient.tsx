@@ -110,9 +110,16 @@ function monthLabel(startDate: string | null): string {
   }).format(parseISO(startDate))
 }
 
+// Hybrid programs count as both, so they surface under either location
+// filter. Their Location text spells out both facets ("Online & Berkeley,
+// US"), so the card shows that instead of a bare "Online".
+function locationFacets(program: ProgramBase): string[] {
+  return program.mode === 'Hybrid' ? ['Online', 'In person'] : [program.mode]
+}
+
 function titleMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
   const rows: { icon: string; value: string }[] = []
-  if (program.isOnline) {
+  if (program.mode === 'Online') {
     rows.push({ icon: '/images/icons/computer.svg', value: 'Online' })
   } else if (program.location) {
     rows.push({ icon: '/images/icons/pin.svg', value: program.location })
@@ -313,7 +320,7 @@ export default function TrainingClient({
       if (
         skip !== 'location' &&
         selectedLocation.length > 0 &&
-        !selectedLocation.includes(program.isOnline ? 'Online' : 'In person')
+        !locationFacets(program).some(f => selectedLocation.includes(f))
       )
         return false
       return true
@@ -342,9 +349,7 @@ export default function TrainingClient({
       lengthCounts: countBy('length', p =>
         p.lengthBucket ? [p.lengthBucket] : []
       ),
-      locationCounts: countBy('location', p => [
-        p.isOnline ? 'Online' : 'In person',
-      ]),
+      locationCounts: countBy('location', p => locationFacets(p)),
     }
   }, [
     mode,

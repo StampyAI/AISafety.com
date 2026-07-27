@@ -21,14 +21,12 @@ import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
 
-// TODO(bryce): swap the share view for an Events-table one before launch —
-// it still points at the events/legacy share.
 const ADD_EVENT_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/pagns0zQqcM713eKk/form'
 const SUGGEST_CORRECTION_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form'
 const AIRTABLE_VIEW_URL =
-  'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
+  'https://airtable.com/appF8XfZUGXtfi40E/shrteEg2cClc3x484/tblXbN9swwldwq8f7?viewControls=on'
 
 const applicationOptions = ['Open', 'Closed']
 // Cards show the full Airtable Cost value ("Pay to attend (assistance

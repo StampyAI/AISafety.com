@@ -304,11 +304,12 @@ export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
     const endDate = optionalString(f[TRAINING_FIELD.endDate])
     if (!isUpcomingOrOngoing(endDate, startDate)) continue
 
-    // A program leaves the page once its application deadline has passed
-    // (agreed with Melissa, July 2026) — deadline-less programs stay until
-    // they end.
+    // A program leaves the page once its start date has passed; until then
+    // a passed deadline only marks it Closed, and the Applications filter
+    // (defaulting to Open) hides it. Dateless programs stay indefinitely.
+    if (startDate && startDate < today) continue
+
     const closesOn = optionalString(f[TRAINING_FIELD.deadline])
-    if (closesOn && closesOn < today) continue
 
     // No close date means applications are open-ended — unless applications
     // haven't opened yet, which outranks any deadline (orgs sometimes

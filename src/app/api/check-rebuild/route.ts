@@ -50,7 +50,21 @@ const TABLES: Array<{
     tableId: 'tbl59Ye8oxvPjoVJv',
     filter: '{fld9Epdrxu9n0FV20} = TRUE()', // Publish?
   },
-  { name: 'events', tableId: 'tblx0L8qJEaLBxJFS' },
+  {
+    name: 'events',
+    tableId: 'tblXbN9swwldwq8f7',
+    filter: '{flddgpgNm090Uftsq} = TRUE()', // Publish?
+  },
+  {
+    name: 'training',
+    tableId: 'tbli1YSCpIuNY2DvL',
+    filter: '{fldqlN36P6BVFP151} = TRUE()', // Publish?
+  },
+  {
+    name: 'recurring-training',
+    tableId: 'tblEEIbj6dW5oS4cX',
+    filter: '{fldpjcvh7n6w4cIsi} = TRUE()', // Publish?
+  },
 ]
 
 // Module-level cooldowns prevent hammering the Vercel deploy hook. The hook is

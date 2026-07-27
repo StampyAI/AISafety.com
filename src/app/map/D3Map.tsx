@@ -4,7 +4,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
-import { trackListingClick } from '@/lib/analytics'
+import { trackListingClick, trackListingHover } from '@/lib/analytics'
 import { positionTooltip } from '@/lib/mapTooltip'
 import styles from './page.module.css'
 
@@ -109,12 +109,28 @@ export default function D3Map({ orgs }: D3MapProps) {
     // the next tap can switch to a different pin or dismiss on outside tap.
     let tappedOrgId: string | null = null
 
+    // Pending hover-analytics dwell. A desktop hover only counts once the
+    // cursor has rested on a listing for 500 ms — the timer is canceled on
+    // early leave (and on zoom start, via hideTooltip) so drive-by mouse
+    // passes across the map don't record.
+    let hoverTimer: ReturnType<typeof setTimeout> | null = null
+
+    function cancelHoverTimer() {
+      if (hoverTimer !== null) {
+        clearTimeout(hoverTimer)
+        hoverTimer = null
+      }
+    }
+
     function hideTooltip() {
+      cancelHoverTimer()
       if (tooltipRef.current) {
         tooltipRef.current.style.visibility = 'hidden'
         tooltipRef.current.style.opacity = '0'
         tooltipRef.current.removeAttribute('data-link-url')
         tooltipRef.current.removeAttribute('data-link-title')
+        tooltipRef.current.removeAttribute('data-listing-id')
+        tooltipRef.current.removeAttribute('data-area')
       }
       tappedOrgId = null
     }
@@ -255,6 +271,10 @@ export default function D3Map({ orgs }: D3MapProps) {
       // QA: Items with no real link (e.g. "Last updated") should render
       // on the map but not be clickable
       const hasLink = org.link && org.link !== '#'
+      // First category only — orgs can carry several ("Funding, Resource"),
+      // but the dashboard groups map hovers/clicks by a single area. May be
+      // '' for uncategorized items, which analytics receives as undefined.
+      const firstCategory = org.category.split(',')[0].trim()
       const linkEl = itemGroup
         .append(hasLink ? 'a' : 'g')
         .attr('class', 'mapItem')
@@ -273,19 +293,47 @@ export default function D3Map({ orgs }: D3MapProps) {
               const tt = tooltipRef.current
               const container = containerRef.current
               if (!tt || !container) return
-              tt.querySelector('strong')!.textContent = org.tooltipTitle
-              tt.querySelector('span')!.textContent = org.description
-              tt.setAttribute('data-link-url', org.link)
-              tt.setAttribute('data-link-title', org.title)
-              tt.style.visibility = 'visible'
-              tt.style.opacity = '1'
+              // Only a tap on a DIFFERENT pin (re)opens the tooltip — a
+              // repeat tap on the already-open pin just repositions it below.
+              // Same guard as the /communities map, and it's what keeps the
+              // hover count honest: one open gesture, one recorded hover.
+              if (tappedOrgId !== org.id) {
+                tt.querySelector('strong')!.textContent = org.tooltipTitle
+                tt.querySelector('span')!.textContent = org.description
+                tt.setAttribute('data-link-url', org.link)
+                tt.setAttribute('data-link-title', org.title)
+                // Stash id + area too, so the tooltip's second-tap click can
+                // report them — the tooltip click handler has no org in scope.
+                tt.setAttribute('data-listing-id', org.id)
+                tt.setAttribute('data-area', firstCategory)
+                tt.style.visibility = 'visible'
+                tt.style.opacity = '1'
+                tappedOrgId = org.id
+                // A mobile "hover" is the first tap that opens the tooltip —
+                // there's no cursor to dwell, so it counts immediately.
+                // (hasLink is guaranteed: this handler only exists on links.)
+                trackListingHover(
+                  'Map',
+                  org.title,
+                  org.link,
+                  org.id,
+                  firstCategory || undefined
+                )
+              }
               positionTooltip(event.clientX, event.clientY, tt, container, {
                 minLeftMargin: 20,
               })
-              tappedOrgId = org.id
               return
             }
-            trackListingClick('Map', org.title, org.link)
+            trackListingClick(
+              'Map',
+              org.title,
+              org.link,
+              org.id,
+              undefined,
+              'map',
+              firstCategory || undefined
+            )
           })
       }
 
@@ -389,6 +437,21 @@ export default function D3Map({ orgs }: D3MapProps) {
         .on('mouseenter', event => {
           if (isMobile()) return
           if (isZooming) return
+          // Arm the hover dwell — only for real listings (furniture rows
+          // like "Last updated" show a tooltip but never record a hover).
+          if (hasLink) {
+            cancelHoverTimer()
+            hoverTimer = setTimeout(() => {
+              hoverTimer = null
+              trackListingHover(
+                'Map',
+                org.title,
+                org.link,
+                org.id,
+                firstCategory || undefined
+              )
+            }, 500)
+          }
           const tt = tooltipRef.current
           const container = containerRef.current
           if (!tt || !container) return
@@ -409,6 +472,8 @@ export default function D3Map({ orgs }: D3MapProps) {
           positionTooltip(event.clientX, event.clientY, tt, container)
         })
         .on('mouseleave', () => {
+          // Leaving before the dwell elapses means it wasn't a real hover.
+          cancelHoverTimer()
           if (isMobile()) return
           if (tooltipRef.current) {
             tooltipRef.current.style.visibility = 'hidden'
@@ -432,11 +497,28 @@ export default function D3Map({ orgs }: D3MapProps) {
         svg.transition().duration(300).call(zoom.scaleBy, 0.75)
       }
     }
-    if (recenter) {
-      recenter.onclick = () => {
-        svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
-      }
+    const resetView = () => {
+      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
     }
+    if (recenter) {
+      recenter.onclick = resetView
+    }
+
+    // ESC resets the view, same as the recenter button. Skip while typing in
+    // a form field — ESC there shouldn't yank the map.
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      )
+        return
+      resetView()
+    }
+    document.addEventListener('keydown', handleEscKey)
 
     // Mobile: tapping the tooltip opens the stashed link in a new tab.
     const handleTooltipClick = (e: MouseEvent) => {
@@ -445,7 +527,17 @@ export default function D3Map({ orgs }: D3MapProps) {
       const link = tt.getAttribute('data-link-url')
       const title = tt.getAttribute('data-link-title')
       if (link && link !== '#') {
-        if (title) trackListingClick('Map', title, link)
+        if (title)
+          trackListingClick(
+            'Map',
+            title,
+            link,
+            // Stashed by the first tap — this handler has no org in scope.
+            tt.getAttribute('data-listing-id') || undefined,
+            undefined,
+            'map',
+            tt.getAttribute('data-area') || undefined
+          )
         hideTooltip()
         window.open(link, '_blank')
       }
@@ -468,9 +560,12 @@ export default function D3Map({ orgs }: D3MapProps) {
 
     const container = containerRef.current
     return () => {
+      // A pending hover dwell must not fire after unmount.
+      cancelHoverTimer()
       svgNode.removeEventListener('wheel', preventPageZoom)
       if (tooltipEl) tooltipEl.removeEventListener('click', handleTooltipClick)
       document.removeEventListener('click', handleDocumentClick)
+      document.removeEventListener('keydown', handleEscKey)
       if (container) {
         d3.select(container).select('svg').remove()
       }

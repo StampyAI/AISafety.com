@@ -6,6 +6,15 @@ import { trackListingClick } from '@/lib/analytics'
 interface TrackedLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   trackingPage: string
   trackingName: string
+  /** Airtable record id of the listing, when there is one — the stable join
+   *  key back to the source record (names and urls change; the id doesn't). */
+  trackingId?: string
+  /** Slot the listing sits in ('F1'/'F2' or a number), recorded with the click
+   *  so the analytics dashboard can tie clicks to page position. */
+  trackingPosition?: string
+  /** Click source ('cards' for card surfaces on map pages), so the dashboard
+   *  can separate card clicks from map clicks. */
+  trackingSource?: string
   href: string
   children: ReactNode
 }
@@ -17,6 +26,9 @@ interface TrackedLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
 export default function TrackedLink({
   trackingPage,
   trackingName,
+  trackingId,
+  trackingPosition,
+  trackingSource,
   href,
   children,
   onClick,
@@ -26,7 +38,14 @@ export default function TrackedLink({
     <a
       href={href}
       onClick={e => {
-        trackListingClick(trackingPage, trackingName, href)
+        trackListingClick(
+          trackingPage,
+          trackingName,
+          href,
+          trackingId,
+          trackingPosition,
+          trackingSource
+        )
         onClick?.(e)
       }}
       {...rest}

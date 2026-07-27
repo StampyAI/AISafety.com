@@ -2,6 +2,9 @@ import { DONATION_GUIDE_LAST_UPDATED } from '@/lib/donation-guide-date'
 import { formatDate } from '@/lib/format-date'
 import { fetchAirtableWithRetry } from './airtable'
 
+// All field references below use permanent field IDs (rename-proof); the
+// requests set returnFieldsByFieldId so responses are keyed the same way.
+
 type QueryConfig = {
   type: 'query'
   tableId: string
@@ -29,62 +32,71 @@ const configs: Record<string, ResourceConfig> = {
     type: 'query',
     tableId: 'tblx0L8qJEaLBxJFS',
     viewId: 'viwHl72bJxCb2SfrL',
-    sortField: 'Last modified',
+    sortField: 'fldRXglLBZbUeATnf', // Last modified
   },
   map: {
     type: 'record',
     tableId: 'tblvzbGL9q9dOO9Nc',
     recordId: 'recvDWyM9MW9q1GUj',
-    dateField: 'Description',
+    dateField: 'fldUZfd5kQQP0DoOS', // Description
   },
   communities: {
     type: 'query',
     tableId: 'tbluI5Dll697WiSm8',
-    filter: '{Publish?} = TRUE()',
-    sortField: 'Last modified',
+    filter: '{fldV8RYP1CVzOvHpf} = TRUE()', // Publish?
+    sortField: 'fldcsXAugffjhKmEH', // Last modified
   },
   'self-study': {
     type: 'query',
     tableId: 'tblRNYJ0m1cmJXKKk',
     viewId: 'viwblgaia3x1gsqBo',
+    sortField: 'fld4gwoM3vldhbyiE', // Last modified
+  },
+  // Like 'events', reads the legacy Events & training table until the new
+  // tables get a Last modified field (the API can't create that type) and
+  // become the source of truth at launch.
+  training: {
+    type: 'query',
+    tableId: 'tblx0L8qJEaLBxJFS',
+    viewId: 'viwHl72bJxCb2SfrL',
     sortField: 'Last modified',
   },
   jobs: {
     type: 'query',
     tableId: 'tblyLelYCQjP6w3nV',
     viewId: 'viwDXZcviPykFzt4g',
-    sortField: 'Date published',
+    sortField: 'fldo9SdkQLyzUI9yp', // Date published
   },
   funding: {
     type: 'query',
     tableId: 'tblzMTLDZWZKqTxrq',
-    filter: '{Publish?} = TRUE()',
-    sortField: 'Last modified',
+    filter: '{fldoH88AbtQLEViD7} = TRUE()', // Publish?
+    sortField: 'fldMZXYm96wdeq5jw', // Last modified
   },
   'media-channels': {
     type: 'query',
     tableId: 'tblCTOMzyH3vILL5I',
-    filter: '{Publish?} = TRUE()',
-    sortField: 'Last modified',
+    filter: '{fldMN0TF3kz41HTQc} = TRUE()', // Publish?
+    sortField: 'fldg46VoI3zwPRzXR', // Last modified
   },
   advisors: {
     type: 'query',
     tableId: 'tblf3KKYnmgcjVGhD',
-    filter: '{Publish?} = TRUE()',
-    sortField: 'Last modified',
+    filter: '{fldaOmFd67ORPMfTC} = TRUE()', // Publish?
+    sortField: 'fld8rTAfTkJBhnO0L', // Last modified
   },
   projects: {
     type: 'query',
     tableId: 'tblHT29QNgMYKB8iW',
-    filter: '{Publish?} = TRUE()',
-    sortField: 'Last modified',
+    filter: '{fldrGDtZxpFLQfjMz} = TRUE()', // Publish?
+    sortField: 'fld3KsLNUU3IGj5Gg', // Last modified
   },
   founders: {
     type: 'query',
     tableId: 'tbl59Ye8oxvPjoVJv',
     viewId: 'viwzMBhPBk1GpQXnn',
-    filter: '{Publish?} = TRUE()',
-    sortField: 'Last modified',
+    filter: '{fld9Epdrxu9n0FV20} = TRUE()', // Publish?
+    sortField: 'fldMM2jKZeORMO5mP', // Last modified
   },
   'donation-guide': {
     type: 'constant',
@@ -117,7 +129,7 @@ export async function fetchLastUpdated(
 
   if (config.type === 'record') {
     const response = await fetchAirtableWithRetry(
-      `https://api.airtable.com/v0/${baseId}/${config.tableId}/${config.recordId}`,
+      `https://api.airtable.com/v0/${baseId}/${config.tableId}/${config.recordId}?returnFieldsByFieldId=true`,
       token,
       { next: { revalidate: 3600 } }
     )
@@ -149,6 +161,7 @@ export async function fetchLastUpdated(
   url.searchParams.set('sort[0][direction]', 'desc')
   url.searchParams.set('maxRecords', '1')
   url.searchParams.set('fields[]', config.sortField)
+  url.searchParams.set('returnFieldsByFieldId', 'true')
 
   const response = await fetchAirtableWithRetry(url.toString(), token, {
     next: { revalidate: 3600 },

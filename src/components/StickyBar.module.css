@@ -1,0 +1,21 @@
+.bar {
+  position: sticky;
+  /* Sit below the global nav. The nav publishes its live bottom edge every
+     frame (including mid-slide), so top needs no transition of its own —
+     the bar tracks the nav exactly. The 2px tuck slides this backdrop's top
+     edge UNDER the nav's (which stacks far above), so rendering can never
+     show a hairline seam between the two mid-animation. */
+  top: max(0px, calc(var(--nav-offset, 0px) - 2px));
+  z-index: 5; /* under the filter popovers (10) and the nav */
+  /* Full-bleed: stretch the stuck backdrop to the viewport edges like the
+     nav's, while the content stays aligned to the container. */
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 12px calc(50vw - 50%);
+  transition: background-color 0.15s ease-in-out;
+}
+
+.stuck {
+  background-color: color-mix(in srgb, var(--teal-900) 85%, transparent);
+  backdrop-filter: blur(8px);
+}

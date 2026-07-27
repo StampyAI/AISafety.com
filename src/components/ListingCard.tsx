@@ -28,6 +28,10 @@ interface ListingCardProps {
   /** Metadata rows shown at the bottom of the card. */
   meta: ListingCardMeta[]
   trackingPage: string
+  /** Airtable record id, stamped onto the click event. */
+  listingId?: string
+  /** The card's slot on the page ('F1', 'F2', '1', '2'…) at click time. */
+  placement?: string
 }
 
 function MetaRows({ rows }: { rows: ListingCardMeta[] }) {
@@ -55,6 +59,8 @@ export default function ListingCard({
   titleMeta,
   meta,
   trackingPage,
+  listingId,
+  placement,
 }: ListingCardProps) {
   return (
     <a
@@ -62,7 +68,9 @@ export default function ListingCard({
       target="_blank"
       rel="noopener noreferrer"
       className="card"
-      onClick={() => trackListingClick(trackingPage, name, href)}
+      onClick={() =>
+        trackListingClick(trackingPage, name, href, listingId, placement)
+      }
     >
       {pills && pills.length > 0 && (
         <div className="flex gap-8px padding-bottom-24px">

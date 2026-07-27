@@ -1,4 +1,11 @@
-import { fetchAirtableRecords } from './airtable'
+import {
+  fetchAirtableRecords,
+  fieldAttachmentUrl,
+  fieldNumber,
+  fieldString,
+  fieldStringArray,
+  publishedFormula,
+} from './airtable'
 
 const TABLE_ID = 'tblvzbGL9q9dOO9Nc'
 const VIEW_ID = 'viwJgtDFDmaP8PyoI'
@@ -10,25 +17,27 @@ const MAGIC_ROW_NAMES = [
   'Suggest entry',
 ]
 
-interface AirtableRecord {
-  fields: {
-    'Long name'?: string
-    'Long name for cards'?: string
-    'Short name'?: string
-    Description?: string
-    Category?: string[]
-    'Category (text)'?: string
-    Status?: string
-    'Logo (for cards)'?: Array<{ url: string }>
-    'Logo (for map)'?: Array<{ url: string }>
-    Link?: string
-    'Short URL'?: string
-    'Date added'?: string
-    x?: number
-    y?: number
-    Scale?: string
-  }
-}
+// Permanent Airtable field IDs for the Map table. Fetching, filtering and
+// selecting by ID keeps the page working when fields are renamed.
+const FIELD = {
+  longName: 'fldqYJa5li27kVOUW', // Long name
+  longNameForCards: 'fldPEouzOZbCIZr7p', // Long name for cards
+  shortName: 'fldIL5rLAwlbvdhtg', // Short name
+  description: 'fldUZfd5kQQP0DoOS', // Description
+  categoryText: 'fldddK6whfSl9DWNd', // Category (text)
+  category: 'fldhofDtTtJqWXLuf', // Category
+  status: 'fld2OFKbXPhO2NQRx', // Status
+  logoForCards: 'fldIuProl6IeG0wH2', // Logo (for cards)
+  logoForMap: 'fldua2ISy01Yntwof', // Logo (for map)
+  link: 'fldOilqj9tDwl70Rp', // Link
+  shortUrl: 'fldSLQDvullnrvmut', // Short URL
+  dateAdded: 'fldx8pSG2rP7pRRZf', // Date added
+  x: 'fld2FlBMPjxhjGuFO', // x
+  y: 'fldkAQPZaibRGawVw', // y
+  scale: 'fldw2bKsCY0VdTCN6', // Scale
+  publish: 'fldCCQ2OYlQluuarR', // Publish?
+  hide: 'fldKwedEOWPFuWSe7', // Hide?
+} as const
 
 export interface MapOrg {
   id: string
@@ -56,21 +65,21 @@ export interface MapData {
 }
 
 const FIELD_LIST = [
-  'Long name',
-  'Long name for cards',
-  'Short name',
-  'Description',
-  'Category (text)',
-  'Category',
-  'Status',
-  'Logo (for cards)',
-  'Logo (for map)',
-  'Link',
-  'Short URL',
-  'Date added',
-  'x',
-  'y',
-  'Scale',
+  FIELD.longName,
+  FIELD.longNameForCards,
+  FIELD.shortName,
+  FIELD.description,
+  FIELD.categoryText,
+  FIELD.category,
+  FIELD.status,
+  FIELD.logoForCards,
+  FIELD.logoForMap,
+  FIELD.link,
+  FIELD.shortUrl,
+  FIELD.dateAdded,
+  FIELD.x,
+  FIELD.y,
+  FIELD.scale,
 ]
 
 // Sort order is hardcoded so the Airtable view sort can be changed freely
@@ -131,6 +140,12 @@ export async function getMapData(): Promise<MapData> {
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
+    // Explicit publish gate so we never depend on the view's filter config to
+    // keep unpublished orgs out of the data (and therefore out of the chatbot
+    // catalog). The page's magic control rows (Last updated, Suggest entry,
+    // etc.) are all published, so they pass this filter unaffected.
+    filterByFormula: publishedFormula(FIELD.publish, FIELD.hide),
+    returnFieldsByFieldId: true,
     fields: FIELD_LIST,
   })
 
@@ -140,60 +155,50 @@ export async function getMapData(): Promise<MapData> {
   let suggestCorrectionLink = '#'
 
   for (const record of raw) {
-    const fields = record.fields as AirtableRecord['fields']
+    const f = record.fields
 
-    const title = fields['Long name for cards'] || fields['Long name']
-    if (!title || !fields.Description) continue
+    const title =
+      fieldString(f[FIELD.longNameForCards]) || fieldString(f[FIELD.longName])
+    const description = fieldString(f[FIELD.description])
+    if (!title || !description) continue
 
     const isMagic = MAGIC_ROW_NAMES.includes(title)
 
-    if (title === 'Last updated' && fields.Description) {
-      lastUpdated = fields.Description
+    if (title === 'Last updated') {
+      lastUpdated = description
     }
 
-    if (title === 'Suggest entry' && fields.Link) {
-      suggestEntryLink = fields.Link
-    } else if (title === 'Suggest correction' && fields.Link) {
-      suggestCorrectionLink = fields.Link
+    const link = fieldString(f[FIELD.link])
+    if (title === 'Suggest entry' && link) {
+      suggestEntryLink = link
+    } else if (title === 'Suggest correction' && link) {
+      suggestCorrectionLink = link
     }
 
-    let category = ''
-    if (fields['Category (text)']) {
-      category = fields['Category (text)']
-    } else if (Array.isArray(fields.Category)) {
-      category = fields.Category.join(', ')
-    }
-
-    let logo: string | null = null
-    if (fields['Logo (for cards)'] && fields['Logo (for cards)'].length > 0) {
-      logo = fields['Logo (for cards)'][0].url
-    }
-
-    let mapLogo: string | null = null
-    if (fields['Logo (for map)'] && fields['Logo (for map)'].length > 0) {
-      mapLogo = fields['Logo (for map)'][0].url
-    }
+    const category =
+      fieldString(f[FIELD.categoryText]) ||
+      fieldStringArray(f[FIELD.category]).join(', ')
 
     // QA: 'Long name for cards' includes acronyms in brackets (e.g. "CARMA"),
     // which is correct for card titles but not for the map tooltip. The tooltip
     // should use 'Long name' (without brackets), matching the live site's LongLabel.
-    const tooltipTitle = fields['Long name'] || title
+    const tooltipTitle = fieldString(f[FIELD.longName]) || title
 
     allRecords.push({
       id: record.id,
       title,
       tooltipTitle,
-      shortName: fields['Short name'] || null,
-      description: fields.Description,
+      shortName: fieldString(f[FIELD.shortName]),
+      description,
       category,
-      status: fields.Status || 'Active',
-      logo,
-      mapLogo,
-      link: fields.Link || '#',
-      shortUrl: fields['Short URL'] || null,
-      x: fields.x ?? null,
-      y: fields.y ?? null,
-      scale: fields.Scale || null,
+      status: fieldString(f[FIELD.status]) || 'Active',
+      logo: fieldAttachmentUrl(f[FIELD.logoForCards]),
+      mapLogo: fieldAttachmentUrl(f[FIELD.logoForMap]),
+      link: link || '#',
+      shortUrl: fieldString(f[FIELD.shortUrl]),
+      x: fieldNumber(f[FIELD.x]),
+      y: fieldNumber(f[FIELD.y]),
+      scale: fieldString(f[FIELD.scale]),
       isMagic,
     })
   }

@@ -8,6 +8,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { MediaChannel } from '@/lib/data/media-channels'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface MediaChannelsClientProps {
   channels: MediaChannel[]
@@ -29,6 +30,10 @@ export default function MediaChannelsClient({
 }: MediaChannelsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+
+  // Each channel's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(channels), [channels])
 
   const filteredChannels = useMemo(() => {
     return channels.filter(channel => {
@@ -105,7 +110,13 @@ export default function MediaChannelsClient({
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Media channels', channel.name, channel.url)
+                trackListingClick(
+                  'Media channels',
+                  channel.name,
+                  channel.url,
+                  channel.id,
+                  placements.get(channel.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">

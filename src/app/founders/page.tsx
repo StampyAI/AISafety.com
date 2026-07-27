@@ -50,6 +50,8 @@ export default async function FoundersPage() {
                 logo={resource.image ?? undefined}
                 metadata={[{ label: 'Type', value: resource.type }]}
                 trackingPage="Founders"
+                trackingId={resource.id}
+                trackingPosition={`F${resource.featured}`}
               />
             ))}
         </div>

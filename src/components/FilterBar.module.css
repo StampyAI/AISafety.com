@@ -1,0 +1,21 @@
+.count {
+  white-space: nowrap;
+  /* line-height matches .pill height so the count centers on the first
+     row of pills even when they wrap to more lines. */
+  line-height: 40px;
+}
+
+.pills {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 991px) {
+  .bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .count {
+    /* Stacked below the pills — no pill row to center against. */
+    line-height: normal;
+  }
+}

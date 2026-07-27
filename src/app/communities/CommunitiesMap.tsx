@@ -6,6 +6,7 @@ import Image from 'next/image'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
 import { positionTooltip } from '@/lib/mapTooltip'
+import { trackListingClick, trackListingHover } from '@/lib/analytics'
 
 interface CommunitiesMapProps {
   communities: Community[]
@@ -44,7 +45,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         c =>
           c.latitude !== null &&
           c.longitude !== null &&
-          !c.type.every(t => t.toLowerCase() === 'online')
+          !c.type.every(t => t.toLowerCase() === 'online') &&
+          // Inactive communities are left off the map on purpose; they stay
+          // in the cards below, where the Activity level filter shows them.
+          c.activityLevel !== 'Inactive'
       )
       .map(c => {
         const typeStr = c.type.join(' ').toLowerCase()
@@ -53,12 +57,14 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         else if (typeStr.includes('continent') || typeStr.includes('global'))
           locationType = 'continent'
         return {
+          // Airtable record id — lets analytics join map interactions back
+          // to the exact source record.
+          id: c.id,
           name: c.name,
           description: c.description,
           type: locationType,
           coordinates: [c.longitude!, c.latitude!] as [number, number],
           location: c.location || '',
-          url: c.website || '',
           link: c.joinLink,
           logo: c.logo || '',
         }
@@ -104,6 +110,17 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     const resizeObserver = new ResizeObserver(() => map.resize())
     resizeObserver.observe(mapContainer)
 
+    const resetMapView = () => {
+      map.flyTo({
+        center: initialCenter,
+        zoom: initialZoom,
+        bearing: 0,
+        pitch: 0,
+        duration: 500,
+        essential: true,
+      })
+    }
+
     // Repurpose Mapbox's compass button as a "reset map view" button.
     // addControl synchronously inserts the compass into the DOM, so this
     // runs reliably without depending on the map 'load' event or pin image
@@ -128,14 +145,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         ev => {
           ev.preventDefault()
           ev.stopPropagation()
-          map.flyTo({
-            center: initialCenter,
-            zoom: initialZoom,
-            bearing: 0,
-            pitch: 0,
-            duration: 500,
-            essential: true,
-          })
+          resetMapView()
         },
         true
       )
@@ -148,32 +158,16 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     // caused a race where the image resolved after the map event fired and
     // the listener attached too late — leaving the map pin-less on an
     // uncached first visit).
-    const pinImagePromise = new Promise<HTMLImageElement | HTMLCanvasElement>(
-      resolve => {
-        // No `crossOrigin` set — /images/pin.svg is same-origin, and
-        // setting it would cause the browser to issue a second fetch that
-        // doesn't match the `<link rel="preload">` hint.
-        const customPin = new window.Image()
-        customPin.onload = () => resolve(customPin)
-        customPin.onerror = () => {
-          // Fallback: generate a simple canvas pin if the SVG fails to load.
-          const canvas = document.createElement('canvas')
-          const size = 20
-          canvas.width = size
-          canvas.height = size
-          const ctx = canvas.getContext('2d')!
-          ctx.beginPath()
-          ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2)
-          ctx.fillStyle = '#14b8a6'
-          ctx.fill()
-          ctx.lineWidth = 1
-          ctx.strokeStyle = '#ffffff'
-          ctx.stroke()
-          resolve(canvas)
-        }
-        customPin.src = '/images/pin.svg'
-      }
-    )
+    const pinImagePromise = new Promise<HTMLImageElement | null>(resolve => {
+      // No `crossOrigin` set — /images/pin.svg is same-origin, and
+      // setting it would cause the browser to issue a second fetch that
+      // doesn't match the `<link rel="preload">` hint.
+      const customPin = new window.Image()
+      customPin.onload = () => resolve(customPin)
+      // null = fall back to a plain canvas-drawn pin in rasterizePin.
+      customPin.onerror = () => resolve(null)
+      customPin.src = '/images/pin.svg'
+    })
 
     // Use `style.load` instead of `load`. Mapbox's `load` event waits for
     // the first complete tile render before firing, which introduces a
@@ -191,12 +185,77 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     })
 
     Promise.all([pinImagePromise, styleLoadPromise]).then(([pinImage]) => {
-      if (!map.hasImage('custom-pin')) {
-        map.addImage('custom-pin', pinImage)
+      // Mapbox rasterizes an added image once and then scales that bitmap on
+      // the GPU, which is what made the pins blurry — one 128px raster was
+      // being resized for every pin size and screen density. Instead,
+      // re-render the SVG at each displayed size × devicePixelRatio and
+      // register the results as separate images, so pins map 1:1 onto
+      // physical pixels.
+      const dpr = window.devicePixelRatio || 1
+      // 128×140 is pin.svg's intrinsic size; the widths reproduce the old
+      // look (icon-size 0.25 / 0.35 / 0.45 of the 128px raster).
+      const PIN_ASPECT = 140 / 128
+      const pinWidths: Record<string, number> = {
+        city: 32,
+        country: 44.8,
+        continent: 57.6,
+      }
+
+      function rasterizePin(cssWidth: number) {
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(cssWidth * dpr)
+        canvas.height = Math.round(cssWidth * PIN_ASPECT * dpr)
+        const ctx = canvas.getContext('2d')!
+        if (pinImage) {
+          // Drawing an SVG <img> scaled makes the browser re-render the
+          // vector at the destination resolution — not resize a bitmap.
+          ctx.drawImage(pinImage, 0, 0, canvas.width, canvas.height)
+        } else {
+          // Fallback if pin.svg failed to load: a simple filled circle.
+          ctx.beginPath()
+          ctx.arc(
+            canvas.width / 2,
+            canvas.height / 2,
+            canvas.width / 2 - 2 * dpr,
+            0,
+            Math.PI * 2
+          )
+          ctx.fillStyle = '#14b8a6'
+          ctx.fill()
+          ctx.lineWidth = dpr
+          ctx.strokeStyle = '#ffffff'
+          ctx.stroke()
+        }
+        return ctx.getImageData(0, 0, canvas.width, canvas.height)
+      }
+
+      for (const [type, width] of Object.entries(pinWidths)) {
+        if (!map.hasImage(`pin-${type}`)) {
+          map.addImage(`pin-${type}`, rasterizePin(width), { pixelRatio: dpr })
+          // Hovered pins get their own full-resolution raster too, instead
+          // of GPU-upscaling the base image by 1.2.
+          map.addImage(`pin-${type}-hover`, rasterizePin(width * 1.2), {
+            pixelRatio: dpr,
+          })
+        }
       }
 
       let hoveredPinId: number | null = null
       let tappedPinId: number | null = null
+
+      // Pending hover-analytics dwell. A desktop hover only counts once the
+      // cursor has rested on a pin for 500 ms — the timer restarts when the
+      // cursor enters a new pin and is canceled whenever it leaves the pins
+      // (mouseleave or the empty-features branch below), so drive-by mouse
+      // passes across the map don't record.
+      let hoverTimer: ReturnType<typeof setTimeout> | null = null
+
+      function cancelHoverTimer() {
+        if (hoverTimer !== null) {
+          clearTimeout(hoverTimer)
+          hoverTimer = null
+        }
+      }
 
       const geojsonData = {
         type: 'FeatureCollection' as const,
@@ -205,19 +264,16 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           id: index,
           properties: {
             id: index,
+            // Distinct name on purpose — `id` above is the feature index
+            // that the hover/tap state machine keys on; `recordId` is the
+            // Airtable record id that analytics reports.
+            recordId: community.id,
             name: community.name,
             description: community.description,
             type: community.type,
-            url: community.url,
             link: community.link,
             location: community.location,
             logo: community.logo,
-            baseSize:
-              community.type === 'city'
-                ? 0.25
-                : community.type === 'country'
-                  ? 0.35
-                  : 0.45,
             hover: false,
           },
           geometry: {
@@ -234,12 +290,11 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         type: 'symbol',
         source: 'communities',
         layout: {
-          'icon-image': 'custom-pin',
-          'icon-size': [
-            'case',
-            ['boolean', ['get', 'hover'], false],
-            ['*', ['get', 'baseSize'], 1.2],
-            ['get', 'baseSize'],
+          'icon-image': [
+            'concat',
+            'pin-',
+            ['get', 'type'],
+            ['case', ['boolean', ['get', 'hover'], false], '-hover', ''],
           ],
           'icon-anchor': 'center',
           'icon-allow-overlap': true,
@@ -326,6 +381,8 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             resetHover()
             hoveredPinId = null
             tooltip.style.display = 'none'
+            // Cursor slid off the pins — an unfinished dwell doesn't count.
+            cancelHoverTimer()
           }
           return
         }
@@ -340,11 +397,26 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           hoveredPinId = currentFeatureId
           tooltip.innerHTML = buildTooltipHTML(feature.properties)
           tooltip.style.display = 'block'
+          // Restart the hover dwell — entering a new pin (including moving
+          // straight from one pin onto another) resets the 500 ms clock.
+          cancelHoverTimer()
+          const props = feature.properties
+          hoverTimer = setTimeout(() => {
+            hoverTimer = null
+            trackListingHover(
+              'Communities',
+              props?.name ?? '',
+              props?.link || undefined,
+              props?.recordId || undefined
+            )
+          }, 500)
         }
         updateTooltipPosition(e, tooltip, mapContainer)
       })
 
       map.on('mouseleave', 'community-pins', () => {
+        // Leaving before the dwell elapses means it wasn't a real hover.
+        cancelHoverTimer()
         if (isMobile()) return
         if (hoveredPinId !== null) {
           map.getCanvas().style.cursor = ''
@@ -377,8 +449,18 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         const feature = e.features[0]
 
         if (!isMobile()) {
-          const link = feature.properties?.link || feature.properties?.url
-          if (link && link !== '#') openInNewTab(link)
+          const link = feature.properties?.link
+          if (link && link !== '#') {
+            trackListingClick(
+              'Communities',
+              feature.properties?.name,
+              link,
+              feature.properties?.recordId || undefined,
+              undefined,
+              'map'
+            )
+            openInNewTab(link)
+          }
           return
         }
 
@@ -392,9 +474,27 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
           tooltip.innerHTML = buildTooltipHTML(feature.properties)
 
-          const link = feature.properties?.link || feature.properties?.url
+          const link = feature.properties?.link
           tooltip.setAttribute('data-link-url', link || '')
+          tooltip.setAttribute(
+            'data-link-title',
+            feature.properties?.name || ''
+          )
+          // Stash the record id too, so the tooltip-tap click below can
+          // report it — that handler has no feature in scope.
+          tooltip.setAttribute(
+            'data-listing-id',
+            feature.properties?.recordId || ''
+          )
           tooltip.style.display = 'block'
+          // A mobile "hover" is the first tap that opens the tooltip —
+          // there's no cursor to dwell, so it counts immediately.
+          trackListingHover(
+            'Communities',
+            feature.properties?.name ?? '',
+            link || undefined,
+            feature.properties?.recordId || undefined
+          )
         }
         updateTooltipPosition(e, tooltip, mapContainer)
       })
@@ -410,6 +510,17 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
               resetHover()
               tappedPinId = null
             }
+            const title = tooltip.getAttribute('data-link-title')
+            if (title)
+              trackListingClick(
+                'Communities',
+                title,
+                lnk,
+                // Stashed on the tooltip by the first tap.
+                tooltip.getAttribute('data-listing-id') || undefined,
+                undefined,
+                'map'
+              )
             openInNewTab(lnk)
           }
           e.stopPropagation()
@@ -451,13 +562,32 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
         }
       }
 
+      // ESC resets the view, same as the reset button. Skip while typing in
+      // a form field — ESC there shouldn't yank the map.
+      const handleEscKey = function (e: KeyboardEvent) {
+        if (e.key !== 'Escape') return
+        const target = e.target as HTMLElement | null
+        if (
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable)
+        )
+          return
+        resetMapView()
+      }
+
       tooltip.addEventListener('click', handleTooltipClick)
       document.addEventListener('click', handleDocumentClick)
+      document.addEventListener('keydown', handleEscKey)
 
       // Store cleanup function for useEffect teardown
       cleanupRef.current = () => {
+        // A pending hover dwell must not fire after unmount.
+        cancelHoverTimer()
         tooltip.removeEventListener('click', handleTooltipClick)
         document.removeEventListener('click', handleDocumentClick)
+        document.removeEventListener('keydown', handleEscKey)
         resizeObserver.disconnect()
       }
     })

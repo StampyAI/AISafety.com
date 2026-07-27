@@ -26,6 +26,54 @@ interface FetchOptions {
   returnFieldsByFieldId?: boolean
 }
 
+// ---- Field-value helpers ---------------------------------------------
+// Records fetched with returnFieldsByFieldId are keyed by permanent field
+// ID and arrive untyped (Record<string, unknown>). These helpers coerce
+// the values safely and uniformly across the data layer.
+
+/** String value, or null when empty or missing. */
+export function fieldString(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null
+}
+
+/** Numeric value, or null when missing. */
+export function fieldNumber(value: unknown): number | null {
+  return typeof value === 'number' ? value : null
+}
+
+/** Multi-select (or single string) as an array of strings. */
+export function fieldStringArray(value: unknown): string[] {
+  if (typeof value === 'string') return value ? [value] : []
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string')
+  }
+  return []
+}
+
+/** Multi-select (or single string) joined with ', '; '' when missing. */
+export function fieldText(value: unknown): string {
+  return fieldStringArray(value).join(', ')
+}
+
+/** First attachment's URL, or null. */
+export function fieldAttachmentUrl(value: unknown): string | null {
+  if (!isAttachmentArray(value)) return null
+  return value[0].url
+}
+
+/** The two featured-card slots used across resource pages. */
+export function fieldFeatured(value: unknown): '1' | '2' | null {
+  return value === '1' || value === '2' ? value : null
+}
+
+/** Standard published-and-not-hidden filter, by permanent field ID. */
+export function publishedFormula(
+  publishFieldId: string,
+  hideFieldId: string
+): string {
+  return `AND({${publishFieldId}} = TRUE(), {${hideFieldId}} = FALSE())`
+}
+
 const CACHE_DIR = path.join(process.cwd(), 'public', 'images', 'airtable-cache')
 const CONCURRENCY = 20
 const DOWNLOAD_MAX_RETRIES = 3
@@ -368,5 +416,9 @@ async function fetchAirtableRecordsImpl(
 export const fetchAirtableRecords = unstable_cache(
   fetchAirtableRecordsImpl,
   ['airtable-records', 'v2'],
-  { revalidate: 3600 }
+  // The tag lets /api/check-rebuild invalidate these entries the minute an
+  // Airtable change is detected, so runtime consumers (assistant catalog,
+  // search index) don't wait out the hourly revalidate that static pages
+  // bypass via rebuilds.
+  { revalidate: 3600, tags: ['airtable-records'] }
 )

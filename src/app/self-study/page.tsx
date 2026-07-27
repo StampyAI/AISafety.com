@@ -71,6 +71,8 @@ export default async function SelfStudyPage() {
                 : []),
             ]}
             trackingPage="Self-study"
+            trackingId={course.id}
+            trackingPosition={`F${course.featured}`}
             index={i}
             count={featuredCourses.length}
           />

@@ -45,3 +45,6 @@ next-env.d.ts
 
 # local-only mock data for the /events page (never commit)
 events.mock.json
+
+# local-dev analytics event log (no Redis in dev)
+/.analytics-dev/

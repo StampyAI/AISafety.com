@@ -89,7 +89,7 @@
   height: 40px;
   padding-left: 4px;
   padding-right: 16px;
-  border: 1px solid rgba(122, 255, 178, 0.3);
+  border: 1px solid color-mix(in srgb, var(--bright-teal-300) 30%, transparent);
   border-radius: 20px;
   flex: none;
   max-width: 100%;
@@ -108,7 +108,7 @@
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  border: 1px solid rgba(122, 255, 178, 0.3);
+  border: 1px solid color-mix(in srgb, var(--bright-teal-300) 30%, transparent);
   border-radius: 20px;
   transition: all var(--hover-transition);
   position: relative;
@@ -135,7 +135,7 @@
   height: 40px;
   padding-left: 4px;
   padding-right: 16px;
-  border: 1px solid rgba(122, 255, 178, 0.3);
+  border: 1px solid color-mix(in srgb, var(--bright-teal-300) 30%, transparent);
   border-radius: 20px;
   width: 100%;
   max-width: 100%;
@@ -155,6 +155,30 @@
   background-color: var(--teal-850);
   box-shadow: var(--shadow-dark);
   cursor: pointer;
+}
+
+/* Current page ("you are here") — the resting 30%-alpha teal border lit up
+   to full strength, plus the hover fill made persistent. Same border width,
+   so no layout shift; the existing transition animates the ring on route
+   change. aria-current is set in the JSX, one link at a time. */
+.nav-item[aria-current='page'],
+.nav-dropdown-item[aria-current='page'] {
+  border-color: var(--bright-teal-300);
+  background-color: var(--teal-850);
+}
+
+/* The active pill is already filled, so hover lifts it with the site's
+   card-hover color-mix instead. Also keeps hover visible on the active
+   dropdown item, whose fill blends into the teal-850 dropdown panel. */
+.nav-item[aria-current='page']:hover,
+.nav-dropdown-item[aria-current='page']:hover {
+  background-color: color-mix(in srgb, var(--teal-850) 60%, var(--teal-800));
+}
+
+/* Ring-only hint on the +N pill when the current page's link is hidden
+   inside the overflow dropdown. */
+.nav-item-last[data-active-inside] {
+  border-color: var(--bright-teal-300);
 }
 
 .nav-search-button {

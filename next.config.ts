@@ -13,6 +13,17 @@ const nextConfig: NextConfig = {
         destination: '/founders',
         permanent: true,
       },
+      // Admin routes renamed: /admin/assistant -> /admin/chatbot.
+      {
+        source: '/admin/assistant',
+        destination: '/admin/chatbot/playground',
+        permanent: false,
+      },
+      {
+        source: '/admin/assistant/conversations',
+        destination: '/admin/chatbot/log',
+        permanent: false,
+      },
       // Migrated from Webflow redirects (exported 6 April 2026).
       // Redirects whose destination doesn't exist on the new site
       // were skipped: /ai-safety-reading-guide, /landscape-map/suggest,
@@ -20,9 +31,11 @@ const nextConfig: NextConfig = {
       // Chains through /stay-informed were collapsed to /media-channels.
       { source: '/donating', destination: '/donation-guide', permanent: true },
       { source: '/database', destination: '/communities', permanent: true },
+      // The split page: /events-and-training's traffic goes to /training
+      // (Bryce's call, 27 Jul 2026).
       {
         source: '/events-and-training',
-        destination: '/events',
+        destination: '/training',
         permanent: true,
       },
       { source: '/talk-to-a-human', destination: '/advisors', permanent: true },

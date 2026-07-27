@@ -1,13 +1,14 @@
 import { getAdvisors } from './advisors'
-import { fetchAirtableRecords } from './airtable'
 import { getCommunities } from './communities'
 import { getCourses } from './self-study'
+import { getEvents } from './events'
 import { getFounderResources } from './founders'
 import { getFunders } from './funding'
 import { getJobs } from './jobs'
 import { getMapData } from './map'
 import { getMediaChannels } from './media-channels'
 import { getProjects } from './projects'
+import { getTrainingPrograms, getRecurringPrograms } from './training'
 
 export type SearchType =
   | 'advisor'
@@ -20,6 +21,7 @@ export type SearchType =
   | 'map'
   | 'media'
   | 'project'
+  | 'training'
   | 'page'
 
 export interface SearchEntry {
@@ -52,16 +54,22 @@ function page(
 const STATIC_PAGES: SearchEntry[] = [
   page('Home', '/', null, 'AISafety.com — the hub for AI existential safety.'),
   page(
-    'Events & training',
-    '/events-and-training',
+    'Training programs',
+    '/training',
+    '/images/grad-cap.svg',
+    'Fellowships, bootcamps, and courses in AI safety.'
+  ),
+  page(
+    'Events',
+    '/events',
     '/images/calendar.svg',
-    'Upcoming events, fellowships, and training programs.'
+    'Conferences, competitions, meetups, talks, and workshops in AI safety.'
   ),
   page(
     'Field map',
     '/map',
     '/images/map.svg',
-    'A visual map of organisations in AI safety.'
+    'A visual overview of the key organizations, programs, and other resources in AI safety.'
   ),
   page(
     'Communities',
@@ -120,86 +128,92 @@ const STATIC_PAGES: SearchEntry[] = [
   ),
 ]
 
+// The data layer normalizes a missing URL to '#'; treat that as no URL.
+function realUrl(url: string): string {
+  return url === '#' ? '' : url
+}
+
+function faviconFor(url: string): string | null {
+  if (!url) return null
+  return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`
+}
+
+function dateRange(start: string | null, end: string | null): string {
+  if (!start) return ''
+  return end && end !== start ? `${start} – ${end}` : start
+}
+
 async function getEventEntries(): Promise<SearchEntry[]> {
-  const raw = await fetchAirtableRecords({
-    tableId: 'tblx0L8qJEaLBxJFS',
-    viewId: 'viwHl72bJxCb2SfrL',
-    fields: [
-      'Name',
-      'Description',
-      'Host name',
-      'Type',
-      'Location',
-      'Start date',
-      'End date',
-      'Applications/registrations close',
-      'Applications open or today',
-      'URL',
-    ],
-    sort: [{ field: 'Start date', direction: 'asc' }],
-  })
-
-  const today = new Date().toISOString().slice(0, 10)
-  const entries: SearchEntry[] = []
-
-  for (const record of raw) {
-    const f = record.fields as {
-      Name?: string
-      Description?: string
-      'Host name'?: string
-      Type?: string[]
-      Location?: string[]
-      'Start date'?: string
-      'End date'?: string
-      'Applications/registrations close'?: string
-      'Applications open or today'?: string
-      URL?: string
-    }
-    const name = f.Name
-    const startDate = f['Start date']
-    if (!name || !startDate) continue
-    const endDate = f['End date'] || startDate
-    if (endDate < today) continue
-
-    const closesOn = f['Applications/registrations close']
-    const openOrToday = f['Applications open or today']
-    const appsOpen =
-      !!closesOn && !!openOrToday && openOrToday <= today && closesOn >= today
-
-    const url = f.URL || ''
-    let logo: string | null = null
-    if (url) {
-      try {
-        const domain = new URL(url).hostname
-        logo = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
-      } catch (err) {
-        // Data-quality issue, not a code bug — warn so it's fixed at the source.
-        console.warn(
-          `Search index: ignoring malformed event URL "${url}" (${(err as Error).message})`
-        )
-      }
-    }
-
-    const dateRange =
-      endDate !== startDate ? `${startDate} – ${endDate}` : startDate
-    const types = f.Type || []
-    const locations = f.Location || []
-
-    entries.push({
-      type: 'event',
-      title: name,
-      subtitle: f['Host name'] || '',
-      description: f.Description || '',
+  const events = await getEvents()
+  return events.map(e => {
+    const url = realUrl(e.url)
+    const deadline =
+      e.applicationStatus === 'Open' && e.deadlineType && e.applicationsClose
+        ? `${e.deadlineType} by ${e.applicationsClose}`
+        : ''
+    return {
+      type: 'event' as const,
+      title: e.name,
+      subtitle: e.host,
+      description: e.description,
       category: [
-        dateRange,
-        types.join(', '),
-        locations.join(', '),
-        appsOpen ? 'Applications open' : '',
+        dateRange(e.startDate, e.endDate),
+        e.type.join(', '),
+        e.location || e.mode,
+        deadline,
       ]
         .filter(Boolean)
         .join(' · '),
-      url: url || '/events-and-training',
-      logo,
+      url: url || '/events',
+      logo: e.logo ?? faviconFor(url),
+    }
+  })
+}
+
+async function getTrainingEntries(): Promise<SearchEntry[]> {
+  const [upcoming, recurring] = await Promise.all([
+    getTrainingPrograms(),
+    getRecurringPrograms(),
+  ])
+  const entries: SearchEntry[] = []
+
+  for (const p of upcoming) {
+    const url = realUrl(p.url)
+    const applications = p.notYetOpen
+      ? 'Applications not yet open'
+      : p.applicationStatus === 'Open' && p.applicationsClose
+        ? `Apply by ${p.applicationsClose}`
+        : ''
+    entries.push({
+      type: 'training',
+      title: p.name,
+      subtitle: p.host,
+      description: p.description,
+      category: [
+        p.startDateApprox || dateRange(p.startDate, p.endDate),
+        p.type.join(', '),
+        p.location || p.mode,
+        applications,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      url: url || '/training',
+      logo: p.logo ?? faviconFor(url),
+    })
+  }
+
+  for (const p of recurring) {
+    const url = realUrl(p.url)
+    entries.push({
+      type: 'training',
+      title: p.name,
+      subtitle: p.host,
+      description: p.description,
+      category: ['Recurring', p.type.join(', '), p.location || p.mode]
+        .filter(Boolean)
+        .join(' · '),
+      url: url || '/training',
+      logo: p.logo ?? faviconFor(url),
     })
   }
 
@@ -212,6 +226,7 @@ export async function buildSearchIndex(): Promise<SearchEntry[]> {
     communities,
     courses,
     eventEntries,
+    trainingEntries,
     founders,
     funders,
     jobs,
@@ -223,6 +238,7 @@ export async function buildSearchIndex(): Promise<SearchEntry[]> {
     getCommunities(),
     getCourses(),
     getEventEntries(),
+    getTrainingEntries(),
     getFounderResources(),
     getFunders(),
     getJobs(),
@@ -254,7 +270,7 @@ export async function buildSearchIndex(): Promise<SearchEntry[]> {
       category: [c.platformText, c.focus, c.location ?? '']
         .filter(Boolean)
         .join(' · '),
-      url: c.joinLink || c.website || '/communities',
+      url: c.joinLink !== '#' ? c.joinLink : '/communities',
       logo: c.logo,
     })
   }
@@ -272,6 +288,7 @@ export async function buildSearchIndex(): Promise<SearchEntry[]> {
   }
 
   entries.push(...eventEntries)
+  entries.push(...trainingEntries)
 
   for (const f of founders) {
     entries.push({

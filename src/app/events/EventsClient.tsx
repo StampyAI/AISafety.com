@@ -1,25 +1,47 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
-import Image from 'next/image'
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useLayoutEffect,
+} from 'react'
+import { useSearchParams } from 'next/navigation'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
+import ModeToggle from '@/components/ModeToggle'
+import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
 
+// TODO(bryce): swap the share view for an Events-table one before launch —
+// it still points at the events/legacy share.
 const ADD_EVENT_URL =
-  'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form'
+  'https://airtable.com/appF8XfZUGXtfi40E/pagns0zQqcM713eKk/form'
 const SUGGEST_CORRECTION_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form'
 const AIRTABLE_VIEW_URL =
   'https://airtable.com/appF8XfZUGXtfi40E/shrLgl03tMK4q6cyc/tblx0L8qJEaLBxJFS?viewControls=on'
 
 const applicationOptions = ['Open', 'Closed']
-const costOptions = ['Free', 'Paid', 'Paid (Stipend Available)']
+// Cards show the full Airtable Cost value ("Pay to attend (assistance
+// available)", "Free (cash prize available)", …); the filter collapses
+// them to two groups.
+const costOptions = ['Pay to attend', 'Free']
+
+function costGroup(cost: string): string {
+  if (cost.startsWith('Pay to attend')) return 'Pay to attend'
+  if (cost.startsWith('Free')) return 'Free'
+  console.warn(`Unknown Cost value from Airtable: ${cost}`)
+  return cost
+}
 
 type Mode = 'in-person' | 'online'
 
@@ -143,32 +165,6 @@ function emptyStateMessage(
   return `No results found for ${cost}${noun} ${modeLabel}${applications}. Try adjusting the filters.`
 }
 
-function ModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: Mode
-  onChange: (m: Mode) => void
-}) {
-  const tab = (value: Mode, icon: string, label: string) => (
-    <button
-      type="button"
-      className={`paragraph-small-bold ${styles.modeTab} ${mode === value ? styles.modeTabActive : ''}`}
-      aria-pressed={mode === value}
-      onClick={() => onChange(value)}
-    >
-      <Image src={icon} alt="" width={16} height={16} unoptimized />
-      {label}
-    </button>
-  )
-  return (
-    <div className={styles.modeToggle} role="group" aria-label="Event format">
-      {tab('online', '/images/icons/computer.svg', 'Online')}
-      {tab('in-person', '/images/icons/pin.svg', 'In person')}
-    </div>
-  )
-}
-
 function CitySearch({
   cities,
   selectedCity,
@@ -209,7 +205,7 @@ function CitySearch({
       <input
         type="text"
         className={`text-field ${styles.nearMeInput}`}
-        placeholder="Type your city"
+        placeholder="Type your city or country"
         maxLength={256}
         value={query}
         onFocus={() => setOpen(true)}
@@ -275,6 +271,32 @@ function CitySearch({
   )
 }
 
+// The active set is shareable: the non-default tab writes ?view= to the
+// address bar, the default keeps the bare URL. replaceState (not push) so
+// toggling never stacks history entries; history.state is passed through
+// untouched because Next.js keeps its routing internals there.
+function syncViewParam(next: Mode) {
+  const url = new URL(window.location.href)
+  if (next === 'online') url.searchParams.delete('view')
+  else url.searchParams.set('view', next)
+  window.history.replaceState(window.history.state, '', url)
+}
+
+// Mirrors the URL back into state — reactively, not just on mount, because a
+// soft navigation can rewrite the query string without remounting the page
+// (e.g. clicking the nav's link for the page you're already on strips ?view=,
+// and the old set would stay up while the bare URL promises the default).
+// Lives in its own null-rendering leaf behind a Suspense boundary so
+// useSearchParams doesn't bail the statically-generated page out to client
+// rendering. Layout effect so a shared link swaps sets before first paint.
+function ViewParamSync({ onView }: { onView: (view: string | null) => void }) {
+  const view = useSearchParams().get('view')
+  useLayoutEffect(() => {
+    onView(view)
+  }, [view, onView])
+  return null
+}
+
 export default function EventsClient({ events }: EventsClientProps) {
   const [mode, setMode] = useState<Mode>('online')
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
@@ -282,13 +304,33 @@ export default function EventsClient({ events }: EventsClientProps) {
   const [selectedCost, setSelectedCost] = useState<string[]>([])
   const [selectedCity, setSelectedCity] = useState('')
 
+  const toggleAnchorRef = useRef<HTMLDivElement>(null)
+
+  // URL -> state, fed by ViewParamSync below. Unknown values fall through to
+  // the default; a deep link doesn't auto-scroll the way a click does.
+  // Landing on online drops the city filter, mirroring switchMode.
+  const applyViewParam = useCallback((view: string | null) => {
+    const next: Mode = view === 'in-person' ? 'in-person' : 'online'
+    if (next === 'online') setSelectedCity('')
+    setMode(next)
+  }, [])
+
+  // Switching sets replaces the whole grid, so jump back to the top of the
+  // listings (just below the global nav) for the new set.
   function switchMode(next: Mode) {
     if (next === 'online') setSelectedCity('')
     setMode(next)
+    syncViewParam(next)
+    scrollToAnchor(toggleAnchorRef.current)
   }
 
+  // Hybrid events belong to both views, so they stay visible whichever way
+  // the toggle is set.
   const modeEvents = useMemo(
-    () => events.filter(e => (mode === 'online' ? e.isOnline : !e.isOnline)),
+    () =>
+      events.filter(e =>
+        mode === 'online' ? e.mode !== 'In person' : e.mode !== 'Online'
+      ),
     [events, mode]
   )
 
@@ -309,60 +351,67 @@ export default function EventsClient({ events }: EventsClientProps) {
     [modeEvents]
   )
 
-  const filteredEvents = useMemo(() => {
-    return modeEvents.filter(event => {
-      if (
-        selectedStatus.length > 0 &&
-        !selectedStatus.includes(event.applicationStatus)
-      )
-        return false
-      if (
-        selectedTypes.length > 0 &&
-        !event.type.some(t => selectedTypes.includes(t))
-      )
-        return false
-      if (
-        selectedCost.length > 0 &&
-        !event.cost.some(c => selectedCost.includes(c))
-      )
-        return false
-      if (
-        mode === 'in-person' &&
-        selectedCity &&
-        event.location !== selectedCity
-      )
-        return false
-      return true
-    })
-  }, [
-    modeEvents,
-    selectedStatus,
-    selectedTypes,
-    selectedCost,
-    mode,
-    selectedCity,
-  ])
+  // Each dropdown's counts are faceted (like the 80,000 Hours job board):
+  // an option's number is how many events would show if you picked it,
+  // i.e. it respects every OTHER active filter (including the city) but not
+  // the dropdown's own, so multi-selecting within one dropdown stays
+  // possible. Mirrors TrainingClient.
+  const { filteredEvents, statusCounts, typeCounts, costCounts } =
+    useMemo(() => {
+      const matchesFilters = (event: EventListing, skip?: string) => {
+        if (
+          skip !== 'status' &&
+          selectedStatus.length > 0 &&
+          !selectedStatus.includes(event.applicationStatus)
+        )
+          return false
+        if (
+          skip !== 'type' &&
+          selectedTypes.length > 0 &&
+          !event.type.some(t => selectedTypes.includes(t))
+        )
+          return false
+        if (
+          skip !== 'cost' &&
+          selectedCost.length > 0 &&
+          !event.cost.some(c => selectedCost.includes(costGroup(c)))
+        )
+          return false
+        if (
+          mode === 'in-person' &&
+          selectedCity &&
+          event.location !== selectedCity
+        )
+          return false
+        return true
+      }
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const e of modeEvents)
-      counts[e.applicationStatus] = (counts[e.applicationStatus] || 0) + 1
-    return counts
-  }, [modeEvents])
+      const countBy = (
+        skip: string,
+        extract: (e: EventListing) => string[]
+      ) => {
+        const counts: Record<string, number> = {}
+        for (const e of modeEvents) {
+          if (!matchesFilters(e, skip)) continue
+          for (const key of extract(e)) counts[key] = (counts[key] || 0) + 1
+        }
+        return counts
+      }
 
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const e of modeEvents)
-      for (const t of e.type) counts[t] = (counts[t] || 0) + 1
-    return counts
-  }, [modeEvents])
-
-  const costCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const e of modeEvents)
-      for (const c of e.cost) counts[c] = (counts[c] || 0) + 1
-    return counts
-  }, [modeEvents])
+      return {
+        filteredEvents: modeEvents.filter(e => matchesFilters(e)),
+        statusCounts: countBy('status', e => [e.applicationStatus]),
+        typeCounts: countBy('type', e => e.type),
+        costCounts: countBy('cost', e => e.cost.map(costGroup)),
+      }
+    }, [
+      modeEvents,
+      selectedStatus,
+      selectedTypes,
+      selectedCost,
+      mode,
+      selectedCity,
+    ])
 
   const monthGroups = useMemo(() => {
     const groups: { key: string; label: string; events: EventListing[] }[] = []
@@ -400,9 +449,30 @@ export default function EventsClient({ events }: EventsClientProps) {
 
   return (
     <>
-      <div className="padding-bottom-40px">
-        <ModeToggle mode={mode} onChange={switchMode} />
-      </div>
+      <Suspense fallback={null}>
+        <ViewParamSync onView={applyViewParam} />
+      </Suspense>
+      {/* Sticky so it's always clear which of the two event sets is shown */}
+      <div ref={toggleAnchorRef} aria-hidden="true" />
+      <StickyBar className="margin-bottom-32px">
+        <ModeToggle
+          mode={mode}
+          onChange={switchMode}
+          ariaLabel="Event format"
+          tabs={[
+            {
+              value: 'online',
+              icon: '/images/icons/computer.svg',
+              label: 'Online',
+            },
+            {
+              value: 'in-person',
+              icon: '/images/icons/pin.svg',
+              label: 'In person',
+            },
+          ]}
+        />
+      </StickyBar>
 
       {featuredEvents.length > 0 && (
         <div className="flex flex-wrap gap-56px padding-bottom-80px">
@@ -436,7 +506,6 @@ export default function EventsClient({ events }: EventsClientProps) {
         <FilterBar
           count={filteredEvents.length}
           noun="event"
-          className={styles.filterBar}
           label={`${filteredEvents.length} upcoming event${
             filteredEvents.length === 1 ? '' : 's'
           } ${mode === 'in-person' ? 'in person' : 'online'}`}
@@ -465,7 +534,7 @@ export default function EventsClient({ events }: EventsClientProps) {
         </FilterBar>
 
         {mode === 'in-person' && (
-          <div className={`${styles.nearMe} margin-bottom-32px`}>
+          <div className={`border-only margin-bottom-32px ${styles.nearMe}`}>
             <p className="paragraph-small padding-bottom-16px">
               Find events near you
             </p>
@@ -521,14 +590,14 @@ export default function EventsClient({ events }: EventsClientProps) {
           )}
         </div>
 
-        <div className={`hide-mobile width-3-col ${styles.sidebar}`}>
-          <ContributeButtons
-            suggestEntryUrl={ADD_EVENT_URL}
-            suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
-            noun="event"
-            airtableUrl={AIRTABLE_VIEW_URL}
-          />
-        </div>
+        <ContributeButtons
+          sidebar
+          suggestEntryUrl={ADD_EVENT_URL}
+          suggestCorrectionUrl={SUGGEST_CORRECTION_URL}
+          noun="event"
+          airtableUrl={AIRTABLE_VIEW_URL}
+          airtableNote="(includes past events)"
+        />
       </div>
     </>
   )

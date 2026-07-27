@@ -1,5 +1,6 @@
 import { fetchAirtableRecords } from './airtable'
 import { EVENT_TYPES, type EventType } from '../event-types'
+import { parseAttendMode, type AttendMode } from './training'
 
 const TABLE_ID = 'tblXbN9swwldwq8f7'
 const VIEW_ID: string | undefined = undefined
@@ -13,6 +14,7 @@ const FIELD = {
   url: 'fldvCJ4pBXAxxSWRo',
   type: 'fldF03SyCeA0aM68n',
   online: 'fldaCB147ky62Cb83',
+  mode: 'fldDGWhpZDJQEGf8Q',
   startDate: 'fldsDuvoXahPLGYEN',
   endDate: 'fldAAtwTu3POfROpi',
   deadline: 'fldRhQqHVTVvGFM3k',
@@ -35,7 +37,7 @@ export interface EventListing {
   url: string
   type: string[]
   location: string
-  isOnline: boolean
+  mode: AttendMode
   startDate: string | null
   endDate: string | null
   startTime: string | null
@@ -130,8 +132,13 @@ export async function getEvents(): Promise<EventListing[]> {
     const type = rawTypes.filter(t => EVENT_TYPES.includes(t as EventType))
 
     const location = toArray(f[FIELD.location]).join(', ')
-    const isOnline =
-      f[FIELD.online] === true || location.trim().toLowerCase() === 'online'
+    const mode = parseAttendMode(
+      f[FIELD.mode],
+      f[FIELD.online],
+      location,
+      name,
+      'events'
+    )
 
     // No close date means there is nothing to apply/register for, so the
     // event counts as open — unless applications/registrations haven't
@@ -169,7 +176,7 @@ export async function getEvents(): Promise<EventListing[]> {
       url: normalizeUrl(optionalString(f[FIELD.url]) || ''),
       type,
       location,
-      isOnline,
+      mode,
       startDate,
       endDate,
       // The Events table has no time fields yet.

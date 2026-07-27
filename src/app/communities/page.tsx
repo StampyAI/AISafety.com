@@ -77,6 +77,9 @@ export default async function CommunitiesPage() {
                     { label: 'Focus', value: community.focus },
                   ]}
                   trackingPage="Communities"
+                  trackingId={community.id}
+                  trackingPosition={`F${community.featured}`}
+                  trackingSource="cards"
                 />
               ))}
           </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { fetchAirtableWithRetry } from '@/lib/data/airtable'
 
 // Force dynamic - this endpoint must run fresh on every cron invocation
@@ -6,7 +7,8 @@ export const dynamic = 'force-dynamic'
 
 // Airtable tables whose changes should trigger a rebuild. The filter mirrors
 // what the corresponding page actually displays, so internal-only edits on
-// unpublished records don't cause unnecessary rebuilds.
+// unpublished records don't cause unnecessary rebuilds. Filters reference
+// fields by permanent field ID (rename-proof).
 const TABLES: Array<{
   name: string
   tableId: string
@@ -15,38 +17,38 @@ const TABLES: Array<{
   {
     name: 'communities',
     tableId: 'tbluI5Dll697WiSm8',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldV8RYP1CVzOvHpf} = TRUE()', // Publish?
   },
   {
     name: 'funding',
     tableId: 'tblzMTLDZWZKqTxrq',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldoH88AbtQLEViD7} = TRUE()', // Publish?
   },
   {
     name: 'self-study',
     tableId: 'tblRNYJ0m1cmJXKKk',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldWShxP7GkMeh6rg} = TRUE()', // Publish?
   },
   { name: 'map', tableId: 'tblvzbGL9q9dOO9Nc' },
   {
     name: 'advisors',
     tableId: 'tblf3KKYnmgcjVGhD',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldaOmFd67ORPMfTC} = TRUE()', // Publish?
   },
   {
     name: 'projects',
     tableId: 'tblHT29QNgMYKB8iW',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldrGDtZxpFLQfjMz} = TRUE()', // Publish?
   },
   {
     name: 'media-channels',
     tableId: 'tblCTOMzyH3vILL5I',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fldMN0TF3kz41HTQc} = TRUE()', // Publish?
   },
   {
     name: 'founders',
     tableId: 'tbl59Ye8oxvPjoVJv',
-    filter: '{Publish?} = TRUE()',
+    filter: '{fld9Epdrxu9n0FV20} = TRUE()', // Publish?
   },
   { name: 'events', tableId: 'tblx0L8qJEaLBxJFS' },
 ]
@@ -157,6 +159,15 @@ export async function GET(request: Request) {
       changedTables: [],
     })
   }
+
+  // Static pages get fresh data from the rebuild below, but runtime consumers
+  // (assistant catalog, search index) read the shared data cache, which a
+  // rebuild does not clear. Invalidate it here so they refetch on their next
+  // request. Runs before the hook cooldowns on purpose: even when a rebuild
+  // can't be triggered yet, runtime data should not stay stale. 'max' =
+  // stale-while-revalidate; the cron re-fires every minute until the rebuild
+  // lands, so the background refresh converges within a couple of requests.
+  revalidateTag('airtable-records', 'max')
 
   const now = Date.now()
 

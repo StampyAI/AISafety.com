@@ -14,8 +14,10 @@ const ROUTES = [
   '/jobs',
   '/map',
   '/media-channels',
+  '/privacy',
   '/projects',
   '/self-study',
+  '/training',
 ] as const
 
 export default function sitemap(): MetadataRoute.Sitemap {

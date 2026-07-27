@@ -146,7 +146,9 @@ src/app/
 │   ├── D3Map.tsx       # Client component with D3 visualization
 │   ├── layout.tsx      # Map-specific layout
 │   └── page.module.css # Map-specific styles
-├── events-and-training/
+├── events/
+│   └── page.tsx
+├── training/
 │   └── page.tsx
 └── api/
     ├── map/

@@ -5,9 +5,8 @@ import FilterBar from '@/components/FilterBar'
 import FilterDropdown from '@/components/FilterDropdown'
 import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
-import SearchBar from '@/components/SearchBar'
 import type { Course } from '@/lib/data/self-study'
-import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface SelfStudyClientProps {
   courses: Course[]
@@ -26,6 +25,10 @@ const typeOptions = ['Curriculum', 'Reading list']
 export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+
+  // Each course's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(courses), [courses])
 
   const filteredCourses = useMemo(() => {
     return courses.filter(course => {
@@ -153,6 +156,8 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
                   : []),
               ]}
               trackingPage="Self-study"
+              listingId={course.id}
+              placement={placements.get(course.id)}
             />
           ))}
           {filteredCourses.length === 0 && (

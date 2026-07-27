@@ -1,0 +1,32 @@
+/* Hero layout used when the newsletter box sits beside the header. */
+.heroRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 56px;
+}
+
+.heroHeader {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.heroHeader h2 {
+  margin-bottom: 24px;
+}
+
+.newsletterSlot {
+  margin-top: 72px;
+}
+
+@media (max-width: 991px) {
+  .heroRow {
+    flex-direction: column;
+    gap: 24px;
+  }
+  .newsletterSlot {
+    flex: 1 1 auto;
+    width: 100%;
+    margin-top: 0;
+  }
+}

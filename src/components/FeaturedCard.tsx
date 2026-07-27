@@ -26,6 +26,13 @@ interface FeaturedCardProps {
   /** Extra classes for the card root (e.g. a width utility). */
   className?: string
   accentClass?: string
+  /** Airtable record id of the featured listing, recorded with the click so it
+   *  can be joined back to the source record. */
+  trackingId?: string
+  /** Slot this featured card occupies ('F1'/'F2'), recorded with the click. */
+  trackingPosition?: string
+  /** Click source ('cards' on map pages), so map vs card clicks can be split. */
+  trackingSource?: string
 }
 
 // Gap between featured cards — must match the row's gap-56px utility so the
@@ -59,6 +66,9 @@ export default function FeaturedCard({
   count,
   className,
   accentClass,
+  trackingId,
+  trackingPosition,
+  trackingSource,
 }: FeaturedCardProps) {
   // One radial gradient shared across the whole row: each card paints its own
   // slice of a background sized to span every card plus the gaps between them
@@ -152,6 +162,9 @@ export default function FeaturedCard({
       style={gradientStyle}
       trackingPage={trackingPage}
       trackingName={name}
+      trackingId={trackingId}
+      trackingPosition={trackingPosition}
+      trackingSource={trackingSource}
     >
       {inner}
     </TrackedLink>

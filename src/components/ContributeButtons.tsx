@@ -14,8 +14,13 @@ interface ContributeButtonsProps {
   noun: string
   /** Airtable grid/view URL for the "View data in Airtable" card. */
   airtableUrl?: string
+  /** Extra line under "View data in Airtable", e.g. "(includes past events)". */
+  airtableNote?: string
   /** Extra contribute actions beyond add + suggest correction. */
   extraLinks?: ExtraLink[]
+  /** Render as the listing pages' right column (desktop only, offset to
+      align with the listing grid beside it). */
+  sidebar?: boolean
 }
 
 // "a" vs "an" for the "Add a …" label.
@@ -52,9 +57,11 @@ export default function ContributeButtons({
   suggestCorrectionUrl,
   noun,
   airtableUrl = '#',
+  airtableNote,
   extraLinks,
+  sidebar,
 }: ContributeButtonsProps) {
-  return (
+  const cards = (
     <div className="flex flex-col gap-16px">
       {/* Contribute card */}
       <div className={`border-only ${styles.card}`}>
@@ -89,7 +96,7 @@ export default function ContributeButtons({
         href={airtableUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={`border-only border-hover color-teal-bright-300 hover-white ${styles.airtableCard}`}
+        className={`border-only border-hover color-teal-300 hover-white ${styles.airtableCard}`}
       >
         <Image
           src="/images/airtable-vector.svg"
@@ -99,23 +106,33 @@ export default function ContributeButtons({
           unoptimized
           className={styles.airtableImg}
         />
-        <span
-          className={`bg-teal-bright-850 ${styles.badge} ${styles.airtableArrow}`}
-        >
+        <span className={`${styles.badge} ${styles.airtableArrow}`}>
           <Image
-            src="/images/arrow-up-right.svg"
+            src="/images/icons/arrow-up-right-figma.svg"
             alt=""
-            width={16}
-            height={16}
+            width={24}
+            height={24}
             unoptimized
           />
         </span>
         <div className={styles.airtableTextWrap}>
           <p className="paragraph-xs padding-left-16px padding-bottom-12px">
             View data in Airtable
+            {airtableNote && (
+              <>
+                <br />
+                {airtableNote}
+              </>
+            )}
           </p>
         </div>
       </a>
     </div>
+  )
+
+  if (!sidebar) return cards
+
+  return (
+    <div className={`hide-mobile width-3-col ${styles.sidebar}`}>{cards}</div>
   )
 }

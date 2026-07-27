@@ -4,7 +4,7 @@
   gap: 16px;
   height: fit-content;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--bright-green) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bright-teal-300) 30%, transparent);
   border-radius: 16px;
 }
 

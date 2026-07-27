@@ -8,6 +8,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Advisor } from '@/lib/data/advisors'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface AdvisorsClientProps {
   advisors: Advisor[]
@@ -20,6 +21,10 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFocus, setSelectedFocus] = useState<string[]>([])
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Active'])
+
+  // Each advisor's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(advisors), [advisors])
 
   const filteredAdvisors = useMemo(() => {
     return advisors.filter(advisor => {
@@ -117,7 +122,13 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
               rel="noopener noreferrer"
               className="card"
               onClick={() =>
-                trackListingClick('Advisors', advisor.name, advisor.url)
+                trackListingClick(
+                  'Advisors',
+                  advisor.name,
+                  advisor.url,
+                  advisor.id,
+                  placements.get(advisor.id)
+                )
               }
             >
               <div className="flex items-center gap-16px padding-bottom-24px">

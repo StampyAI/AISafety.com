@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import styles from './FilterBar.module.css'
 
 interface FilterBarProps {
   /** The FilterDropdown pills. */
@@ -8,30 +9,26 @@ interface FilterBarProps {
   /** Singular noun for the count, e.g. "course". Pluralized with an "s". */
   noun: string
   label?: ReactNode
-  className?: string
 }
 
-// Horizontal row of filter dropdowns with a result count on the right, sitting
-// above the listing grid (replacing the old vertical FilterSidebar). Static —
-// it scrolls away with the page.
+// Horizontal row of filter dropdowns with the result count flowing directly
+// after them (left-aligned, per the Figma — not pushed to the row's far end),
+// sitting above the listing grid (replacing the old vertical FilterSidebar).
+// Static — it scrolls away with the page.
 export default function FilterBar({
   children,
   count,
   noun,
   label,
-  className,
 }: FilterBarProps) {
   return (
     <div
-      className={`flex items-center justify-between gap-16px padding-bottom-40px${className ? ` ${className}` : ''}`}
+      className={`flex items-start gap-16px padding-bottom-40px ${styles.bar}`}
     >
-      <div className="flex items-center gap-8px" style={{ flexWrap: 'wrap' }}>
+      <div className={`flex items-center gap-8px ${styles.pills}`}>
         {children}
       </div>
-      <p
-        className="paragraph-small color-teal-300"
-        style={{ whiteSpace: 'nowrap' }}
-      >
+      <p className={`paragraph-small color-teal-300 ${styles.count}`}>
         {label ?? `${count} ${noun}${count === 1 ? '' : 's'}`}
       </p>
     </div>

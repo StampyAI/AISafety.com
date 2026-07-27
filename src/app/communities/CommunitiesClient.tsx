@@ -9,6 +9,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Community } from '@/lib/data/communities'
 import { trackListingClick } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 
 interface CommunitiesClientProps {
   communities: Community[]
@@ -38,6 +39,10 @@ export default function CommunitiesClient({
   const [platformFilters, setPlatformFilters] = useState<string[]>([])
   const [activityFilters, setActivityFilters] = useState<string[]>([])
   const [focusFilters, setFocusFilters] = useState<string[]>([])
+
+  // Each community's slot in the full page order, stamped onto a click so the
+  // dashboard can tie clicks to page position even after later reordering.
+  const placements = useMemo(() => placementsById(communities), [communities])
 
   const filteredCommunities = useMemo(() => {
     return communities.filter(community => {
@@ -172,62 +177,84 @@ export default function CommunitiesClient({
           {filteredCommunities.length === 0 ? (
             <p className="paragraph-small color-teal-300">Nothing found.</p>
           ) : (
-            filteredCommunities.map(community => (
-              <Link
-                key={community.id}
-                href={community.joinLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="card"
-                onClick={() =>
-                  trackListingClick(
-                    'Communities',
-                    community.name,
-                    community.joinLink
-                  )
-                }
-              >
-                <div className="flex items-center gap-16px padding-bottom-24px">
-                  {community.logo && (
-                    <div className="featured-img">
-                      <Image
-                        src={community.logo}
-                        alt={`${community.name} logo`}
-                        width={64}
-                        height={64}
-                        className="card-image"
-                        unoptimized
-                        onError={e => {
-                          ;(e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                    </div>
+            filteredCommunities.map(community => {
+              const hasLink =
+                Boolean(community.joinLink) && community.joinLink !== '#'
+              const cardContent = (
+                <>
+                  <div className="flex items-center gap-16px padding-bottom-24px">
+                    {community.logo && (
+                      <div className="featured-img">
+                        <Image
+                          src={community.logo}
+                          alt={`${community.name} logo`}
+                          width={64}
+                          height={64}
+                          className="card-image"
+                          unoptimized
+                          onError={e => {
+                            ;(e.target as HTMLImageElement).style.display =
+                              'none'
+                          }}
+                        />
+                      </div>
+                    )}
+                    <h3>{community.name}</h3>
+                  </div>
+                  {community.description && (
+                    <p className="paragraph-small padding-bottom-24px">
+                      {community.description}
+                    </p>
                   )}
-                  <h3>{community.name}</h3>
-                </div>
-                {community.description && (
-                  <p className="paragraph-small padding-bottom-24px">
-                    {community.description}
+                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
+                    Platform
                   </p>
-                )}
-                <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                  Platform
-                </p>
-                <p className="paragraph-small padding-bottom-16px">
-                  {community.platformText || community.platform.join(', ')}
-                </p>
-                <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                  Activity level
-                </p>
-                <p className="paragraph-small padding-bottom-16px">
-                  {community.activityLevel}
-                </p>
-                <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                  Focus
-                </p>
-                <p className="paragraph-small">{community.focus}</p>
-              </Link>
-            ))
+                  <p className="paragraph-small padding-bottom-16px">
+                    {community.platformText || community.platform.join(', ')}
+                  </p>
+                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
+                    Activity level
+                  </p>
+                  <p className="paragraph-small padding-bottom-16px">
+                    {community.activityLevel}
+                  </p>
+                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
+                    Focus
+                  </p>
+                  <p className="paragraph-small">{community.focus}</p>
+                </>
+              )
+
+              if (!hasLink) {
+                return (
+                  <div key={community.id} className="card card-static">
+                    {cardContent}
+                  </div>
+                )
+              }
+
+              return (
+                <Link
+                  key={community.id}
+                  href={community.joinLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="card"
+                  onClick={() =>
+                    trackListingClick(
+                      'Communities',
+                      community.name,
+                      community.joinLink,
+                      community.id,
+                      placements.get(community.id),
+                      'cards'
+                    )
+                  }
+                >
+                  {cardContent}
+                </Link>
+              )
+            })
           )}
         </div>
       </div>

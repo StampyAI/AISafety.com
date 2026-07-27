@@ -360,8 +360,8 @@ export interface VisitsData {
 }
 
 export interface CorrelationRow {
-  /** The pair of interests, e.g. 'Map' and 'Events' — resource pages, plus
-   *  'Chatbot' for chatbot use. */
+  /** The pair of interests, e.g. 'Map' and 'Events & training' — resource
+   *  pages, plus 'Chatbot' for chatbot use. */
   a: string
   b: string
   /** Visitors who engaged with BOTH (visited the page, or clicked one of its
@@ -785,7 +785,11 @@ const PAGE_NAME_BY_PATH: Record<string, string> = {
   '/advisors': 'Advisors',
   '/projects': 'Projects',
   '/founders': 'Founders',
-  '/events-and-training': 'Events',
+  '/events-and-training': 'Events & training',
+  // The split successors of /events-and-training — mapped ahead of launch so
+  // their views are named from the first day they exist.
+  '/events': 'Events',
+  '/training': 'Training',
   '/donation-guide': 'Donation guide',
   '/about': 'About',
   '/poster-map': 'Poster map',

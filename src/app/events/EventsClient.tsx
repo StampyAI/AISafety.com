@@ -51,7 +51,8 @@ function parseISO(date: string): Date {
   return new Date(date + 'T00:00:00Z')
 }
 function shortMonth(d: Date): string {
-  return new Intl.DateTimeFormat('en-GB', {
+  // en-US, not en-GB: en-GB abbreviates September as "Sept".
+  return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     timeZone: 'UTC',
   }).format(d)

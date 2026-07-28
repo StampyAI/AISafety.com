@@ -168,7 +168,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 - **event** (the Events page – upcoming things to ATTEND: conferences, hackathons, meetups, talks, workshops, competitions):
   - \`type\`: "Competition", "Conference", "Hackathon", "Meetup", "Talk", "Workshop", "Other"
   - \`mode\`: "Online", "In person", "Hybrid". Hybrid means the participant chooses – for "events I can join from anywhere" filter \`mode: ['Online', 'Hybrid']\`.
-  - \`location\`: free text, usually "City, Country" (e.g. "Berkeley, US", "London, UK") or "Online". Prefer \`near\` for location queries; some older records carry region labels like "Europe" instead.
+  - \`location\`: free text, usually "City, Country" (e.g. "Berkeley, USA", "London, UK") or "Online". Prefer \`near\` for location queries; some older records carry region labels like "Europe" instead.
   - \`cost\`: e.g. "Free", "Pay to attend"
   - Each event result also carries these meta fields you can read: \`startDate\`, \`endDate\`, \`applicationsClose\`, \`deadlineType\`, \`host\`. \`deadlineType\` says whether the deadline is to apply or just to register – phrase it accordingly ("register by", not "apply by", for a conference with \`deadlineType: 'Register'\`). Only upcoming or currently-running events are in the catalog (past ones are excluded), sorted soonest-first. **An event being in the catalog means it hasn't happened yet – it does NOT mean its applications are still open.** An event's date can be weeks away while its application window has already closed.
 

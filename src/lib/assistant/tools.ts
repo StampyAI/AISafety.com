@@ -27,7 +27,7 @@ ARGUMENTS:
     founder-resource: type
     media-channel: type ("Podcast"|"Newsletter"|"Blog"|"Video"|"Forum")
     org: category, status
-    event: type ("Competition"|"Conference"|"Hackathon"|"Meetup"|"Talk"|"Workshop"|"Other"), mode ("Online"|"In person"|"Hybrid"), location (free text, usually "City, Country" like "Berkeley, US" — or "Online"), cost
+    event: type ("Competition"|"Conference"|"Hackathon"|"Meetup"|"Talk"|"Workshop"|"Other"), mode ("Online"|"In person"|"Hybrid"), location (free text, usually "City, Country" like "Berkeley, USA" — or "Online"), cost
     training: type ("Fellowship"|"Course"|"Bootcamp"|"Other"), mode ("Online"|"In person"|"Hybrid"), location (free text like events), focus ("General"|"Technical"|"Governance & policy"), entryBar ("Low"|"Mid"|"High"), timeCommitment ("Full-time"|"Part-time"), stipend ("No stipend"|"Expenses covered"|"Stipend included"), recurring ("Yes" — only evergreen programs carry it)
 
 Events ('event') are things to attend — conferences, hackathons, meetups, talks, workshops, competitions — on /events. Training programs ('training') are things to apply to and do — fellowships, facilitated courses, bootcamps — on /training. Fellowships and bootcamps are ALWAYS 'training', never 'event'. The 'training' type mixes two kinds of listing: dated upcoming rounds (with startDate/endDate/applicationsClose meta) and evergreen recurring programs (meta \`recurring: 'Yes'\`, no dates, with a \`typicalLength\` like "10 weeks" instead). The same program can appear as both — prefer the dated round when one exists.

@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-28-02'
+export const PROMPT_VERSION = '2026-07-28-03'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -178,7 +178,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
   - \`type\`: "Fellowship", "Course", "Bootcamp", "Other"
   - \`mode\`: "Online", "In person", "Hybrid", "Online or in person". Unlike events, a training "Hybrid" has REQUIRED online and in-person parts (e.g. an online course plus a mandatory summit) – it is not doable fully remotely. "Online or in person" means the participant chooses. For "training I can do from anywhere" filter \`mode: ['Online', 'Online or in person']\` – do NOT include Hybrid.
   - \`location\`: free text, same shape as events
-  - \`focus\`: "General", "Technical", "Governance & policy"
+  - \`focus\`: "General", "Technical", "Governance" – multi-select: a program can carry both "Technical" and "Governance". Filtering on one value matches programs that carry it among others.
   - \`entryBar\`: "Low", "Mid", "High" – how selective/demanding entry is. Match it to the user: suggest "Low" entry-bar programs to beginners, don't push "High" ones at someone just starting out.
   - \`timeCommitment\`: "Full-time", "Part-time" – filter "Part-time" when the user has a job or studies alongside.
   - \`stipend\`: "No stipend", "Expenses covered", "Stipend included" – for "paid programs" filter \`['Stipend included', 'Expenses covered']\`.

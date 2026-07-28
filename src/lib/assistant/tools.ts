@@ -12,7 +12,7 @@ You should call this tool LIBERALLY. By default there is NO limit — the tool r
 
 ARGUMENTS:
 
-• \`type\` — listing type. One of: 'job', 'funder', 'advisor', 'community', 'course', 'founder-resource', 'project', 'media-channel', 'org', 'event'. Highly recommended.
+• \`type\` — listing type. One of: 'job', 'funder', 'advisor', 'community', 'course', 'founder-resource', 'project', 'media-channel', 'org', 'event', 'training'. Highly recommended.
 
 • \`query\` — optional free-text terms. Tokens are matched against name (×5 weight), organization (×3), meta fields (×2), and description (×1). Use the user's words, related keywords, or leave empty to browse by filter alone.
 
@@ -27,9 +27,12 @@ ARGUMENTS:
     founder-resource: type
     media-channel: type ("Podcast"|"Newsletter"|"Blog"|"Video"|"Forum")
     org: category, status
-    event: type ("Bootcamp"|"Competition"|"Conference"|"Course"|"Fellowship"|"Hackathon"|"Meetup"|"Reading Group"|"Talk"|"Unconference"|"Workshop"), location ("Online"|"USA"|"UK"|"Europe"|"Asia"|"Africa"|"Canada"|"Australia/New Zealand"|"Latin America"|"Middle East")
+    event: type ("Competition"|"Conference"|"Hackathon"|"Meetup"|"Talk"|"Workshop"|"Other"), mode ("Online"|"In person"|"Hybrid"), location (free text, usually "City, Country" like "Berkeley, USA" — or "Online"), cost
+    training: type ("Fellowship"|"Course"|"Bootcamp"|"Other"), mode ("Online"|"In person"|"Hybrid"), location (free text like events), focus ("General"|"Technical"|"Governance & policy"), entryBar ("Low"|"Mid"|"High"), timeCommitment ("Full-time"|"Part-time"), stipend ("No stipend"|"Expenses covered"|"Stipend included"), recurring ("Yes" — only evergreen programs carry it)
 
-Event meta fields you can read off each result: startDate, endDate, applicationsClose, host, lengthDays. The catalog only contains upcoming or currently-running events (past ones are excluded), and they are sorted soonest-first. NOTE: an event's date being in the future does NOT mean you can still apply — its application window may already be closed. For every event result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'unknown') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Card/recommend events with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program). 'unknown' means there's no closing date on file (rolling, walk-in, not yet announced, or not yet open) — you may surface it, but never assert it's open or closed; just say the application deadline is unknown. Do NOT tell the user to check the link (if the deadline were findable there, we'd already have it on the site).
+Events ('event') are things to attend — conferences, hackathons, meetups, talks, workshops, competitions — on /events. Training programs ('training') are things to apply to and do — fellowships, facilitated courses, bootcamps — on /training. Fellowships and bootcamps are ALWAYS 'training', never 'event'. The 'training' type mixes two kinds of listing: dated upcoming rounds (with startDate/endDate/applicationsClose meta) and evergreen recurring programs (meta \`recurring: 'Yes'\`, no dates, with a \`typicalLength\` like "10 weeks" instead). Dated rounds are the default to card — results list them first; only surface a recurring listing when the user's ask really points at it (a named program with no open dated round, "when does X run again", programs that run regularly, or nothing dated fits). The same program can appear as both — never card both versions in one answer.
+
+Meta fields you can read off event/training results: startDate, endDate, applicationsClose, host, mode, plus (training) startDateApprox and typicalLength. When \`startDateApprox\` is present (e.g. "early September 2026") it is the org's own wording and the ISO startDate is only an approximate anchor — describe timing with the approx wording, never the exact ISO date. The catalog only contains upcoming or currently-running listings (past ones are excluded), sorted soonest-first (recurring programs come after, in the site's order). NOTE: a future start date does NOT mean you can still apply — the application window may already be closed. For every event/training result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'not_yet_open' | 'unknown' | 'recurring') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Card/recommend listings with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program). 'not_yet_open' means the round is announced but applications/registrations haven't opened yet — you may surface it as upcoming, but don't tell the user to apply now. 'unknown' means there's no closing date on file (rolling, walk-in, or not yet announced) — you may surface it, but never assert it's open or closed; just say the application deadline is unknown. Do NOT tell the user to check the link (if the deadline were findable there, we'd already have it on the site). 'recurring' means an evergreen program with no dated round listed — fine to recommend; follow its applicationsNote for how to talk about timing.
 
 • \`near\` — optional geo filter. Object with \`{city: string, radiusKm?: number}\` or \`{lat, lng, radiusKm?}\`. Default radius is 500km, intentionally wide. Currently only \`community\` listings have coordinates; for other types \`near\` does a fallback substring match on the location meta field. Results within range are ranked by distance ascending. USE THIS for any "near X" / "in X" / "around X" / "close to X" location queries instead of putting the city in the query.
 
@@ -57,8 +60,11 @@ EXAMPLES:
   // Browse all advisors
   search_listings({ type: 'advisor' })
 
-  // Anything tagged "fellowship" across all listing types
-  search_listings({ query: 'fellowship' })`,
+  // Upcoming fellowships (dated rounds and evergreen programs together)
+  search_listings({ type: 'training', filters: { type: 'Fellowship' } })
+
+  // Online or hybrid training programs with some financial support
+  search_listings({ type: 'training', filters: { mode: ['Online', 'Hybrid'], stipend: ['Stipend included', 'Expenses covered'] } })`,
     input_schema: {
       type: 'object',
       properties: {
@@ -75,6 +81,7 @@ EXAMPLES:
             'media-channel',
             'org',
             'event',
+            'training',
           ],
         },
         query: { type: 'string' },
@@ -161,26 +168,46 @@ interface ReadListingPageInput {
   id?: string
 }
 
-/** Pre-computed application-window status for an event, derived from its single
- *  date field (Applications close) so the model never has to do date arithmetic
+/** Pre-computed application-window status for an event or training program,
+ *  derived from its meta fields so the model never has to do date arithmetic
  *  itself (it gets this wrong — e.g. calling a program "open" then noting its
  *  deadline has passed in the same breath). ISO date strings (YYYY-MM-DD)
  *  compare correctly with </>= lexicographically, sidestepping timezone parsing.
  *  A deadline that falls today still counts as open (you can apply through the
  *  last day). An EMPTY close date is deliberately 'unknown' (rolling, walk-in,
- *  not yet announced, or not yet open) — never assume an empty deadline means
- *  "open". */
+ *  not yet announced) — never assume an empty deadline means "open".
+ *  Two flags outrank the deadline: recurring programs have no dated round at
+ *  all, and "not yet open" means the round is announced but you can't apply
+ *  yet (orgs sometimes publish the deadline before opening applications). */
 function eventApplicationStatus(
   meta: Record<string, unknown>,
   today: string
 ): {
-  applicationsStatus: 'open' | 'closed' | 'unknown'
+  applicationsStatus:
+    | 'open'
+    | 'closed'
+    | 'not_yet_open'
+    | 'unknown'
+    | 'recurring'
   applicationsNote: string
 } {
+  if (meta.recurring === 'Yes') {
+    return {
+      applicationsStatus: 'recurring',
+      applicationsNote:
+        "An evergreen program that runs repeatedly — no dates for the next round are listed here. Fine to recommend the program itself; for the current round's dates and deadline, point the user to the program's own page, and suggest the AI Safety Events & Training newsletter to catch new rounds as they are announced.",
+    }
+  }
   const close =
     typeof meta.applicationsClose === 'string'
       ? meta.applicationsClose.slice(0, 10)
       : null
+  if (meta.notYetOpen === 'Yes') {
+    return {
+      applicationsStatus: 'not_yet_open',
+      applicationsNote: `Announced, but applications/registrations have NOT opened yet — the user cannot apply right now.${close ? ` Once they open, the deadline on file is ${close}.` : ''} You may surface it as something coming up, but do not tell the user to apply now.`,
+    }
+  }
   if (!close) {
     return {
       applicationsStatus: 'unknown',
@@ -206,7 +233,7 @@ function summariseListing(
   distanceKm?: number
 ): object {
   const eventStatus =
-    l.type === 'event'
+    l.type === 'event' || l.type === 'training'
       ? eventApplicationStatus(l.meta as Record<string, unknown>, today)
       : null
   return {
@@ -251,7 +278,7 @@ async function executeSearch(
       ok: true,
       content: JSON.stringify({
         matches: 0,
-        note: 'Nothing matched. BEFORE giving up, try broader: drop a filter, expand radiusKm, drop the type, try synonyms. Only after a couple of broader retries should you tell the user nothing matched and offer [[suggest:TYPE:USER_QUERY]], where TYPE is the listing type you searched (community, event, funder, course, media-channel, founder-resource, advisor, project, org). Do NOT offer a suggest form for jobs — the job board comes from 80,000 Hours and is not curated here; instead point the user to the 80,000 Hours job board.',
+        note: 'Nothing matched. BEFORE giving up, try broader: drop a filter, expand radiusKm, drop the type, try synonyms. Only after a couple of broader retries should you tell the user nothing matched and offer [[suggest:TYPE:USER_QUERY]], where TYPE is the listing type you searched (community, event, training, funder, course, media-channel, founder-resource, advisor, project, org). Do NOT offer a suggest form for jobs — the job board comes from 80,000 Hours and is not curated here; instead point the user to the 80,000 Hours job board.',
       }),
       listings: [],
     }

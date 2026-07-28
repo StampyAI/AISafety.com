@@ -32,7 +32,11 @@ const FEEDBACK_FORM =
  *  the general correction form. */
 const SUGGEST_FORMS: Record<string, string> = {
   community: 'https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form',
-  event: 'https://airtable.com/appF8XfZUGXtfi40E/pagyqtPZ2BFcKU6ys/form',
+  event: 'https://airtable.com/appF8XfZUGXtfi40E/pagns0zQqcM713eKk/form',
+  // The upcoming-programs form (the /training page's Recurring tab has its own
+  // form, but a visitor suggesting a program is almost always suggesting a
+  // dated round — the team re-routes the rare evergreen one).
+  training: 'https://airtable.com/appF8XfZUGXtfi40E/pagSB4ucUn38CvXFD/form',
   funder: 'https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form',
   course: 'https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form',
   'media-channel':
@@ -55,6 +59,7 @@ const SUGGEST_FORMS: Record<string, string> = {
 export const SUGGEST_TYPES = [
   'community',
   'event',
+  'training',
   'funder',
   'course',
   'media-channel',

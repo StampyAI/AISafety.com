@@ -46,6 +46,8 @@ export interface EventListing {
   cost: string[]
   applicationStatus: 'Open' | 'Closed'
   applicationsClose: string | null
+  /** Announced but not yet accepting applications (outranks the deadline). */
+  notYetOpen: boolean
   deadlineType: 'Apply' | 'Register' | null
   logo: string | null
   featured: '1' | '2' | null
@@ -186,6 +188,7 @@ export async function getEvents(): Promise<EventListing[]> {
       cost: toArray(f[FIELD.cost]),
       applicationStatus,
       applicationsClose: closesOn,
+      notYetOpen,
       deadlineType,
       logo: logoField?.[0]?.url ?? null,
       featured: featuredRaw === '1' || featuredRaw === '2' ? featuredRaw : null,

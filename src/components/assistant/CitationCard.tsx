@@ -86,6 +86,20 @@ function TypeIcon({ type }: { type: ListingType }) {
           <path d="M9 20v-5h6v5M9 9V5h6v4" />
         </svg>
       )
+    case 'event':
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M8 3v4M16 3v4M3 10h18" />
+        </svg>
+      )
+    case 'training':
+      return (
+        <svg {...common}>
+          <path d="M12 4L2 9l10 5 10-5-10-5z" />
+          <path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5" />
+        </svg>
+      )
   }
 }
 

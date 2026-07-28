@@ -112,26 +112,29 @@ export const PAGES: PageInfo[] = [
     path: '/events',
     title: 'Events',
     purpose:
-      "There's a wide range of events in AI safety, both online and in-person. These can help you make connections and discover opportunities.",
+      'Upcoming AI safety events – conferences, hackathons, meetups, talks, and workshops, online and in-person. These can help you meet people in the field and discover opportunities.',
     audience: 'People looking for events to attend.',
-    greeting: 'Looking for an upcoming event in AI safety?',
+    greeting:
+      'Looking for an AI safety event? Tell me a topic, a place, or a date and I can find conferences, hackathons, meetups, and more.',
     chips: [
-      'Upcoming conferences',
+      'Events near me',
       'Online events I can join from anywhere',
-      'Events happening soon',
+      'Conferences I can still register for',
     ],
   },
   {
     path: '/training',
     title: 'Training programs',
     purpose:
-      'Training programs in AI safety – fellowships, facilitated courses, and bootcamps, both online and in-person. These can help you build skills and enter the field.',
-    audience: 'People looking for programs to apply to.',
-    greeting: 'Looking for an AI safety training program or fellowship?',
+      'AI safety training programs – fellowships, facilitated courses, and bootcamps, online and in-person, including recurring programs that run several times a year. A common route into working on AI safety.',
+    audience: 'People looking for a structured program to apply to.',
+    greeting:
+      'Looking for a training program? Tell me your background and how much time you have, and I can find fellowships, courses, and bootcamps you can still apply to.',
     chips: [
-      'Programs accepting applications',
-      'Fellowships for researchers',
-      'Online programs I can do part-time',
+      'Programs I can still apply to',
+      'Part-time programs I can do alongside work',
+      'Programs for beginners',
+      'Fellowships with a stipend',
     ],
   },
   {

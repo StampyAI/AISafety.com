@@ -87,6 +87,18 @@ export const RESOURCE_TABLES: ResourceTable[] = [
     catalogType: 'event',
     pagePath: '/events',
   },
+  {
+    tableId: 'tbli1YSCpIuNY2DvL',
+    tableName: 'Training',
+    catalogType: 'training',
+    pagePath: '/training',
+  },
+  {
+    tableId: 'tblEEIbj6dW5oS4cX',
+    tableName: 'Training (recurring)',
+    catalogType: 'training',
+    pagePath: '/training',
+  },
 ]
 
 /** Non-user-facing tables (logs, feedback, internal metadata). Declared so the
@@ -100,6 +112,9 @@ export const INTERNAL_TABLES: { tableId: string; tableName: string }[] = [
   { tableId: 'tblKm44KngUDniaDR', tableName: 'Site corrections' },
   { tableId: 'tblHxEuvRUlQ5e3KQ', tableName: 'Contact' },
   { tableId: 'tblsglkum9Op43mvq', tableName: 'Events & training: metadata' },
+  // The legacy combined table, frozen since the Events/Training split. It no
+  // longer feeds any page; kept in the base for history until it's retired.
+  { tableId: 'tblx0L8qJEaLBxJFS', tableName: 'Events & training' },
 ]
 
 export interface CoverageResult {

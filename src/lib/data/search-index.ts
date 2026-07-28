@@ -187,7 +187,9 @@ async function getTrainingEntries(): Promise<SearchEntry[]> {
     entries.push({
       type: 'training',
       title: p.name,
-      subtitle: p.host,
+      // Host isn't shown on /training and isn't maintained, so don't
+      // display or match on it.
+      subtitle: '',
       description: p.description,
       category: [
         p.startDateApprox || dateRange(p.startDate, p.endDate),
@@ -207,7 +209,7 @@ async function getTrainingEntries(): Promise<SearchEntry[]> {
     entries.push({
       type: 'training',
       title: p.name,
-      subtitle: p.host,
+      subtitle: '',
       description: p.description,
       category: ['Recurring', p.type.join(', '), p.location || p.mode]
         .filter(Boolean)

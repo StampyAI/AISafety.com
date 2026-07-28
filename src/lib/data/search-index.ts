@@ -138,33 +138,44 @@ function faviconFor(url: string): string | null {
   return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`
 }
 
-const SHORT_MONTHS = [
-  'JAN',
-  'FEB',
-  'MAR',
-  'APR',
-  'MAY',
-  'JUN',
-  'JUL',
-  'AUG',
-  'SEP',
-  'OCT',
-  'NOV',
-  'DEC',
-]
-
-// "2026-09-28" -> "28-SEP-2026"
-function shortDate(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
-  if (!m) throw new Error(`Unexpected date format in search index: "${iso}"`)
-  return `${Number(m[3])}-${SHORT_MONTHS[Number(m[2]) - 1]}-${m[1]}`
+function parseISO(iso: string): Date {
+  const d = new Date(iso + 'T00:00:00Z')
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Unexpected date format in search index: "${iso}"`)
+  }
+  return d
 }
 
+function shortMonth(d: Date): string {
+  // en-US, not en-GB: en-GB abbreviates September as "Sept".
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(d)
+}
+
+// "2026-09-28" -> "28 Sep 2026", matching the /events and /training cards.
+function shortDate(iso: string): string {
+  const d = parseISO(iso)
+  return `${d.getUTCDate()} ${shortMonth(d)} ${d.getUTCFullYear()}`
+}
+
+// Same collapsing rules as the /events cards: "27 – 30 Jul 2026",
+// "27 Jul – 2 Aug 2026", "27 Dec 2026 – 2 Jan 2027".
 function dateRange(start: string | null, end: string | null): string {
   if (!start) return ''
-  return end && end !== start
-    ? `${shortDate(start)} – ${shortDate(end)}`
-    : shortDate(start)
+  if (!end || end === start) return shortDate(start)
+  const s = parseISO(start)
+  const e = parseISO(end)
+  const sameYear = s.getUTCFullYear() === e.getUTCFullYear()
+  const sameMonth = sameYear && s.getUTCMonth() === e.getUTCMonth()
+  if (sameMonth) {
+    return `${s.getUTCDate()} – ${e.getUTCDate()} ${shortMonth(e)} ${e.getUTCFullYear()}`
+  }
+  if (sameYear) {
+    return `${s.getUTCDate()} ${shortMonth(s)} – ${e.getUTCDate()} ${shortMonth(e)} ${e.getUTCFullYear()}`
+  }
+  return `${shortDate(start)} – ${shortDate(end)}`
 }
 
 async function getEventEntries(): Promise<SearchEntry[]> {

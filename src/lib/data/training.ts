@@ -66,10 +66,10 @@ const RECURRING_FIELD = {
 
 /**
  * How participants attend, from the Mode single-select. On training, Hybrid =
- * required online and in-person parts, while 'Online or in person' = the
- * participant chooses; on events (which keep three modes) Hybrid still means
- * the participant chooses. Either way the non-single-mode values show under
- * both the Online and In person filters.
+ * required online and in-person parts (its own filter option, job-board
+ * sense), while 'Online or in person' = the participant chooses (shows under
+ * both the Online and In person filters). On events (which keep three modes)
+ * Hybrid still means the participant chooses and shows in both views.
  */
 export type AttendMode =
   | 'Online'

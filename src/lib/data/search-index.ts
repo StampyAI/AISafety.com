@@ -153,11 +153,11 @@ const SHORT_MONTHS = [
   'DEC',
 ]
 
-// "2026-09-28" -> "2026-SEP-28"
+// "2026-09-28" -> "28-SEP-2026"
 function shortDate(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
   if (!m) throw new Error(`Unexpected date format in search index: "${iso}"`)
-  return `${m[1]}-${SHORT_MONTHS[Number(m[2]) - 1]}-${Number(m[3])}`
+  return `${Number(m[3])}-${SHORT_MONTHS[Number(m[2]) - 1]}-${m[1]}`
 }
 
 function dateRange(start: string | null, end: string | null): string {

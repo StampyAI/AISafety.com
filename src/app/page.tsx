@@ -323,17 +323,16 @@ export default async function Home() {
             <div className={`${styles['icon-row']} padding-bottom-24px`}>
               <Image
                 loading="lazy"
-                src="/images/lightcone-commons.svg"
+                src="/images/lightcone-commons.webp"
                 alt=""
-                className={styles['icon-homepage']}
-                width={56}
+                width={51}
                 height={56}
               />
               <h3>Lightcone Commons</h3>
             </div>
             <p className="padding-bottom-24px">
-              New grantmaking platform coordinating large-scale philanthropy,
-              expecting to direct $15–25M in its first quarterly round.
+              New grantmaking platform coordinating large-scale philanthropy in
+              quarterly rounds.
             </p>
             <TrackedLink
               href="https://www.lightconecommons.com/"

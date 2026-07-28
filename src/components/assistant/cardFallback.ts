@@ -15,7 +15,8 @@ const BROWSE_LABEL: Record<ListingType, string> = {
   project: 'Browse volunteer projects',
   'media-channel': 'Browse media channels',
   org: 'Browse the field map',
-  event: 'Browse events & training',
+  event: 'Browse events',
+  training: 'Browse training programs',
 }
 
 // Derived from RESOURCE_TABLES so the page paths never drift from the catalog.

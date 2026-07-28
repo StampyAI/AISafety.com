@@ -9,6 +9,7 @@ export type ListingType =
   | 'media-channel'
   | 'org'
   | 'event'
+  | 'training'
 
 export interface Listing {
   id: string

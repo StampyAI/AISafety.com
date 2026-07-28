@@ -35,7 +35,7 @@ Redo the answer from scratch: run the search_listings call(s) you skipped, card 
 /** Per-type suggest-form tags. Deliberately excludes correction, contact and
  *  feedback, which have their own triggers and are never solicitation. */
 const PER_TYPE_SUGGEST_RE =
-  /\[\[suggest:(?:community|event|funder|course|media-channel|founder-resource|advisor|project|org):/i
+  /\[\[suggest:(?:community|event|training|funder|course|media-channel|founder-resource|advisor|project|org):/i
 
 /** Corrective message injected when the model's finished answer both shows
  *  listings and volunteers a per-type suggest form. The prompt forbids the

@@ -8,6 +8,7 @@ import { getProjects } from '@/lib/data/projects'
 import { getMediaChannels } from '@/lib/data/media-channels'
 import { getMapData } from '@/lib/data/map'
 import { getEvents } from '@/lib/data/events'
+import { getTrainingPrograms, getRecurringPrograms } from '@/lib/data/training'
 import type { Catalog, Listing } from './types'
 
 // Known job-board domains. Their favicons are the platform logo, not the
@@ -93,6 +94,8 @@ export async function buildCatalog(): Promise<Catalog> {
     mediaChannels,
     mapData,
     events,
+    trainingPrograms,
+    recurringPrograms,
   ] = await Promise.all([
     getJobs(),
     getFunders(),
@@ -104,6 +107,8 @@ export async function buildCatalog(): Promise<Catalog> {
     getMediaChannels(),
     getMapData(),
     getEvents(),
+    getTrainingPrograms(),
+    getRecurringPrograms(),
   ])
 
   const listings: Listing[] = []
@@ -283,17 +288,81 @@ export async function buildCatalog(): Promise<Catalog> {
       type: 'event',
       name: e.name,
       description: clamp(e.description, 280),
+      organization: e.host || undefined,
       logo: e.logo ?? deriveFaviconFromUrl(e.url),
       url: e.url,
       pageUrl: '/events',
       meta: compact({
         type: e.type.join(', '),
+        mode: e.mode,
         location: e.location,
         host: e.host,
+        cost: e.cost.join(', '),
         startDate: e.startDate,
         endDate: e.endDate,
         applicationsClose: e.applicationsClose,
+        deadlineType: e.deadlineType,
+        notYetOpen: e.notYetOpen ? 'Yes' : null,
       }),
+      featured: isFeatured(e),
+    })
+  }
+
+  // /training shows two sets behind a toggle: dated upcoming iterations and
+  // evergreen recurring programs. Both share the 'training' catalog type;
+  // recurring ones are marked meta.recurring = 'Yes' and carry no dates.
+  for (const t of trainingPrograms) {
+    listings.push({
+      id: `training:${t.id}`,
+      type: 'training',
+      name: t.name,
+      description: clamp(t.description, 280),
+      organization: t.host || undefined,
+      logo: t.logo ?? deriveFaviconFromUrl(t.url),
+      url: t.url,
+      pageUrl: '/training',
+      meta: compact({
+        type: t.type.join(', '),
+        mode: t.mode,
+        location: t.location,
+        host: t.host,
+        focus: t.focus,
+        entryBar: t.entryBar,
+        timeCommitment: t.timeCommitment,
+        stipend: t.stipend,
+        startDate: t.startDate,
+        startDateApprox: t.startDateApprox,
+        endDate: t.endDate,
+        applicationsClose: t.applicationsClose,
+        notYetOpen: t.notYetOpen ? 'Yes' : null,
+      }),
+      featured: isFeatured(t),
+    })
+  }
+
+  for (const r of recurringPrograms) {
+    listings.push({
+      id: `training:${r.id}`,
+      type: 'training',
+      name: r.name,
+      description: clamp(r.description, 280),
+      organization: r.host || undefined,
+      logo: r.logo ?? deriveFaviconFromUrl(r.url),
+      url: r.url,
+      pageUrl: '/training',
+      meta: compact({
+        recurring: 'Yes',
+        type: r.type.join(', '),
+        mode: r.mode,
+        location: r.location,
+        host: r.host,
+        focus: r.focus,
+        entryBar: r.entryBar,
+        timeCommitment: r.timeCommitment,
+        stipend: r.stipend,
+        typicalLength: r.typicalLength,
+      }),
+      featured: isFeatured(r),
     })
   }
 

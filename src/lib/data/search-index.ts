@@ -138,9 +138,33 @@ function faviconFor(url: string): string | null {
   return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`
 }
 
+const SHORT_MONTHS = [
+  'JAN',
+  'FEB',
+  'MAR',
+  'APR',
+  'MAY',
+  'JUN',
+  'JUL',
+  'AUG',
+  'SEP',
+  'OCT',
+  'NOV',
+  'DEC',
+]
+
+// "2026-09-28" -> "2026-SEP-28"
+function shortDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!m) throw new Error(`Unexpected date format in search index: "${iso}"`)
+  return `${m[1]}-${SHORT_MONTHS[Number(m[2]) - 1]}-${Number(m[3])}`
+}
+
 function dateRange(start: string | null, end: string | null): string {
   if (!start) return ''
-  return end && end !== start ? `${start} – ${end}` : start
+  return end && end !== start
+    ? `${shortDate(start)} – ${shortDate(end)}`
+    : shortDate(start)
 }
 
 async function getEventEntries(): Promise<SearchEntry[]> {
@@ -149,7 +173,7 @@ async function getEventEntries(): Promise<SearchEntry[]> {
     const url = realUrl(e.url)
     const deadline =
       e.applicationStatus === 'Open' && e.deadlineType && e.applicationsClose
-        ? `${e.deadlineType} by ${e.applicationsClose}`
+        ? `${e.deadlineType} by ${shortDate(e.applicationsClose)}`
         : ''
     return {
       type: 'event' as const,
@@ -182,7 +206,7 @@ async function getTrainingEntries(): Promise<SearchEntry[]> {
     const applications = p.notYetOpen
       ? 'Applications not yet open'
       : p.applicationStatus === 'Open' && p.applicationsClose
-        ? `Apply by ${p.applicationsClose}`
+        ? `Apply by ${shortDate(p.applicationsClose)}`
         : ''
     entries.push({
       type: 'training',

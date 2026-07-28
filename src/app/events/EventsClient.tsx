@@ -112,8 +112,15 @@ function titleMetaFor(event: EventListing) {
   const date = formatEventDate(event.startDate, event.endDate)
   const time = formatEventTime(event.startTime, event.endTime)
   const rows: { icon: string; value: string }[] = []
+  // Hybrid events can be attended either way, so the card spells out both
+  // facets ("Online & Oxford, UK") the way /training listings do. The raw
+  // location stays city-only in Airtable so the city filter isn't polluted.
   if (event.location)
-    rows.push({ icon: '/images/icons/pin.svg', value: event.location })
+    rows.push({
+      icon: '/images/icons/pin.svg',
+      value:
+        event.mode === 'Hybrid' ? `Online & ${event.location}` : event.location,
+    })
   if (date) rows.push({ icon: '/images/icons/calendar.svg', value: date })
   if (time) rows.push({ icon: '/images/icons/timer.svg', value: time })
   return rows

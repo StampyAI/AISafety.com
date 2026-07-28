@@ -119,6 +119,16 @@ export interface SearchHit {
   distanceKm?: number
 }
 
+// The /training page opens on its Upcoming tab; mirror that default here:
+// dated rounds outrank evergreen recurring listings in any browse — even
+// featured ones — so a generic "what programs are there" surfaces things to
+// apply to now. A recurring listing still leads when the user filters
+// recurring: 'Yes' (every result is recurring) or names the program (its
+// name match dominates the score).
+function isRecurringTraining(l: Listing): boolean {
+  return l.type === 'training' && l.meta.recurring === 'Yes'
+}
+
 export async function searchCatalog(
   catalog: Catalog,
   options: SearchOptions
@@ -179,8 +189,12 @@ export async function searchCatalog(
   }
 
   if (queryTokens.length === 0 && !center) {
-    // Filter-only browse — featured items first, then catalog order
+    // Filter-only browse — dated training rounds before recurring listings,
+    // featured items first within that, then catalog order
     const sorted = [...candidates].sort((a, b) => {
+      const aRec = isRecurringTraining(a.listing) ? 1 : 0
+      const bRec = isRecurringTraining(b.listing) ? 1 : 0
+      if (aRec !== bRec) return aRec - bRec
       const aFeat = a.listing.featured ? 1 : 0
       const bFeat = b.listing.featured ? 1 : 0
       if (bFeat !== aFeat) return bFeat - aFeat
@@ -210,6 +224,9 @@ export async function searchCatalog(
       if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm
     }
     if (b.score !== a.score) return b.score - a.score
+    const aRec = isRecurringTraining(a.listing) ? 1 : 0
+    const bRec = isRecurringTraining(b.listing) ? 1 : 0
+    if (aRec !== bRec) return aRec - bRec
     const aFeat = a.listing.featured ? 1 : 0
     const bFeat = b.listing.featured ? 1 : 0
     if (bFeat !== aFeat) return bFeat - aFeat

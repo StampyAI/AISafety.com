@@ -46,7 +46,7 @@ const AIRTABLE_VIEW_URLS: Record<Mode, string> = {
 
 const applicationOptions = ['Open', 'Closed']
 const focusOptions = ['General', 'Technical', 'Governance']
-const locationOptions = ['Online', 'In person']
+const locationOptions = ['Online', 'In person', 'Hybrid']
 
 type Mode = 'upcoming' | 'recurring'
 
@@ -109,11 +109,16 @@ function monthLabel(startDate: string | null): string {
   }).format(parseISO(startDate))
 }
 
-// Hybrid programs count as both, so they surface under either location
-// filter. Their Location text spells out both facets ("Online & Berkeley,
-// US"), so the card shows that instead of a bare "Online".
+// Online-or-in-person programs can be done either way, so they surface under
+// both the Online and In person filters. Hybrid programs (required online +
+// in-person parts, job-board sense) get their own filter option — they don't
+// truly belong to either pure bucket. Mixed/choice programs spell out their
+// facets in the Location text ("Online & Berkeley, USA"), so the card shows
+// that instead of a bare "Online".
 function locationFacets(program: ProgramBase): string[] {
-  return program.mode === 'Hybrid' ? ['Online', 'In person'] : [program.mode]
+  return program.mode === 'Online or in person'
+    ? ['Online', 'In person']
+    : [program.mode]
 }
 
 function titleMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {

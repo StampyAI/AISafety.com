@@ -81,7 +81,8 @@ export interface ProgramBase {
   location: string
   mode: AttendMode
   host: string
-  focus: string | null
+  /** Multi-select: General / Technical / Governance — a program can carry more than one. */
+  focus: string[]
   entryBar: EntryBar | null
   timeCommitment: string | null
   stipend: string | null
@@ -270,7 +271,7 @@ function parseBase(
     location,
     mode,
     host: optionalString(fields[FIELD.host]) || '',
-    focus: optionalString(fields[FIELD.focus]),
+    focus: toArray(fields[FIELD.focus]),
     entryBar: validEntryBar(fields[FIELD.entryBar], name),
     timeCommitment: optionalString(fields[FIELD.timeCommitment]),
     stipend: optionalString(fields[FIELD.stipend]),

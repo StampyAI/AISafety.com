@@ -169,10 +169,10 @@ function bottomMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {
       value: `Entry bar: ${program.entryBar.toLowerCase()}`,
     })
   }
-  if (program.focus) {
+  if (program.focus.length > 0) {
     rows.push({
       icon: '/images/icons/target.svg',
-      value: `Focus: ${program.focus}`,
+      value: `Focus: ${program.focus.map(f => f.toLowerCase()).join(', ')}`,
     })
   }
   if (upcoming) {
@@ -295,7 +295,7 @@ export default function TrainingClient({
       if (
         skip !== 'focus' &&
         selectedFocus.length > 0 &&
-        !(program.focus && selectedFocus.includes(program.focus))
+        !program.focus.some(f => selectedFocus.includes(f))
       )
         return false
       if (
@@ -340,7 +340,7 @@ export default function TrainingClient({
         ? countBy('status', p => [(p as TrainingProgram).applicationStatus])
         : {},
       typeCounts: countBy('type', p => p.type),
-      focusCounts: countBy('focus', p => (p.focus ? [p.focus] : [])),
+      focusCounts: countBy('focus', p => p.focus),
       entryBarCounts: countBy('entrybar', p =>
         p.entryBar ? [p.entryBar] : []
       ),

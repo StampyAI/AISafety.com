@@ -109,11 +109,14 @@ function monthLabel(startDate: string | null): string {
   }).format(parseISO(startDate))
 }
 
-// Hybrid programs count as both, so they surface under either location
-// filter. Their Location text spells out both facets ("Online & Berkeley,
-// US"), so the card shows that instead of a bare "Online".
+// Hybrid and online-or-in-person programs count as both, so they surface
+// under either location filter. Their Location text spells out both facets
+// ("Online & Berkeley, USA"), so the card shows that instead of a bare
+// "Online".
 function locationFacets(program: ProgramBase): string[] {
-  return program.mode === 'Hybrid' ? ['Online', 'In person'] : [program.mode]
+  return program.mode === 'Hybrid' || program.mode === 'Online or in person'
+    ? ['Online', 'In person']
+    : [program.mode]
 }
 
 function titleMetaFor(program: ProgramBase, upcoming?: TrainingProgram) {

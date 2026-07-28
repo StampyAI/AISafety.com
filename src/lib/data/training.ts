@@ -65,11 +65,17 @@ const RECURRING_FIELD = {
 } as const
 
 /**
- * How participants attend, from the Mode single-select. Hybrid = the
- * participant chooses between online and in-person, so the program shows
- * under both the Online and In person filters.
+ * How participants attend, from the Mode single-select. On training, Hybrid =
+ * required online and in-person parts, while 'Online or in person' = the
+ * participant chooses; on events (which keep three modes) Hybrid still means
+ * the participant chooses. Either way the non-single-mode values show under
+ * both the Online and In person filters.
  */
-export type AttendMode = 'Online' | 'In person' | 'Hybrid'
+export type AttendMode =
+  | 'Online'
+  | 'In person'
+  | 'Hybrid'
+  | 'Online or in person'
 
 // Card fields shared by upcoming and recurring programs.
 export interface ProgramBase {
@@ -202,7 +208,13 @@ export function parseAttendMode(
   name: string,
   source: string
 ): AttendMode {
-  if (raw === 'Online' || raw === 'In person' || raw === 'Hybrid') return raw
+  if (
+    raw === 'Online' ||
+    raw === 'In person' ||
+    raw === 'Hybrid' ||
+    raw === 'Online or in person'
+  )
+    return raw
   console.warn(
     `[${source}] "${name}" has ${
       raw == null ? 'no Mode set' : `unexpected Mode "${raw}"`

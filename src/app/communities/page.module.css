@@ -69,18 +69,16 @@
   }
 }
 
-/* Mapbox controls position - bottom-right on both desktop and mobile */
+/* Mapbox controls position - top-right on both desktop and mobile,
+   matching the /map zoom controls (24px insets) */
 :global(.mapboxgl-ctrl-top-right) {
-  top: auto !important;
-  bottom: 16px !important;
-  right: 8px !important;
+  top: 24px !important;
+  right: 24px !important;
   z-index: 3 !important;
 }
 
-@media (max-width: 991px) {
-  :global(.mapboxgl-ctrl-top-right .mapboxgl-ctrl) {
-    margin: 0 !important;
-  }
+:global(.mapboxgl-ctrl-top-right .mapboxgl-ctrl) {
+  margin: 0 !important;
 }
 
 /* Mapbox tooltip */
@@ -242,5 +240,11 @@
     top: 24px;
     max-width: none;
     white-space: nowrap;
+  }
+
+  /* The nowrap title spans nearly the full width on small screens,
+     so drop the controls below it */
+  :global(.mapboxgl-ctrl-top-right) {
+    top: 72px !important;
   }
 }

@@ -248,6 +248,29 @@ export function trackNewsletterSignup(page: string): void {
   })
 }
 
+/**
+ * Track a click on one of the footer's external links (the "Help us out" and
+ * "Newsletters" columns) — outbound, so nothing else would record them.
+ * `section` is the column heading, `label` the link text; `page` is stamped
+ * with the path the footer was on, like page views.
+ */
+export function trackFooterClick(
+  section: string,
+  label: string,
+  url: string
+): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', 'Footer', label, url])
+  sendTrackEvent({
+    type: 'footer_click',
+    page: window.location.pathname,
+    source: section,
+    label,
+    url,
+  })
+}
+
 /** Track a click on a page's "View data in Airtable" card. */
 export function trackAirtableView(page: string, url: string): void {
   if (typeof window === 'undefined') return

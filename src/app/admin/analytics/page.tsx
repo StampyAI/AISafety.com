@@ -368,6 +368,8 @@ function pillFor(e: { page?: string; type: string }): string | null {
   // but in the feed they should read as chatbot/search activity, not clicks.
   if (e.type.startsWith('chatbot')) return 'Chatbot'
   if (e.type.startsWith('search')) return 'Search'
+  // Footer clicks carry the raw path they happened on; 'Footer' reads better.
+  if (e.type === 'footer_click') return 'Footer'
   if (e.page) return e.page
   return null
 }
@@ -579,6 +581,7 @@ export default async function AnalyticsPage({
     (sum, r) => sum + r.count,
     0
   )
+  const footerTotal = data.footerClicks.reduce((sum, r) => sum + r.count, 0)
   const newsletterTotalByPage = data.newsletterByPage.reduce(
     (sum, r) => sum + r.count,
     0
@@ -1044,6 +1047,18 @@ export default async function AnalyticsPage({
                   Submits of the weekly-summary email box on /events and
                   /training – may not all be successful signups. Recording since
                   29 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Footer clicks">
+                <CountTable
+                  rows={data.footerClicks}
+                  labelHead="Link"
+                  total={footerTotal}
+                />
+                <p className={styles.caption}>
+                  The footer&apos;s external links – the &quot;Help us out&quot;
+                  and &quot;Newsletters&quot; columns. Recording since 29 July
+                  2026.
                 </p>
               </Panel>
             </div>

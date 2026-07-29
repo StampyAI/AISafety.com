@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import FooterLink from './FooterLink'
 import UpButton from './UpButton'
 import styles from './Footer.module.css'
 
@@ -38,27 +39,21 @@ export default function Footer() {
             <div
               className={`paragraph-small flex flex-col gap-8px opacity-80 ${styles.links}`}
             >
-              <Link
+              <FooterLink
                 href="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Suggest a correction
-              </Link>
-              <Link
+                section="Help us out"
+                label="Suggest a correction"
+              />
+              <FooterLink
                 href="https://airtable.com/appF8XfZUGXtfi40E/pageXZp18w3Sqm1Z7/form"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Give anonymous feedback
-              </Link>
-              <Link
+                section="Help us out"
+                label="Give anonymous feedback"
+              />
+              <FooterLink
                 href="https://www.every.org/alignment-ecosystem-development#/donate/card"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Donate
-              </Link>
+                section="Help us out"
+                label="Donate"
+              />
             </div>
           </div>
 
@@ -70,27 +65,21 @@ export default function Footer() {
             <div
               className={`paragraph-small flex flex-col gap-8px opacity-80 ${styles.links}`}
             >
-              <Link
+              <FooterLink
                 href="https://aisafetyeventsandtraining.substack.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                AI Safety Events &amp; Training
-              </Link>
-              <Link
+                section="Newsletters"
+                label="AI Safety Events & Training"
+              />
+              <FooterLink
                 href="https://aisafetyfunding.substack.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                AI Safety Funding
-              </Link>
-              <Link
+                section="Newsletters"
+                label="AI Safety Funding"
+              />
+              <FooterLink
                 href="https://aisafetycom.substack.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                AISafety.com Updates
-              </Link>
+                section="Newsletters"
+                label="AISafety.com Updates"
+              />
             </div>
           </div>
         </div>

@@ -88,6 +88,11 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   // attempt — the submit opens Substack's subscribe page, so completion
   // happens off-site. Never carries the email address.
   'newsletter_signup',
+  // A click on one of the footer's external links ("Help us out" /
+  // "Newsletters" columns) — outbound, so nothing else records them.
+  // `source` is the column heading, `label` the link text, `page` the path
+  // the footer was on.
+  'footer_click',
   'chatbot_open',
   'chatbot_message',
   'chatbot_click',
@@ -447,6 +452,9 @@ export interface DashboardData {
   /** Newsletter signup-box submits per page (the box lives on Events and
    *  Training). Submits, not confirmed Substack subscriptions. */
   newsletterByPage: Counted[]
+  /** Clicks on the footer's external links, one row per link ('Donate',
+   *  'AI Safety Funding', …), sitewide. */
+  footerClicks: Counted[]
   /** For pages with a map (Map, Communities): `selectedPage`'s most-hovered
    *  map listings — tooltip dwells (500 ms cursor rest on desktop, first tap
    *  on mobile), grouped like `topListings` and following the same unique/
@@ -508,6 +516,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   airtableByPage: [],
   airtableViews: 0,
   newsletterByPage: [],
+  footerClicks: [],
   topHovered: [],
   areaClicks: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
@@ -875,6 +884,9 @@ function aggregate(
     ? uniqueClicks(newsletterHits)
     : newsletterHits
   const newsletterByPage = tally(newsletterSubmits.map(e => e.page as string))
+  const footerHits = inRange.filter(e => e.type === 'footer_click')
+  const footerEvents = unique ? uniqueClicks(footerHits) : footerHits
+  const footerClicks = tally(footerEvents.map(e => listingMember(e)))
 
   // Most-hovered map listings for the selected page — tooltip dwells
   // (listing_hover events), grouped exactly like topListings but with no
@@ -926,6 +938,7 @@ function aggregate(
     airtableByPage,
     airtableViews,
     newsletterByPage,
+    footerClicks,
     topHovered,
     areaClicks,
     funnel: {

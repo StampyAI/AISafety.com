@@ -727,7 +727,10 @@ export default async function AnalyticsPage({
               </Panel>
               <Panel title="Clicks by page">
                 <CountTable
-                  rows={data.byPage}
+                  rows={data.byPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
                   labelHead="Page"
                   total={totalClicks}
                 />

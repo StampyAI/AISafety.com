@@ -41,6 +41,7 @@ const TRAINING_FIELD = {
   entryBar: 'fldNGM0Z7xQciYeDW',
   timeCommitment: 'fld55R10v0Pz6Gaxp',
   stipend: 'fldttliZeFMxWW9Hb',
+  lastModified: 'fldG0Cn6ozrw0c0N9',
 } as const
 
 const RECURRING_FIELD = {
@@ -62,6 +63,7 @@ const RECURRING_FIELD = {
   timeCommitment: 'fldU91KGSj2APdDRq',
   stipend: 'fldoHJPQyRJUA8gap',
   typicalLength: 'fldYWSizGyk6GGrwu',
+  lastModified: 'fldq0bMboXuM1lYX4',
 } as const
 
 /**
@@ -80,6 +82,8 @@ export type AttendMode =
 // Card fields shared by upcoming and recurring programs.
 export interface ProgramBase {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   url: string
@@ -255,6 +259,7 @@ interface BaseFieldIds {
   entryBar: string
   timeCommitment: string
   stipend: string
+  lastModified: string
 }
 
 function parseBase(
@@ -290,6 +295,9 @@ function parseBase(
     logo: logoField?.[0]?.url ?? null,
     featured: featuredRaw === '1' || featuredRaw === '2' ? featuredRaw : null,
     featuredTagline: optionalString(fields[FIELD.featuredTagline]),
+    dateAdded: null, // overridden by each caller (needs the record's createdTime)
+    lastModified:
+      optionalString(fields[FIELD.lastModified])?.slice(0, 10) ?? null,
     lengthBucket: null, // overridden by each caller from its own source
   }
 }
@@ -334,6 +342,7 @@ export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
 
     results.push({
       ...parseBase(f, record.id, name, TRAINING_FIELD),
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
       startDate,
       startDateApprox:
         optionalString(f[TRAINING_FIELD.startDateApprox])?.trim() || null,
@@ -376,6 +385,7 @@ export async function getRecurringPrograms(): Promise<RecurringProgram[]> {
     const typicalLength = optionalString(f[RECURRING_FIELD.typicalLength])
     results.push({
       ...parseBase(f, record.id, name, RECURRING_FIELD),
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
       typicalLength,
       lengthBucket: lengthBucketForTypical(typicalLength),
     })

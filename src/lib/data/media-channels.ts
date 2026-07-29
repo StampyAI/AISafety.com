@@ -1,5 +1,6 @@
 import {
   fetchAirtableRecords,
+  fieldDateOnly,
   fieldAttachmentUrl,
   fieldFeatured,
   fieldString,
@@ -24,10 +25,13 @@ const FIELD = {
   sort: 'fldhkOSt89LF6aYE5', // Sort
   publish: 'fldMN0TF3kz41HTQc', // Publish?
   hide: 'fldxzKJV6SnPk7eD8', // Hide?
+  lastModified: 'fldg46VoI3zwPRzXR', // Last modified
 } as const
 
 export interface MediaChannel {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   logo: string | null
@@ -54,6 +58,8 @@ export async function getMediaChannels(): Promise<MediaChannel[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       description: fieldString(f[FIELD.description]) || '',
       logo: fieldAttachmentUrl(f[FIELD.image]),

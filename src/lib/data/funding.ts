@@ -1,5 +1,6 @@
 import {
   fetchAirtableRecords,
+  fieldDateOnly,
   fieldAttachmentUrl,
   fieldFeatured,
   fieldString,
@@ -24,10 +25,13 @@ const FIELD = {
   sort: 'fldDDTHjJHiUUBz7k', // Sort
   publish: 'fldoH88AbtQLEViD7', // Publish?
   hide: 'fldU5a381Lcgjgzp8', // Hide?
+  lastModified: 'fldMZXYm96wdeq5jw', // Last modified
 } as const
 
 export interface Funder {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   logo: string | null
@@ -56,6 +60,8 @@ export async function getFunders(): Promise<Funder[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       description: fieldString(f[FIELD.description]) || '',
       logo: fieldAttachmentUrl(f[FIELD.logo]),

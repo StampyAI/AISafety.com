@@ -28,10 +28,13 @@ const FIELD = {
   featuredTagline: 'fld2rzRd4asMe18aQ',
   publish: 'flddgpgNm090Uftsq',
   hide: 'fldsYr7bsZb3eCPum',
+  lastModified: 'fldB3qONkXobywxmp',
 } as const
 
 export interface EventListing {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   url: string
@@ -173,6 +176,8 @@ export async function getEvents(): Promise<EventListing[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: optionalString(f[FIELD.lastModified])?.slice(0, 10) ?? null,
       name,
       description: optionalString(f[FIELD.description]) || '',
       url: normalizeUrl(optionalString(f[FIELD.url]) || ''),

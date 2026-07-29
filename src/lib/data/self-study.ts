@@ -1,5 +1,6 @@
 import {
   fetchAirtableRecords,
+  fieldDateOnly,
   fieldAttachmentUrl,
   fieldFeatured,
   fieldString,
@@ -26,10 +27,13 @@ const FIELD = {
   sort: 'fldThp6KjSXk03P7p', // Sort
   publish: 'fldWShxP7GkMeh6rg', // Publish?
   hide: 'fldTF2A1ibOD8w3RO', // Hide?
+  lastModified: 'fld4gwoM3vldhbyiE', // Last modified
 } as const
 
 export interface Course {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   category: string
@@ -58,6 +62,8 @@ export async function getCourses(): Promise<Course[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       description: fieldString(f[FIELD.description]) || '',
       category: fieldText(f[FIELD.focus]),

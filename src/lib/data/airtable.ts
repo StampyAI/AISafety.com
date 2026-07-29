@@ -6,6 +6,8 @@ import { unstable_cache } from 'next/cache'
 
 export interface AirtableRawRecord {
   id: string
+  /** When the record was created, always returned by the Airtable API. */
+  createdTime?: string
   fields: Record<string, unknown>
 }
 
@@ -34,6 +36,12 @@ interface FetchOptions {
 /** String value, or null when empty or missing. */
 export function fieldString(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
+}
+
+/** Date-only YYYY-MM-DD from an Airtable date or timestamp value. */
+export function fieldDateOnly(value: unknown): string | null {
+  const s = fieldString(value)
+  return s ? s.slice(0, 10) : null
 }
 
 /** Numeric value, or null when missing. */

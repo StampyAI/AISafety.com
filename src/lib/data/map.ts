@@ -1,6 +1,7 @@
 import {
   fetchAirtableRecords,
   fieldAttachmentUrl,
+  fieldDateOnly,
   fieldNumber,
   fieldString,
   fieldStringArray,
@@ -37,10 +38,13 @@ const FIELD = {
   scale: 'fldw2bKsCY0VdTCN6', // Scale
   publish: 'fldCCQ2OYlQluuarR', // Publish?
   hide: 'fldKwedEOWPFuWSe7', // Hide?
+  lastModified: 'fld9nL9mSDBN0kaO4', // Last modified
 } as const
 
 export interface MapOrg {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   title: string
   tooltipTitle: string
   shortName: string | null
@@ -80,6 +84,7 @@ const FIELD_LIST = [
   FIELD.x,
   FIELD.y,
   FIELD.scale,
+  FIELD.lastModified,
 ]
 
 // Sort order is hardcoded so the Airtable view sort can be changed freely
@@ -186,6 +191,8 @@ export async function getMapData(): Promise<MapData> {
 
     allRecords.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       title,
       tooltipTitle,
       shortName: fieldString(f[FIELD.shortName]),

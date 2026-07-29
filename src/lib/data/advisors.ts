@@ -1,5 +1,6 @@
 import {
   fetchAirtableRecords,
+  fieldDateOnly,
   fieldAttachmentUrl,
   fieldFeatured,
   fieldString,
@@ -24,10 +25,13 @@ const FIELD = {
   sort: 'fldbIK2vKzWm61CGr', // Sort
   publish: 'fldaOmFd67ORPMfTC', // Publish?
   hide: 'fldBOSo9B5KSaTZRq', // Hide?
+  lastModified: 'fld8rTAfTkJBhnO0L', // Last modified
 } as const
 
 export interface Advisor {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   logo: string | null
@@ -55,6 +59,8 @@ export async function getAdvisors(): Promise<Advisor[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       description: fieldString(f[FIELD.description]) || '',
       logo: fieldAttachmentUrl(f[FIELD.logo]),

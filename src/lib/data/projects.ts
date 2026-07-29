@@ -1,5 +1,6 @@
 import {
   fetchAirtableRecords,
+  fieldDateOnly,
   fieldFeatured,
   fieldString,
   fieldText,
@@ -22,10 +23,13 @@ const FIELD = {
   sort: 'fldNvTVR11SJjYu2l', // Sort
   publish: 'fldrGDtZxpFLQfjMz', // Publish?
   hide: 'fldPjPfUW5hK98ysn', // Hide?
+  lastModified: 'fld3KsLNUU3IGj5Gg', // Last modified
 } as const
 
 export interface Project {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   logo: string | null
@@ -53,6 +57,8 @@ export async function getProjects(): Promise<Project[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       description: fieldString(f[FIELD.descriptionShort]) || '',
       logo: null,

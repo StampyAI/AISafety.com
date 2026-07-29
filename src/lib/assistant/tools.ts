@@ -38,6 +38,8 @@ Meta fields you can read off event/training results: startDate, endDate, applica
 
 • \`limit\` — optional cap on results. Default: no limit (returns every match in the catalog). Pass a number only if you want to truncate (rarely useful).
 
+• \`sort\` — optional recency ranking, for "what's new / recently added / recently updated" questions ONLY. 'recently-added' ranks by the date the listing was added to the site; 'recently-updated' ranks by the date any part of the listing's record last changed. Results come newest-first, capped at 10 (raise/lower with \`limit\`), and each carries the relevant \`dateAdded\`/\`lastModified\` date so you can say how recent it is. Composes with \`type\`/\`filters\`/\`query\` (e.g. type: 'org' + sort: 'recently-added' = newest field-map entries). NOT supported for jobs — job results are already newest-first via \`datePublished\`, so for "newest jobs" just search jobs normally and read that field. Caveats: 'recently-updated' reflects edits of ANY kind, including routine upkeep by the site's team, so a bulk cleanup can make many listings share the same recent date — present it as "the listing was last updated on X", not as proof something substantive changed. Recency sort ignores the curated ordering (featured-first), so never use it for ordinary recommendation searches.
+
 WHEN STUCK:
 
 If a search returns 0 results, do NOT give up. Broaden:
@@ -104,6 +106,10 @@ EXAMPLES:
           },
         },
         limit: { type: 'integer', minimum: 1 },
+        sort: {
+          type: 'string',
+          enum: ['recently-added', 'recently-updated'],
+        },
       },
       required: [],
     },
@@ -111,7 +117,7 @@ EXAMPLES:
   {
     name: 'get_listing',
     description:
-      'Fetch full details on a single listing by id (e.g. "job:rec123ABC"). Use after search_listings when you need fields not in the summary, or when the user names a specific entry.',
+      'Fetch full details on a single listing by id (e.g. "job:rec123ABC"). Use after search_listings when you need fields not in the summary, or when the user names a specific entry. The result includes dateAdded (when the listing was added to the site) and lastModified (when any part of its record last changed, including routine upkeep by the site\'s team) — use these for "how current is this listing" questions; jobs have neither, but carry datePublished in meta.',
     input_schema: {
       type: 'object',
       properties: {
@@ -158,6 +164,7 @@ interface SearchInput {
   filters?: Record<string, unknown>
   near?: { city?: string; lat?: number; lng?: number; radiusKm?: number }
   limit?: number
+  sort?: 'recently-added' | 'recently-updated'
 }
 
 interface GetListingInput {
@@ -230,7 +237,10 @@ function eventApplicationStatus(
 function summariseListing(
   l: Listing,
   today: string,
-  distanceKm?: number
+  distanceKm?: number,
+  // Dates ride along only where they answer the question (recency-sorted
+  // searches, get_listing) — regular search results stay lean.
+  includeDates?: boolean
 ): object {
   const eventStatus =
     l.type === 'event' || l.type === 'training'
@@ -244,6 +254,8 @@ function summariseListing(
     description: l.description,
     meta: l.meta,
     ...(eventStatus ?? {}),
+    ...(includeDates && l.dateAdded ? { dateAdded: l.dateAdded } : {}),
+    ...(includeDates && l.lastModified ? { lastModified: l.lastModified } : {}),
     url: l.url,
     pageUrl: l.pageUrl,
     ...(l.featured ? { featured: true } : {}),
@@ -266,12 +278,17 @@ async function executeSearch(
   input: SearchInput,
   catalog: Catalog
 ): Promise<ToolExecutionResult> {
+  const sort =
+    input.sort === 'recently-added' || input.sort === 'recently-updated'
+      ? input.sort
+      : undefined
   const hits = await searchCatalog(catalog, {
     query: input.query,
     type: input.type,
     filters: input.filters,
     near: input.near,
     limit: input.limit,
+    sort,
   })
   if (hits.length === 0) {
     return {
@@ -288,7 +305,9 @@ async function executeSearch(
     ok: true,
     content: JSON.stringify({
       matches: hits.length,
-      results: hits.map(h => summariseListing(h.listing, today, h.distanceKm)),
+      results: hits.map(h =>
+        summariseListing(h.listing, today, h.distanceKm, Boolean(sort))
+      ),
     }),
     listings: hits.map(h => h.listing),
   }
@@ -311,7 +330,7 @@ function executeGetListing(
   const today = new Date().toISOString().slice(0, 10)
   return {
     ok: true,
-    content: JSON.stringify(summariseListing(listing, today)),
+    content: JSON.stringify(summariseListing(listing, today, undefined, true)),
     listings: [listing],
   }
 }

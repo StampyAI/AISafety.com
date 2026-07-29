@@ -23,6 +23,7 @@ import {
   TRAINING_TYPES,
   trainingTypeColor,
 } from '@/lib/training-types'
+import { placementsById } from '@/lib/placements'
 import type {
   ProgramBase,
   RecurringProgram,
@@ -258,6 +259,11 @@ export default function TrainingClient({
 
   const modePrograms: ProgramBase[] = mode === 'upcoming' ? programs : recurring
 
+  // Each program's slot in the full (unfiltered) order of the active set, so a
+  // click is tagged with the rank the visitor saw — not its position within an
+  // active filter.
+  const placements = useMemo(() => placementsById(modePrograms), [modePrograms])
+
   const featuredPrograms = useMemo(
     () =>
       (['1', '2'] as const)
@@ -437,6 +443,8 @@ export default function TrainingClient({
         mode === 'upcoming' ? (program as TrainingProgram) : undefined
       )}
       trackingPage="Training"
+      listingId={program.id}
+      placement={placements.get(program.id)}
     />
   )
 
@@ -494,6 +502,8 @@ export default function TrainingClient({
                 mode === 'upcoming' ? (program as TrainingProgram) : undefined
               )}
               trackingPage="Training"
+              trackingId={program.id}
+              trackingPosition={`F${program.featured}`}
               index={i}
               count={featuredPrograms.length}
             />

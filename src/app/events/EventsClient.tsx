@@ -18,6 +18,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import ModeToggle from '@/components/ModeToggle'
 import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
+import { placementsById } from '@/lib/placements'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
 
@@ -420,6 +421,11 @@ export default function EventsClient({ events }: EventsClientProps) {
     [events, mode]
   )
 
+  // Each event's slot in the full (unfiltered) order of the active mode, so a
+  // click is tagged with the rank the visitor saw — not its position within an
+  // active filter.
+  const placements = useMemo(() => placementsById(modeEvents), [modeEvents])
+
   const cities = useMemo(() => {
     const set = new Set<string>()
     for (const e of modeEvents) {
@@ -581,6 +587,8 @@ export default function EventsClient({ events }: EventsClientProps) {
               titleMeta={titleMetaFor(event)}
               meta={bottomMetaFor(event)}
               trackingPage="Events"
+              trackingId={event.id}
+              trackingPosition={`F${event.featured}`}
               index={i}
               count={featuredEvents.length}
             />
@@ -666,6 +674,8 @@ export default function EventsClient({ events }: EventsClientProps) {
                     titleMeta={titleMetaFor(event)}
                     meta={bottomMetaFor(event)}
                     trackingPage="Events"
+                    listingId={event.id}
+                    placement={placements.get(event.id)}
                   />
                 ))}
               </div>

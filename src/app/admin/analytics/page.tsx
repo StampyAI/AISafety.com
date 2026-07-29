@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import {
   readDashboard,
+  sourceSlug,
   type Counted,
   type DateRange,
   type ChatbotFunnel,
@@ -557,8 +558,7 @@ export default async function AnalyticsPage({
   // share of that source's clicks, not the page's whole. bySource carries the
   // per-source totals, so read the active one from there.
   const listingTotal = data.selectedSource
-    ? data.bySource.find(r => r.name.toLowerCase() === data.selectedSource)
-        ?.count
+    ? data.bySource.find(r => sourceSlug(r.name) === data.selectedSource)?.count
     : pageTotal
   const positionTotal = data.byPosition.reduce((sum, r) => sum + r.count, 0)
 
@@ -744,6 +744,11 @@ export default async function AnalyticsPage({
                 rows={data.bySource}
                 active={data.selectedSource}
                 params={sp}
+                label={
+                  MAP_PAGES.has(data.selectedPage ?? '')
+                    ? 'Clicks by source'
+                    : 'Clicks by view'
+                }
               />
               <div className={styles.grid}>
                 {/* Titles skip the page name — the active tab already says
@@ -956,10 +961,14 @@ function SourceSplit({
   rows,
   active,
   params,
+  label,
 }: {
   rows: Counted[]
   active: string | null
   params: SearchParams
+  /** Heading for the pill row — 'Clicks by source' on map pages (map vs
+   *  cards), 'Clicks by view' on pages with a view toggle. */
+  label: string
 }) {
   if (rows.length === 0) return null
   const total = rows.reduce((sum, r) => sum + r.count, 0)
@@ -974,7 +983,7 @@ function SourceSplit({
   return (
     <div className={styles.sourceSplitWrap}>
       <div className={styles.sourceSplit}>
-        <span className={styles.sourceSplitLabel}>Clicks by source</span>
+        <span className={styles.sourceSplitLabel}>{label}</span>
         {rows.length > 1 && (
           <Link
             href={totalHref}
@@ -990,7 +999,7 @@ function SourceSplit({
           </Link>
         )}
         {rows.map(r => {
-          const key = r.name.toLowerCase()
+          const key = sourceSlug(r.name)
           const q = new URLSearchParams(base)
           q.set('source', key)
           return (
@@ -1017,8 +1026,8 @@ function SourceSplit({
       </div>
       {hasUntracked && (
         <p className={styles.caption}>
-          Untracked = clicks logged before map/card source tracking started;
-          they age out as the date range moves forward.
+          Untracked = clicks logged before this split was recorded; they age out
+          as the date range moves forward.
         </p>
       )}
     </div>

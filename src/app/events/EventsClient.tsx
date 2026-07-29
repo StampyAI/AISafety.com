@@ -589,6 +589,7 @@ export default function EventsClient({ events }: EventsClientProps) {
               trackingPage="Events"
               trackingId={event.id}
               trackingPosition={`F${event.featured}`}
+              trackingSource={mode}
               index={i}
               count={featuredEvents.length}
             />
@@ -676,6 +677,7 @@ export default function EventsClient({ events }: EventsClientProps) {
                     trackingPage="Events"
                     listingId={event.id}
                     placement={placements.get(event.id)}
+                    trackingSource={mode}
                   />
                 ))}
               </div>

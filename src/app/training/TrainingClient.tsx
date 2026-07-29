@@ -445,6 +445,7 @@ export default function TrainingClient({
       trackingPage="Training"
       listingId={program.id}
       placement={placements.get(program.id)}
+      trackingSource={mode}
     />
   )
 
@@ -504,6 +505,7 @@ export default function TrainingClient({
               trackingPage="Training"
               trackingId={program.id}
               trackingPosition={`F${program.featured}`}
+              trackingSource={mode}
               index={i}
               count={featuredPrograms.length}
             />

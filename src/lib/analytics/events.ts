@@ -394,12 +394,15 @@ export interface DashboardData {
   /** Every click across every page bucketed by the slot it happened in, ordered
    *  F1, F2, 1, 2, 3… — the site-wide version of `byPosition`. */
   byPositionOverall: Counted[]
-  /** For pages with a map (Map, Communities): the selected page's clicks split
-   *  into 'Map' vs 'Cards'. Empty for pages without a map. Always the full split,
-   *  even when one source is selected, so the user can switch between them. */
+  /** For pages in PAGE_SPLITS: the selected page's clicks split across the
+   *  page's surfaces or views (Map vs Cards on map pages, Online vs In person
+   *  on Events, Upcoming vs Recurring on Training). Empty for other pages.
+   *  Always the full split, even when one source is selected, so the user can
+   *  switch between them. */
   bySource: Counted[]
-  /** The source the per-listing panels are filtered to ('map' | 'cards' |
-   *  'untracked'), or null for all sources. Only ever set on map pages. */
+  /** The source the per-listing panels are filtered to (a slug of one of the
+   *  page's split labels, or 'untracked'), or null for all sources. Only ever
+   *  set on pages in PAGE_SPLITS. */
   selectedSource: string | null
   /** For pages with a map (Map, Communities): `selectedPage`'s most-hovered
    *  map listings — tooltip dwells (500 ms cursor rest on desktop, first tap
@@ -472,11 +475,27 @@ const EMPTY: Omit<DashboardData, 'source'> = {
 }
 
 /** Source filters offered on map pages. 'untracked' = neither map nor cards. */
-const SOURCE_FILTERS = new Set(['map', 'cards', 'untracked'])
-
 /** Resource pages that have a map above their card list, so a click can come
- *  from either surface. These are the only pages that get a source breakdown. */
+ *  from either surface. Gates the hover panels (only maps emit hovers). */
 const MAP_PAGES = new Set(['Map', 'Communities'])
+
+/** Pages whose clicks are split across two surfaces or views, and the display
+ *  labels of the split. A click's `source` carries the slug of the label it
+ *  happened under (map pages tag the surface, Events/Training tag the active
+ *  view toggle); untagged clicks — logged before the split was tracked — fall
+ *  into an 'Untracked' bucket rather than being miscounted. */
+const PAGE_SPLITS: Record<string, string[]> = {
+  Map: ['Map', 'Cards'],
+  Communities: ['Map', 'Cards'],
+  Events: ['Online', 'In person'],
+  Training: ['Upcoming', 'Recurring'],
+}
+
+/** 'In person' → 'in-person': how a split label appears in a click's `source`
+ *  and in the dashboard's ?source query param. */
+export function sourceSlug(label: string): string {
+  return label.toLowerCase().replace(/ /g, '-')
+}
 
 /** What a listing click is counted under. Prefer the human label; fall back to
  *  id/url so nothing is silently dropped. */
@@ -636,18 +655,21 @@ function aggregate(
       ? 'Funding'
       : (pageNames[0] ?? null)
 
-  // On a map page the panels can be filtered to one click source. The split
-  // itself (bySource, below) is always computed from every click on the page so
-  // the user can switch sources; only the per-listing panels narrow.
-  const isMapPage = selectedPage != null && MAP_PAGES.has(selectedPage)
+  // On a page with a split (map surface, or the Events/Training view toggle)
+  // the panels can be filtered to one click source. The split itself (bySource,
+  // below) is always computed from every click on the page so the user can
+  // switch sources; only the per-listing panels narrow.
+  const split = selectedPage != null ? PAGE_SPLITS[selectedPage] : undefined
+  const splitSlugs = split?.map(sourceSlug) ?? []
   const selectedSource =
-    isMapPage && sourceReq && SOURCE_FILTERS.has(sourceReq) ? sourceReq : null
+    split && sourceReq && [...splitSlugs, 'untracked'].includes(sourceReq)
+      ? sourceReq
+      : null
   const matchesSource = (e: AnalyticsEvent): boolean => {
-    if (selectedSource === 'map') return e.source === 'map'
-    if (selectedSource === 'cards') return e.source === 'cards'
+    if (selectedSource == null) return true // no filter
     if (selectedSource === 'untracked')
-      return e.source !== 'map' && e.source !== 'cards'
-    return true // no filter
+      return e.source == null || !splitSlugs.includes(e.source)
+    return e.source === selectedSource
   }
 
   // For the selected page: total clicks per listing, the range of slots each was
@@ -688,24 +710,22 @@ function aggregate(
     clicks.map(e => e.position).filter((p): p is string => p != null)
   )
 
-  // Source split, only for pages with a map. Clicks are explicitly tagged 'map'
-  // or 'cards' at click time; anything untagged (logged before source tracking,
-  // or a surface we don't tag) is its own 'Untracked' bucket rather than being
-  // miscounted as a card. Honours the unique/total mode (same pageClicks). Only
+  // Source split, only for pages in PAGE_SPLITS. Clicks are explicitly tagged
+  // at click time; anything untagged (logged before source tracking, or a
+  // surface we don't tag) is its own 'Untracked' bucket rather than being
+  // miscounted. Honours the unique/total mode (same pageClicks). Only
   // non-empty buckets are shown.
   let bySource: Counted[] = []
-  if (isMapPage) {
-    let map = 0
-    let cards = 0
+  if (split) {
+    const counts = new Map<string, number>(split.map(label => [label, 0]))
     let untracked = 0
     for (const e of pageClicksAll) {
-      if (e.source === 'map') map += 1
-      else if (e.source === 'cards') cards += 1
+      const label = split.find(l => sourceSlug(l) === e.source)
+      if (label) counts.set(label, (counts.get(label) ?? 0) + 1)
       else untracked += 1
     }
     bySource = [
-      { name: 'Map', count: map },
-      { name: 'Cards', count: cards },
+      ...split.map(label => ({ name: label, count: counts.get(label) ?? 0 })),
       { name: 'Untracked', count: untracked },
     ].filter(r => r.count > 0)
   }
@@ -718,7 +738,7 @@ function aggregate(
   // same per-visitor-per-day dedupe as clicks. Map pages only — no other page
   // emits hover events.
   let topHovered: ListingRow[] = []
-  if (isMapPage) {
+  if (selectedPage != null && MAP_PAGES.has(selectedPage)) {
     const hoverHits = inRange.filter(e => e.type === 'listing_hover' && e.page)
     const hovers = (unique ? uniqueClicks(hoverHits) : hoverHits).filter(
       e => e.page === selectedPage

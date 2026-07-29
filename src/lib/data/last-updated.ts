@@ -25,14 +25,25 @@ type ConstantConfig = {
   value: string
 }
 
-type ResourceConfig = QueryConfig | RecordConfig | ConstantConfig
+// For pages that draw from several tables; resolves to the latest edit
+// across all of them.
+type MultiQueryConfig = {
+  type: 'multi'
+  queries: Omit<QueryConfig, 'type'>[]
+}
+
+type ResourceConfig =
+  | QueryConfig
+  | RecordConfig
+  | ConstantConfig
+  | MultiQueryConfig
 
 const configs: Record<string, ResourceConfig> = {
   events: {
     type: 'query',
-    tableId: 'tblx0L8qJEaLBxJFS',
-    viewId: 'viwHl72bJxCb2SfrL',
-    sortField: 'fldRXglLBZbUeATnf', // Last modified
+    tableId: 'tblXbN9swwldwq8f7',
+    filter: '{flddgpgNm090Uftsq} = TRUE()', // Publish?
+    sortField: 'fldB3qONkXobywxmp', // Last modified
   },
   map: {
     type: 'record',
@@ -52,14 +63,20 @@ const configs: Record<string, ResourceConfig> = {
     viewId: 'viwblgaia3x1gsqBo',
     sortField: 'fld4gwoM3vldhbyiE', // Last modified
   },
-  // Like 'events', reads the legacy Events & training table until the new
-  // tables get a Last modified field (the API can't create that type) and
-  // become the source of truth at launch.
   training: {
-    type: 'query',
-    tableId: 'tblx0L8qJEaLBxJFS',
-    viewId: 'viwHl72bJxCb2SfrL',
-    sortField: 'Last modified',
+    type: 'multi',
+    queries: [
+      {
+        tableId: 'tbli1YSCpIuNY2DvL', // Training
+        filter: '{fldqlN36P6BVFP151} = TRUE()', // Publish?
+        sortField: 'fldG0Cn6ozrw0c0N9', // Last modified
+      },
+      {
+        tableId: 'tblEEIbj6dW5oS4cX', // Training (recurring)
+        filter: '{fldpjcvh7n6w4cIsi} = TRUE()', // Publish?
+        sortField: 'fldq0bMboXuM1lYX4', // Last modified
+      },
+    ],
   },
   jobs: {
     type: 'query',
@@ -153,7 +170,26 @@ export async function fetchLastUpdated(
     }
   }
 
-  // type === 'query'
+  if (config.type === 'multi') {
+    const results = await Promise.all(
+      config.queries.map(query =>
+        fetchQueryLastUpdated(query, resource, token, baseId)
+      )
+    )
+    const dated = results.filter(r => r.lastUpdated !== null)
+    if (dated.length === 0) return { lastUpdated: null, formattedDate: null }
+    return dated.reduce((a, b) => (a.lastUpdated! >= b.lastUpdated! ? a : b))
+  }
+
+  return fetchQueryLastUpdated(config, resource, token, baseId)
+}
+
+async function fetchQueryLastUpdated(
+  config: Omit<QueryConfig, 'type'>,
+  resource: string,
+  token: string,
+  baseId: string
+): Promise<LastUpdatedResult> {
   const url = new URL(`https://api.airtable.com/v0/${baseId}/${config.tableId}`)
   if (config.viewId) url.searchParams.set('view', config.viewId)
   if (config.filter) url.searchParams.set('filterByFormula', config.filter)

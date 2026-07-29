@@ -191,12 +191,7 @@ export async function getMapData(): Promise<MapData> {
 
     allRecords.push({
       id: record.id,
-      // The curated "Date added" field, falling back to the record's own
-      // creation time (they match for records added since the field existed).
-      dateAdded:
-        fieldDateOnly(f[FIELD.dateAdded]) ??
-        record.createdTime?.slice(0, 10) ??
-        null,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
       lastModified: fieldDateOnly(f[FIELD.lastModified]),
       title,
       tooltipTitle,

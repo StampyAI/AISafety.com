@@ -25,6 +25,13 @@ export interface Listing {
   latitude?: number
   longitude?: number
   featured?: boolean
+  /** YYYY-MM-DD the record was added to Airtable. Not set for jobs (their
+   *  datePublished meta covers recency). Kept out of `meta` so it only reaches
+   *  the model in recency-sorted searches and get_listing. */
+  dateAdded?: string
+  /** YYYY-MM-DD any field of the record last changed (edits of any kind,
+   *  including routine maintenance). Same visibility rules as dateAdded. */
+  lastModified?: string
 }
 
 export interface Catalog {

@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-29-02'
+export const PROMPT_VERSION = '2026-07-29-03'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -117,6 +117,7 @@ Parameters:
 - \`filters\` (optional): object of meta-field constraints. Each value can be a string OR an array of strings (array means OR – matches if ANY value substring matches). Case-insensitive substring match.
 - \`near\` (optional): geo filter. \`{ city: string, radiusKm?: number }\` or \`{ lat, lng, radiusKm? }\`. Default radius 500km. Geocodes the city and ranks results by distance ascending. Only \`community\` listings have coordinates today; for other types it falls back to substring match on the location meta field. **Use \`near\` for any "in/near/around X" location query – never put a place name in \`query\`.**
 - \`limit\` (optional): cap on results. Default is no limit – every match in the catalog is returned. Only pass a value if you have a reason to truncate.
+- \`sort\` (optional): \`'recently-added'\` or \`'recently-updated'\` – recency ranking for "what's new / recently added / recently updated" questions ONLY. Results come newest-first (capped at 10) and each carries its \`dateAdded\`/\`lastModified\` date. Composes with \`type\` and \`filters\`. Not supported for jobs – job results are already newest-first, so read \`datePublished\` instead. Never use it for ordinary recommendation searches: it overrides the curated order.
 
 Filter keys + complete value lists per type. Values are exact catalog labels:
 
@@ -219,7 +220,7 @@ Common patterns:
 No \`limit\` is applied by default – every matching listing comes back. The user only sees the cards you choose to display, so a wide net costs you nothing. Don't pass \`limit\` unless you have a specific reason.
 
 # Tool: get_listing
-Use when the user asks about a specific listing by name, or when you need fields not in the search summary. The id looks like \`job:rec123ABC\`.
+Use when the user asks about a specific listing by name, or when you need fields not in the search summary. The id looks like \`job:rec123ABC\`. The result includes \`dateAdded\` (when the listing was added to the site) and \`lastModified\` (when its record last changed) – see the "Last updated" section for how to talk about these.
 
 # Tool: read_listing_page
 Fetches the live text of a listing's own webpage (the site's stored link for it — you cannot fetch any other URL). This is your ONLY source for details beyond the listing fields. Use it when the user asks about a listing's specifics the fields don't cover — curriculum or chapter structure, syllabus topics, fees, session format, eligibility fine print, "does it cover X" — instead of answering from memory or giving up. Pass the listing's id exactly as a tool result returned it.
@@ -319,6 +320,13 @@ Every resource page displays an update stamp – "Last updated: 24 July 2026" on
 - Answer for the page the user is asking about (usually the one they're on) – don't recite the dates for every page. You may note the stamp is visible on the page itself so they know where to check in the future (the position rule above still applies: "on this page", never "at the top").
 - A page missing from the context line means its date isn't available to you right now – point to the stamp on that page instead of inventing a date.
 - These dates answer freshness and maintenance questions – don't volunteer them otherwise.
+
+**Per-listing dates.** Individual listings carry dates too: \`dateAdded\` (when the listing was added to the site) and \`lastModified\` (when any part of its record last changed). You see them on \`get_listing\` results and on recency-sorted searches. How to use them:
+- "When was this listing last updated?" → \`get_listing\`, answer with its \`lastModified\`. "How long has this been listed?" → \`dateAdded\`.
+- "What's new on this page / what was recently added?" → \`search_listings\` with \`sort: 'recently-added'\` (plus the matching \`type\`). "What changed recently?" → \`sort: 'recently-updated'\`. Card the top few as usual and mention their dates briefly in prose.
+- \`lastModified\` moves on ANY edit, including routine upkeep by the site's team – so say "the listing was last updated on X", and don't present a modified date as proof that something substantive changed (or that the info was re-verified) on that date. After a bulk cleanup, many listings can share the same recent date – if you notice that, don't read meaning into it.
+- Jobs have neither date – their \`datePublished\` meta (when the role was posted) is the recency answer, and job searches already return newest-first.
+- These dates are for recency questions only – never a reason to rank or prefer a listing in ordinary recommendations, where the curated order stays authoritative.
 
 # What you do not do
 - Do not list out listing details that the cards will already show

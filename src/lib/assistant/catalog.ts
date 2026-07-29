@@ -146,6 +146,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: f.logo ?? deriveFaviconFromUrl(f.url),
       url: f.url,
       pageUrl: '/funding',
+      dateAdded: f.dateAdded ?? undefined,
+      lastModified: f.lastModified ?? undefined,
       meta: compact({
         type: f.type,
         recipientType: f.recipientType,
@@ -164,6 +166,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: a.logo ?? deriveFaviconFromUrl(a.url),
       url: a.url,
       pageUrl: '/advisors',
+      dateAdded: a.dateAdded ?? undefined,
+      lastModified: a.lastModified ?? undefined,
       meta: compact({
         focus: a.focus,
         status: a.status,
@@ -181,6 +185,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: c.logo ?? deriveFaviconFromUrl(c.joinLink),
       url: c.joinLink || '#',
       pageUrl: '/communities',
+      dateAdded: c.dateAdded ?? undefined,
+      lastModified: c.lastModified ?? undefined,
       latitude: c.latitude ?? undefined,
       longitude: c.longitude ?? undefined,
       meta: compact({
@@ -205,6 +211,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: c.image ?? deriveFaviconFromUrl(c.url),
       url: c.url,
       pageUrl: '/self-study',
+      dateAdded: c.dateAdded ?? undefined,
+      lastModified: c.lastModified ?? undefined,
       meta: compact({
         category: c.category,
         courseType: c.courseType,
@@ -222,6 +230,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: r.image ?? deriveFaviconFromUrl(r.website),
       url: r.website,
       pageUrl: '/founders',
+      dateAdded: r.dateAdded ?? undefined,
+      lastModified: r.lastModified ?? undefined,
       meta: compact({
         type: r.type,
       }),
@@ -237,6 +247,8 @@ export async function buildCatalog(): Promise<Catalog> {
       description: clamp(p.description, 280),
       url: p.email ? `mailto:${p.email}` : '#',
       pageUrl: '/projects',
+      dateAdded: p.dateAdded ?? undefined,
+      lastModified: p.lastModified ?? undefined,
       meta: compact({
         status: p.status,
         contact: p.contact,
@@ -254,6 +266,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: m.logo ?? deriveFaviconFromUrl(m.url),
       url: m.url,
       pageUrl: '/media-channels',
+      dateAdded: m.dateAdded ?? undefined,
+      lastModified: m.lastModified ?? undefined,
       meta: compact({
         type: m.type,
       }),
@@ -271,6 +285,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: o.logo ?? deriveFaviconFromUrl(o.link),
       url: o.link,
       pageUrl: '/map',
+      dateAdded: o.dateAdded ?? undefined,
+      lastModified: o.lastModified ?? undefined,
       meta: compact({
         category: o.category,
         status: o.status,
@@ -292,6 +308,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: e.logo ?? deriveFaviconFromUrl(e.url),
       url: e.url,
       pageUrl: '/events',
+      dateAdded: e.dateAdded ?? undefined,
+      lastModified: e.lastModified ?? undefined,
       meta: compact({
         type: e.type.join(', '),
         mode: e.mode,
@@ -322,6 +340,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: t.logo ?? deriveFaviconFromUrl(t.url),
       url: t.url,
       pageUrl: '/training',
+      dateAdded: t.dateAdded ?? undefined,
+      lastModified: t.lastModified ?? undefined,
       meta: compact({
         type: t.type.join(', '),
         mode: t.mode,
@@ -353,6 +373,8 @@ export async function buildCatalog(): Promise<Catalog> {
       logo: r.logo ?? deriveFaviconFromUrl(r.url),
       url: r.url,
       pageUrl: '/training',
+      dateAdded: r.dateAdded ?? undefined,
+      lastModified: r.lastModified ?? undefined,
       meta: compact({
         recurring: 'Yes',
         type: r.type.join(', '),

@@ -104,6 +104,8 @@ export interface NearOptions {
   radiusKm?: number
 }
 
+export type RecencySort = 'recently-added' | 'recently-updated'
+
 export interface SearchOptions {
   query?: string
   type?: ListingType
@@ -111,6 +113,9 @@ export interface SearchOptions {
   /** Geo filter — keeps only listings within radius of the city/coords. */
   near?: NearOptions
   limit?: number
+  /** Re-rank matches by dateAdded/lastModified desc. Capped at 10 results
+   *  unless an explicit limit is passed. Listings without the date sort last. */
+  sort?: RecencySort
 }
 
 export interface SearchHit {
@@ -129,14 +134,32 @@ function isRecurringTraining(l: Listing): boolean {
   return l.type === 'training' && l.meta.recurring === 'Yes'
 }
 
+function recencyKey(listing: Listing, sort: RecencySort): string {
+  return (
+    (sort === 'recently-added' ? listing.dateAdded : listing.lastModified) ?? ''
+  )
+}
+
+/** Date-desc re-rank for recency-sorted searches; undated listings last. */
+function sortHitsByRecency(hits: SearchHit[], sort: RecencySort): SearchHit[] {
+  return [...hits].sort((a, b) =>
+    recencyKey(b.listing, sort).localeCompare(recencyKey(a.listing, sort))
+  )
+}
+
 export async function searchCatalog(
   catalog: Catalog,
   options: SearchOptions
 ): Promise<SearchHit[]> {
   const queryTokens = options.query ? tokenize(options.query) : []
-  // Default: no limit. Caller can pass one explicitly to cap.
+  // Default: no limit — except recency sorts, which cap at 10 so "what's new"
+  // answers don't ship the whole catalog. An explicit limit always wins.
   const limit =
-    typeof options.limit === 'number' ? Math.max(1, options.limit) : Infinity
+    typeof options.limit === 'number'
+      ? Math.max(1, options.limit)
+      : options.sort
+        ? 10
+        : Infinity
   const filters = options.filters ?? {}
 
   // Resolve geo center if `near` is present
@@ -203,7 +226,10 @@ export async function searchCatalog(
         (catalogIndex.get(b.listing.id) ?? Infinity)
       )
     })
-    return sorted.slice(0, limit).map(c => ({ listing: c.listing, score: 1 }))
+    const browseHits = sorted.map(c => ({ listing: c.listing, score: 1 }))
+    return (
+      options.sort ? sortHitsByRecency(browseHits, options.sort) : browseHits
+    ).slice(0, limit)
   }
 
   const hits: SearchHit[] = []
@@ -236,5 +262,8 @@ export async function searchCatalog(
     )
   })
 
-  return hits.slice(0, limit)
+  return (options.sort ? sortHitsByRecency(hits, options.sort) : hits).slice(
+    0,
+    limit
+  )
 }

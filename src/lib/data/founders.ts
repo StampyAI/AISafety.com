@@ -1,5 +1,6 @@
 import {
   fetchAirtableRecords,
+  fieldDateOnly,
   fieldAttachmentUrl,
   fieldFeatured,
   fieldString,
@@ -24,10 +25,13 @@ const FIELD = {
   featuredTagline: 'fldhf703nHwICgQyl', // Featured tagline
   publish: 'fld9Epdrxu9n0FV20', // Publish?
   hide: 'fldPKsUP3i4UVujDf', // Hide?
+  lastModified: 'fldMM2jKZeORMO5mP', // Last modified
 } as const
 
 export interface FounderResource {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   type: string
   image: string | null
@@ -57,6 +61,8 @@ export async function getFounderResources(): Promise<FounderResource[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       type: fieldText(f[FIELD.type]),
       image: fieldAttachmentUrl(f[FIELD.image]),

@@ -1,5 +1,6 @@
 import {
   fetchAirtableRecords,
+  fieldDateOnly,
   fieldAttachmentUrl,
   fieldFeatured,
   fieldNumber,
@@ -33,10 +34,13 @@ const FIELD = {
   featuredTagline: 'fldDxqDvO7vgFo2m0', // Featured tagline
   publish: 'fldV8RYP1CVzOvHpf', // Publish?
   hide: 'fldQAl9W6QDPCpdew', // Hide?
+  lastModified: 'fldcsXAugffjhKmEH', // Last modified
 } as const
 
 export interface Community {
   id: string
+  dateAdded: string | null
+  lastModified: string | null
   name: string
   description: string
   logo: string | null
@@ -71,6 +75,8 @@ export async function getCommunities(): Promise<Community[]> {
 
     results.push({
       id: record.id,
+      dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       description: fieldString(f[FIELD.description]) || '',
       logo: fieldAttachmentUrl(f[FIELD.logo]),

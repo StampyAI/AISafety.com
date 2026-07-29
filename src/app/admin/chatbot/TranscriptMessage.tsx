@@ -8,6 +8,7 @@
 import { createContext, Fragment, ReactNode, useContext, useState } from 'react'
 import {
   SuggestInline,
+  flattenNoteLinks,
   parseSuggestToken,
 } from '@/components/assistant/MessageContent'
 import { cardTypePage } from '@/components/assistant/cardFallback'
@@ -75,17 +76,18 @@ const SUGGEST_TOKEN_RE = /^\[\[\s*suggest\s*:([^\]\n]*)\]\]$/i
 // rec id, no rec at all) were NOT cards in the visitor's chat — the live
 // malformed-directive sweep stripped them — so they must not become pills
 // here either; they fall through to the paragraph path and render as
-// struck-through "stripped" tokens instead.
+// struck-through "stripped" tokens instead. Like the live renderer, the
+// |note runs to the closing `]]`, so brackets inside it don't break the card.
 const CARD_LINE_RE =
-  /^\s*\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
+  /^\s*\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|(.*?))?\s*\]\]\s*$/i
 // Anchored well-formedness tests for inline card/id tokens, mirroring the
 // live renderer's CARD_TOKEN_RE / ID_TOKEN_RE.
 const STRICT_CARD_TOKEN_RE =
-  /^\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|[^\]\n]*)?\s*\]\]$/i
+  /^\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|.*?)?\s*\]\]$/i
 const STRICT_ID_TOKEN_RE =
   /^\[\[\s*id\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+\s*\]\]$/i
 const INLINE_RE =
-  /(\[\[[^\]\n]*\]\])|(\[[^\]\n]+\]\(\/?[^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
+  /(\[\[[^\n]*?\]\])|(\[[^\]\n]+\]\(\/?[^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
 
 /** Did the visitor get a real card for this token, or a degraded fallback?
  *  Turns logged since fallback tracking (Data.fallbackCards) say exactly
@@ -117,13 +119,14 @@ function inlineCardLabel(
   listings: Record<string, ListingInfo>
 ): string {
   const m =
-    /^\[\[\s*(?:card|id)\s*:\s*([^\]|\n]+?)(?:\s*\|([^\]\n]*))?\s*\]\]$/i.exec(
+    /^\[\[\s*(?:card|id)\s*:\s*([^\]|\n]+?)(?:\s*\|(.*?))?\s*\]\]$/i.exec(
       token
     )
   if (!m) return ''
   const info = resolveListing(listings, m[1])
   if (info) return info.name
-  if (m[2]?.trim()) return m[2].trim()
+  const noteLabel = flattenNoteLinks(m[2] ?? '').trim()
+  if (noteLabel) return noteLabel
   const type = cardType(m[1])
   const rec = /rec[A-Za-z0-9]+/.exec(m[1])?.[0] ?? m[1].trim()
   return type ? `${type} ${rec}` : rec
@@ -425,7 +428,7 @@ function parseBlocks(text: string): Block[] {
       current.cards.push({
         type: cardType(cardMatch[1]),
         id: cardMatch[1].replace(/\s+/g, ''),
-        note: cardMatch[2]?.trim() ?? '',
+        note: flattenNoteLinks(cardMatch[2] ?? '').trim(),
       })
     } else if (ulMatch) {
       if (current?.kind !== 'ul') {

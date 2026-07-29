@@ -3,9 +3,10 @@ import type { Catalog, CitationRef, Listing } from './types'
 const CITATION_REGEX = /\[\[id:([a-z][a-z-]*:rec[A-Za-z0-9]+)\]\]/g
 
 // Mirrors the tolerant [[card:...]] grammar the renderer and the log snapshot
-// use (route.ts): bare rec id, doubled prefix, and whitespace are all allowed.
+// use (route.ts): bare rec id, doubled prefix, whitespace, and brackets
+// inside the |note are all allowed.
 const CARD_ID_REGEX =
-  /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\]\n]*)?\s*\]\]/gi
+  /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\n]*?)?\s*\]\]/gi
 
 function toRef(l: Listing): CitationRef {
   return {

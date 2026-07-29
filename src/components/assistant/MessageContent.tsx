@@ -43,20 +43,22 @@ interface Props {
 //   - doubled prefixes (re-prefixing mistake): `[[card:type:type:recXXX]]`
 //   - whitespace inside brackets / around colons / around the pipe
 //   - capitalization on the keyword itself: `[[Card:...]]`
+//   - brackets inside the |note (e.g. a Markdown link the model wasn't
+//     supposed to write there) — the note runs to the closing `]]`
 // resolveCitation handles the actual lookup with suffix matching on the
 // underlying rec id when the full id doesn't resolve directly.
 const INLINE_REGEX =
-  /(\[\[\s*id\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+\s*\]\])|(\[\[\s*suggest\s*:[^\]\n]*\]\])|(\[\[\s*chip\s*:[^\]\n]*\]\])|(\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|[^\]\n]*)?\s*\]\])|(\[[^\]\n]+\]\([^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
+  /(\[\[\s*id\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+\s*\]\])|(\[\[\s*suggest\s*:[^\]\n]*\]\])|(\[\[\s*chip\s*:[^\]\n]*\]\])|(\[\[\s*card\s*:\s*(?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+(?:\s*\|[^\n]*?)?\s*\]\])|(\[[^\]\n]+\]\([^)\n]+\))|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\baisafety\.info(?:\/[^\s<>),]*)?)/gi
 
 const CARD_LINE =
-  /^\s*\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|([^\]\n]*))?\s*\]\]\s*$/i
+  /^\s*\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|(.*?))?\s*\]\]\s*$/i
 
 // Per-token regexes used to extract pieces from a matched token. Anchored
 // so they only match if the whole token is well-formed.
 const ID_TOKEN_RE =
   /^\[\[\s*id\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)\s*\]\]$/i
 const CARD_TOKEN_RE =
-  /^\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|([^\]\n]*))?\s*\]\]$/i
+  /^\[\[\s*card\s*:\s*((?:[a-z][a-z-]*\s*:\s*)*rec[A-Za-z0-9]+)(?:\s*\|(.*?))?\s*\]\]$/i
 const SUGGEST_TOKEN_RE = /^\[\[\s*suggest\s*:([^\]\n]*)\]\]$/i
 const CHIP_TOKEN_RE = /^\[\[\s*chip\s*:([^\]\n]*)\]\]$/i
 
@@ -103,7 +105,7 @@ function maskStreamingTail(text: string): string {
 // recAlignment Jams|...]]` with a space in the rec id) and silently strip
 // them, rather than leaking the raw text to the user.
 const MALFORMED_DIRECTIVE_SWEEP =
-  /\[\[\s*(?:card|id|chip|suggest)\b[^\]\n]*?\]\]/gi
+  /\[\[\s*(?:card|id|chip|suggest)\b[^\n]*?\]\]/gi
 
 function stripMalformedDirectives(text: string): string {
   return text.replace(MALFORMED_DIRECTIVE_SWEEP, m => {
@@ -124,10 +126,18 @@ interface CardSpec {
   note?: string
 }
 
+/** Card notes render as plain text, so a Markdown link the model smuggled
+ *  into one (e.g. "find it on [Communities](/communities)") would show raw.
+ *  Keep the link's label, drop its destination. */
+export function flattenNoteLinks(note: string): string {
+  return note.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+}
+
 function parseCardLine(line: string): CardSpec | null {
   const m = CARD_LINE.exec(line)
   if (!m) return null
-  return { id: normaliseListingId(m[1]), note: m[2]?.trim() || undefined }
+  const note = m[2] ? flattenNoteLinks(m[2]).trim() : ''
+  return { id: normaliseListingId(m[1]), note: note || undefined }
 }
 
 function renderInline(

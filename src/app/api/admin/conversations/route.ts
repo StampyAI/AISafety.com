@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /** Pulls the listing ids out of every [[card:ID|note]] token in a reply. */
-const CARD_ID_RE = /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\]\n]*)?\s*\]\]/gi
+const CARD_ID_RE = /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\n]*?)?\s*\]\]/gi
 function collectCardIds(text: string, into: Set<string>): void {
   CARD_ID_RE.lastIndex = 0
   let m: RegExpExecArray | null

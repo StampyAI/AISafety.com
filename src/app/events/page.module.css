@@ -1,6 +1,6 @@
 /* "Find events near you" box — border comes from the global .border-only. */
 .nearMe {
-  padding: 48px;
+  padding: 24px;
   border-radius: 16px;
 }
 

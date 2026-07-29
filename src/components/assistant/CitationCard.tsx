@@ -116,6 +116,12 @@ function metaSummary(c: CitationRef): string {
     if (c.meta.category) parts.push(c.meta.category)
   } else if (c.type === 'media-channel' || c.type === 'founder-resource') {
     if (c.meta.type) parts.push(c.meta.type)
+  } else if (c.type === 'event') {
+    if (c.meta.type) parts.push(c.meta.type)
+    if (c.meta.cost) parts.push(c.meta.cost)
+  } else if (c.type === 'training') {
+    if (c.meta.type) parts.push(c.meta.type)
+    if (c.meta.stipend) parts.push(c.meta.stipend)
   }
   return parts.join(' · ')
 }

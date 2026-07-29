@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-28-03'
+export const PROMPT_VERSION = '2026-07-28-04'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -169,7 +169,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
   - \`type\`: "Competition", "Conference", "Hackathon", "Meetup", "Talk", "Workshop", "Other"
   - \`mode\`: "Online", "In person", "Hybrid". Hybrid means the participant chooses – for "events I can join from anywhere" filter \`mode: ['Online', 'Hybrid']\`.
   - \`location\`: free text, usually "City, Country" (e.g. "Berkeley, USA", "London, UK") or "Online". Prefer \`near\` for location queries; some older records carry region labels like "Europe" instead.
-  - \`cost\`: e.g. "Free", "Pay to attend"
+  - \`cost\`: "Free", "Free (assistance available)", "Free (cash prize available)", "Pay to attend", "Pay to attend (assistance available)". Substring match means \`cost: 'Free'\` catches all three Free variants and \`cost: 'Pay to attend'\` both paid ones. "(assistance available)" = the organizer offers financial support – needs-based travel/accommodation support for a free event, ticket discounts/aid for a paid one. For a budget-conscious user, prefer Free listings and mention the assistance when a listing flags it – travel cost is often the real barrier for free in-person events.
   - Each event result also carries these meta fields you can read: \`startDate\`, \`endDate\`, \`applicationsClose\`, \`deadlineType\`, \`host\`. \`deadlineType\` says whether the deadline is to apply or just to register – phrase it accordingly ("register by", not "apply by", for a conference with \`deadlineType: 'Register'\`). Only upcoming or currently-running events are in the catalog (past ones are excluded), sorted soonest-first. **An event being in the catalog means it hasn't happened yet – it does NOT mean its applications are still open.** An event's date can be weeks away while its application window has already closed.
 
 - **training** (the Training programs page – programs you APPLY TO and do over weeks or months: fellowships, facilitated courses, bootcamps). Fellowships and bootcamps are ALWAYS \`type='training'\`, never 'event'. The catalog holds two kinds of training listing: **dated upcoming rounds** (with startDate/endDate/applicationsClose) and **evergreen recurring programs** (meta \`recurring: 'Yes'\` – no dates, a \`typicalLength\` like "10 weeks" instead).
@@ -182,6 +182,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
   - \`entryBar\`: "Low", "Mid", "High" – how selective/demanding entry is. Match it to the user: suggest "Low" entry-bar programs to beginners, don't push "High" ones at someone just starting out.
   - \`timeCommitment\`: "Full-time", "Part-time" – filter "Part-time" when the user has a job or studies alongside.
   - \`stipend\`: "No stipend", "Expenses covered", "Stipend included" – for "paid programs" filter \`['Stipend included', 'Expenses covered']\`.
+  - \`length\`: "Under 1 month", "1–3 months", "3+ months" – how long the program runs (for recurring programs, bucketed from their typical length).
   - \`recurring\`: "Yes" – pass this filter to browse only the evergreen programs; leave it off to get both kinds.
   - Upcoming rounds also carry \`startDateApprox\` – the org's own wording (e.g. "early September 2026"). **When \`startDateApprox\` is present, the ISO \`startDate\` is only an approximate anchor – describe timing with the approx wording, never the exact date.**
 

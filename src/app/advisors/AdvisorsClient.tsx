@@ -174,6 +174,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Advisors"
             title="Focus"
             options={focusOptions}
             selected={selectedFocus}
@@ -181,6 +182,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
             onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
           />
           <FilterGroup
+            trackingPage="Advisors"
             title="Status"
             options={statusOptions}
             selected={selectedStatus}

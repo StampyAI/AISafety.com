@@ -156,6 +156,7 @@ export default function MediaChannelsClient({
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Media channels"
             title="Type"
             options={typeOptions}
             selected={selectedTypes}

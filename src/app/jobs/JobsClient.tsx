@@ -312,6 +312,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Jobs"
             title="Skill set"
             options={skillSetOptions}
             selected={selectedSkills}
@@ -319,6 +320,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             onToggle={v => toggleFilter(v, selectedSkills, setSelectedSkills)}
           />
           <FilterGroup
+            trackingPage="Jobs"
             title="Minimum experience"
             options={experienceOptions}
             selected={selectedExperience}
@@ -328,6 +330,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             }
           />
           <FilterGroup
+            trackingPage="Jobs"
             title="Role type"
             options={roleTypeOptions}
             selected={selectedRoles}
@@ -335,6 +338,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             onToggle={v => toggleFilter(v, selectedRoles, setSelectedRoles)}
           />
           <FilterGroup
+            trackingPage="Jobs"
             title="Work location"
             options={workLocationOptions}
             selected={selectedWorkLocation}

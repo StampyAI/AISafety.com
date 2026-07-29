@@ -186,6 +186,28 @@ export function trackListingHover(
 }
 
 /**
+ * Track a visitor turning a filter value on (a sidebar checkbox or a dropdown
+ * option) on a resource page. Deselections aren't recorded — the activation is
+ * the expression of interest. `source` carries the filter group's title (e.g.
+ * 'Type'), `label` the value picked (e.g. 'Fellowship').
+ */
+export function trackFilterApply(
+  page: string,
+  group: string,
+  value: string
+): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Filters - ${page}`, group, value])
+  sendTrackEvent({
+    type: 'filter_apply',
+    page,
+    source: group,
+    label: value,
+  })
+}
+
+/**
  * Track a page visit. Fired on every route change, initial load included (see
  * MatomoRouteTracker). Matomo records its own page views via its snippet —
  * this is the first-party copy that ad blockers can't strip, and it carries

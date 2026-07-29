@@ -110,6 +110,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Projects"
             title="Status"
             options={statusOptions}
             selected={selectedStatus}

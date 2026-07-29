@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
+import { trackFilterApply } from '@/lib/analytics'
 import styles from './FilterDropdown.module.css'
 
 interface FilterDropdownProps {
@@ -12,6 +13,9 @@ interface FilterDropdownProps {
   onToggle: (value: string) => void
   /** Optional 16×16 svg icon (path in /images) shown before the label. */
   icon?: string
+  /** Analytics page name (e.g. 'Training'). When set, turning a value on
+   *  records a filter_apply event under this page and the dropdown's title. */
+  trackingPage?: string
 }
 
 // A single pill-shaped filter that opens a checkbox popover. Used in the
@@ -23,6 +27,7 @@ export default function FilterDropdown({
   counts,
   onToggle,
   icon,
+  trackingPage,
 }: FilterDropdownProps) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -119,7 +124,11 @@ export default function FilterDropdown({
                 <input
                   type="checkbox"
                   checked={selected.includes(option)}
-                  onChange={() => onToggle(option)}
+                  onChange={() => {
+                    if (trackingPage && !selected.includes(option))
+                      trackFilterApply(trackingPage, title, option)
+                    onToggle(option)
+                  }}
                   className="checkbox"
                 />
                 <span className="paragraph-small color-white">

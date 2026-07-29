@@ -18,6 +18,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import ModeToggle from '@/components/ModeToggle'
 import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
+import { trackFilterApply } from '@/lib/analytics'
 import { placementsById } from '@/lib/placements'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
@@ -606,6 +607,7 @@ export default function EventsClient({ events }: EventsClientProps) {
           } ${mode === 'in-person' ? 'in person' : 'online'}`}
         >
           <FilterDropdown
+            trackingPage="Events"
             title="Applications"
             options={applicationOptions}
             selected={selectedStatus}
@@ -613,6 +615,7 @@ export default function EventsClient({ events }: EventsClientProps) {
             onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
           />
           <FilterDropdown
+            trackingPage="Events"
             title="Event type"
             options={[...EVENT_TYPES]}
             selected={selectedTypes}
@@ -620,6 +623,7 @@ export default function EventsClient({ events }: EventsClientProps) {
             onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
           />
           <FilterDropdown
+            trackingPage="Events"
             title="Cost"
             options={costOptions}
             selected={selectedCost}
@@ -636,11 +640,12 @@ export default function EventsClient({ events }: EventsClientProps) {
             <CitySearch
               cities={cities}
               selectedCities={selectedCities}
-              onAdd={city =>
+              onAdd={city => {
+                trackFilterApply('Events', 'City', city)
                 setSelectedCities(prev =>
                   prev.includes(city) ? prev : [...prev, city]
                 )
-              }
+              }}
               onRemove={city =>
                 setSelectedCities(prev => prev.filter(c => c !== city))
               }

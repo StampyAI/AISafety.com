@@ -150,6 +150,7 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Founders"
             title="Type"
             options={typeOptions}
             selected={selectedTypes}

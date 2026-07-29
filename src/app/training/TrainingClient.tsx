@@ -522,6 +522,7 @@ export default function TrainingClient({
       >
         {mode === 'upcoming' && (
           <FilterDropdown
+            trackingPage="Training"
             title="Applications"
             options={applicationOptions}
             selected={selectedStatus}
@@ -530,6 +531,7 @@ export default function TrainingClient({
           />
         )}
         <FilterDropdown
+          trackingPage="Training"
           title="Type"
           options={[...TRAINING_TYPES]}
           selected={selectedTypes}
@@ -537,6 +539,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Focus"
           options={focusOptions}
           selected={selectedFocus}
@@ -544,6 +547,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Entry bar"
           options={[...ENTRY_BARS]}
           selected={selectedEntryBar}
@@ -551,6 +555,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedEntryBar, setSelectedEntryBar)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Stipend"
           options={[...STIPEND_OPTIONS]}
           selected={selectedStipend}
@@ -558,6 +563,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedStipend, setSelectedStipend)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Length"
           options={[...LENGTH_BUCKETS]}
           selected={selectedLength}
@@ -565,6 +571,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedLength, setSelectedLength)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Location"
           options={locationOptions}
           selected={selectedLocation}

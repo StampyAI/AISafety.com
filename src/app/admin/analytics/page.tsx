@@ -382,6 +382,8 @@ function labelFor(e: {
     return SEARCH_OPEN_LABELS[e.source ?? ''] ?? 'Opened search'
   if (e.type === 'search_query')
     return e.query ? `Searched for “${e.query}”` : 'Searched'
+  if (e.type === 'filter_apply')
+    return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
   // search_click carries the result's title as its label, like listing clicks.
   return e.label ?? EVENT_LABELS[e.type] ?? e.type
 }
@@ -561,6 +563,15 @@ export default async function AnalyticsPage({
     ? data.bySource.find(r => sourceSlug(r.name) === data.selectedSource)?.count
     : pageTotal
   const positionTotal = data.byPosition.reduce((sum, r) => sum + r.count, 0)
+  const filterTotal = data.filterGroups.reduce((sum, r) => sum + r.count, 0)
+  const filterShareByPage = new Map(
+    data.filterShareByPage.map(r => [r.name, r])
+  )
+  // The filter-usage caption's denominator: the page's distinct visitors, only
+  // meaningful in unique mode (total mode's byPage rows count views).
+  const filterPageVisitors = unique
+    ? data.visits.byPage.find(p => p.name === data.selectedPage)?.count
+    : undefined
 
   // Site-wide leaderboards for the Overview tab. The listings total is every
   // page's clicks (same denominator as "Clicks by page"); the position total is
@@ -836,6 +847,37 @@ export default async function AnalyticsPage({
                     </Panel>
                   </div>
                 )}
+              {data.filterGroups.length > 0 && (
+                <div className={styles.grid}>
+                  <Panel title="Filter usage">
+                    <CountTable
+                      rows={data.filterGroups}
+                      labelHead="Filter"
+                      countHead="Uses"
+                      total={filterTotal}
+                    />
+                    <p className={styles.caption}>
+                      A use = a visitor turning a filter value on; switching a
+                      value off isn&apos;t counted.{' '}
+                      {data.filterUsers.toLocaleString()} visitor
+                      {data.filterUsers === 1 ? '' : 's'} filtered this page
+                      this period
+                      {filterPageVisitors
+                        ? ` – ${pct1(data.filterUsers, filterPageVisitors)} of its visitors`
+                        : ''}
+                      . Recording since 29 July 2026.
+                    </p>
+                  </Panel>
+                  <Panel title="Filter values">
+                    <CountTable
+                      rows={data.filterValues}
+                      labelHead="Filter: value"
+                      countHead="Uses"
+                      total={filterTotal}
+                    />
+                  </Panel>
+                </div>
+              )}
             </div>
           )}
 
@@ -861,6 +903,46 @@ export default async function AnalyticsPage({
                   Every click across all pages counted at the slot it happened
                   in (F1/F2 = featured cards) — how much attention each slot
                   draws site-wide.
+                </p>
+              </Panel>
+              <Panel title="Filter use by page">
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Page</th>
+                      <th className={styles.numCol}>Uses</th>
+                      <th className={styles.numCol}>Filtered</th>
+                      <th className={styles.pctCol}>% of visitors</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.filtersByPage.map(r => {
+                      const share = filterShareByPage.get(r.name)
+                      return (
+                        <tr key={r.name}>
+                          <td>{labelByPage.get(r.name) ?? r.name}</td>
+                          <td className={styles.numCol}>
+                            {r.count.toLocaleString()}
+                          </td>
+                          <td className={styles.numCol}>
+                            {(share?.filtered ?? 0).toLocaleString()}
+                          </td>
+                          <td className={styles.pctCol}>
+                            {share && share.visitors > 0
+                              ? pct1(share.filtered, share.visitors)
+                              : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                <p className={styles.caption}>
+                  A use = a visitor turning a filter value on. Filtered =
+                  distinct visitors who used at least one filter; % is their
+                  share of the page&apos;s visitors (always per-visitor,
+                  whichever count mode is on). Open a page&apos;s tab for its
+                  filter breakdown. Recording since 29 July 2026.
                 </p>
               </Panel>
             </div>

@@ -109,6 +109,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
           cards and the Contribute/Airtable column both start at the same top. */}
       <FilterBar count={filteredCourses.length} noun="course">
         <FilterDropdown
+          trackingPage="Self-study"
           title="Focus"
           icon="/images/category.svg"
           options={categoryOptions}
@@ -119,6 +120,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
           }
         />
         <FilterDropdown
+          trackingPage="Self-study"
           title="Format"
           icon="/images/type.svg"
           options={typeOptions}

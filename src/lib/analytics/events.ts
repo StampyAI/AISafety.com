@@ -74,6 +74,9 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   // A visitor resting on a map listing (Map, Communities): a 500 ms cursor
   // dwell on desktop, or the tap that opens the tooltip on mobile.
   'listing_hover',
+  // A visitor turning a filter value on (sidebar checkbox or dropdown option).
+  // `source` is the filter group's title, `label` the value picked.
+  'filter_apply',
   'chatbot_open',
   'chatbot_message',
   'chatbot_click',
@@ -404,6 +407,23 @@ export interface DashboardData {
    *  page's split labels, or 'untracked'), or null for all sources. Only ever
    *  set on pages in PAGE_SPLITS. */
   selectedSource: string | null
+  /** Filter activations per resource page — the Overview's "how much do
+   *  filters get used where" table. */
+  filtersByPage: Counted[]
+  /** The selected page's filter activations per filter group ('Type',
+   *  'Focus', …). */
+  filterGroups: Counted[]
+  /** The selected page's filter activations per 'Group: Value' pair, ranked —
+   *  the "which options do people actually pick" table. */
+  filterValues: Counted[]
+  /** Distinct visitors who turned on at least one filter on the selected page
+   *  in range. */
+  filterUsers: number
+  /** Per page with filter activity: distinct visitors who turned on at least
+   *  one filter vs the page's distinct visitors — always per-visitor,
+   *  whichever count mode is active (a share of visitors only makes sense
+   *  that way). `visitors` is 0 when the range predates page-view tracking. */
+  filterShareByPage: { name: string; filtered: number; visitors: number }[]
   /** For pages with a map (Map, Communities): `selectedPage`'s most-hovered
    *  map listings — tooltip dwells (500 ms cursor rest on desktop, first tap
    *  on mobile), grouped like `topListings` and following the same unique/
@@ -455,6 +475,11 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   byPositionOverall: [],
   bySource: [],
   selectedSource: null,
+  filtersByPage: [],
+  filterGroups: [],
+  filterValues: [],
+  filterUsers: 0,
+  filterShareByPage: [],
   topHovered: [],
   areaClicks: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
@@ -563,6 +588,29 @@ function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
       ? ''
       : new Date(t - 5 * 3_600_000).toISOString().slice(0, 10)
     const key = `${e.vid}\x00${day}\x00${e.page ?? ''}\x00${listingMember(e)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(e)
+  }
+  return out
+}
+
+/** Unique-mode dedupe for filter activations: one per visitor per group+value
+ *  per Bogotá day. The group (`source`) is part of the key — the same value
+ *  under two groups (e.g. 'Online') stays two activations. */
+function uniqueFilterApplies(events: AnalyticsEvent[]): AnalyticsEvent[] {
+  const seen = new Set<string>()
+  const out: AnalyticsEvent[] = []
+  for (const e of events) {
+    if (!e.vid) {
+      out.push(e)
+      continue
+    }
+    const t = Date.parse(e.ts)
+    const day = Number.isNaN(t)
+      ? ''
+      : new Date(t - 5 * 3_600_000).toISOString().slice(0, 10)
+    const key = `${e.vid}\x00${day}\x00${e.page ?? ''}\x00${e.source ?? ''}\x00${e.label ?? ''}`
     if (seen.has(key)) continue
     seen.add(key)
     out.push(e)
@@ -730,6 +778,48 @@ function aggregate(
     ].filter(r => r.count > 0)
   }
 
+  // Filter usage. One filter_apply per value a visitor turns on; unique mode
+  // counts each group+value once per visitor per day, total mode every toggle.
+  const filterHits = inRange.filter(e => e.type === 'filter_apply' && e.page)
+  const filterApplies = unique ? uniqueFilterApplies(filterHits) : filterHits
+  const filtersByPage = tally(filterApplies.map(e => e.page as string))
+  const pageFilters = filterApplies.filter(e => e.page === selectedPage)
+  const filterGroups = tally(pageFilters.map(e => e.source ?? '(unknown)'))
+  const filterValues = tally(
+    pageFilters.map(
+      e => `${e.source ?? '(unknown)'}: ${e.label ?? '(unknown)'}`
+    )
+  )
+  const filterUsers = uniqueUsers(
+    filterHits.filter(e => e.page === selectedPage)
+  )
+
+  // % of a page's visitors who filter: distinct filtering vids per page against
+  // distinct page_view vids per page. Deliberately ignores the unique/total
+  // mode — a share of visitors is only meaningful per-visitor.
+  const filteredVidsByPage = new Map<string, Set<string>>()
+  for (const e of filterHits) {
+    if (!e.vid || !e.page) continue
+    const set = filteredVidsByPage.get(e.page) ?? new Set<string>()
+    set.add(e.vid)
+    filteredVidsByPage.set(e.page, set)
+  }
+  const viewVidsByPage = new Map<string, Set<string>>()
+  for (const e of inRange) {
+    if (e.type !== 'page_view' || !e.page || !e.vid) continue
+    const name = PAGE_NAME_BY_PATH[e.page] ?? e.page
+    const set = viewVidsByPage.get(name) ?? new Set<string>()
+    set.add(e.vid)
+    viewVidsByPage.set(name, set)
+  }
+  const filterShareByPage = [...filteredVidsByPage.entries()]
+    .map(([name, vids]) => ({
+      name,
+      filtered: vids.size,
+      visitors: viewVidsByPage.get(name)?.size ?? 0,
+    }))
+    .sort((a, b) => b.filtered - a.filtered)
+
   // Most-hovered map listings for the selected page — tooltip dwells
   // (listing_hover events), grouped exactly like topListings but with no
   // position (hovers aren't slotted) and no source narrowing (every hover is
@@ -770,6 +860,11 @@ function aggregate(
     byPositionOverall,
     bySource,
     selectedSource,
+    filtersByPage,
+    filterGroups,
+    filterValues,
+    filterUsers,
+    filterShareByPage,
     topHovered,
     areaClicks,
     funnel: {

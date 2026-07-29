@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       // limit. The viewer only needs refs for [[card:...]] ids anyway.
       const citedById = new Map(citations.map(c => [c.id, c]))
       const cardedIds = new Set<string>()
-      const cardRe = /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\]\n]*)?\s*\]\]/gi
+      const cardRe = /\[\[\s*card\s*:\s*([^\]|\n]+?)(?:\s*\|[^\n]*?)?\s*\]\]/gi
       let cardMatch: RegExpExecArray | null
       while ((cardMatch = cardRe.exec(assistantText)) !== null) {
         cardedIds.add(cardMatch[1].replace(/\s+/g, ''))

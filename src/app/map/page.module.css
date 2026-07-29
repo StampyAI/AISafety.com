@@ -25,54 +25,6 @@
   z-index: 95;
 }
 
-.map-control-group {
-  display: flex;
-  flex-direction: column;
-  width: 40px;
-  background-color: #0e2628;
-  border: 1px solid #394c4e;
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5);
-}
-
-.map-control-group:hover {
-  background-color: #1c3334;
-}
-
-.map-control-button {
-  width: 100%;
-  height: 40px;
-  background-color: #0e2628;
-  color: white;
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-  user-select: none;
-  transition: background-color var(--hover-transition);
-  -webkit-tap-highlight-color: transparent;
-  padding: 0;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.map-control-button svg {
-  display: block;
-  width: 20px;
-  height: 20px;
-  pointer-events: none;
-}
-
-.map-control-button:hover {
-  background-color: #1c3334;
-}
-
-.map-control-button + .map-control-button {
-  border-top: 1px solid #394c4e;
-}
-
 /* Map tooltip — matches communities mapbox-tooltip */
 .map-tooltip {
   position: fixed;

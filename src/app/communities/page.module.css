@@ -69,16 +69,13 @@
   }
 }
 
-/* Mapbox controls position - top-right on both desktop and mobile,
-   matching the /map zoom controls (24px insets) */
-:global(.mapboxgl-ctrl-top-right) {
-  top: 24px !important;
-  right: 24px !important;
-  z-index: 3 !important;
-}
-
-:global(.mapboxgl-ctrl-top-right .mapboxgl-ctrl) {
-  margin: 0 !important;
+/* Map zoom controls - top-right on desktop, matching /map (24px insets);
+   bottom-right on mobile (see media query below) */
+.mapControls {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 3;
 }
 
 /* Mapbox tooltip */
@@ -156,57 +153,6 @@
   flex-shrink: 0;
 }
 
-/* Mapbox control overrides */
-:global(.mapboxgl-ctrl-group) {
-  border-radius: 24px !important;
-  background-color: var(--teal-850) !important;
-  border: 1px solid var(--teal-700) !important;
-  box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5) !important;
-  overflow: hidden !important;
-  transition: background-color var(--hover-transition) !important;
-}
-
-:global(.mapboxgl-ctrl-group:hover) {
-  background-color: var(--teal-800) !important;
-}
-
-:global(.mapboxgl-ctrl-group button) {
-  background-color: var(--teal-850) !important;
-  border: none !important;
-  box-shadow: none !important;
-  width: 40px !important;
-  height: 40px !important;
-  transition: background-color var(--hover-transition) !important;
-  -webkit-tap-highlight-color: transparent;
-  padding: 0 !important;
-  position: relative;
-  display: flex !important;
-  align-items: center !important;
-  background-size: 20px 20px !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-}
-
-:global(.mapboxgl-ctrl-group button:hover) {
-  background-color: var(--teal-800) !important;
-}
-
-:global(.mapboxgl-ctrl-group button + button) {
-  border-top: 1px solid var(--teal-700) !important;
-}
-
-:global(.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon) {
-  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 2.5C8.27614 2.5 8.5 2.72386 8.5 3V7.5H13C13.2761 7.5 13.5 7.72386 13.5 8C13.5 8.27614 13.2761 8.5 13 8.5H8.5V13C8.5 13.2761 8.27614 13.5 8 13.5C7.72386 13.5 7.5 13.2761 7.5 13V8.5H3C2.72386 8.5 2.5 8.27614 2.5 8C2.5 7.72386 2.72386 7.5 3 7.5H7.5V3C7.5 2.72386 7.72386 2.5 8 2.5Z' fill='white'/%3E%3C/svg%3E") !important;
-}
-
-:global(.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon) {
-  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2.5 8C2.5 7.72386 2.72386 7.5 3 7.5H13C13.2761 7.5 13.5 7.72386 13.5 8C13.5 8.27614 13.2761 8.5 13 8.5H3C2.72386 8.5 2.5 8.27614 2.5 8Z' fill='white'/%3E%3C/svg%3E") !important;
-}
-
-:global(.mapboxgl-ctrl-compass .mapboxgl-ctrl-icon) {
-  background-image: none !important;
-}
-
 :global(.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl a) {
   filter: grayscale(1) brightness(0.3) !important;
   transition: filter var(--hover-transition) !important;
@@ -243,8 +189,9 @@
   }
 
   /* The nowrap title spans nearly the full width on small screens,
-     so drop the controls below it */
-  :global(.mapboxgl-ctrl-top-right) {
-    top: 72px !important;
+     so the controls move to the bottom corner instead */
+  .mapControls {
+    top: auto;
+    bottom: 24px;
   }
 }

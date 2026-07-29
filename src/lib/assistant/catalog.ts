@@ -303,6 +303,7 @@ export async function buildCatalog(): Promise<Catalog> {
         applicationsClose: e.applicationsClose,
         deadlineType: e.deadlineType,
         notYetOpen: e.notYetOpen ? 'Yes' : null,
+        featuredTagline: e.featuredTagline,
       }),
       featured: isFeatured(e),
     })
@@ -330,11 +331,13 @@ export async function buildCatalog(): Promise<Catalog> {
         entryBar: t.entryBar,
         timeCommitment: t.timeCommitment,
         stipend: t.stipend,
+        length: t.lengthBucket,
         startDate: t.startDate,
         startDateApprox: t.startDateApprox,
         endDate: t.endDate,
         applicationsClose: t.applicationsClose,
         notYetOpen: t.notYetOpen ? 'Yes' : null,
+        featuredTagline: t.featuredTagline,
       }),
       featured: isFeatured(t),
     })
@@ -361,6 +364,8 @@ export async function buildCatalog(): Promise<Catalog> {
         timeCommitment: r.timeCommitment,
         stipend: r.stipend,
         typicalLength: r.typicalLength,
+        length: r.lengthBucket,
+        featuredTagline: r.featuredTagline,
       }),
       featured: isFeatured(r),
     })

@@ -21,7 +21,7 @@ export default async function ProjectsPage() {
     <div className="container-default">
       <PageHeader
         title="Volunteer projects"
-        lastUpdated={lastUpdated.formattedDate}
+        lastUpdatedIso={lastUpdated.lastUpdated}
         description={
           <>
             Initiatives{' '}

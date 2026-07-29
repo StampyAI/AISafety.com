@@ -21,7 +21,7 @@ export default async function MediaChannelsPage() {
     <div className="container-default">
       <PageHeader
         title="Media channels"
-        lastUpdated={lastUpdated.formattedDate}
+        lastUpdatedIso={lastUpdated.lastUpdated}
         description={
           <>
             <span className="color-light-teal">

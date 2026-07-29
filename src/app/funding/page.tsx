@@ -21,7 +21,7 @@ export default async function FundingPage() {
     <div className="container-default">
       <PageHeader
         title="Funding"
-        lastUpdated={lastUpdated.formattedDate}
+        lastUpdatedIso={lastUpdated.lastUpdated}
         description={
           <>
             These organizations offer{' '}

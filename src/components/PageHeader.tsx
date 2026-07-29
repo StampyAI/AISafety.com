@@ -5,8 +5,7 @@ import styles from './PageHeader.module.css'
 
 interface PageHeaderProps {
   title: string
-  lastUpdated?: string | null
-  /** ISO date — renders a live "Updated X ago" instead of "Last updated: X". */
+  /** ISO date — renders a live "Updated X ago" line under the title. */
   lastUpdatedIso?: string | null
   description: ReactNode
   id?: string
@@ -21,7 +20,6 @@ interface PageHeaderProps {
 
 export default function PageHeader({
   title,
-  lastUpdated,
   lastUpdatedIso,
   description,
   id,
@@ -35,17 +33,11 @@ export default function PageHeader({
       <h1 className={`${topPadding} padding-bottom-8px`} id={id}>
         {title}
       </h1>
-      {lastUpdatedIso ? (
+      {lastUpdatedIso && (
         <RelativeDate
           iso={lastUpdatedIso}
           className="paragraph-small color-teal-300 margin-bottom-40px"
         />
-      ) : (
-        lastUpdated && (
-          <p className="paragraph-small color-teal-300 margin-bottom-40px">
-            Last updated: {lastUpdated}
-          </p>
-        )
       )}
       <h2 className="width-7-col margin-bottom-56px">{description}</h2>
       {children}

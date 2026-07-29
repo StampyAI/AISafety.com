@@ -20,7 +20,7 @@ export default async function JobsPage() {
     <div className="container-default">
       <PageHeader
         title="Jobs"
-        lastUpdated={lastUpdated.formattedDate}
+        lastUpdatedIso={lastUpdated.lastUpdated}
         description={
           <>
             Pursuing a career in AI safety can be{' '}

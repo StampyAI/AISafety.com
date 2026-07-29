@@ -2,11 +2,9 @@
 
 import { useRef, useState } from 'react'
 import { DONATION_GUIDE_LAST_UPDATED } from '@/lib/donation-guide-date'
-import { formatDate } from '@/lib/format-date'
+import RelativeDate from '@/components/RelativeDate'
 import styles from './page.module.css'
 import { DONATION_TABS, type DonationTabKey } from './content'
-
-const donationGuideDate = formatDate(new Date(DONATION_GUIDE_LAST_UPDATED))
 
 export default function DonationGuidePage() {
   const [activeTab, setActiveTab] = useState<DonationTabKey>('tab1')
@@ -28,9 +26,10 @@ export default function DonationGuidePage() {
     <div>
       <div className="container-default">
         <h1 className="padding-top-56px padding-bottom-8px">Donation guide</h1>
-        <div className="padding-bottom-40px paragraph-small color-teal-300">
-          Last updated: {donationGuideDate}
-        </div>
+        <RelativeDate
+          iso={DONATION_GUIDE_LAST_UPDATED}
+          className="padding-bottom-40px paragraph-small color-teal-300"
+        />
         <h2 className="width-7-col padding-bottom-56px">
           This guide can help you determine the most effective way to{' '}
           <span className="color-light-teal">

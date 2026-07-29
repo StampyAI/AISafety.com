@@ -21,7 +21,7 @@ export default async function FoundersPage() {
     <div className="container-default">
       <PageHeader
         title="Founder toolkit"
-        lastUpdated={lastUpdated.formattedDate}
+        lastUpdatedIso={lastUpdated.lastUpdated}
         description={
           <>
             Resources for{' '}

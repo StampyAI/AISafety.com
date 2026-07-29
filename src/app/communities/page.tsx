@@ -37,7 +37,7 @@ export default async function CommunitiesPage() {
       <div className="container-default">
         <PageHeader
           title="Communities"
-          lastUpdated={lastUpdated.formattedDate}
+          lastUpdatedIso={lastUpdated.lastUpdated}
           id="communities"
           topPadding="padding-top-40px"
           description={

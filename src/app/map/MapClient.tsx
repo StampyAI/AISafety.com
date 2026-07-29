@@ -6,6 +6,7 @@ import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
+import RelativeDate from '@/components/RelativeDate'
 import SearchBar from '@/components/SearchBar'
 import { trackListingClick } from '@/lib/analytics'
 import { placementsById } from '@/lib/placements'
@@ -65,14 +66,14 @@ interface MapOrg {
 
 interface MapClientProps {
   orgs: MapOrg[]
-  lastUpdated: string | null
+  lastUpdatedIso: string | null
   suggestEntryLink: string
   suggestCorrectionLink: string
 }
 
 export default function MapClient({
   orgs,
-  lastUpdated,
+  lastUpdatedIso,
   suggestEntryLink,
   suggestCorrectionLink,
 }: MapClientProps) {
@@ -209,9 +210,12 @@ export default function MapClient({
       </div>
 
       <div id="cards" className="container-default">
-        <p className="padding-bottom-24px paragraph-small color-teal-300">
-          {lastUpdated ? `Last updated: ${lastUpdated}` : ''}
-        </p>
+        {lastUpdatedIso && (
+          <RelativeDate
+            iso={lastUpdatedIso}
+            className="padding-bottom-24px paragraph-small color-teal-300"
+          />
+        )}
         <h2 className="width-7-col padding-bottom-56px">
           An overview of the key{' '}
           <span className="color-light-teal">

@@ -231,6 +231,23 @@ export function trackContributeClick(
   })
 }
 
+/**
+ * Track a submit of the newsletter signup box (arrow click or Enter — both
+ * fire the form's submit). Counts the attempt: the submit opens Substack's
+ * subscribe page, so completion happens off-site. The email itself is never
+ * recorded.
+ */
+export function trackNewsletterSignup(page: string): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Newsletter - ${page}`, 'Signup'])
+  sendTrackEvent({
+    type: 'newsletter_signup',
+    page,
+    label: 'Newsletter signup',
+  })
+}
+
 /** Track a click on a page's "View data in Airtable" card. */
 export function trackAirtableView(page: string, url: string): void {
   if (typeof window === 'undefined') return

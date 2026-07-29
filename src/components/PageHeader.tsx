@@ -13,6 +13,8 @@ interface PageHeaderProps {
   topPadding?: string
   /** Show the newsletter signup beside the header (stacked below on mobile). */
   newsletter?: boolean
+  /** Analytics page name for the signup box's submits (e.g. 'Events'). */
+  newsletterTrackingPage?: string
   /** Extra content under the description, e.g. a cross-link to a sister page. */
   children?: ReactNode
 }
@@ -25,6 +27,7 @@ export default function PageHeader({
   id,
   topPadding = 'padding-top-56px',
   newsletter,
+  newsletterTrackingPage,
   children,
 }: PageHeaderProps) {
   const header = (
@@ -55,7 +58,7 @@ export default function PageHeader({
     <div className={`${styles.heroRow} padding-bottom-56px`}>
       <div className={styles.heroHeader}>{header}</div>
       <div className={styles.newsletterSlot}>
-        <NewsletterSignup />
+        <NewsletterSignup trackingPage={newsletterTrackingPage} />
       </div>
     </div>
   )

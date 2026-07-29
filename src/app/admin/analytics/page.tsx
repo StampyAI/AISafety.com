@@ -579,6 +579,10 @@ export default async function AnalyticsPage({
     (sum, r) => sum + r.count,
     0
   )
+  const newsletterTotalByPage = data.newsletterByPage.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
   // The site's own sidebar icons, so the rows read like the buttons they count.
   const contributeIcon = (label: string) =>
     label.startsWith('Add ')
@@ -898,7 +902,8 @@ export default async function AnalyticsPage({
                 </div>
               )}
               {(data.contributeButtons.length > 0 ||
-                data.airtableViews > 0) && (
+                data.airtableViews > 0 ||
+                data.newsletterSignups > 0) && (
                 <div className={styles.grid}>
                   <Panel title="Contribute buttons">
                     <CountTable
@@ -924,6 +929,20 @@ export default async function AnalyticsPage({
                       Recording since 29 July 2026.
                     </p>
                   </Panel>
+                  {data.newsletterSignups > 0 && (
+                    <Panel title="Newsletter signups">
+                      <div className={styles.funnel}>
+                        <Stat
+                          label="Signup-box submits"
+                          value={data.newsletterSignups.toLocaleString()}
+                        />
+                      </div>
+                      <p className={styles.caption}>
+                        Submits of the weekly-summary email box – may not all be
+                        successful signups. Recording since 29 July 2026.
+                      </p>
+                    </Panel>
+                  )}
                 </div>
               )}
             </div>
@@ -954,37 +973,41 @@ export default async function AnalyticsPage({
                 </p>
               </Panel>
               <Panel title="Filter use by page">
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Page</th>
-                      <th className={styles.numCol}>Uses</th>
-                      <th className={styles.numCol}>Filtered</th>
-                      <th className={styles.pctCol}>% of visitors</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.filtersByPage.map(r => {
-                      const share = filterShareByPage.get(r.name)
-                      return (
-                        <tr key={r.name}>
-                          <td>{labelByPage.get(r.name) ?? r.name}</td>
-                          <td className={styles.numCol}>
-                            {r.count.toLocaleString()}
-                          </td>
-                          <td className={styles.numCol}>
-                            {(share?.filtered ?? 0).toLocaleString()}
-                          </td>
-                          <td className={styles.pctCol}>
-                            {share && share.visitors > 0
-                              ? pct1(share.filtered, share.visitors)
-                              : '—'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                {data.filtersByPage.length === 0 ? (
+                  <p className={styles.dim}>No data yet.</p>
+                ) : (
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Page</th>
+                        <th className={styles.numCol}>Uses</th>
+                        <th className={styles.numCol}>Filtered</th>
+                        <th className={styles.pctCol}>% of visitors</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.filtersByPage.map(r => {
+                        const share = filterShareByPage.get(r.name)
+                        return (
+                          <tr key={r.name}>
+                            <td>{labelByPage.get(r.name) ?? r.name}</td>
+                            <td className={styles.numCol}>
+                              {r.count.toLocaleString()}
+                            </td>
+                            <td className={styles.numCol}>
+                              {(share?.filtered ?? 0).toLocaleString()}
+                            </td>
+                            <td className={styles.pctCol}>
+                              {share && share.visitors > 0
+                                ? pct1(share.filtered, share.visitors)
+                                : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
                 <p className={styles.caption}>
                   A use = a visitor turning a filter value on. Filtered =
                   distinct visitors who used at least one filter; % is their
@@ -1020,6 +1043,22 @@ export default async function AnalyticsPage({
                 <p className={styles.caption}>
                   Clicks on the &quot;View data in Airtable&quot; cards.
                   Recording since 29 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Newsletter signups by page">
+                <CountTable
+                  rows={data.newsletterByPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
+                  labelHead="Page"
+                  countHead="Submits"
+                  total={newsletterTotalByPage}
+                />
+                <p className={styles.caption}>
+                  Submits of the weekly-summary email box on /events and
+                  /training – may not all be successful signups. Recording since
+                  29 July 2026.
                 </p>
               </Panel>
             </div>

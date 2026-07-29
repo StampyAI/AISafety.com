@@ -14,14 +14,14 @@
   height: 100%;
 }
 
-/* Map zoom controls - bottom-left, stacked above the View cards button
-   (the bottom-right corner belongs to the assistant bubble).
+/* Map zoom controls - top-right, clear of the assistant bubble and the
+   View cards button (both bottom corners).
    z-index must stay below the assistant scrim/panel/pill (96-100) so the
    open chat covers the controls instead of them poking through. */
 .map-controls {
   position: absolute;
-  bottom: 88px;
-  left: 24px;
+  top: 24px;
+  right: 24px;
   z-index: 95;
 }
 

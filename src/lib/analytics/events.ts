@@ -447,8 +447,6 @@ export interface DashboardData {
   /** Newsletter signup-box submits per page (the box lives on Events and
    *  Training). Submits, not confirmed Substack subscriptions. */
   newsletterByPage: Counted[]
-  /** The selected page's newsletter signup-box submits. */
-  newsletterSignups: number
   /** For pages with a map (Map, Communities): `selectedPage`'s most-hovered
    *  map listings — tooltip dwells (500 ms cursor rest on desktop, first tap
    *  on mobile), grouped like `topListings` and following the same unique/
@@ -510,7 +508,6 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   airtableByPage: [],
   airtableViews: 0,
   newsletterByPage: [],
-  newsletterSignups: 0,
   topHovered: [],
   areaClicks: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
@@ -878,9 +875,6 @@ function aggregate(
     ? uniqueClicks(newsletterHits)
     : newsletterHits
   const newsletterByPage = tally(newsletterSubmits.map(e => e.page as string))
-  const newsletterSignups = newsletterSubmits.filter(
-    e => e.page === selectedPage
-  ).length
 
   // Most-hovered map listings for the selected page — tooltip dwells
   // (listing_hover events), grouped exactly like topListings but with no
@@ -932,7 +926,6 @@ function aggregate(
     airtableByPage,
     airtableViews,
     newsletterByPage,
-    newsletterSignups,
     topHovered,
     areaClicks,
     funnel: {

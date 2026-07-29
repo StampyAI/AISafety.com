@@ -902,8 +902,7 @@ export default async function AnalyticsPage({
                 </div>
               )}
               {(data.contributeButtons.length > 0 ||
-                data.airtableViews > 0 ||
-                data.newsletterSignups > 0) && (
+                data.airtableViews > 0) && (
                 <div className={styles.grid}>
                   <Panel title="Contribute buttons">
                     <CountTable
@@ -929,20 +928,6 @@ export default async function AnalyticsPage({
                       Recording since 29 July 2026.
                     </p>
                   </Panel>
-                  {data.newsletterSignups > 0 && (
-                    <Panel title="Newsletter signups">
-                      <div className={styles.funnel}>
-                        <Stat
-                          label="Signup-box submits"
-                          value={data.newsletterSignups.toLocaleString()}
-                        />
-                      </div>
-                      <p className={styles.caption}>
-                        Submits of the weekly-summary email box – may not all be
-                        successful signups. Recording since 29 July 2026.
-                      </p>
-                    </Panel>
-                  )}
                 </div>
               )}
             </div>

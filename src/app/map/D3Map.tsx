@@ -4,6 +4,7 @@
 
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
+import MapControls from '@/components/MapControls'
 import { trackListingClick, trackListingHover } from '@/lib/analytics'
 import { positionTooltip } from '@/lib/mapTooltip'
 import styles from './page.module.css'
@@ -73,6 +74,13 @@ const AREA_LABELS = [
 export default function D3Map({ orgs }: D3MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  // Zoom actions live in the d3 pipeline inside useEffect; the buttons reach
+  // them through this ref.
+  const controlsRef = useRef({
+    zoomIn: () => {},
+    zoomOut: () => {},
+    reset: () => {},
+  })
 
   useEffect(() => {
     if (!containerRef.current || orgs.length === 0) return
@@ -483,25 +491,17 @@ export default function D3Map({ orgs }: D3MapProps) {
     })
 
     // Setup zoom controls
-    const zoomIn = document.getElementById('zoom-in')
-    const zoomOut = document.getElementById('zoom-out')
-    const recenter = document.getElementById('recenter')
-
-    if (zoomIn) {
-      zoomIn.onclick = () => {
-        svg.transition().duration(300).call(zoom.scaleBy, 1.5)
-      }
-    }
-    if (zoomOut) {
-      zoomOut.onclick = () => {
-        svg.transition().duration(300).call(zoom.scaleBy, 0.75)
-      }
-    }
     const resetView = () => {
       svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
     }
-    if (recenter) {
-      recenter.onclick = resetView
+    controlsRef.current = {
+      zoomIn: () => {
+        svg.transition().duration(300).call(zoom.scaleBy, 1.5)
+      },
+      zoomOut: () => {
+        svg.transition().duration(300).call(zoom.scaleBy, 0.75)
+      },
+      reset: resetView,
     }
 
     // ESC resets the view, same as the recenter button. Skip while typing in
@@ -576,62 +576,12 @@ export default function D3Map({ orgs }: D3MapProps) {
     <>
       <div ref={containerRef} className={styles['map-container']} />
 
-      {/* Zoom controls - styled to match communities map */}
-      <div className={styles['map-controls']}>
-        <div className={styles['map-control-group']}>
-          <button
-            id="zoom-in"
-            className={styles['map-control-button']}
-            title="Zoom in"
-          >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M8 2.5C8.27614 2.5 8.5 2.72386 8.5 3V7.5H13C13.2761 7.5 13.5 7.72386 13.5 8C13.5 8.27614 13.2761 8.5 13 8.5H8.5V13C8.5 13.2761 8.27614 13.5 8 13.5C7.72386 13.5 7.5 13.2761 7.5 13V8.5H3C2.72386 8.5 2.5 8.27614 2.5 8C2.5 7.72386 2.72386 7.5 3 7.5H7.5V3C7.5 2.72386 7.72386 2.5 8 2.5Z"
-                fill="white"
-              />
-            </svg>
-          </button>
-          <button
-            id="zoom-out"
-            className={styles['map-control-button']}
-            title="Zoom out"
-          >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M2.5 8C2.5 7.72386 2.72386 7.5 3 7.5H13C13.2761 7.5 13.5 7.72386 13.5 8C13.5 8.27614 13.2761 8.5 13 8.5H3C2.72386 8.5 2.5 8.27614 2.5 8Z"
-                fill="white"
-              />
-            </svg>
-          </button>
-          <button
-            id="recenter"
-            className={styles['map-control-button']}
-            title="Reset view"
-          >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M8 3.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM2.5 8a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z"
-                fill="white"
-              />
-              <circle cx="8" cy="8" r="1.5" fill="white" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <MapControls
+        className={styles['map-controls']}
+        onZoomIn={() => controlsRef.current.zoomIn()}
+        onZoomOut={() => controlsRef.current.zoomOut()}
+        onReset={() => controlsRef.current.reset()}
+      />
 
       {/* Tooltip — always in DOM for measuring, visibility toggled via ref */}
       <div

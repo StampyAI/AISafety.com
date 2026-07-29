@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import Image from 'next/image'
+import MapControls from '@/components/MapControls'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
 import { positionTooltip } from '@/lib/mapTooltip'
@@ -11,6 +12,9 @@ import { trackListingClick, trackListingHover } from '@/lib/analytics'
 interface CommunitiesMapProps {
   communities: Community[]
 }
+
+const INITIAL_CENTER: [number, number] = [0, 30]
+const INITIAL_ZOOM = 1.5
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
@@ -73,15 +77,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     mapboxgl.accessToken =
       'pk.eyJ1IjoiYWxpZ25tZW50ZWNvc3lzdGVtZGV2ZWxvcG1lbnQiLCJhIjoiY201YnNnbnpzNTEyNTJtcHYzMWVhand6OSJ9._HknM4VVUlEU6mbv8NagGw'
 
-    const initialCenter: [number, number] = [0, 30]
-    const initialZoom = 1.5
-
     const map = new mapboxgl.Map({
       container: mapContainer,
       style:
         'mapbox://styles/alignmentecosystemdevelopment/cmh1t3h6u00e401st9gu75gvq',
-      center: initialCenter,
-      zoom: initialZoom,
+      center: INITIAL_CENTER,
+      zoom: INITIAL_ZOOM,
       logoPosition: 'bottom-right',
     })
     mapRef.current = map
@@ -90,67 +91,10 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
     // dev tools mobile mode toggled after load).
     const isMobile = () => window.innerWidth < 768
 
-    // Touchend-blur fires only on touch devices anyway, so it's safe to
-    // always register — no need to gate on viewport width.
-    setTimeout(() => {
-      const mapButtons = document.querySelectorAll(
-        '.mapboxgl-ctrl-group button'
-      )
-      mapButtons.forEach(button => {
-        button.addEventListener('touchend', function (this: HTMLElement) {
-          setTimeout(() => this.blur(), 100)
-        })
-      })
-    }, 500)
-
-    map.addControl(new mapboxgl.NavigationControl())
-
     // Mapbox doesn't auto-resize when its container changes size (e.g. via
     // CSS media queries). Watch the container and tell Mapbox to recalculate.
     const resizeObserver = new ResizeObserver(() => map.resize())
     resizeObserver.observe(mapContainer)
-
-    const resetMapView = () => {
-      map.flyTo({
-        center: initialCenter,
-        zoom: initialZoom,
-        bearing: 0,
-        pitch: 0,
-        duration: 500,
-        essential: true,
-      })
-    }
-
-    // Repurpose Mapbox's compass button as a "reset map view" button.
-    // addControl synchronously inserts the compass into the DOM, so this
-    // runs reliably without depending on the map 'load' event or pin image
-    // load — both of which previously caused the icon and click handler to
-    // intermittently fail to apply, making the button look missing.
-    const compassButton = mapContainer.querySelector(
-      '.mapboxgl-ctrl-compass'
-    ) as HTMLElement | null
-    if (compassButton) {
-      const iconElement = compassButton.querySelector(
-        '.mapboxgl-ctrl-icon'
-      ) as HTMLElement | null
-      if (iconElement) iconElement.style.backgroundImage = 'none'
-      const resetIconDataUri =
-        "data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M8 3.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM2.5 8a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z' fill='white'/%3E%3Ccircle cx='8' cy='8' r='1.5' fill='white'/%3E%3C/svg%3E"
-      compassButton.style.backgroundImage = `url("${resetIconDataUri}")`
-      compassButton.style.backgroundSize = '18px 18px'
-      compassButton.style.backgroundRepeat = 'no-repeat'
-      compassButton.style.backgroundPosition = 'center'
-      compassButton.addEventListener(
-        'click',
-        ev => {
-          ev.preventDefault()
-          ev.stopPropagation()
-          resetMapView()
-        },
-        true
-      )
-      compassButton.setAttribute('title', 'Reset map view')
-    }
 
     // Start loading the pin image immediately, in parallel with the map
     // style. Wrapping it in a promise lets us await it alongside the map's
@@ -574,7 +518,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             target.isContentEditable)
         )
           return
-        resetMapView()
+        handleResetView()
       }
 
       tooltip.addEventListener('click', handleTooltipClick)
@@ -621,6 +565,25 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
 
   function handleScriptLoad() {
     setScriptLoaded(true)
+  }
+
+  function handleZoomIn() {
+    mapRef.current?.zoomIn()
+  }
+
+  function handleZoomOut() {
+    mapRef.current?.zoomOut()
+  }
+
+  function handleResetView() {
+    mapRef.current?.flyTo({
+      center: INITIAL_CENTER,
+      zoom: INITIAL_ZOOM,
+      bearing: 0,
+      pitch: 0,
+      duration: 500,
+      essential: true,
+    })
   }
 
   function handleViewOnline() {
@@ -683,6 +646,12 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           <p>View online communities</p>
           <Image src="/images/arrow-down.svg" alt="" width={12} height={12} />
         </button>
+        <MapControls
+          className={styles.mapControls}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onReset={handleResetView}
+        />
       </div>
       <div
         ref={tooltipRef}

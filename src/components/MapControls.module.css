@@ -1,0 +1,47 @@
+.group {
+  display: flex;
+  flex-direction: column;
+  width: 40px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5);
+}
+
+.group:hover {
+  background-color: var(--teal-800);
+}
+
+.button {
+  width: 100%;
+  height: 40px;
+  background-color: var(--teal-850);
+  color: white;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--hover-transition);
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.button:hover {
+  background-color: var(--teal-800);
+}
+
+.button + .button {
+  border-top: 1px solid var(--teal-700);
+}

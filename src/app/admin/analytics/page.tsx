@@ -1027,10 +1027,10 @@ function SourceSplit({
 
 /** Tabs that pick which resource page the listing panels drill into. Each tab
  *  preserves the current date range and swaps only the `page` query param. */
-/** The dashboard's top tab bar: two overview tabs (the funnel and the by-page
- *  table), a divider, then one tab per resource page. Each tab swaps the `tab`
- *  query param (and drops any active source filter) while preserving the date
- *  range and count mode. Resource tabs show the site's page name and nav icon. */
+/** The dashboard's top tab bar: the overview tabs on one row, then a row with
+ *  one tab per resource page. Each tab swaps the `tab` query param (and drops
+ *  any active source filter) while preserving the date range and count mode.
+ *  Resource tabs show the site's page name and nav icon. */
 function DashboardTabs({
   overview,
   pages,
@@ -1058,32 +1058,40 @@ function DashboardTabs({
     `${styles.pageTab}${key === active ? ` ${styles.pageTabActive}` : ''}`
   return (
     <div className={styles.pageTabs}>
-      {overview.map(t => (
-        <Link
-          key={t.key}
-          href={hrefFor(t.key)}
-          scroll={false}
-          className={tabClass(t.key)}
-        >
-          {t.label}
-        </Link>
-      ))}
-      <span className={styles.tabDivider} aria-hidden />
-      {pages.map(t => (
-        <Link
-          key={t.key}
-          href={hrefFor(t.key)}
-          scroll={false}
-          className={tabClass(t.key)}
-        >
-          {t.icon && (
-            <span className={styles.pageTabIcon}>
-              <Image src={`/images/${t.icon}`} alt="" width={12} height={12} />
-            </span>
-          )}
-          {t.label}
-        </Link>
-      ))}
+      <div className={styles.tabRow}>
+        {overview.map(t => (
+          <Link
+            key={t.key}
+            href={hrefFor(t.key)}
+            scroll={false}
+            className={tabClass(t.key)}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </div>
+      <div className={styles.tabRow}>
+        {pages.map(t => (
+          <Link
+            key={t.key}
+            href={hrefFor(t.key)}
+            scroll={false}
+            className={tabClass(t.key)}
+          >
+            {t.icon && (
+              <span className={styles.pageTabIcon}>
+                <Image
+                  src={`/images/${t.icon}`}
+                  alt=""
+                  width={12}
+                  height={12}
+                />
+              </span>
+            )}
+            {t.label}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

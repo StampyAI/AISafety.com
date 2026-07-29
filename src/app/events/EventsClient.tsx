@@ -184,6 +184,7 @@ function CitySearch({
 }) {
   const [query, setQuery] = useState(selectedCity)
   const [open, setOpen] = useState(false)
+  const [highlighted, setHighlighted] = useState(-1)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -205,6 +206,31 @@ function CitySearch({
   const normalized = query.trim().toLowerCase()
   const matches = cities.filter(c => c.toLowerCase().includes(normalized))
 
+  function selectCity(city: string) {
+    setQuery(city)
+    onSelect(city)
+    setOpen(false)
+    setHighlighted(-1)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!open) {
+        setOpen(true)
+        return
+      }
+      if (matches.length === 0) return
+      const delta = e.key === 'ArrowDown' ? 1 : -1
+      setHighlighted(h => (h + delta + matches.length) % matches.length)
+    } else if (e.key === 'Enter') {
+      if (open && highlighted >= 0 && highlighted < matches.length) {
+        e.preventDefault()
+        selectCity(matches[highlighted])
+      }
+    }
+  }
+
   return (
     <div className={styles.nearMeSearch} ref={ref}>
       <span className={styles.nearMeIcon} aria-hidden="true" />
@@ -218,8 +244,10 @@ function CitySearch({
         onChange={e => {
           setQuery(e.target.value)
           setOpen(true)
+          setHighlighted(-1)
           if (e.target.value.trim() === '') onClear()
         }}
+        onKeyDown={handleKeyDown}
       />
       {query.length > 0 && (
         <button
@@ -251,16 +279,20 @@ function CitySearch({
       {open && (
         <div className={`${styles.cityList} drop-shadow-dark`}>
           {matches.length > 0 ? (
-            matches.map(city => (
+            matches.map((city, i) => (
               <button
                 key={city}
                 type="button"
-                className={`paragraph-small ${styles.cityOption}`}
-                onClick={() => {
-                  setQuery(city)
-                  onSelect(city)
-                  setOpen(false)
-                }}
+                ref={
+                  i === highlighted
+                    ? el => el?.scrollIntoView({ block: 'nearest' })
+                    : undefined
+                }
+                className={`paragraph-small ${styles.cityOption} ${
+                  i === highlighted ? styles.cityOptionHighlighted : ''
+                }`}
+                onMouseEnter={() => setHighlighted(i)}
+                onClick={() => selectCity(city)}
               >
                 <span className={styles.cityOptionIcon} aria-hidden="true" />
                 {city}

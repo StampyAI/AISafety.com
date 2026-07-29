@@ -79,7 +79,8 @@
   text-align: left;
 }
 
-.cityOption:hover {
+.cityOption:hover,
+.cityOptionHighlighted {
   background-color: color-mix(in srgb, var(--bright-teal-500) 10%, transparent);
 }
 

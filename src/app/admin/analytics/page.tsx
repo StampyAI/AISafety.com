@@ -60,6 +60,8 @@ const SOURCE_LABEL: Record<string, string> = {
 // always gets a tab (even with no clicks yet). Pages not listed (e.g. Home) sort
 // after these, keeping their by-clicks order and showing their raw name.
 const PAGE_NAV: { name: string; label: string; icon: string }[] = [
+  { name: 'Training', label: 'Training programs', icon: 'grad-cap.svg' },
+  { name: 'Events', label: 'Events', icon: 'calendar.svg' },
   { name: 'Map', label: 'Field map', icon: 'map.svg' },
   { name: 'Communities', label: 'Communities', icon: 'globe.svg' },
   { name: 'Self-study', label: 'Self-study', icon: 'book.svg' },

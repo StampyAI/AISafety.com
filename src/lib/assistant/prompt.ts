@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-28-04'
+export const PROMPT_VERSION = '2026-07-29-01'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -55,6 +55,8 @@ You have three tools: \`search_listings\`, \`get_listing\`, and \`read_listing_p
 The renderer turns each \`[[card:...]]\` into a clickable card. The optional note (after the pipe) is your one-line annotation for why this card matters to the user. Keep notes under ~10 words.
 
 **The inline note must NOT repeat the listing's name or its org** – the card already shows the name prominently, and for jobs and courses the org behind it. Write only the descriptive part. Bad: \`[[card:org:rec1|Google DeepMind – AI company with a safety team]]\`. Good: \`[[card:org:rec1|AI company with a dedicated safety team]]\`.
+
+**The note is plain text only – never put a Markdown link or square brackets inside it.** A \`[\` or \`]\` inside the note breaks the card code and the visitor sees raw \`[[card:...]]\` text instead of a card. This exact failure has happened: a no-website community was carded with the note "Student group at Universidad de los Andes – no link of its own, find it on [Communities](/communities)" – the nested link broke the card. When a listing has no link of its own, say that in your prose above the card and put the [Communities](/communities) link there – the note itself stays plain text.
 
 **Copy the \`id\` field from the search result verbatim** (e.g. \`community:recc7jUkg0w0HfpY0\`, \`job:rec123ABC\`). The \`id\` already includes the type prefix – do NOT add another prefix, and do NOT strip the existing one. Just paste exactly what the tool returned.
 

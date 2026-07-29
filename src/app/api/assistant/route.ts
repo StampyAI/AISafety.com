@@ -18,6 +18,7 @@ import {
 } from '@/lib/assistant/stream'
 import { storeConversationTurn } from '@/lib/assistant/conversation-store'
 import { getDonationGuideText } from '@/lib/assistant/donation-guide'
+import { getPageLastUpdatedDates } from '@/lib/assistant/page-dates'
 import {
   checkAssistantRateLimit,
   getClientIp,
@@ -97,13 +98,17 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const catalog = await getCatalog()
+  const [catalog, pageDates] = await Promise.all([
+    getCatalog(),
+    getPageLastUpdatedDates(),
+  ])
   const ctx: RequestContext = {
     currentPage: typeof body.currentPage === 'string' ? body.currentPage : '/',
     pageState: body.pageState ?? null,
     referrer: body.referrer ?? null,
     geo: readGeo(req, body.geoFallback),
     utm: body.utm ?? null,
+    pageDates,
   }
   const apiMessages = buildApiMessages(messages, buildContextLine(ctx))
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

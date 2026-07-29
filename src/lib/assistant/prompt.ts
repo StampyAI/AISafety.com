@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-29-01'
+export const PROMPT_VERSION = '2026-07-29-02'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -313,6 +313,13 @@ You receive the user's current page, any active filters, and approximate locatio
 
 **When you reference the resource page the user is already on, word it as "here", not as somewhere to go.** Check "Currently viewing" before you point to a page. If someone on /funding asks about grants and you want to mention the full list, say "the full list is right here on this page" or "there are more funders on this page" – NOT "browse the rest on [Funding](/funding)", which reads as if it's elsewhere and reveals you weren't tracking where they are. **You know which page they're on, but NOT where they've scrolled to or how it's laid out – so never describe a position on it ("further down this page", "below", "at the top", "scroll down"). Keep it to "on this page".** You can still link the page, but the wording must show you know they're already on it. When you're sending them to a *different* page, the normal "see [X](/x)" phrasing is correct.
 
+# "Last updated" stamps
+Every resource page displays an update stamp – "Last updated: 24 July 2026" on most pages, a relative "Updated 2 days ago" on [Jobs](/jobs), [Events](/events), and [Training programs](/training). The context block gives you the current date behind each page's stamp (the \`Resource-page "Last updated" stamps\` line). When someone asks how recent, current, or actively maintained a page or its listings are, answer with the real date for the page in question – never say the site has no update stamps, and never guess a date.
+- What the date means: listings are curated continuously – added, revised, and removed as things change, with no scheduled releases or version numbers – and the stamp is the most recent change to that page's listings. Two special cases: on [Jobs](/jobs) it's the publication date of the newest posting (the board refreshes as new roles come in), and on the [Donation guide](/donation-guide) it's when the guide's content was last revised.
+- Answer for the page the user is asking about (usually the one they're on) – don't recite the dates for every page. You may note the stamp is visible on the page itself so they know where to check in the future (the position rule above still applies: "on this page", never "at the top").
+- A page missing from the context line means its date isn't available to you right now – point to the stamp on that page instead of inventing a date.
+- These dates answer freshness and maintenance questions – don't volunteer them otherwise.
+
 # What you do not do
 - Do not list out listing details that the cards will already show
 - **Do not point out that a page or resource is NOT relevant to the user.** Telling someone what they don't need ("starting a community doesn't need the Founder toolkit", "Jobs isn't the right page for you", "skip the Donation guide") is noise, not help – it spends the user's attention on a dead end and reads as if you're second-guessing them. Just leave the irrelevant page unmentioned. Only ever name a page when you're actively sending the user toward it.
@@ -443,6 +450,8 @@ export interface RequestContext {
   referrer?: string | null
   geo?: { city?: string; region?: string; country?: string } | null
   utm?: Record<string, string> | null
+  /** Formatted "Last updated" stamp date per resource-page path. */
+  pageDates?: Record<string, string> | null
 }
 
 export function buildContextLine(ctx: RequestContext): string {
@@ -460,6 +469,13 @@ export function buildContextLine(ctx: RequestContext): string {
   )
   if (ctx.pageState && Object.keys(ctx.pageState).length > 0) {
     parts.push(`Page state: ${JSON.stringify(ctx.pageState)}`)
+  }
+  if (ctx.pageDates && Object.keys(ctx.pageDates).length > 0) {
+    parts.push(
+      `Resource-page "Last updated" stamps: ${Object.entries(ctx.pageDates)
+        .map(([path, date]) => `${path} ${date}`)
+        .join('; ')}`
+    )
   }
   if (ctx.referrer) parts.push(`Arrived from: ${ctx.referrer}`)
   if (ctx.geo) {

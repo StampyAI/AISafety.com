@@ -9,6 +9,7 @@ import {
 } from '@/lib/assistant/prompt'
 import { DEFAULT_MODEL_ID } from '@/lib/assistant/models'
 import { getDonationGuideText } from '@/lib/assistant/donation-guide'
+import { getPageLastUpdatedDates } from '@/lib/assistant/page-dates'
 import {
   buildApiMessages,
   runAssistantStream,
@@ -75,7 +76,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const catalog = await getCatalog()
+  const [catalog, pageDates] = await Promise.all([
+    getCatalog(),
+    getPageLastUpdatedDates(),
+  ])
   const ctx: RequestContext = {
     currentPage: typeof body.currentPage === 'string' ? body.currentPage : '/',
     pageState:
@@ -91,6 +95,7 @@ export async function POST(req: NextRequest) {
       body.geo && typeof body.geo === 'object'
         ? (body.geo as { city?: string; region?: string; country?: string })
         : null,
+    pageDates,
   }
   const apiMessages = buildApiMessages(messages, buildContextLine(ctx))
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

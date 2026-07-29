@@ -235,7 +235,7 @@ export default async function Home() {
                 width={56}
                 height={56}
               />
-              <h3>Blue Dot Impact: Technical &amp; Governance</h3>
+              <h3>BlueDot Impact: Technical &amp; Governance</h3>
             </div>
             <p className="padding-bottom-24px">
               Learn key concepts and research perspectives in AI safety, split
@@ -248,7 +248,7 @@ export default async function Home() {
                 rel="noopener noreferrer"
                 className="button-secondary"
                 trackingPage="Home"
-                trackingName="Blue Dot Impact: Technical & Governance"
+                trackingName="BlueDot Impact: Technical & Governance"
               >
                 View curricula
               </TrackedLink>

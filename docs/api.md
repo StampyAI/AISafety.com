@@ -58,8 +58,8 @@ Whitelisted filter fields per endpoint live in `src/lib/api/registry.ts`.
 
 ## Endpoints
 
-`communities`, `organizations`, `events`, `jobs`, `funding`, `courses`,
-`advisors`, `media-channels`, `founder-resources`, `projects`.
+`communities`, `organizations`, `events`, `training`, `jobs`, `funding`,
+`courses`, `advisors`, `media-channels`, `founder-resources`, `projects`.
 
 ## Privacy
 

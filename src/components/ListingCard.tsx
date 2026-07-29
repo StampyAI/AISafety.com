@@ -32,6 +32,9 @@ interface ListingCardProps {
   listingId?: string
   /** The card's slot on the page ('F1', 'F2', '1', '2'…) at click time. */
   placement?: string
+  /** Click source recorded with the event — the active view's slug on pages
+   *  with a view toggle (e.g. 'online' / 'in-person' on Events). */
+  trackingSource?: string
 }
 
 function MetaRows({ rows }: { rows: ListingCardMeta[] }) {
@@ -61,6 +64,7 @@ export default function ListingCard({
   trackingPage,
   listingId,
   placement,
+  trackingSource,
 }: ListingCardProps) {
   return (
     <a
@@ -69,7 +73,14 @@ export default function ListingCard({
       rel="noopener noreferrer"
       className="card"
       onClick={() =>
-        trackListingClick(trackingPage, name, href, listingId, placement)
+        trackListingClick(
+          trackingPage,
+          name,
+          href,
+          listingId,
+          placement,
+          trackingSource
+        )
       }
     >
       {pills && pills.length > 0 && (

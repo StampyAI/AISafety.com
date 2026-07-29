@@ -18,6 +18,8 @@ import FilterDropdown from '@/components/FilterDropdown'
 import ModeToggle from '@/components/ModeToggle'
 import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
+import { trackFilterApply } from '@/lib/analytics'
+import { placementsById } from '@/lib/placements'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
 
@@ -420,6 +422,11 @@ export default function EventsClient({ events }: EventsClientProps) {
     [events, mode]
   )
 
+  // Each event's slot in the full (unfiltered) order of the active mode, so a
+  // click is tagged with the rank the visitor saw — not its position within an
+  // active filter.
+  const placements = useMemo(() => placementsById(modeEvents), [modeEvents])
+
   const cities = useMemo(() => {
     const set = new Set<string>()
     for (const e of modeEvents) {
@@ -581,6 +588,9 @@ export default function EventsClient({ events }: EventsClientProps) {
               titleMeta={titleMetaFor(event)}
               meta={bottomMetaFor(event)}
               trackingPage="Events"
+              trackingId={event.id}
+              trackingPosition={`F${event.featured}`}
+              trackingSource={mode}
               index={i}
               count={featuredEvents.length}
             />
@@ -597,6 +607,7 @@ export default function EventsClient({ events }: EventsClientProps) {
           } ${mode === 'in-person' ? 'in person' : 'online'}`}
         >
           <FilterDropdown
+            trackingPage="Events"
             title="Applications"
             options={applicationOptions}
             selected={selectedStatus}
@@ -604,6 +615,7 @@ export default function EventsClient({ events }: EventsClientProps) {
             onToggle={v => toggleFilter(v, selectedStatus, setSelectedStatus)}
           />
           <FilterDropdown
+            trackingPage="Events"
             title="Event type"
             options={[...EVENT_TYPES]}
             selected={selectedTypes}
@@ -611,6 +623,7 @@ export default function EventsClient({ events }: EventsClientProps) {
             onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
           />
           <FilterDropdown
+            trackingPage="Events"
             title="Cost"
             options={costOptions}
             selected={selectedCost}
@@ -627,11 +640,12 @@ export default function EventsClient({ events }: EventsClientProps) {
             <CitySearch
               cities={cities}
               selectedCities={selectedCities}
-              onAdd={city =>
+              onAdd={city => {
+                trackFilterApply('Events', 'City', city)
                 setSelectedCities(prev =>
                   prev.includes(city) ? prev : [...prev, city]
                 )
-              }
+              }}
               onRemove={city =>
                 setSelectedCities(prev => prev.filter(c => c !== city))
               }
@@ -666,6 +680,9 @@ export default function EventsClient({ events }: EventsClientProps) {
                     titleMeta={titleMetaFor(event)}
                     meta={bottomMetaFor(event)}
                     trackingPage="Events"
+                    listingId={event.id}
+                    placement={placements.get(event.id)}
+                    trackingSource={mode}
                   />
                 ))}
               </div>
@@ -684,6 +701,7 @@ export default function EventsClient({ events }: EventsClientProps) {
         </div>
 
         <ContributeButtons
+          trackingPage="Events"
           sidebar
           suggestEntryUrl={ADD_EVENT_URL}
           suggestCorrectionUrl={SUGGEST_CORRECTION_URL}

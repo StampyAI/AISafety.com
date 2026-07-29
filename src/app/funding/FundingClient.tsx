@@ -182,6 +182,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Funding"
             title="Accepting applications"
             options={acceptingOptions}
             selected={selectedAccepting}
@@ -191,6 +192,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
             }
           />
           <FilterGroup
+            trackingPage="Funding"
             title="Type"
             options={typeOptions}
             selected={selectedTypes}
@@ -199,6 +201,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Funding"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="funder"

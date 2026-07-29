@@ -263,6 +263,7 @@ export default function CommunitiesClient({
       <aside className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Communities"
             title="Type"
             options={typeOptions}
             selected={typeFilters}
@@ -270,6 +271,7 @@ export default function CommunitiesClient({
             onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
           />
           <FilterGroup
+            trackingPage="Communities"
             title="Platform"
             options={platformOptions}
             selected={platformFilters}
@@ -277,6 +279,7 @@ export default function CommunitiesClient({
             onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
           />
           <FilterGroup
+            trackingPage="Communities"
             title="Activity level"
             options={activityOptions}
             selected={activityFilters}
@@ -284,6 +287,7 @@ export default function CommunitiesClient({
             onToggle={v => toggleFilter(v, activityFilters, setActivityFilters)}
           />
           <FilterGroup
+            trackingPage="Communities"
             title="Focus"
             options={focusOptions}
             selected={focusFilters}
@@ -292,6 +296,7 @@ export default function CommunitiesClient({
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Communities"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="community"

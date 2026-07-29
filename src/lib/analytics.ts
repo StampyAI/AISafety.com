@@ -186,6 +186,82 @@ export function trackListingHover(
 }
 
 /**
+ * Track a visitor turning a filter value on (a sidebar checkbox or a dropdown
+ * option) on a resource page. Deselections aren't recorded — the activation is
+ * the expression of interest. `source` carries the filter group's title (e.g.
+ * 'Type'), `label` the value picked (e.g. 'Fellowship').
+ */
+export function trackFilterApply(
+  page: string,
+  group: string,
+  value: string
+): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Filters - ${page}`, group, value])
+  sendTrackEvent({
+    type: 'filter_apply',
+    page,
+    source: group,
+    label: value,
+  })
+}
+
+/**
+ * Track a click on a page's contribute buttons: the "Add a …" / "Suggest a
+ * correction" rows or an extra action row. `action` slugs the button
+ * ('add' | 'correction' | 'extra'), `label` is its visible text. The "View
+ * data in Airtable" card is not a contribution — see trackAirtableView.
+ */
+export function trackContributeClick(
+  page: string,
+  action: string,
+  label: string,
+  url: string
+): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Contribute - ${page}`, label, url])
+  sendTrackEvent({
+    type: 'contribute_click',
+    page,
+    source: action,
+    label,
+    url,
+  })
+}
+
+/**
+ * Track a submit of the newsletter signup box (arrow click or Enter — both
+ * fire the form's submit). Counts the attempt: the submit opens Substack's
+ * subscribe page, so completion happens off-site. The email itself is never
+ * recorded.
+ */
+export function trackNewsletterSignup(page: string): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Newsletter - ${page}`, 'Signup'])
+  sendTrackEvent({
+    type: 'newsletter_signup',
+    page,
+    label: 'Newsletter signup',
+  })
+}
+
+/** Track a click on a page's "View data in Airtable" card. */
+export function trackAirtableView(page: string, url: string): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Airtable - ${page}`, 'View data', url])
+  sendTrackEvent({
+    type: 'airtable_view',
+    page,
+    label: 'View data in Airtable',
+    url,
+  })
+}
+
+/**
  * Track a page visit. Fired on every route change, initial load included (see
  * MatomoRouteTracker). Matomo records its own page views via its snippet —
  * this is the first-party copy that ad blockers can't strip, and it carries

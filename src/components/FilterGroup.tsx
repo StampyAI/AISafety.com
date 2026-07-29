@@ -1,5 +1,7 @@
 'use client'
 
+import { trackFilterApply } from '@/lib/analytics'
+
 interface FilterGroupProps {
   title: string
   options: string[]
@@ -9,6 +11,9 @@ interface FilterGroupProps {
   // Optional map from option value to the label shown to the user. Filtering
   // and counts still run on the raw option values; only the display changes.
   labels?: Record<string, string>
+  /** Analytics page name (e.g. 'Jobs'). When set, turning a value on records
+   *  a filter_apply event under this page and the group's title. */
+  trackingPage?: string
 }
 
 export default function FilterGroup({
@@ -18,6 +23,7 @@ export default function FilterGroup({
   counts,
   onToggle,
   labels,
+  trackingPage,
 }: FilterGroupProps) {
   return (
     <div className="padding-bottom-40px">
@@ -30,7 +36,11 @@ export default function FilterGroup({
             <input
               type="checkbox"
               checked={selected.includes(option)}
-              onChange={() => onToggle(option)}
+              onChange={() => {
+                if (trackingPage && !selected.includes(option))
+                  trackFilterApply(trackingPage, title, option)
+                onToggle(option)
+              }}
               className="checkbox"
             />
             <span className="paragraph-small color-teal-300">

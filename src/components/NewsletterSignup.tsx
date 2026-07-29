@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { trackNewsletterSignup } from '@/lib/analytics'
 import styles from './NewsletterSignup.module.css'
 
 const SUBSCRIBE_URL = 'https://aisafetyeventsandtraining.substack.com/subscribe'
@@ -10,13 +11,19 @@ const SUBSCRIBE_URL = 'https://aisafetyeventsandtraining.substack.com/subscribe'
 // custom newsletter platform lands.
 export default function NewsletterSignup({
   heading = 'Get a weekly summary of all new events and training programs',
+  trackingPage,
 }: {
   heading?: string
+  /** Analytics page name (e.g. 'Events'). When set, a submit records a
+   *  newsletter_signup event under this page. */
+  trackingPage?: string
 }) {
   const [email, setEmail] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    // On the form, not the button, so Enter submits count the same as clicks.
+    if (trackingPage) trackNewsletterSignup(trackingPage)
     const trimmed = email.trim()
     const url = trimmed
       ? `${SUBSCRIBE_URL}?email=${encodeURIComponent(trimmed)}`

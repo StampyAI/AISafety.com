@@ -23,6 +23,7 @@ import {
   TRAINING_TYPES,
   trainingTypeColor,
 } from '@/lib/training-types'
+import { placementsById } from '@/lib/placements'
 import type {
   ProgramBase,
   RecurringProgram,
@@ -258,6 +259,11 @@ export default function TrainingClient({
 
   const modePrograms: ProgramBase[] = mode === 'upcoming' ? programs : recurring
 
+  // Each program's slot in the full (unfiltered) order of the active set, so a
+  // click is tagged with the rank the visitor saw — not its position within an
+  // active filter.
+  const placements = useMemo(() => placementsById(modePrograms), [modePrograms])
+
   const featuredPrograms = useMemo(
     () =>
       (['1', '2'] as const)
@@ -437,6 +443,9 @@ export default function TrainingClient({
         mode === 'upcoming' ? (program as TrainingProgram) : undefined
       )}
       trackingPage="Training"
+      listingId={program.id}
+      placement={placements.get(program.id)}
+      trackingSource={mode}
     />
   )
 
@@ -494,6 +503,9 @@ export default function TrainingClient({
                 mode === 'upcoming' ? (program as TrainingProgram) : undefined
               )}
               trackingPage="Training"
+              trackingId={program.id}
+              trackingPosition={`F${program.featured}`}
+              trackingSource={mode}
               index={i}
               count={featuredPrograms.length}
             />
@@ -510,6 +522,7 @@ export default function TrainingClient({
       >
         {mode === 'upcoming' && (
           <FilterDropdown
+            trackingPage="Training"
             title="Applications"
             options={applicationOptions}
             selected={selectedStatus}
@@ -518,6 +531,7 @@ export default function TrainingClient({
           />
         )}
         <FilterDropdown
+          trackingPage="Training"
           title="Type"
           options={[...TRAINING_TYPES]}
           selected={selectedTypes}
@@ -525,6 +539,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Focus"
           options={focusOptions}
           selected={selectedFocus}
@@ -532,6 +547,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Entry bar"
           options={[...ENTRY_BARS]}
           selected={selectedEntryBar}
@@ -539,6 +555,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedEntryBar, setSelectedEntryBar)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Stipend"
           options={[...STIPEND_OPTIONS]}
           selected={selectedStipend}
@@ -546,6 +563,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedStipend, setSelectedStipend)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Length"
           options={[...LENGTH_BUCKETS]}
           selected={selectedLength}
@@ -553,6 +571,7 @@ export default function TrainingClient({
           onToggle={v => toggleFilter(v, selectedLength, setSelectedLength)}
         />
         <FilterDropdown
+          trackingPage="Training"
           title="Location"
           options={locationOptions}
           selected={selectedLocation}
@@ -594,6 +613,7 @@ export default function TrainingClient({
         </div>
 
         <ContributeButtons
+          trackingPage="Training"
           sidebar
           suggestEntryUrl={ADD_PROGRAM_URLS[mode]}
           suggestCorrectionUrl={SUGGEST_CORRECTION_URL}

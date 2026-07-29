@@ -52,7 +52,9 @@ export async function POST(req: NextRequest) {
     listingId: str(b.listingId, 64),
     label: str(b.label, 300),
     position: str(b.position, 16),
-    source: str(b.source, 16),
+    // 32, not 16: filter_apply events carry the filter group's title here
+    // (longest today: 'Accepting applications', 22 chars).
+    source: str(b.source, 32),
     area: str(b.area, 64),
     query: str(b.query, 200),
     results: count(b.results, 100_000),

@@ -174,6 +174,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Advisors"
             title="Focus"
             options={focusOptions}
             selected={selectedFocus}
@@ -181,6 +182,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
             onToggle={v => toggleFilter(v, selectedFocus, setSelectedFocus)}
           />
           <FilterGroup
+            trackingPage="Advisors"
             title="Status"
             options={statusOptions}
             selected={selectedStatus}
@@ -189,6 +191,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Advisors"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="advisor"

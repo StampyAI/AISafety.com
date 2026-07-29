@@ -289,6 +289,7 @@ export default function MapClient({
           <div className="hide-mobile width-3-col">
             <FilterSidebar>
               <FilterGroup
+                trackingPage="Map"
                 title="Category"
                 options={categories}
                 selected={selectedCategories}
@@ -296,6 +297,7 @@ export default function MapClient({
                 onToggle={toggleCategory}
               />
               <FilterGroup
+                trackingPage="Map"
                 title="Status"
                 options={['Active', 'No longer active']}
                 selected={[
@@ -314,6 +316,7 @@ export default function MapClient({
               />
             </FilterSidebar>
             <ContributeButtons
+              trackingPage="Map"
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}
               noun="listing"

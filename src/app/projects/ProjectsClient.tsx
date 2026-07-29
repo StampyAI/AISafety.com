@@ -110,6 +110,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Projects"
             title="Status"
             options={statusOptions}
             selected={selectedStatus}
@@ -118,6 +119,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Projects"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagudvyKXZISztcOI/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="project"

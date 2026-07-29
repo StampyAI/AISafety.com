@@ -16,6 +16,7 @@ export default async function EventsPage() {
         title="Events"
         lastUpdatedIso={lastUpdated.lastUpdated}
         newsletter
+        newsletterTrackingPage="Events"
         description={
           <>
             Find{' '}

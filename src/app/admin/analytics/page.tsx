@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import {
   readDashboard,
+  sourceSlug,
   type Counted,
   type DateRange,
   type ChatbotFunnel,
@@ -381,6 +382,8 @@ function labelFor(e: {
     return SEARCH_OPEN_LABELS[e.source ?? ''] ?? 'Opened search'
   if (e.type === 'search_query')
     return e.query ? `Searched for “${e.query}”` : 'Searched'
+  if (e.type === 'filter_apply')
+    return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
   // search_click carries the result's title as its label, like listing clicks.
   return e.label ?? EVENT_LABELS[e.type] ?? e.type
 }
@@ -557,10 +560,41 @@ export default async function AnalyticsPage({
   // share of that source's clicks, not the page's whole. bySource carries the
   // per-source totals, so read the active one from there.
   const listingTotal = data.selectedSource
-    ? data.bySource.find(r => r.name.toLowerCase() === data.selectedSource)
-        ?.count
+    ? data.bySource.find(r => sourceSlug(r.name) === data.selectedSource)?.count
     : pageTotal
   const positionTotal = data.byPosition.reduce((sum, r) => sum + r.count, 0)
+  const filterTotal = data.filterGroups.reduce((sum, r) => sum + r.count, 0)
+  const filterShareByPage = new Map(
+    data.filterShareByPage.map(r => [r.name, r])
+  )
+  const contributeTotal = data.contributeButtons.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
+  const contributeTotalByPage = data.contributeByPage.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
+  const airtableTotalByPage = data.airtableByPage.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
+  const newsletterTotalByPage = data.newsletterByPage.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
+  // The site's own sidebar icons, so the rows read like the buttons they count.
+  const contributeIcon = (label: string) =>
+    label.startsWith('Add ')
+      ? '/images/plus-small.svg'
+      : label === 'Suggest a correction'
+        ? '/images/pencil-small.svg'
+        : '/images/star-small.svg'
+  // The filter-usage caption's denominator: the page's distinct visitors, only
+  // meaningful in unique mode (total mode's byPage rows count views).
+  const filterPageVisitors = unique
+    ? data.visits.byPage.find(p => p.name === data.selectedPage)?.count
+    : undefined
 
   // Site-wide leaderboards for the Overview tab. The listings total is every
   // page's clicks (same denominator as "Clicks by page"); the position total is
@@ -744,6 +778,11 @@ export default async function AnalyticsPage({
                 rows={data.bySource}
                 active={data.selectedSource}
                 params={sp}
+                label={
+                  MAP_PAGES.has(data.selectedPage ?? '')
+                    ? 'Clicks by source'
+                    : 'Clicks by view'
+                }
               />
               <div className={styles.grid}>
                 {/* Titles skip the page name — the active tab already says
@@ -831,6 +870,66 @@ export default async function AnalyticsPage({
                     </Panel>
                   </div>
                 )}
+              {data.filterGroups.length > 0 && (
+                <div className={styles.grid}>
+                  <Panel title="Filter usage">
+                    <CountTable
+                      rows={data.filterGroups}
+                      labelHead="Filter"
+                      countHead="Uses"
+                      total={filterTotal}
+                    />
+                    <p className={styles.caption}>
+                      A use = a visitor turning a filter value on; switching a
+                      value off isn&apos;t counted.{' '}
+                      {data.filterUsers.toLocaleString()} visitor
+                      {data.filterUsers === 1 ? '' : 's'} filtered this page
+                      this period
+                      {filterPageVisitors
+                        ? ` – ${pct1(data.filterUsers, filterPageVisitors)} of its visitors`
+                        : ''}
+                      . Recording since 29 July 2026.
+                    </p>
+                  </Panel>
+                  <Panel title="Filter values">
+                    <CountTable
+                      rows={data.filterValues}
+                      labelHead="Filter: value"
+                      countHead="Uses"
+                      total={filterTotal}
+                    />
+                  </Panel>
+                </div>
+              )}
+              {(data.contributeButtons.length > 0 ||
+                data.airtableViews > 0) && (
+                <div className={styles.grid}>
+                  <Panel title="Contribute buttons">
+                    <CountTable
+                      rows={data.contributeButtons}
+                      labelHead="Button"
+                      logoFor={contributeIcon}
+                      total={contributeTotal}
+                    />
+                    <p className={styles.caption}>
+                      Clicks on this page&apos;s add and correction forms.
+                      Recording since 29 July 2026.
+                    </p>
+                  </Panel>
+                  <Panel title="View data in Airtable">
+                    <div className={styles.funnel}>
+                      <Stat
+                        label="Card clicks"
+                        value={data.airtableViews.toLocaleString()}
+                      />
+                    </div>
+                    <p className={styles.caption}>
+                      Visitors opening this page&apos;s raw data in Airtable.
+                      Recording since 29 July 2026.
+                    </p>
+                  </Panel>
+                </div>
+              )}
             </div>
           )}
 
@@ -856,6 +955,95 @@ export default async function AnalyticsPage({
                   Every click across all pages counted at the slot it happened
                   in (F1/F2 = featured cards) — how much attention each slot
                   draws site-wide.
+                </p>
+              </Panel>
+              <Panel title="Filter use by page">
+                {data.filtersByPage.length === 0 ? (
+                  <p className={styles.dim}>No data yet.</p>
+                ) : (
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Page</th>
+                        <th className={styles.numCol}>Uses</th>
+                        <th className={styles.numCol}>Filtered</th>
+                        <th className={styles.pctCol}>% of visitors</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.filtersByPage.map(r => {
+                        const share = filterShareByPage.get(r.name)
+                        return (
+                          <tr key={r.name}>
+                            <td>{labelByPage.get(r.name) ?? r.name}</td>
+                            <td className={styles.numCol}>
+                              {r.count.toLocaleString()}
+                            </td>
+                            <td className={styles.numCol}>
+                              {(share?.filtered ?? 0).toLocaleString()}
+                            </td>
+                            <td className={styles.pctCol}>
+                              {share && share.visitors > 0
+                                ? pct1(share.filtered, share.visitors)
+                                : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
+                <p className={styles.caption}>
+                  A use = a visitor turning a filter value on. Filtered =
+                  distinct visitors who used at least one filter; % is their
+                  share of the page&apos;s visitors (always per-visitor,
+                  whichever count mode is on). Open a page&apos;s tab for its
+                  filter breakdown. Recording since 29 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Contribute clicks by page">
+                <CountTable
+                  rows={data.contributeByPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
+                  labelHead="Page"
+                  total={contributeTotalByPage}
+                />
+                <p className={styles.caption}>
+                  Clicks on the &quot;Add a …&quot; and &quot;Suggest a
+                  correction&quot; forms. Open a page&apos;s tab for its
+                  per-button split. Recording since 29 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Airtable views by page">
+                <CountTable
+                  rows={data.airtableByPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
+                  labelHead="Page"
+                  total={airtableTotalByPage}
+                />
+                <p className={styles.caption}>
+                  Clicks on the &quot;View data in Airtable&quot; cards.
+                  Recording since 29 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Newsletter signups by page">
+                <CountTable
+                  rows={data.newsletterByPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
+                  labelHead="Page"
+                  countHead="Submits"
+                  total={newsletterTotalByPage}
+                />
+                <p className={styles.caption}>
+                  Submits of the weekly-summary email box on /events and
+                  /training – may not all be successful signups. Recording since
+                  29 July 2026.
                 </p>
               </Panel>
             </div>
@@ -956,10 +1144,14 @@ function SourceSplit({
   rows,
   active,
   params,
+  label,
 }: {
   rows: Counted[]
   active: string | null
   params: SearchParams
+  /** Heading for the pill row — 'Clicks by source' on map pages (map vs
+   *  cards), 'Clicks by view' on pages with a view toggle. */
+  label: string
 }) {
   if (rows.length === 0) return null
   const total = rows.reduce((sum, r) => sum + r.count, 0)
@@ -974,7 +1166,7 @@ function SourceSplit({
   return (
     <div className={styles.sourceSplitWrap}>
       <div className={styles.sourceSplit}>
-        <span className={styles.sourceSplitLabel}>Clicks by source</span>
+        <span className={styles.sourceSplitLabel}>{label}</span>
         {rows.length > 1 && (
           <Link
             href={totalHref}
@@ -990,7 +1182,7 @@ function SourceSplit({
           </Link>
         )}
         {rows.map(r => {
-          const key = r.name.toLowerCase()
+          const key = sourceSlug(r.name)
           const q = new URLSearchParams(base)
           q.set('source', key)
           return (
@@ -1017,8 +1209,8 @@ function SourceSplit({
       </div>
       {hasUntracked && (
         <p className={styles.caption}>
-          Untracked = clicks logged before map/card source tracking started;
-          they age out as the date range moves forward.
+          Untracked = clicks logged before this split was recorded; they age out
+          as the date range moves forward.
         </p>
       )}
     </div>

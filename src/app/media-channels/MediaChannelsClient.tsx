@@ -156,6 +156,7 @@ export default function MediaChannelsClient({
       <div className="hide-mobile width-3-col">
         <FilterSidebar>
           <FilterGroup
+            trackingPage="Media channels"
             title="Type"
             options={typeOptions}
             selected={selectedTypes}
@@ -164,6 +165,7 @@ export default function MediaChannelsClient({
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Media channels"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagSZ7vJj9MHyYmtS/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="media source"

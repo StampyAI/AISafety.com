@@ -21,7 +21,7 @@ export default async function AdvisorsPage() {
     <div className="container-default">
       <PageHeader
         title="Advisors"
-        lastUpdated={lastUpdated.formattedDate}
+        lastUpdatedIso={lastUpdated.lastUpdated}
         description={
           <>
             <span className="color-light-teal">

@@ -63,7 +63,6 @@ export interface MapOrg {
 
 export interface MapData {
   records: MapOrg[]
-  lastUpdated: string | null
   suggestEntryLink: string
   suggestCorrectionLink: string
 }
@@ -155,7 +154,6 @@ export async function getMapData(): Promise<MapData> {
   })
 
   const allRecords: MapOrg[] = []
-  let lastUpdated: string | null = null
   let suggestEntryLink = '/map/suggest'
   let suggestCorrectionLink = '#'
 
@@ -168,10 +166,6 @@ export async function getMapData(): Promise<MapData> {
     if (!title || !description) continue
 
     const isMagic = MAGIC_ROW_NAMES.includes(title)
-
-    if (title === 'Last updated') {
-      lastUpdated = description
-    }
 
     const link = fieldString(f[FIELD.link])
     if (title === 'Suggest entry' && link) {
@@ -233,7 +227,6 @@ export async function getMapData(): Promise<MapData> {
 
   return {
     records: allRecords,
-    lastUpdated,
     suggestEntryLink,
     suggestCorrectionLink,
   }

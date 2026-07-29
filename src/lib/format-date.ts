@@ -28,7 +28,9 @@ export function formatRelativeDate(isoDate: string): string {
   if (diffDays === 1) return 'Updated yesterday'
   if (diffDays < 7) return `Updated ${diffDays} days ago`
   if (diffDays < 14) return 'Updated 1 week ago'
-  if (diffDays < 30) return `Updated ${Math.floor(diffDays / 7)} weeks ago`
+  if (diffDays < 28) return `Updated ${Math.floor(diffDays / 7)} weeks ago`
   if (diffDays < 60) return 'Updated 1 month ago'
-  return `Updated ${Math.floor(diffDays / 30)} months ago`
+  if (diffDays < 365) return `Updated ${Math.floor(diffDays / 30)} months ago`
+  if (diffDays < 730) return 'Updated 1 year ago'
+  return `Updated ${Math.floor(diffDays / 365)} years ago`
 }

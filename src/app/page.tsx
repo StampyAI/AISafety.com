@@ -329,30 +329,29 @@ export default async function Home() {
               height={32}
             />
             <p className="paragraph-small-bold padding-bottom-12px">
-              Best for small, quick grants
+              Best for mid- to large-scale projects
             </p>
             <div className={`${styles['icon-row']} padding-bottom-24px`}>
               <Image
                 loading="lazy"
-                src="/images/grantmaking.svg"
+                src="/images/lightcone-commons.webp"
                 alt=""
-                className={styles['icon-homepage']}
-                width={56}
+                width={51}
                 height={56}
               />
-              <h3>grantmaking.ai</h3>
+              <h3>Lightcone Commons</h3>
             </div>
             <p className="padding-bottom-24px">
-              Public database of AI safety projects seeking funding, now running
-              a $1M grant round.
+              New grantmaking platform coordinating large-scale philanthropy in
+              quarterly rounds.
             </p>
             <TrackedLink
-              href="https://www.grantmaking.ai/"
+              href="https://www.lightconecommons.com/"
               target="_blank"
               rel="noopener noreferrer"
               className="button-secondary"
               trackingPage="Home"
-              trackingName="grantmaking.ai"
+              trackingName="Lightcone Commons"
             >
               Learn more
             </TrackedLink>

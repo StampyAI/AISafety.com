@@ -316,6 +316,7 @@ export default function MapClient({
               />
             </FilterSidebar>
             <ContributeButtons
+              trackingPage="Map"
               suggestEntryUrl={suggestEntryLink}
               suggestCorrectionUrl={suggestCorrectionLink}
               noun="listing"

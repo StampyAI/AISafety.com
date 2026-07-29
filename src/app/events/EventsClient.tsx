@@ -701,6 +701,7 @@ export default function EventsClient({ events }: EventsClientProps) {
         </div>
 
         <ContributeButtons
+          trackingPage="Events"
           sidebar
           suggestEntryUrl={ADD_EVENT_URL}
           suggestCorrectionUrl={SUGGEST_CORRECTION_URL}

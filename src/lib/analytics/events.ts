@@ -77,6 +77,13 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   // A visitor turning a filter value on (sidebar checkbox or dropdown option).
   // `source` is the filter group's title, `label` the value picked.
   'filter_apply',
+  // A click on a page's contribute buttons: the "Add a …" / "Suggest a
+  // correction" rows or an extra action row. `source` slugs the button
+  // ('add' | 'correction' | 'extra'), `label` is its visible text.
+  'contribute_click',
+  // A click on a page's "View data in Airtable" card — data curiosity, not a
+  // contribution, so it's its own kind.
+  'airtable_view',
   'chatbot_open',
   'chatbot_message',
   'chatbot_click',
@@ -424,6 +431,15 @@ export interface DashboardData {
    *  whichever count mode is active (a share of visitors only makes sense
    *  that way). `visitors` is 0 when the range predates page-view tracking. */
   filterShareByPage: { name: string; filtered: number; visitors: number }[]
+  /** Contribute-button clicks (Add / Suggest a correction / extra rows) per
+   *  resource page — the Overview's rollup. */
+  contributeByPage: Counted[]
+  /** The selected page's contribute clicks per button label. */
+  contributeButtons: Counted[]
+  /** "View data in Airtable" card clicks per resource page. */
+  airtableByPage: Counted[]
+  /** The selected page's "View data in Airtable" card clicks. */
+  airtableViews: number
   /** For pages with a map (Map, Communities): `selectedPage`'s most-hovered
    *  map listings — tooltip dwells (500 ms cursor rest on desktop, first tap
    *  on mobile), grouped like `topListings` and following the same unique/
@@ -480,6 +496,10 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   filterValues: [],
   filterUsers: 0,
   filterShareByPage: [],
+  contributeByPage: [],
+  contributeButtons: [],
+  airtableByPage: [],
+  airtableViews: 0,
   topHovered: [],
   areaClicks: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
@@ -820,6 +840,27 @@ function aggregate(
     }))
     .sort((a, b) => b.filtered - a.filtered)
 
+  // Contribute-button and Airtable-card clicks. uniqueClicks dedupes on
+  // page+label, which is exactly the button identity here.
+  const contributeHits = inRange.filter(
+    e => e.type === 'contribute_click' && e.page
+  )
+  const contributeClicks = unique
+    ? uniqueClicks(contributeHits)
+    : contributeHits
+  const contributeByPage = tally(contributeClicks.map(e => e.page as string))
+  const contributeButtons = tally(
+    contributeClicks
+      .filter(e => e.page === selectedPage)
+      .map(e => listingMember(e))
+  )
+  const airtableHits = inRange.filter(e => e.type === 'airtable_view' && e.page)
+  const airtableClicks = unique ? uniqueClicks(airtableHits) : airtableHits
+  const airtableByPage = tally(airtableClicks.map(e => e.page as string))
+  const airtableViews = airtableClicks.filter(
+    e => e.page === selectedPage
+  ).length
+
   // Most-hovered map listings for the selected page — tooltip dwells
   // (listing_hover events), grouped exactly like topListings but with no
   // position (hovers aren't slotted) and no source narrowing (every hover is
@@ -865,6 +906,10 @@ function aggregate(
     filterValues,
     filterUsers,
     filterShareByPage,
+    contributeByPage,
+    contributeButtons,
+    airtableByPage,
+    airtableViews,
     topHovered,
     areaClicks,
     funnel: {

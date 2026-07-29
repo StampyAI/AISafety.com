@@ -191,6 +191,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Advisors"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagTw6PRaIHUHh8ty/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="advisor"

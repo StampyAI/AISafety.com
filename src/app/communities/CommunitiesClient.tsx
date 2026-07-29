@@ -296,6 +296,7 @@ export default function CommunitiesClient({
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Communities"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="community"

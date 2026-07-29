@@ -613,6 +613,7 @@ export default function TrainingClient({
         </div>
 
         <ContributeButtons
+          trackingPage="Training"
           sidebar
           suggestEntryUrl={ADD_PROGRAM_URLS[mode]}
           suggestCorrectionUrl={SUGGEST_CORRECTION_URL}

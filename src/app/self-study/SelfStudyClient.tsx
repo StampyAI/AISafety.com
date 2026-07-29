@@ -169,6 +169,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
 
         <div className="hide-mobile width-3-col">
           <ContributeButtons
+            trackingPage="Self-study"
             suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag6L4BzdkxocBzqr/form"
             suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
             noun="course"

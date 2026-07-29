@@ -201,6 +201,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Funding"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="funder"

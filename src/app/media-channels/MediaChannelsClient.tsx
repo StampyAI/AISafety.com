@@ -165,6 +165,7 @@ export default function MediaChannelsClient({
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Media channels"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagSZ7vJj9MHyYmtS/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="media source"

@@ -159,6 +159,7 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
           />
         </FilterSidebar>
         <ContributeButtons
+          trackingPage="Founders"
           suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pag1OO5TrQkO96W7R/form"
           suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
           noun="resource"

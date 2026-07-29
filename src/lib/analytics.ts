@@ -208,6 +208,43 @@ export function trackFilterApply(
 }
 
 /**
+ * Track a click on a page's contribute buttons: the "Add a …" / "Suggest a
+ * correction" rows or an extra action row. `action` slugs the button
+ * ('add' | 'correction' | 'extra'), `label` is its visible text. The "View
+ * data in Airtable" card is not a contribution — see trackAirtableView.
+ */
+export function trackContributeClick(
+  page: string,
+  action: string,
+  label: string,
+  url: string
+): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Contribute - ${page}`, label, url])
+  sendTrackEvent({
+    type: 'contribute_click',
+    page,
+    source: action,
+    label,
+    url,
+  })
+}
+
+/** Track a click on a page's "View data in Airtable" card. */
+export function trackAirtableView(page: string, url: string): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Airtable - ${page}`, 'View data', url])
+  sendTrackEvent({
+    type: 'airtable_view',
+    page,
+    label: 'View data in Airtable',
+    url,
+  })
+}
+
+/**
  * Track a page visit. Fired on every route change, initial load included (see
  * MatomoRouteTracker). Matomo records its own page views via its snippet —
  * this is the first-party copy that ad blockers can't strip, and it carries

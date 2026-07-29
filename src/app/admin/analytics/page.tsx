@@ -567,6 +567,25 @@ export default async function AnalyticsPage({
   const filterShareByPage = new Map(
     data.filterShareByPage.map(r => [r.name, r])
   )
+  const contributeTotal = data.contributeButtons.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
+  const contributeTotalByPage = data.contributeByPage.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
+  const airtableTotalByPage = data.airtableByPage.reduce(
+    (sum, r) => sum + r.count,
+    0
+  )
+  // The site's own sidebar icons, so the rows read like the buttons they count.
+  const contributeIcon = (label: string) =>
+    label.startsWith('Add ')
+      ? '/images/plus-small.svg'
+      : label === 'Suggest a correction'
+        ? '/images/pencil-small.svg'
+        : '/images/star-small.svg'
   // The filter-usage caption's denominator: the page's distinct visitors, only
   // meaningful in unique mode (total mode's byPage rows count views).
   const filterPageVisitors = unique
@@ -878,6 +897,35 @@ export default async function AnalyticsPage({
                   </Panel>
                 </div>
               )}
+              {(data.contributeButtons.length > 0 ||
+                data.airtableViews > 0) && (
+                <div className={styles.grid}>
+                  <Panel title="Contribute buttons">
+                    <CountTable
+                      rows={data.contributeButtons}
+                      labelHead="Button"
+                      logoFor={contributeIcon}
+                      total={contributeTotal}
+                    />
+                    <p className={styles.caption}>
+                      Clicks on this page&apos;s add and correction forms.
+                      Recording since 29 July 2026.
+                    </p>
+                  </Panel>
+                  <Panel title="View data in Airtable">
+                    <div className={styles.funnel}>
+                      <Stat
+                        label="Card clicks"
+                        value={data.airtableViews.toLocaleString()}
+                      />
+                    </div>
+                    <p className={styles.caption}>
+                      Visitors opening this page&apos;s raw data in Airtable.
+                      Recording since 29 July 2026.
+                    </p>
+                  </Panel>
+                </div>
+              )}
             </div>
           )}
 
@@ -943,6 +991,35 @@ export default async function AnalyticsPage({
                   share of the page&apos;s visitors (always per-visitor,
                   whichever count mode is on). Open a page&apos;s tab for its
                   filter breakdown. Recording since 29 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Contribute clicks by page">
+                <CountTable
+                  rows={data.contributeByPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
+                  labelHead="Page"
+                  total={contributeTotalByPage}
+                />
+                <p className={styles.caption}>
+                  Clicks on the &quot;Add a …&quot; and &quot;Suggest a
+                  correction&quot; forms. Open a page&apos;s tab for its
+                  per-button split. Recording since 29 July 2026.
+                </p>
+              </Panel>
+              <Panel title="Airtable views by page">
+                <CountTable
+                  rows={data.airtableByPage.map(r => ({
+                    ...r,
+                    name: labelByPage.get(r.name) ?? r.name,
+                  }))}
+                  labelHead="Page"
+                  total={airtableTotalByPage}
+                />
+                <p className={styles.caption}>
+                  Clicks on the &quot;View data in Airtable&quot; cards.
+                  Recording since 29 July 2026.
                 </p>
               </Panel>
             </div>

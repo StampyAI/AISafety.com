@@ -1,4 +1,7 @@
+'use client'
+
 import Image from 'next/image'
+import { trackAirtableView, trackContributeClick } from '@/lib/analytics'
 import styles from './ContributeButtons.module.css'
 
 interface ExtraLink {
@@ -21,6 +24,9 @@ interface ContributeButtonsProps {
   /** Render as the listing pages' right column (desktop only, offset to
       align with the listing grid beside it). */
   sidebar?: boolean
+  /** Analytics page name (e.g. 'Events'). When set, every button click
+   *  records a contribute_click event under this page. */
+  trackingPage?: string
 }
 
 // "a" vs "an" for the "Add a …" label.
@@ -32,16 +38,19 @@ function ActionRow({
   href,
   icon,
   label,
+  onClick,
 }: {
   href: string
   icon: string
   label: string
+  onClick?: () => void
 }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={onClick}
       className={`flex items-center gap-8px color-teal-bright-300 hover-white ${styles.row}`}
     >
       <span className={`bg-teal-bright-850 ${styles.badge}`}>
@@ -60,7 +69,12 @@ export default function ContributeButtons({
   airtableNote,
   extraLinks,
   sidebar,
+  trackingPage,
 }: ContributeButtonsProps) {
+  const track = (action: string, label: string, url: string) => {
+    if (trackingPage) trackContributeClick(trackingPage, action, label, url)
+  }
+  const addLabel = `Add ${article(noun)} ${noun}`
   const cards = (
     <div className="flex flex-col gap-16px">
       {/* Contribute card */}
@@ -73,12 +87,16 @@ export default function ContributeButtons({
           <ActionRow
             href={suggestEntryUrl}
             icon="/images/plus-small.svg"
-            label={`Add ${article(noun)} ${noun}`}
+            label={addLabel}
+            onClick={() => track('add', addLabel, suggestEntryUrl)}
           />
           <ActionRow
             href={suggestCorrectionUrl}
             icon="/images/pencil-small.svg"
             label="Suggest a correction"
+            onClick={() =>
+              track('correction', 'Suggest a correction', suggestCorrectionUrl)
+            }
           />
           {extraLinks?.map(link => (
             <ActionRow
@@ -86,6 +104,7 @@ export default function ContributeButtons({
               href={link.url}
               icon={link.icon || '/images/star-small.svg'}
               label={link.label}
+              onClick={() => track('extra', link.label, link.url)}
             />
           ))}
         </div>
@@ -96,6 +115,9 @@ export default function ContributeButtons({
         href={airtableUrl}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => {
+          if (trackingPage) trackAirtableView(trackingPage, airtableUrl)
+        }}
         className={`border-only border-hover color-teal-300 hover-white ${styles.airtableCard}`}
       >
         <Image

@@ -173,18 +173,22 @@ function emptyStateMessage(
 
 function CitySearch({
   cities,
-  selectedCity,
-  onSelect,
+  selectedCities,
+  onAdd,
+  onRemove,
   onClear,
 }: {
   cities: string[]
-  selectedCity: string
-  onSelect: (city: string) => void
+  selectedCities: string[]
+  onAdd: (city: string) => void
+  onRemove: (city: string) => void
   onClear: () => void
 }) {
-  const [query, setQuery] = useState(selectedCity)
+  const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [highlighted, setHighlighted] = useState(-1)
   const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -203,29 +207,101 @@ function CitySearch({
   }, [open])
 
   const normalized = query.trim().toLowerCase()
-  const matches = cities.filter(c => c.toLowerCase().includes(normalized))
+  const matches = cities.filter(
+    c => c.toLowerCase().includes(normalized) && !selectedCities.includes(c)
+  )
+
+  function selectCity(city: string) {
+    setQuery('')
+    onAdd(city)
+    setOpen(false)
+    setHighlighted(-1)
+    inputRef.current?.focus()
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!open) {
+        setOpen(true)
+        return
+      }
+      if (matches.length === 0) return
+      const delta = e.key === 'ArrowDown' ? 1 : -1
+      setHighlighted(h => (h + delta + matches.length) % matches.length)
+    } else if (e.key === 'Enter') {
+      if (open && highlighted >= 0 && highlighted < matches.length) {
+        e.preventDefault()
+        selectCity(matches[highlighted])
+      }
+    } else if (e.key === 'Backspace') {
+      if (query === '' && selectedCities.length > 0) {
+        onRemove(selectedCities[selectedCities.length - 1])
+      }
+    }
+  }
 
   return (
     <div className={styles.nearMeSearch} ref={ref}>
       <span className={styles.nearMeIcon} aria-hidden="true" />
-      <input
-        type="text"
-        className={`text-field ${styles.nearMeInput}`}
-        placeholder="Type your city or country"
-        maxLength={256}
-        value={query}
-        onFocus={() => setOpen(true)}
-        onChange={e => {
-          setQuery(e.target.value)
-          setOpen(true)
-          if (e.target.value.trim() === '') onClear()
-        }}
-      />
-      {query.length > 0 && (
+      <div
+        className={styles.nearMeField}
+        onClick={() => inputRef.current?.focus()}
+      >
+        {selectedCities.map(city => (
+          <span key={city} className={`paragraph-xs ${styles.cityChip}`}>
+            {city}
+            <button
+              type="button"
+              className={styles.cityChipRemove}
+              aria-label={`Remove ${city}`}
+              onClick={e => {
+                e.stopPropagation()
+                onRemove(city)
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6 6L14 14M14 6L6 14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          type="text"
+          className={`text-field ${styles.nearMeInput}`}
+          placeholder={
+            selectedCities.length > 0
+              ? 'Add another location'
+              : 'Type your city or country'
+          }
+          maxLength={256}
+          value={query}
+          onFocus={() => setOpen(true)}
+          onChange={e => {
+            setQuery(e.target.value)
+            setOpen(true)
+            setHighlighted(-1)
+          }}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
+      {(query.length > 0 || selectedCities.length > 0) && (
         <button
           type="button"
           className={styles.nearMeClear}
-          aria-label="Clear city"
+          aria-label="Clear locations"
           onClick={() => {
             setQuery('')
             onClear()
@@ -248,19 +324,23 @@ function CitySearch({
           </svg>
         </button>
       )}
-      {open && (
+      {open && (matches.length > 0 || normalized !== '') && (
         <div className={`${styles.cityList} drop-shadow-dark`}>
           {matches.length > 0 ? (
-            matches.map(city => (
+            matches.map((city, i) => (
               <button
                 key={city}
                 type="button"
-                className={`paragraph-small ${styles.cityOption}`}
-                onClick={() => {
-                  setQuery(city)
-                  onSelect(city)
-                  setOpen(false)
-                }}
+                ref={
+                  i === highlighted
+                    ? el => el?.scrollIntoView({ block: 'nearest' })
+                    : undefined
+                }
+                className={`paragraph-small ${styles.cityOption} ${
+                  i === highlighted ? styles.cityOptionHighlighted : ''
+                }`}
+                onMouseEnter={() => setHighlighted(i)}
+                onClick={() => selectCity(city)}
               >
                 <span className={styles.cityOptionIcon} aria-hidden="true" />
                 {city}
@@ -308,7 +388,7 @@ export default function EventsClient({ events }: EventsClientProps) {
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedCost, setSelectedCost] = useState<string[]>([])
-  const [selectedCity, setSelectedCity] = useState('')
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
 
   const toggleAnchorRef = useRef<HTMLDivElement>(null)
 
@@ -317,14 +397,14 @@ export default function EventsClient({ events }: EventsClientProps) {
   // Landing on online drops the city filter, mirroring switchMode.
   const applyViewParam = useCallback((view: string | null) => {
     const next: Mode = view === 'in-person' ? 'in-person' : 'online'
-    if (next === 'online') setSelectedCity('')
+    if (next === 'online') setSelectedCities([])
     setMode(next)
   }, [])
 
   // Switching sets replaces the whole grid, so jump back to the top of the
   // listings (just below the global nav) for the new set.
   function switchMode(next: Mode) {
-    if (next === 'online') setSelectedCity('')
+    if (next === 'online') setSelectedCities([])
     setMode(next)
     syncViewParam(next)
     scrollToAnchor(toggleAnchorRef.current)
@@ -385,8 +465,8 @@ export default function EventsClient({ events }: EventsClientProps) {
           return false
         if (
           mode === 'in-person' &&
-          selectedCity &&
-          event.location !== selectedCity
+          selectedCities.length > 0 &&
+          !selectedCities.includes(event.location)
         )
           return false
         return true
@@ -416,7 +496,7 @@ export default function EventsClient({ events }: EventsClientProps) {
       selectedTypes,
       selectedCost,
       mode,
-      selectedCity,
+      selectedCities,
     ])
 
   const monthGroups = useMemo(() => {
@@ -546,9 +626,16 @@ export default function EventsClient({ events }: EventsClientProps) {
             </p>
             <CitySearch
               cities={cities}
-              selectedCity={selectedCity}
-              onSelect={setSelectedCity}
-              onClear={() => setSelectedCity('')}
+              selectedCities={selectedCities}
+              onAdd={city =>
+                setSelectedCities(prev =>
+                  prev.includes(city) ? prev : [...prev, city]
+                )
+              }
+              onRemove={city =>
+                setSelectedCities(prev => prev.filter(c => c !== city))
+              }
+              onClear={() => setSelectedCities([])}
             />
           </div>
         )}

@@ -6,7 +6,7 @@
      edge UNDER the nav's (which stacks far above), so rendering can never
      show a hairline seam between the two mid-animation. */
   top: max(0px, calc(var(--nav-offset, 0px) - 2px));
-  z-index: 5; /* under the filter popovers (10) and the nav */
+  z-index: 20; /* above the filter popovers (10), under the nav */
   /* Full-bleed: stretch the stuck backdrop to the viewport edges like the
      nav's, while the content stays aligned to the container. */
   margin-left: calc(50% - 50vw);

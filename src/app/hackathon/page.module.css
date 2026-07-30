@@ -1,0 +1,51 @@
+/* Signup form layout — everything else on the page uses global utilities. */
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+/* Reset browser fieldset chrome for the track-checkbox group. */
+.fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Match the native date-picker controls to the dark theme. */
+.date {
+  color-scheme: dark;
+}
+
+/* .text-field is a fixed-height single-line input; let textareas grow. */
+.textarea {
+  height: auto;
+  min-height: 120px;
+  padding: 14px 16px;
+  resize: vertical;
+}
+
+/* Honeypot field: moved off-screen rather than display:none so naive bots
+   still "see" and fill it. */
+.hp {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+}
+
+@media (max-width: 991px) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+}

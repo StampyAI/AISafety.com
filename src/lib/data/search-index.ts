@@ -109,6 +109,12 @@ const STATIC_PAGES: SearchEntry[] = [
     'Volunteer projects you can join.'
   ),
   page(
+    'Hackathon 2026',
+    '/hackathon',
+    '/images/calendar.svg',
+    'The annual AISafety.com hackathon – 17–20 September 2026 at CEEALAR, Blackpool, UK.'
+  ),
+  page(
     'Founder toolkit',
     '/founders',
     '/images/rocket.svg',

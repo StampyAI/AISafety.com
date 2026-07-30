@@ -1,0 +1,350 @@
+'use client'
+
+import { useState } from 'react'
+import styles from './page.module.css'
+
+const TRACKS = [
+  'Product and design',
+  'Development',
+  'Project management',
+  'Promotion',
+]
+
+const EMPTY = {
+  name: '',
+  email: '',
+  otherTrack: '',
+  skills: '',
+  dietary: '',
+  medical: '',
+  roomPreference: '',
+  emergencyContact: '',
+  anythingElse: '',
+  successfulProjects: '',
+  arrival: '',
+  departure: '',
+  // Honeypot – hidden from people, filled in by naive bots.
+  website: '',
+}
+
+export default function ApplicationForm() {
+  const [form, setForm] = useState(EMPTY)
+  const [tracks, setTracks] = useState<string[]>([])
+  const [over18, setOver18] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
+
+  function set(field: keyof typeof EMPTY) {
+    return (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => setForm({ ...form, [field]: e.target.value })
+  }
+
+  function toggleTrack(track: string) {
+    setTracks(t =>
+      t.includes(track) ? t.filter(x => x !== track) : [...t, track]
+    )
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (busy) return
+    const allTracks = form.otherTrack.trim()
+      ? [...tracks, `Other: ${form.otherTrack.trim()}`]
+      : tracks
+    if (allTracks.length === 0) {
+      setError('Please pick at least one project track.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const res = await fetch('/api/hackathon-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, tracks: allTracks, over18 }),
+      })
+      if (res.ok) {
+        setDone(true)
+      } else if (res.status === 429) {
+        setError(
+          'Too many applications from your connection – please try again in an hour.'
+        )
+      } else {
+        setError(
+          'Something went wrong sending your application. Please try again, or email bryceerobertson@gmail.com.'
+        )
+      }
+    } catch {
+      setError('Network error – please check your connection and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="padding-bottom-56px">
+        <h3 className="padding-bottom-16px">Application received!</h3>
+        <p className="color-teal-300">
+          We&apos;ve emailed you a confirmation. Applications close 10 August –
+          we&apos;ll be in touch to confirm your place.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className={`${styles.fields} padding-bottom-56px`}
+      onSubmit={handleSubmit}
+    >
+      <div className={styles.field}>
+        <label className="paragraph-small color-teal-300" htmlFor="name">
+          Full name
+        </label>
+        <input
+          id="name"
+          type="text"
+          className="text-field"
+          value={form.name}
+          onChange={set('name')}
+          required
+        />
+      </div>
+
+      <div className={styles.field}>
+        <label className="paragraph-small color-teal-300" htmlFor="email">
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          className="text-field"
+          value={form.email}
+          onChange={set('email')}
+          required
+        />
+      </div>
+
+      <fieldset className={`${styles.full} ${styles.fieldset}`}>
+        <legend className="paragraph-small color-teal-300 padding-bottom-8px">
+          Which project track(s) are you interested in? See above for details.
+        </legend>
+        <div className={styles.field}>
+          {TRACKS.map(track => (
+            <label key={track} className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="checkbox"
+                checked={tracks.includes(track)}
+                onChange={() => toggleTrack(track)}
+              />
+              <span className="paragraph-small color-teal-300">{track}</span>
+            </label>
+          ))}
+          <label
+            className="paragraph-small color-teal-300 margin-top-16px"
+            htmlFor="otherTrack"
+          >
+            Other
+          </label>
+          <input
+            id="otherTrack"
+            type="text"
+            className="text-field"
+            value={form.otherTrack}
+            onChange={set('otherTrack')}
+          />
+        </div>
+      </fieldset>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label className="paragraph-small color-teal-300" htmlFor="skills">
+          What skills or experience could you bring to this hackathon (link to
+          CV welcome, but not required)? What are your current plans and
+          activities towards saving the world?
+        </label>
+        <textarea
+          id="skills"
+          className={`text-field ${styles.textarea}`}
+          value={form.skills}
+          onChange={set('skills')}
+          required
+        />
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label className="paragraph-small color-teal-300" htmlFor="dietary">
+          Do you have any allergies or dietary needs/preferences? If so, please
+          list the allergen and its severity. All food will be vegan. (optional)
+        </label>
+        <textarea
+          id="dietary"
+          className={`text-field ${styles.textarea}`}
+          value={form.dietary}
+          onChange={set('dietary')}
+        />
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label className="paragraph-small color-teal-300" htmlFor="medical">
+          Do you have any particular medical or mental health needs you would
+          like us to know about? (optional)
+        </label>
+        <textarea
+          id="medical"
+          className={`text-field ${styles.textarea}`}
+          value={form.medical}
+          onChange={set('medical')}
+        />
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label
+          className="paragraph-small color-teal-300"
+          htmlFor="roomPreference"
+        >
+          It&apos;s possible that some people may need to share a room – either
+          all female or all male, max 2 people per room. Do you have a
+          preference for having your own room?
+        </label>
+        <select
+          id="roomPreference"
+          className="text-field"
+          value={form.roomPreference}
+          onChange={set('roomPreference')}
+          required
+        >
+          <option value="" disabled>
+            Choose one
+          </option>
+          <option>Fine with sharing</option>
+          <option>Weak preference for own room</option>
+          <option>Strong preference for own room</option>
+        </select>
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label
+          className="paragraph-small color-teal-300"
+          htmlFor="emergencyContact"
+        >
+          Please provide the name and contact details of your emergency contact.
+          We would use this only in case of a medical or other emergency.
+        </label>
+        <input
+          id="emergencyContact"
+          type="text"
+          className="text-field"
+          value={form.emergencyContact}
+          onChange={set('emergencyContact')}
+          required
+        />
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label
+          className="paragraph-small color-teal-300"
+          htmlFor="anythingElse"
+        >
+          Anything else you&apos;d like us to know? (optional)
+        </label>
+        <textarea
+          id="anythingElse"
+          className={`text-field ${styles.textarea}`}
+          value={form.anythingElse}
+          onChange={set('anythingElse')}
+        />
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label
+          className="paragraph-small color-teal-300"
+          htmlFor="successfulProjects"
+        >
+          What has been 1 or 2 of your most successful projects (in AI safety or
+          otherwise), and what were the outcomes? A brief answer is fine.
+          (optional)
+        </label>
+        <textarea
+          id="successfulProjects"
+          className={`text-field ${styles.textarea}`}
+          value={form.successfulProjects}
+          onChange={set('successfulProjects')}
+        />
+      </div>
+
+      <p className={`paragraph-xs color-teal-300 ${styles.full}`}>
+        We expect most participants will arrive on 16 or 17 September and depart
+        on 20 or 21 September. If you can&apos;t make the whole event, list your
+        arrival and departure dates below. (optional)
+      </p>
+
+      <div className={styles.field}>
+        <label className="paragraph-small color-teal-300" htmlFor="arrival">
+          When would you arrive?
+        </label>
+        <input
+          id="arrival"
+          type="date"
+          className={`text-field ${styles.date}`}
+          value={form.arrival}
+          onChange={set('arrival')}
+        />
+      </div>
+
+      <div className={styles.field}>
+        <label className="paragraph-small color-teal-300" htmlFor="departure">
+          When would you leave?
+        </label>
+        <input
+          id="departure"
+          type="date"
+          className={`text-field ${styles.date}`}
+          value={form.departure}
+          onChange={set('departure')}
+        />
+      </div>
+
+      <div className={styles.hp} aria-hidden="true">
+        <label htmlFor="website">Website</label>
+        <input
+          id="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.website}
+          onChange={set('website')}
+        />
+      </div>
+
+      <label className={`flex items-center cursor-pointer ${styles.full}`}>
+        <input
+          type="checkbox"
+          className="checkbox"
+          checked={over18}
+          onChange={e => setOver18(e.target.checked)}
+          required
+        />
+        <span className="paragraph-small color-teal-300">
+          I will be at least 18 years old by the date of this event
+        </span>
+      </label>
+
+      <div className={styles.full}>
+        <button type="submit" className="button-primary" disabled={busy}>
+          {busy ? 'Applying…' : 'Apply'}
+        </button>
+        {error && (
+          <p className="paragraph-small color-orange margin-top-16px">
+            {error}
+          </p>
+        )}
+      </div>
+    </form>
+  )
+}

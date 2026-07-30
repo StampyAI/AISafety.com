@@ -616,7 +616,7 @@ export default function EventsClient({ events }: EventsClientProps) {
           />
           <FilterDropdown
             trackingPage="Events"
-            title="Event type"
+            title="Type"
             options={[...EVENT_TYPES]}
             selected={selectedTypes}
             counts={typeCounts}

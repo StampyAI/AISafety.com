@@ -111,7 +111,6 @@ export const INTERNAL_TABLES: { tableId: string; tableName: string }[] = [
   { tableId: 'tblzTFjkQ4v7G6saq', tableName: 'Site feedback' },
   { tableId: 'tblKm44KngUDniaDR', tableName: 'Site corrections' },
   { tableId: 'tblHxEuvRUlQ5e3KQ', tableName: 'Contact' },
-  { tableId: 'tblsglkum9Op43mvq', tableName: 'Events & training: metadata' },
   // The legacy combined table, frozen since the Events/Training split. It no
   // longer feeds any page; kept in the base for history until it's retired.
   { tableId: 'tblx0L8qJEaLBxJFS', tableName: 'Events & training' },

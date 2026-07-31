@@ -16,11 +16,12 @@
 /* The form follows the reader down the page. margin-top (not padding)
    aligns it with the h1 while unstuck; max-height + overflow keep the
    whole form reachable on short viewports. */
+/* top clears the sticky global nav (88px tall) plus breathing room. */
 .sticky {
   position: sticky;
-  top: 32px;
+  top: 112px;
   margin-top: 56px;
-  max-height: calc(100vh - 64px);
+  max-height: calc(100vh - 136px);
   overflow-y: auto;
 }
 

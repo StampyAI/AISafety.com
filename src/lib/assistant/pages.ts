@@ -194,6 +194,21 @@ export const PAGES: PageInfo[] = [
     ],
   },
   {
+    path: '/hackathon',
+    title: 'Hackathon 2026',
+    purpose:
+      'The annual AISafety.com hackathon: a four-day, in-person event to improve the site, 17–20 September 2026 at CEEALAR (the EA Hotel) in Blackpool, England. Free to attend, including accommodation and all meals. Applications are open via the form on this page until 14 August 2026, with decisions by 21 August. Looking for product managers, designers, developers, project managers, connectors, and promoters.',
+    audience:
+      'Volunteers who want to spend a long weekend improving AISafety.com in person.',
+    greeting:
+      'Curious about the hackathon? Ask me anything about the event – and if you want in, the application form is right on this page.',
+    chips: [
+      'What happens at the hackathon?',
+      'Who is the hackathon looking for?',
+      'When do applications close?',
+    ],
+  },
+  {
     path: '/about',
     title: 'About',
     purpose: 'About the AISafety.com team and mission.',

@@ -10,9 +10,9 @@ export const metadata = {
 
 export default function HackathonPage() {
   return (
-    <div className="container-narrow">
-      <div className="flex justify-center">
-        <div className="width-9-col-narrow">
+    <div className="container-default">
+      <div className={styles.layout}>
+        <div>
           <h1 className="padding-top-56px padding-bottom-24px">
             AISafety.com Hackathon 2026
           </h1>
@@ -188,7 +188,9 @@ export default function HackathonPage() {
             </a>
             .
           </p>
+        </div>
 
+        <div className="padding-top-56px">
           <h3 className="padding-bottom-16px" id="apply">
             Apply
           </h3>

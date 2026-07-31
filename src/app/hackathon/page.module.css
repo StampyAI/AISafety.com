@@ -1,3 +1,19 @@
+/* Two-column page: event info left, application form right; stacks on
+   mobile. */
+.layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+@media (max-width: 991px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
 /* Signup form layout — everything else on the page uses global utilities. */
 
 .fields {

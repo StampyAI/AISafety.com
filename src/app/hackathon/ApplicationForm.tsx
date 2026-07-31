@@ -87,7 +87,7 @@ export default function ApplicationForm() {
     >
       <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="name">
-          Full name
+          Name
         </label>
         <input
           id="name"

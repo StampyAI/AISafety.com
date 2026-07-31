@@ -90,7 +90,7 @@ function doPost(e) {
 
       // Question/answer pairs in form order; empty optional answers are skipped.
       var answers = [
-        ['Full name', data.name],
+        ['Name', data.name],
         ['Email', data.email],
         [
           'What skills or experience could you bring to this hackathon?',

@@ -7,6 +7,7 @@ const EMPTY = {
   name: '',
   email: '',
   skills: '',
+  links: '',
   dietary: '',
   medical: '',
   roomPreference: '',
@@ -113,8 +114,7 @@ export default function ApplicationForm() {
 
       <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="skills">
-          What skills or experience could you bring to this hackathon (link to
-          CV welcome, but not required)?
+          What skills or experience could you bring to this hackathon?
         </label>
         <textarea
           id="skills"
@@ -122,6 +122,19 @@ export default function ApplicationForm() {
           value={form.skills}
           onChange={set('skills')}
           required
+        />
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
+        <label className="paragraph-small color-teal-300" htmlFor="links">
+          Please share any personal links e.g. LinkedIn, LessWrong, CV, etc.{' '}
+          <Optional />
+        </label>
+        <textarea
+          id="links"
+          className={`text-field ${styles.textarea}`}
+          value={form.links}
+          onChange={set('links')}
         />
       </div>
 

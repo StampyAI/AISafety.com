@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     name: str(b.name, 200),
     email: str(b.email, 320),
     skills: str(b.skills, 5000),
+    links: str(b.links, 2000),
     dietary: str(b.dietary, 2000),
     medical: str(b.medical, 2000),
     roomPreference: str(b.roomPreference, 100),

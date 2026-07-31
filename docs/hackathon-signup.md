@@ -42,7 +42,7 @@ version — this keeps the same `/exec` URL.
 
 Sheet columns, in order: Timestamp, Name, Email, Skills & experience,
 Allergies & dietary, Medical & mental health, Room preference, 18+, Emergency
-contact, Anything else, Arrival, Departure.
+contact, Anything else, Arrival, Departure, Personal links.
 
 The confirmation email echoes the applicant's answers back to them. It is sent
 with both `htmlBody` (what Gmail shows — flows naturally at any window width)
@@ -90,6 +90,7 @@ function doPost(e) {
       data.anythingElse || '',
       data.arrival || '',
       data.departure || '',
+      data.links || '',
     ])
 
     if (data.email) {
@@ -103,6 +104,7 @@ function doPost(e) {
           'What skills or experience could you bring to this hackathon?',
           data.skills,
         ],
+        ['Personal links', data.links],
         [
           'Do you have any allergies or dietary needs/preferences?',
           data.dietary,

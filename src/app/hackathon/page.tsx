@@ -57,9 +57,9 @@ export default function HackathonPage() {
           <p className="color-teal-300 padding-bottom-40px">
             Once a year, the core AISafety.com team gets together with a group
             of amazing volunteers and spends an extended weekend getting a bunch
-            of stuff done to improve the hub for AI safety resources. Outside
-            work sessions, we do some relaxed fun activities like going for
-            walks, board games, and movie nights.
+            of stuff done to improve the site. Outside work sessions, we do some
+            relaxed fun activities like going for walks, board games, and movie
+            nights.
           </p>
           <h3 className="padding-bottom-16px">Who we&apos;re looking for</h3>
           <ul

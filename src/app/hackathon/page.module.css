@@ -16,11 +16,16 @@
   grid-column: 1 / -1;
 }
 
-/* Reset browser fieldset chrome for the track-checkbox group. */
-.fieldset {
-  border: none;
+/* No global list styling exists; give the who-we're-looking-for list its
+   bullets here. */
+.bullets {
   margin: 0;
-  padding: 0;
+  padding-left: 24px;
+  list-style: disc;
+}
+
+.bullets li {
+  margin-bottom: 8px;
 }
 
 /* Match the native date-picker controls to the dark theme. */

@@ -60,17 +60,9 @@ export async function POST(req: NextRequest) {
     return new Response(null, { status: 204 })
   }
 
-  const tracks = Array.isArray(b.tracks)
-    ? b.tracks
-        .map(t => str(t, 120))
-        .filter(Boolean)
-        .slice(0, 10)
-    : []
-
   const application = {
     name: str(b.name, 200),
     email: str(b.email, 320),
-    tracks,
     skills: str(b.skills, 5000),
     dietary: str(b.dietary, 2000),
     medical: str(b.medical, 2000),
@@ -90,11 +82,7 @@ export async function POST(req: NextRequest) {
     'roomPreference',
     'emergencyContact',
   ]
-  if (
-    required.some(f => !application[f]) ||
-    tracks.length === 0 ||
-    !application.over18
-  ) {
+  if (required.some(f => !application[f]) || !application.over18) {
     return new Response('missing required fields', { status: 400 })
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(application.email)) {

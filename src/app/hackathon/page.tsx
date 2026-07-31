@@ -1,4 +1,5 @@
 import ApplicationForm from './ApplicationForm'
+import styles from './page.module.css'
 
 export const metadata = {
   title: 'Hackathon 2026 – AISafety.com',
@@ -24,11 +25,14 @@ export default function HackathonPage() {
             .
           </h2>
 
-          <p className="padding-bottom-8px">
-            <strong>When</strong> – Thursday 17 to Sunday 20 September 2026
+          <p className="padding-bottom-16px">
+            <strong>When</strong>
+            <br />
+            Thursday 17 to Sunday 20 September 2026
           </p>
-          <p className="padding-bottom-8px">
-            <strong>Where</strong> –{' '}
+          <p className="padding-bottom-16px">
+            <strong>Where</strong>
+            <br />
             <a
               href="https://www.ceealar.org"
               target="_blank"
@@ -39,11 +43,15 @@ export default function HackathonPage() {
             </a>{' '}
             (the EA Hotel) in Blackpool, England
           </p>
-          <p className="padding-bottom-8px">
-            <strong>Cost</strong> – Free, including accommodation and all meals
+          <p className="padding-bottom-16px">
+            <strong>Cost</strong>
+            <br />
+            Free, including accommodation and all meals
           </p>
           <p className="padding-bottom-40px">
-            <strong>Applications close</strong> – 10 August 2026
+            <strong>Applications close</strong>
+            <br />
+            10 August 2026
           </p>
 
           <p className="color-teal-300 padding-bottom-40px">
@@ -55,25 +63,25 @@ export default function HackathonPage() {
           </p>
 
           <h3 className="padding-bottom-16px">Who we&apos;re looking for</h3>
-          <p className="color-teal-300 padding-bottom-8px">
-            Product managers and designers
-          </p>
-          <p className="color-teal-300 padding-bottom-8px">Developers</p>
-          <p className="color-teal-300 padding-bottom-8px">Project managers</p>
-          <p className="color-teal-300 padding-bottom-8px">
-            People with experience promoting smaller projects, especially in EA
-          </p>
-          <p className="color-teal-300 padding-bottom-8px">
-            Subject-matter experts who know the AI safety ecosystem really well
-          </p>
-          <p className="color-teal-300 padding-bottom-16px">
-            Connectors – people who know lots of people in AI safety, or have an
-            audience
-          </p>
-          <p className="color-teal-300 padding-bottom-40px">
-            If you have other ideas for increasing AISafety.com&apos;s impact,
-            you&apos;re welcome to make your own track.
-          </p>
+          <ul
+            className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
+          >
+            <li>Product managers and designers</li>
+            <li>Developers</li>
+            <li>Project managers</li>
+            <li>
+              People with experience promoting smaller projects, especially in
+              EA
+            </li>
+            <li>
+              Subject-matter experts who know the AI safety ecosystem really
+              well
+            </li>
+            <li>
+              Connectors – people who know lots of people in AI safety, or have
+              an audience
+            </li>
+          </ul>
 
           <h3 className="padding-bottom-16px">The venue</h3>
           <p className="color-teal-300 padding-bottom-16px">
@@ -123,9 +131,8 @@ export default function HackathonPage() {
             Apply
           </h3>
           <p className="color-teal-300 padding-bottom-16px">
-            Fill in the form and we&apos;ll email you a confirmation right away.
-            Spots are limited (around 15), so we&apos;ll be in touch to confirm
-            your place.
+            Fill in the form below to apply. Application results will be
+            announced by 21 August.
           </p>
           <p className="color-teal-300 padding-bottom-24px">
             Please avoid copy-pasting large amounts of AI written text into your

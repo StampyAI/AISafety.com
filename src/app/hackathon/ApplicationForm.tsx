@@ -3,17 +3,9 @@
 import { useState } from 'react'
 import styles from './page.module.css'
 
-const TRACKS = [
-  'Product and design',
-  'Development',
-  'Project management',
-  'Promotion',
-]
-
 const EMPTY = {
   name: '',
   email: '',
-  otherTrack: '',
   skills: '',
   dietary: '',
   medical: '',
@@ -27,9 +19,12 @@ const EMPTY = {
   website: '',
 }
 
+function Optional() {
+  return <em className="color-teal-400">(optional)</em>
+}
+
 export default function ApplicationForm() {
   const [form, setForm] = useState(EMPTY)
-  const [tracks, setTracks] = useState<string[]>([])
   const [over18, setOver18] = useState(false)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
@@ -43,29 +38,16 @@ export default function ApplicationForm() {
     ) => setForm({ ...form, [field]: e.target.value })
   }
 
-  function toggleTrack(track: string) {
-    setTracks(t =>
-      t.includes(track) ? t.filter(x => x !== track) : [...t, track]
-    )
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (busy) return
-    const allTracks = form.otherTrack.trim()
-      ? [...tracks, `Other: ${form.otherTrack.trim()}`]
-      : tracks
-    if (allTracks.length === 0) {
-      setError('Please pick at least one project track.')
-      return
-    }
     setBusy(true)
     setError('')
     try {
       const res = await fetch('/api/hackathon-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, tracks: allTracks, over18 }),
+        body: JSON.stringify({ ...form, over18 }),
       })
       if (res.ok) {
         setDone(true)
@@ -90,8 +72,8 @@ export default function ApplicationForm() {
       <div className="padding-bottom-56px">
         <h3 className="padding-bottom-16px">Application received!</h3>
         <p className="color-teal-300">
-          We&apos;ve emailed you a confirmation. Applications close 10 August –
-          we&apos;ll be in touch to confirm your place.
+          We&apos;ve emailed you a confirmation. Application results will be
+          announced by 21 August.
         </p>
       </div>
     )
@@ -130,38 +112,6 @@ export default function ApplicationForm() {
         />
       </div>
 
-      <fieldset className={`${styles.full} ${styles.fieldset}`}>
-        <legend className="paragraph-small color-teal-300 padding-bottom-8px">
-          Which project track(s) are you interested in?
-        </legend>
-        <div className={styles.field}>
-          {TRACKS.map(track => (
-            <label key={track} className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="checkbox"
-                checked={tracks.includes(track)}
-                onChange={() => toggleTrack(track)}
-              />
-              <span className="paragraph-small color-teal-300">{track}</span>
-            </label>
-          ))}
-          <label
-            className="paragraph-small color-teal-300 margin-top-16px"
-            htmlFor="otherTrack"
-          >
-            Other
-          </label>
-          <input
-            id="otherTrack"
-            type="text"
-            className="text-field"
-            value={form.otherTrack}
-            onChange={set('otherTrack')}
-          />
-        </div>
-      </fieldset>
-
       <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="skills">
           What skills or experience could you bring to this hackathon (link to
@@ -180,7 +130,8 @@ export default function ApplicationForm() {
       <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="dietary">
           Do you have any allergies or dietary needs/preferences? If so, please
-          list the allergen and its severity. All food will be vegan. (optional)
+          list the allergen and its severity. All food will be vegan.{' '}
+          <Optional />
         </label>
         <textarea
           id="dietary"
@@ -193,7 +144,7 @@ export default function ApplicationForm() {
       <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="medical">
           Do you have any particular medical or mental health needs you would
-          like us to know about? (optional)
+          like us to know about? <Optional />
         </label>
         <textarea
           id="medical"
@@ -251,7 +202,7 @@ export default function ApplicationForm() {
           className="paragraph-small color-teal-300"
           htmlFor="anythingElse"
         >
-          Anything else you&apos;d like us to know? (optional)
+          Anything else you&apos;d like us to know? <Optional />
         </label>
         <textarea
           id="anythingElse"
@@ -267,8 +218,8 @@ export default function ApplicationForm() {
           htmlFor="successfulProjects"
         >
           What has been 1 or 2 of your most successful projects (in AI safety or
-          otherwise), and what were the outcomes? A brief answer is fine.
-          (optional)
+          otherwise), and what were the outcomes? A brief answer is fine.{' '}
+          <Optional />
         </label>
         <textarea
           id="successfulProjects"
@@ -281,7 +232,7 @@ export default function ApplicationForm() {
       <p className={`paragraph-xs color-teal-300 ${styles.full}`}>
         We expect most participants will arrive on 16 or 17 September and depart
         on 20 or 21 September. If you can&apos;t make the whole event, list your
-        arrival and departure dates below. (optional)
+        arrival and departure dates below. <Optional />
       </p>
 
       <div className={styles.field}>

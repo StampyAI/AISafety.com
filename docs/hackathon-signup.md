@@ -40,7 +40,7 @@ app ("Execute as: Me", "Who has access: Anyone"), owned by Bryce's Google
 account. Redeploy after edits via Deploy → Manage deployments → edit → new
 version — this keeps the same `/exec` URL.
 
-Sheet columns, in order: Timestamp, Name, Email, Tracks, Skills & experience,
+Sheet columns, in order: Timestamp, Name, Email, Skills & experience,
 Allergies & dietary, Medical & mental health, Room preference, 18+, Emergency
 contact, Anything else, Successful projects, Arrival, Departure.
 
@@ -80,7 +80,6 @@ function doPost(e) {
       new Date(),
       data.name || '',
       data.email || '',
-      (data.tracks || []).join(', '),
       data.skills || '',
       data.dietary || '',
       data.medical || '',
@@ -105,9 +104,8 @@ function doPost(e) {
         '- Dates: Thursday 17 - Sunday 20 September 2026\n' +
         '- Venue: CEEALAR (the EA Hotel) in Blackpool, England (ceealar.org)\n' +
         '- Accommodation and meals are provided\n\n' +
-        "Applications close 10 August. Spots are limited, so we'll be in " +
-        'touch to confirm your place and share more details before the ' +
-        'event.\n\n' +
+        'Applications close 10 August, and results will be announced by ' +
+        '21 August.\n\n' +
         'If you have any questions, just reply to this email.\n\n' +
         'The AISafety.com team'
       var htmlBody =
@@ -120,9 +118,8 @@ function doPost(e) {
         '&ndash; Venue: CEEALAR (the EA Hotel) in Blackpool, England ' +
         '(<a href="https://www.ceealar.org">ceealar.org</a>)<br>' +
         '&ndash; Accommodation and meals are provided</p>' +
-        "<p>Applications close 10 August. Spots are limited, so we'll be in " +
-        'touch to confirm your place and share more details before the ' +
-        'event.</p>' +
+        '<p>Applications close 10 August, and results will be announced by ' +
+        '21 August.</p>' +
         '<p>If you have any questions, just reply to this email.</p>' +
         '<p>The AISafety.com team</p>'
       MailApp.sendEmail({

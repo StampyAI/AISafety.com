@@ -167,18 +167,7 @@ export default function HackathonPage() {
             >
               CEEALAR
             </a>{' '}
-            (AKA the EA Hotel), a place worth experiencing in its own right –
-            Bryce spent 4 months there transitioning to working full-time on AI
-            safety a few years back and enjoyed it a lot. Most likely each
-            person will have their own room, but if the hotel happens to be very
-            full some people may need to share. If you have a strong preference
-            for having your own room you can note that in the form.
-          </p>
-          <p className="color-teal-300 padding-bottom-16px">
-            The town of Blackpool is pretty average but there&apos;s a huge
-            beach and promenade 2 minutes away from the hotel which is lovely to
-            walk along. The hotel itself is also a great vibe, since everyone
-            there is working on some kind of impactful work – mostly AI safety.
+            (AKA the EA Hotel), a place worth experiencing in its own right.
           </p>
           <p className="color-teal-300 padding-bottom-40px">
             If you have any questions please message Bryce on the{' '}

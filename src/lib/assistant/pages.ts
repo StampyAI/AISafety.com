@@ -200,7 +200,7 @@ export const PAGES: PageInfo[] = [
     purpose: `The annual AISafety.com hackathon. A four-day, in-person hackathon to improve the AI safety resource hub.
   When: Thursday 17th September – Sunday 20th September 2026.
   Where: CEEALAR (the EA Hotel) in Blackpool, England.
-  Cost: Free, including accommodation and all meals.
+  Cost: Free, including accommodation and all meals. Travel in general isn't covered, but for very strong applicants it may be considered.
   Applications close: 14 August 2026 (decisions by 21 August), via the form on this page (asks for name, email, skills/experience, personal links, anything else).
   Once a year, the core AISafety.com team gets together with a group of amazing volunteers and spends an extended weekend getting a bunch of stuff done to improve the site. We also do some relaxed fun activities between work sessions.
   Who we're looking for: Product managers and designers – to execute the vision for new projects, build out design mockups, conduct user research, offer consulting, and brainstorm product solutions. Project managers – to lead and organize project efforts and run sprints. Developers – to work with product managers, designers, and AI tools to bring some amazing new things to life. Connectors, people with an audience, and subject-matter experts – to help us with targeted community outreach, general outreach, social media, and to give takes to product managers and designers. Promotion people – to help us spread awareness of the site and each resource page in various ways, maybe including SEO. Anything else – just tell us how you can help!

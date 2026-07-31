@@ -71,7 +71,7 @@ export default function ApplicationForm() {
   if (done) {
     return (
       <div className="padding-bottom-56px">
-        <h3 className="padding-bottom-16px">Application received!</h3>
+        <h3 className="padding-bottom-16px">Thanks!</h3>
         <p className="color-teal-300">
           We&apos;ve emailed you a confirmation. Application results will be
           announced by 21 August.

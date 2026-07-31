@@ -10,7 +10,7 @@
 /* The global reset flattens <strong> to weight 400 against 300 body text;
    make bold actually bold on this page. */
 .layout strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* The form follows the reader down the page. margin-top (not padding)

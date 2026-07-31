@@ -150,11 +150,6 @@ export default function HackathonPage() {
               aside time each day for beach walks, games, etc.
             </li>
             <li>
-              <strong>Food and room</strong> covered. Most likely each person
-              will have their own room, but if the hotel happens to be very full
-              some people may need to share.
-            </li>
-            <li>
               <strong>Help save the world!</strong>
             </li>
           </ul>

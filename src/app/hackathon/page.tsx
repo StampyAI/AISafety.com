@@ -143,10 +143,7 @@ export default function HackathonPage() {
                 Build your resume, gain career capital, and make connections
               </strong>{' '}
               (everyone at the EA hotel, beyond just our hackathon, is working
-              on something high-impact, mostly AI safety)
-            </li>
-            <li>
-              <strong>Help save the world</strong>
+              on something high-impact – mostly AI safety)
             </li>
             <li>
               <strong>Have fun</strong> beyond just the work! We set aside two
@@ -156,6 +153,9 @@ export default function HackathonPage() {
               <strong>Food and room</strong> covered. Most likely each person
               will have their own room, but if the hotel happens to be very full
               some people may need to share.
+            </li>
+            <li>
+              <strong>Help save the world</strong>
             </li>
           </ul>
 

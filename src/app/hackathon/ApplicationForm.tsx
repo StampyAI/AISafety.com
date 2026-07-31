@@ -128,6 +128,23 @@ export default function ApplicationForm() {
       </div>
 
       <div className={`${styles.field} ${styles.full}`}>
+        <label
+          className="paragraph-small color-teal-300"
+          htmlFor="successfulProjects"
+        >
+          What has been 1 or 2 of your most successful projects (in AI safety or
+          otherwise), and what were the outcomes? A brief answer is fine.{' '}
+          <Optional />
+        </label>
+        <textarea
+          id="successfulProjects"
+          className={`text-field ${styles.textarea}`}
+          value={form.successfulProjects}
+          onChange={set('successfulProjects')}
+        />
+      </div>
+
+      <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="dietary">
           Do you have any allergies or dietary needs/preferences? If so, please
           list the allergen and its severity. All food will be vegan.{' '}
@@ -179,6 +196,38 @@ export default function ApplicationForm() {
         </select>
       </div>
 
+      <p className={`paragraph-xs color-teal-300 ${styles.full}`}>
+        We expect most participants will arrive on 16 or 17 September and depart
+        on 20 or 21 September. If you can&apos;t make the whole event, list your
+        arrival and departure dates below. <Optional />
+      </p>
+
+      <div className={styles.field}>
+        <label className="paragraph-small color-teal-300" htmlFor="arrival">
+          When would you arrive?
+        </label>
+        <input
+          id="arrival"
+          type="date"
+          className={`text-field ${styles.date}`}
+          value={form.arrival}
+          onChange={set('arrival')}
+        />
+      </div>
+
+      <div className={styles.field}>
+        <label className="paragraph-small color-teal-300" htmlFor="departure">
+          When would you leave?
+        </label>
+        <input
+          id="departure"
+          type="date"
+          className={`text-field ${styles.date}`}
+          value={form.departure}
+          onChange={set('departure')}
+        />
+      </div>
+
       <div className={`${styles.field} ${styles.full}`}>
         <label
           className="paragraph-small color-teal-300"
@@ -209,55 +258,6 @@ export default function ApplicationForm() {
           className={`text-field ${styles.textarea}`}
           value={form.anythingElse}
           onChange={set('anythingElse')}
-        />
-      </div>
-
-      <div className={`${styles.field} ${styles.full}`}>
-        <label
-          className="paragraph-small color-teal-300"
-          htmlFor="successfulProjects"
-        >
-          What has been 1 or 2 of your most successful projects (in AI safety or
-          otherwise), and what were the outcomes? A brief answer is fine.{' '}
-          <Optional />
-        </label>
-        <textarea
-          id="successfulProjects"
-          className={`text-field ${styles.textarea}`}
-          value={form.successfulProjects}
-          onChange={set('successfulProjects')}
-        />
-      </div>
-
-      <p className={`paragraph-xs color-teal-300 ${styles.full}`}>
-        We expect most participants will arrive on 16 or 17 September and depart
-        on 20 or 21 September. If you can&apos;t make the whole event, list your
-        arrival and departure dates below. <Optional />
-      </p>
-
-      <div className={styles.field}>
-        <label className="paragraph-small color-teal-300" htmlFor="arrival">
-          When would you arrive?
-        </label>
-        <input
-          id="arrival"
-          type="date"
-          className={`text-field ${styles.date}`}
-          value={form.arrival}
-          onChange={set('arrival')}
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label className="paragraph-small color-teal-300" htmlFor="departure">
-          When would you leave?
-        </label>
-        <input
-          id="departure"
-          type="date"
-          className={`text-field ${styles.date}`}
-          value={form.departure}
-          onChange={set('departure')}
         />
       </div>
 

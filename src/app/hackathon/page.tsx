@@ -51,7 +51,7 @@ export default function HackathonPage() {
           <p className="padding-bottom-40px">
             <strong>Applications close</strong>
             <br />
-            14 August 2026
+            14 August 2026 (decisions by 21 August)
           </p>
 
           <p className="color-teal-300 padding-bottom-40px">

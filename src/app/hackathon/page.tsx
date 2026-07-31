@@ -77,14 +77,14 @@ export default function HackathonPage() {
             <li>
               <strong>Project managers</strong>
               <ul>
-                <li>To lead and organize project efforts and lead sprints</li>
+                <li>To lead and organize project efforts and run sprints</li>
               </ul>
             </li>
             <li>
               <strong>Developers</strong>
               <ul>
                 <li>
-                  To work with product managers, designers, and Claude Code to
+                  To work with product managers, designers, and AI tools to
                   bring some amazing new things to life
                 </li>
               </ul>

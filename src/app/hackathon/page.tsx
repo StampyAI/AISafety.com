@@ -4,7 +4,7 @@ import styles from './page.module.css'
 export const metadata = {
   title: 'Hackathon 2026 – AISafety.com',
   description:
-    'Join the AISafety.com team at CEEALAR in Blackpool, England, 17–20 September 2026, for a four-day hackathon to improve the site. Free to attend – applications close 10 August.',
+    'Join the AISafety.com team at CEEALAR in Blackpool, England, 17–20 September 2026, for a four-day hackathon to improve the site. Free to attend – applications close 14 August.',
   alternates: { canonical: '/hackathon' },
 }
 
@@ -51,7 +51,7 @@ export default function HackathonPage() {
           <p className="padding-bottom-40px">
             <strong>Applications close</strong>
             <br />
-            10 August 2026
+            14 August 2026
           </p>
 
           <p className="color-teal-300 padding-bottom-40px">

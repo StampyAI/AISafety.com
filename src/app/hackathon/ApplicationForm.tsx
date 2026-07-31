@@ -78,7 +78,7 @@ export default function ApplicationForm() {
       className={`${styles.fields} padding-bottom-56px`}
       onSubmit={handleSubmit}
     >
-      <div className={styles.field}>
+      <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="name">
           Full name
         </label>
@@ -92,7 +92,7 @@ export default function ApplicationForm() {
         />
       </div>
 
-      <div className={styles.field}>
+      <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="email">
           Email
         </label>

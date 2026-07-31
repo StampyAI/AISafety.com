@@ -190,19 +190,7 @@ export default function HackathonPage() {
           </p>
         </div>
 
-        <div className="padding-top-56px">
-          <h3 className="padding-bottom-16px" id="apply">
-            Apply
-          </h3>
-          <p className="color-teal-300 padding-bottom-16px">
-            Fill in the form below to apply. Application results will be
-            announced by 21 August.
-          </p>
-          <p className="color-teal-300 padding-bottom-24px">
-            Please avoid copy-pasting large amounts of AI written text into your
-            answers, it&apos;s no fun to read...
-          </p>
-
+        <div className={styles.sticky}>
           <ApplicationForm />
         </div>
       </div>

@@ -3,14 +3,31 @@
 .layout {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
-  gap: 64px;
+  gap: 96px;
   align-items: start;
+}
+
+/* The form follows the reader down the page. margin-top (not padding)
+   aligns it with the h1 while unstuck; max-height + overflow keep the
+   whole form reachable on short viewports. */
+.sticky {
+  position: sticky;
+  top: 32px;
+  margin-top: 56px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
 }
 
 @media (max-width: 991px) {
   .layout {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+
+  .sticky {
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 }
 

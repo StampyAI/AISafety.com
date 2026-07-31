@@ -44,7 +44,7 @@
 .fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px 24px;
+  gap: 16px 24px;
 }
 
 .field {
@@ -78,7 +78,7 @@
 /* .text-field is a fixed-height single-line input; let textareas grow. */
 .textarea {
   height: auto;
-  min-height: 120px;
+  min-height: 80px;
   padding: 14px 16px;
   resize: vertical;
 }

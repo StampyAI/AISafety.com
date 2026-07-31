@@ -40,11 +40,6 @@ export default function Footer() {
               className={`paragraph-small flex flex-col gap-8px opacity-80 ${styles.links}`}
             >
               <FooterLink
-                href="/hackathon"
-                section="Help us out"
-                label="Join the hackathon"
-              />
-              <FooterLink
                 href="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
                 section="Help us out"
                 label="Suggest a correction"
@@ -58,6 +53,11 @@ export default function Footer() {
                 href="https://www.every.org/alignment-ecosystem-development#/donate/card"
                 section="Help us out"
                 label="Donate"
+              />
+              <FooterLink
+                href="/hackathon"
+                section="Help us out"
+                label="Join the hackathon"
               />
             </div>
           </div>

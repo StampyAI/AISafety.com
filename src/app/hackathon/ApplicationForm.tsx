@@ -132,7 +132,7 @@ export default function ApplicationForm() {
 
       <fieldset className={`${styles.full} ${styles.fieldset}`}>
         <legend className="paragraph-small color-teal-300 padding-bottom-8px">
-          Which project track(s) are you interested in? See above for details.
+          Which project track(s) are you interested in?
         </legend>
         <div className={styles.field}>
           {TRACKS.map(track => (

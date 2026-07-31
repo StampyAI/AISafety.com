@@ -28,6 +28,12 @@
   margin-bottom: 8px;
 }
 
+.bullets ul {
+  margin: 8px 0 0;
+  padding-left: 24px;
+  list-style: circle;
+}
+
 /* Match the native date-picker controls to the dark theme. */
 .date {
   color-scheme: dark;

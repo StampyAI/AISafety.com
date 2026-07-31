@@ -61,25 +61,98 @@ export default function HackathonPage() {
             work sessions, we do some relaxed fun activities like going for
             walks, board games, and movie nights.
           </p>
+          <p className="color-teal-300 padding-bottom-40px">
+            On the first evening of the hackathon, we will divide team members
+            into 3–4 small teams by{' '}
+            <a
+              href="https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="color-light-teal"
+            >
+              project
+            </a>
+            . Members will get to decide which projects they work on and what
+            they bring to each project. We&apos;re also open to new project
+            suggestions.
+          </p>
+
+          <h3 className="padding-bottom-16px">Why it&apos;s worth it!</h3>
+          <ul
+            className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
+          >
+            <li>
+              Build your resume, career capital, and make connections (everyone
+              at the EA hotel, beyond just our hackathon, is working on
+              something high-impact, mostly AI safety)
+            </li>
+            <li>Help save the world</li>
+            <li>
+              Have fun beyond just the work! We set aside two sessions a day for
+              beach walks, games, music, and more.
+            </li>
+            <li>
+              Food and room covered. Most likely each person will have their own
+              room, but if the hotel happens to be very full some people may
+              need to share.
+            </li>
+          </ul>
 
           <h3 className="padding-bottom-16px">Who we&apos;re looking for</h3>
           <ul
             className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
           >
-            <li>Product managers and designers</li>
-            <li>Developers</li>
-            <li>Project managers</li>
             <li>
-              People with experience promoting smaller projects, especially in
-              EA
+              Product managers and designers
+              <ul>
+                <li>
+                  To execute the vision for some new projects, build out design
+                  mockups, conduct user research, offer consulting, and/or
+                  brainstorm product solutions
+                </li>
+              </ul>
             </li>
             <li>
-              Subject-matter experts who know the AI safety ecosystem really
-              well
+              Project managers
+              <ul>
+                <li>
+                  To lead and organize project efforts and/or lead sprints
+                </li>
+              </ul>
             </li>
             <li>
-              Connectors – people who know lots of people in AI safety, or have
-              an audience
+              Developers
+              <ul>
+                <li>
+                  To work with product managers, designers, and Claude Code to
+                  bring some amazing new things to life
+                </li>
+              </ul>
+            </li>
+            <li>
+              Connectors, influential people, and subject-matter experts
+              <ul>
+                <li>
+                  To help us with targeted community outreach, general community
+                  outreach, social media, and/or to give takes to product
+                  managers and designers
+                </li>
+              </ul>
+            </li>
+            <li>
+              Promotion people
+              <ul>
+                <li>
+                  To help us with targeted community outreach, general community
+                  outreach, social media, and/or SEO
+                </li>
+              </ul>
+            </li>
+            <li>
+              Anything else
+              <ul>
+                <li>Just tell us how you can help!</li>
+              </ul>
             </li>
           </ul>
 

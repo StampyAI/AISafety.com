@@ -28,7 +28,7 @@ export default function HackathonPage() {
           <p className="padding-bottom-16px">
             <strong>When</strong>
             <br />
-            Thursday 17 to Sunday 20 September 2026
+            Thursday 17th September – Sunday 20th September 2026
           </p>
           <p className="padding-bottom-16px">
             <strong>Where</strong>

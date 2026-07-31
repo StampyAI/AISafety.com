@@ -146,8 +146,8 @@ export default function HackathonPage() {
               on something high-impact – mostly AI safety)
             </li>
             <li>
-              <strong>Have fun</strong> beyond just the work! We set aside two
-              sessions a day for beach walks, games, music, and more.
+              <strong>Have fun</strong> beyond just the work. We&apos;ll set
+              aside time each day for beach walks, games, etc.
             </li>
             <li>
               <strong>Food and room</strong> covered. Most likely each person

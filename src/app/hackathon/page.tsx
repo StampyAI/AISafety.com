@@ -105,8 +105,8 @@ export default function HackathonPage() {
               <strong>Promotion people</strong>
               <ul>
                 <li>
-                  To help us spread awareness of the site and its various
-                  resource pages in various ways, maybe including SEO
+                  To help us spread awareness of the site and each resource page
+                  in various ways, maybe including SEO
                 </li>
               </ul>
             </li>

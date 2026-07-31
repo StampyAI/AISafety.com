@@ -8,13 +8,7 @@ const EMPTY = {
   email: '',
   skills: '',
   links: '',
-  dietary: '',
-  medical: '',
-  roomPreference: '',
-  emergencyContact: '',
   anythingElse: '',
-  arrival: '',
-  departure: '',
   // Honeypot – hidden from people, filled in by naive bots.
   website: '',
 }
@@ -135,108 +129,6 @@ export default function ApplicationForm() {
           className={`text-field ${styles.textarea}`}
           value={form.links}
           onChange={set('links')}
-        />
-      </div>
-
-      <div className={`${styles.field} ${styles.full}`}>
-        <label className="paragraph-small color-teal-300" htmlFor="dietary">
-          Do you have any allergies or dietary needs/preferences? If so, please
-          list the allergen and its severity. All food will be vegan.{' '}
-          <Optional />
-        </label>
-        <textarea
-          id="dietary"
-          className={`text-field ${styles.textarea}`}
-          value={form.dietary}
-          onChange={set('dietary')}
-        />
-      </div>
-
-      <div className={`${styles.field} ${styles.full}`}>
-        <label className="paragraph-small color-teal-300" htmlFor="medical">
-          Do you have any particular medical or mental health needs you would
-          like us to know about? <Optional />
-        </label>
-        <textarea
-          id="medical"
-          className={`text-field ${styles.textarea}`}
-          value={form.medical}
-          onChange={set('medical')}
-        />
-      </div>
-
-      <div className={`${styles.field} ${styles.full}`}>
-        <label
-          className="paragraph-small color-teal-300"
-          htmlFor="roomPreference"
-        >
-          It&apos;s possible that some people may need to share a room – either
-          all female or all male, max 2 people per room. Do you have a
-          preference for having your own room?
-        </label>
-        <select
-          id="roomPreference"
-          className="text-field"
-          value={form.roomPreference}
-          onChange={set('roomPreference')}
-          required
-        >
-          <option value="" disabled>
-            Choose one
-          </option>
-          <option>Fine with sharing</option>
-          <option>Weak preference for own room</option>
-          <option>Strong preference for own room</option>
-        </select>
-      </div>
-
-      <p className={`paragraph-xs color-teal-300 ${styles.full}`}>
-        We expect most participants will arrive on 16 or 17 September and depart
-        on 20 or 21 September. If you can&apos;t make the whole event, list your
-        arrival and departure dates below. <Optional />
-      </p>
-
-      <div className={styles.field}>
-        <label className="paragraph-small color-teal-300" htmlFor="arrival">
-          When would you arrive?
-        </label>
-        <input
-          id="arrival"
-          type="date"
-          className={`text-field ${styles.date}`}
-          value={form.arrival}
-          onChange={set('arrival')}
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label className="paragraph-small color-teal-300" htmlFor="departure">
-          When would you leave?
-        </label>
-        <input
-          id="departure"
-          type="date"
-          className={`text-field ${styles.date}`}
-          value={form.departure}
-          onChange={set('departure')}
-        />
-      </div>
-
-      <div className={`${styles.field} ${styles.full}`}>
-        <label
-          className="paragraph-small color-teal-300"
-          htmlFor="emergencyContact"
-        >
-          Please provide the name and contact details of your emergency contact.
-          We would use this only in case of a medical or other emergency.
-        </label>
-        <input
-          id="emergencyContact"
-          type="text"
-          className="text-field"
-          value={form.emergencyContact}
-          onChange={set('emergencyContact')}
-          required
         />
       </div>
 

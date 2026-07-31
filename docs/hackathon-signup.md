@@ -40,9 +40,8 @@ app ("Execute as: Me", "Who has access: Anyone"), owned by Bryce's Google
 account. Redeploy after edits via Deploy → Manage deployments → edit → new
 version — this keeps the same `/exec` URL.
 
-Sheet columns, in order: Timestamp, Name, Email, Skills & experience,
-Allergies & dietary, Medical & mental health, Room preference, 18+, Emergency
-contact, Anything else, Arrival, Departure, Personal links.
+Sheet columns, in order: Timestamp, Name, Email, Skills & experience, 18+,
+Anything else, Personal links.
 
 The confirmation email echoes the applicant's answers back to them. It is sent
 with both `htmlBody` (what Gmail shows — flows naturally at any window width)
@@ -82,14 +81,8 @@ function doPost(e) {
       data.name || '',
       data.email || '',
       data.skills || '',
-      data.dietary || '',
-      data.medical || '',
-      data.roomPreference || '',
       data.over18 ? 'Yes' : 'No',
-      data.emergencyContact || '',
       data.anythingElse || '',
-      data.arrival || '',
-      data.departure || '',
       data.links || '',
     ])
 
@@ -105,18 +98,6 @@ function doPost(e) {
           data.skills,
         ],
         ['Personal links', data.links],
-        [
-          'Do you have any allergies or dietary needs/preferences?',
-          data.dietary,
-        ],
-        [
-          'Do you have any particular medical or mental health needs you would like us to know about?',
-          data.medical,
-        ],
-        ['Room preference', data.roomPreference],
-        ['When would you arrive?', data.arrival],
-        ['When would you leave?', data.departure],
-        ['Emergency contact', data.emergencyContact],
         ["Anything else you'd like us to know?", data.anythingElse],
         [
           'At least 18 years old by the date of the event',

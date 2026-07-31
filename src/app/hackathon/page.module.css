@@ -34,11 +34,6 @@
   list-style: circle;
 }
 
-/* Match the native date-picker controls to the dark theme. */
-.date {
-  color-scheme: dark;
-}
-
 /* .text-field is a fixed-height single-line input; let textareas grow. */
 .textarea {
   height: auto;

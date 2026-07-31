@@ -65,23 +65,11 @@ export async function POST(req: NextRequest) {
     email: str(b.email, 320),
     skills: str(b.skills, 5000),
     links: str(b.links, 2000),
-    dietary: str(b.dietary, 2000),
-    medical: str(b.medical, 2000),
-    roomPreference: str(b.roomPreference, 100),
-    emergencyContact: str(b.emergencyContact, 500),
     anythingElse: str(b.anythingElse, 5000),
-    arrival: str(b.arrival, 20),
-    departure: str(b.departure, 20),
     over18: b.over18 === true,
   }
 
-  const required: (keyof typeof application)[] = [
-    'name',
-    'email',
-    'skills',
-    'roomPreference',
-    'emergencyContact',
-  ]
+  const required: (keyof typeof application)[] = ['name', 'email', 'skills']
   if (required.some(f => !application[f]) || !application.over18) {
     return new Response('missing required fields', { status: 400 })
   }

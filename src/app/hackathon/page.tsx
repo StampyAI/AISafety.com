@@ -119,8 +119,8 @@ export default function HackathonPage() {
           </ul>
 
           <p className="color-teal-300 padding-bottom-40px">
-            On the first evening of the hackathon, we will divide team members
-            into 3–4 small teams by{' '}
+            On the first day of the hackathon we will divide everyone into small
+            teams by{' '}
             <a
               href="https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21"
               target="_blank"
@@ -129,8 +129,8 @@ export default function HackathonPage() {
             >
               project
             </a>
-            . Members will get to decide which projects they work on and what
-            they bring to each project. We&apos;re also open to new project
+            . Participants will get to decide which projects they work on and in
+            what way they contribute. We&apos;re also open to new project
             suggestions.
           </p>
 

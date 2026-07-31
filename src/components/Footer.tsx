@@ -54,6 +54,11 @@ export default function Footer() {
                 section="Help us out"
                 label="Donate"
               />
+              <FooterLink
+                href="/hackathon"
+                section="Help us out"
+                label="Join the hackathon"
+              />
             </div>
           </div>
 

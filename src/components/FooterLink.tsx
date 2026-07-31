@@ -16,11 +16,14 @@ export default function FooterLink({
   /** The link text, also what the click is recorded as. */
   label: string
 }) {
+  // Internal links (e.g. /hackathon) navigate in place; external ones open a
+  // new tab as before.
+  const external = href.startsWith('http')
   return (
     <Link
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
       onClick={() => trackFooterClick(section, label, href)}
     >
       {label}

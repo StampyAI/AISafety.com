@@ -91,13 +91,13 @@ export default function HackathonPage() {
             </li>
             <li>
               <strong>
-                Connectors, influential people, and subject-matter experts
+                Connectors, people with an audience, and subject-matter experts
               </strong>
               <ul>
                 <li>
-                  To help us with targeted community outreach, general community
-                  outreach, social media, and to give takes to product managers
-                  and designers
+                  To help us with targeted community outreach, general outreach,
+                  social media, and to give takes to product managers and
+                  designers
                 </li>
               </ul>
             </li>

@@ -81,6 +81,7 @@
   min-height: 80px;
   padding: 14px 16px;
   resize: vertical;
+  overflow-y: hidden;
 }
 
 /* Honeypot field: moved off-screen rather than display:none so naive bots

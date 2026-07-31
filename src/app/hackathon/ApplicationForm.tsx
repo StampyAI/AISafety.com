@@ -28,7 +28,15 @@ export default function ApplicationForm() {
       e: React.ChangeEvent<
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
       >
-    ) => setForm({ ...form, [field]: e.target.value })
+    ) => {
+      const el = e.target
+      // Textareas grow with their content instead of scrolling internally.
+      if (el instanceof HTMLTextAreaElement) {
+        el.style.height = 'auto'
+        el.style.height = `${el.scrollHeight + 2}px`
+      }
+      setForm({ ...form, [field]: el.value })
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {

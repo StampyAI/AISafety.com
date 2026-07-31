@@ -155,7 +155,7 @@ export default function HackathonPage() {
           </ul>
 
           <p className="color-teal-300 padding-bottom-40px">
-            If you have any questions please message Bryce on the{' '}
+            If you have any questions, please message Bryce on the{' '}
             <a
               href="https://discord.gg/WQG8FAGqun"
               target="_blank"
@@ -164,7 +164,7 @@ export default function HackathonPage() {
             >
               AISafety.com Discord server
             </a>{' '}
-            at @bryceerobertson or email{' '}
+            at @bryceerobertson, or email{' '}
             <a
               href="mailto:bryceerobertson@gmail.com"
               className="color-light-teal"

@@ -155,7 +155,7 @@ export default function HackathonPage() {
               some people may need to share.
             </li>
             <li>
-              <strong>Help save the world</strong>
+              <strong>Help save the world!</strong>
             </li>
           </ul>
 

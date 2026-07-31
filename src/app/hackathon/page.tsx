@@ -68,7 +68,7 @@ export default function HackathonPage() {
               <strong>Product managers and designers</strong>
               <ul>
                 <li>
-                  To execute the vision for some new projects, build out design
+                  To execute the vision for new projects, build out design
                   mockups, conduct user research, offer consulting, and/or
                   brainstorm product solutions
                 </li>

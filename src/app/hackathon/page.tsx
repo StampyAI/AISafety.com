@@ -134,13 +134,13 @@ export default function HackathonPage() {
             suggestions.
           </p>
 
-          <h3 className="padding-bottom-16px">Why it&apos;s worth it!</h3>
+          <h3 className="padding-bottom-16px">Why it&apos;s worth it</h3>
           <ul
             className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
           >
             <li>
               <strong>
-                Build your resume, career capital, and make connections
+                Build your resume, gain career capital, and make connections
               </strong>{' '}
               (everyone at the EA hotel, beyond just our hackathon, is working
               on something high-impact, mostly AI safety)

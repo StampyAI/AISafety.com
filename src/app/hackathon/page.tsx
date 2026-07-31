@@ -66,7 +66,7 @@ export default function HackathonPage() {
             className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
           >
             <li>
-              Product managers and designers
+              <strong>Product managers and designers</strong>
               <ul>
                 <li>
                   To execute the vision for some new projects, build out design
@@ -76,7 +76,7 @@ export default function HackathonPage() {
               </ul>
             </li>
             <li>
-              Project managers
+              <strong>Project managers</strong>
               <ul>
                 <li>
                   To lead and organize project efforts and/or lead sprints
@@ -84,7 +84,7 @@ export default function HackathonPage() {
               </ul>
             </li>
             <li>
-              Developers
+              <strong>Developers</strong>
               <ul>
                 <li>
                   To work with product managers, designers, and Claude Code to
@@ -93,7 +93,9 @@ export default function HackathonPage() {
               </ul>
             </li>
             <li>
-              Connectors, influential people, and subject-matter experts
+              <strong>
+                Connectors, influential people, and subject-matter experts
+              </strong>
               <ul>
                 <li>
                   To help us with targeted community outreach, general community
@@ -103,7 +105,7 @@ export default function HackathonPage() {
               </ul>
             </li>
             <li>
-              Promotion people
+              <strong>Promotion people</strong>
               <ul>
                 <li>
                   To help us with targeted community outreach, general community
@@ -112,7 +114,7 @@ export default function HackathonPage() {
               </ul>
             </li>
             <li>
-              Anything else
+              <strong>Anything else</strong>
               <ul>
                 <li>Just tell us how you can help!</li>
               </ul>
@@ -140,19 +142,23 @@ export default function HackathonPage() {
             className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
           >
             <li>
-              Build your resume, career capital, and make connections (everyone
-              at the EA hotel, beyond just our hackathon, is working on
-              something high-impact, mostly AI safety)
-            </li>
-            <li>Help save the world</li>
-            <li>
-              Have fun beyond just the work! We set aside two sessions a day for
-              beach walks, games, music, and more.
+              <strong>
+                Build your resume, career capital, and make connections
+              </strong>{' '}
+              (everyone at the EA hotel, beyond just our hackathon, is working
+              on something high-impact, mostly AI safety)
             </li>
             <li>
-              Food and room covered. Most likely each person will have their own
-              room, but if the hotel happens to be very full some people may
-              need to share.
+              <strong>Help save the world</strong>
+            </li>
+            <li>
+              <strong>Have fun</strong> beyond just the work! We set aside two
+              sessions a day for beach walks, games, music, and more.
+            </li>
+            <li>
+              <strong>Food and room</strong> covered. Most likely each person
+              will have their own room, but if the hotel happens to be very full
+              some people may need to share.
             </li>
           </ul>
 

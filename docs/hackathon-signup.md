@@ -101,7 +101,7 @@ function doPost(e) {
         ['Full name', data.name],
         ['Email', data.email],
         [
-          'What skills or experience could you bring to this hackathon? What are your current plans and activities towards saving the world?',
+          'What skills or experience could you bring to this hackathon?',
           data.skills,
         ],
         [

@@ -115,8 +115,7 @@ export default function ApplicationForm() {
       <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="skills">
           What skills or experience could you bring to this hackathon (link to
-          CV welcome, but not required)? What are your current plans and
-          activities towards saving the world?
+          CV welcome, but not required)?
         </label>
         <textarea
           id="skills"

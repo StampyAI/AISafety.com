@@ -69,7 +69,7 @@ export default function HackathonPage() {
               <ul>
                 <li>
                   To execute the vision for new projects, build out design
-                  mockups, conduct user research, offer consulting, and/or
+                  mockups, conduct user research, offer consulting, and
                   brainstorm product solutions
                 </li>
               </ul>
@@ -77,9 +77,7 @@ export default function HackathonPage() {
             <li>
               <strong>Project managers</strong>
               <ul>
-                <li>
-                  To lead and organize project efforts and/or lead sprints
-                </li>
+                <li>To lead and organize project efforts and lead sprints</li>
               </ul>
             </li>
             <li>
@@ -98,8 +96,8 @@ export default function HackathonPage() {
               <ul>
                 <li>
                   To help us with targeted community outreach, general community
-                  outreach, social media, and/or to give takes to product
-                  managers and designers
+                  outreach, social media, and to give takes to product managers
+                  and designers
                 </li>
               </ul>
             </li>
@@ -108,7 +106,7 @@ export default function HackathonPage() {
               <ul>
                 <li>
                   To help us with targeted community outreach, general community
-                  outreach, social media, and/or SEO
+                  outreach, social media, and SEO
                 </li>
               </ul>
             </li>

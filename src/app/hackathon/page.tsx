@@ -1,11 +1,26 @@
 import ApplicationForm from './ApplicationForm'
 import styles from './page.module.css'
 
+const OG_DESCRIPTION =
+  '17–20 September 2026 at CEEALAR in Blackpool, England. Free to attend. Applications close 14 August.'
+
 export const metadata = {
   title: 'Hackathon 2026 – AISafety.com',
   description:
     'Join the AISafety.com team at CEEALAR in Blackpool, England, 17–20 September 2026, for a four-day hackathon to improve the site. Free to attend – applications close 14 August.',
   alternates: { canonical: '/hackathon' },
+  openGraph: {
+    title: 'AISafety.com Hackathon 2026',
+    description: OG_DESCRIPTION,
+    images: [{ url: '/images/link-preview.png' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AISafety.com Hackathon 2026',
+    description: OG_DESCRIPTION,
+    images: ['/images/link-preview.png'],
+  },
 }
 
 export default function HackathonPage() {

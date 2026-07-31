@@ -44,9 +44,10 @@ Sheet columns, in order: Timestamp, Name, Email, Skills & experience,
 Allergies & dietary, Medical & mental health, Room preference, 18+, Emergency
 contact, Anything else, Successful projects, Arrival, Departure.
 
-The confirmation email is sent with both `htmlBody` (what Gmail shows — flows
-naturally at any window width) and a plain-text `body` fallback (hard-wrapped
-at ~76 chars by the mail pipeline, which is why htmlBody exists).
+The confirmation email echoes the applicant's answers back to them. It is sent
+with both `htmlBody` (what Gmail shows — flows naturally at any window width)
+and a plain-text `body` fallback (hard-wrapped at ~76 chars by the mail
+pipeline, which is why htmlBody exists).
 
 Current code (secret redacted; the real one is in the deployed script and in
 the env vars):
@@ -94,34 +95,88 @@ function doPost(e) {
 
     if (data.email) {
       var name = data.name || 'there'
-      // Plain-text fallback (some clients only show this); Gmail shows htmlBody.
+
+      // Question/answer pairs in form order; empty optional answers are skipped.
+      var answers = [
+        ['Full name', data.name],
+        ['Email', data.email],
+        [
+          'What skills or experience could you bring to this hackathon? What are your current plans and activities towards saving the world?',
+          data.skills,
+        ],
+        [
+          'What has been 1 or 2 of your most successful projects, and what were the outcomes?',
+          data.successfulProjects,
+        ],
+        [
+          'Do you have any allergies or dietary needs/preferences?',
+          data.dietary,
+        ],
+        [
+          'Do you have any particular medical or mental health needs you would like us to know about?',
+          data.medical,
+        ],
+        ['Room preference', data.roomPreference],
+        ['When would you arrive?', data.arrival],
+        ['When would you leave?', data.departure],
+        ['Emergency contact', data.emergencyContact],
+        ["Anything else you'd like us to know?", data.anythingElse],
+        [
+          'At least 18 years old by the date of the event',
+          data.over18 ? 'Yes' : 'No',
+        ],
+      ].filter(function (a) {
+        return a[1]
+      })
+
       var body =
         'Hi ' +
         name +
         ',\n\n' +
-        'Thanks for applying to the AISafety.com Hackathon 2026!\n\n' +
-        'The details:\n' +
-        '- Dates: Thursday 17 - Sunday 20 September 2026\n' +
-        '- Venue: CEEALAR (the EA Hotel) in Blackpool, England (ceealar.org)\n' +
-        '- Accommodation and meals are provided\n\n' +
-        'Applications close 10 August, and results will be announced by ' +
-        '21 August.\n\n' +
-        'If you have any questions, just reply to this email.\n\n' +
-        'The AISafety.com team'
+        'Thanks for applying to the AISafety.com Hackathon 2026 ' +
+        '(https://aisafety.com/hackathon)! This is an automated email ' +
+        'confirming your application submission.\n\n' +
+        "Below are the answers you gave. We'll let you know the result of " +
+        'your application by 21 August at the latest. In the meantime, feel ' +
+        'free to reply to this email with any questions or message Bryce on ' +
+        'the AISafety.com Discord server (https://discord.gg/WQG8FAGqun) at ' +
+        '@bryceerobertson.\n\n' +
+        'Best,\n' +
+        'Automated Bryce\n\n\n' +
+        'YOUR FORM ANSWERS\n\n' +
+        answers
+          .map(function (a) {
+            return a[0] + ':\n' + a[1]
+          })
+          .join('\n\n')
+
       var htmlBody =
         '<p>Hi ' +
         escapeHtml(name) +
         ',</p>' +
-        '<p>Thanks for applying to the AISafety.com Hackathon 2026!</p>' +
-        '<p>The details:<br>' +
-        '&ndash; Dates: Thursday 17 &ndash; Sunday 20 September 2026<br>' +
-        '&ndash; Venue: CEEALAR (the EA Hotel) in Blackpool, England ' +
-        '(<a href="https://www.ceealar.org">ceealar.org</a>)<br>' +
-        '&ndash; Accommodation and meals are provided</p>' +
-        '<p>Applications close 10 August, and results will be announced by ' +
-        '21 August.</p>' +
-        '<p>If you have any questions, just reply to this email.</p>' +
-        '<p>The AISafety.com team</p>'
+        '<p>Thanks for applying to the ' +
+        '<a href="https://aisafety.com/hackathon">AISafety.com Hackathon 2026</a>! ' +
+        'This is an automated email confirming your application submission.</p>' +
+        "<p>Below are the answers you gave. We'll let you know the result of " +
+        'your application by 21 August at the latest. In the meantime, feel ' +
+        'free to reply to this email with any questions or message Bryce on ' +
+        'the <a href="https://discord.gg/WQG8FAGqun">AISafety.com Discord ' +
+        'server</a> at @bryceerobertson.</p>' +
+        '<p>Best,<br>Automated Bryce</p>' +
+        '<br>' +
+        '<p><strong>Your form answers</strong></p>' +
+        answers
+          .map(function (a) {
+            return (
+              '<p><strong>' +
+              escapeHtml(a[0]) +
+              '</strong><br>' +
+              escapeHtml(a[1]).replace(/\n/g, '<br>') +
+              '</p>'
+            )
+          })
+          .join('')
+
       MailApp.sendEmail({
         to: data.email,
         subject: 'AISafety.com Hackathon 2026 - application received',

@@ -7,6 +7,12 @@
   align-items: start;
 }
 
+/* The global reset flattens <strong> to weight 400 against 300 body text;
+   make bold actually bold on this page. */
+.layout strong {
+  font-weight: 600;
+}
+
 /* The form follows the reader down the page. margin-top (not padding)
    aligns it with the h1 while unstuck; max-height + overflow keep the
    whole form reachable on short viewports. */

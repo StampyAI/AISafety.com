@@ -19,7 +19,6 @@ function Optional() {
 
 export default function ApplicationForm() {
   const [form, setForm] = useState(EMPTY)
-  const [over18, setOver18] = useState(false)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
@@ -41,7 +40,7 @@ export default function ApplicationForm() {
       const res = await fetch('/api/hackathon-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, over18 }),
+        body: JSON.stringify(form),
       })
       if (res.ok) {
         setDone(true)
@@ -158,19 +157,6 @@ export default function ApplicationForm() {
           onChange={set('website')}
         />
       </div>
-
-      <label className={`flex items-center cursor-pointer ${styles.full}`}>
-        <input
-          type="checkbox"
-          className="checkbox"
-          checked={over18}
-          onChange={e => setOver18(e.target.checked)}
-          required
-        />
-        <span className="paragraph-small color-teal-300">
-          I will be at least 18 years old by the date of this event
-        </span>
-      </label>
 
       <div className={styles.full}>
         <button type="submit" className="button-primary" disabled={busy}>

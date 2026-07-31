@@ -66,11 +66,10 @@ export async function POST(req: NextRequest) {
     skills: str(b.skills, 5000),
     links: str(b.links, 2000),
     anythingElse: str(b.anythingElse, 5000),
-    over18: b.over18 === true,
   }
 
   const required: (keyof typeof application)[] = ['name', 'email', 'skills']
-  if (required.some(f => !application[f]) || !application.over18) {
+  if (required.some(f => !application[f])) {
     return new Response('missing required fields', { status: 400 })
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(application.email)) {

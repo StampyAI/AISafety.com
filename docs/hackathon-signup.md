@@ -40,7 +40,7 @@ app ("Execute as: Me", "Who has access: Anyone"), owned by Bryce's Google
 account. Redeploy after edits via Deploy → Manage deployments → edit → new
 version — this keeps the same `/exec` URL.
 
-Sheet columns, in order: Timestamp, Name, Email, Skills & experience, 18+,
+Sheet columns, in order: Timestamp, Name, Email, Skills & experience,
 Anything else, Personal links.
 
 The confirmation email echoes the applicant's answers back to them. It is sent
@@ -81,7 +81,6 @@ function doPost(e) {
       data.name || '',
       data.email || '',
       data.skills || '',
-      data.over18 ? 'Yes' : 'No',
       data.anythingElse || '',
       data.links || '',
     ])
@@ -99,10 +98,6 @@ function doPost(e) {
         ],
         ['Personal links', data.links],
         ["Anything else you'd like us to know?", data.anythingElse],
-        [
-          'At least 18 years old by the date of the event',
-          data.over18 ? 'Yes' : 'No',
-        ],
       ].filter(function (a) {
         return a[1]
       })

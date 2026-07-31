@@ -61,43 +61,6 @@ export default function HackathonPage() {
             work sessions, we do some relaxed fun activities like going for
             walks, board games, and movie nights.
           </p>
-          <p className="color-teal-300 padding-bottom-40px">
-            On the first evening of the hackathon, we will divide team members
-            into 3–4 small teams by{' '}
-            <a
-              href="https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="color-light-teal"
-            >
-              project
-            </a>
-            . Members will get to decide which projects they work on and what
-            they bring to each project. We&apos;re also open to new project
-            suggestions.
-          </p>
-
-          <h3 className="padding-bottom-16px">Why it&apos;s worth it!</h3>
-          <ul
-            className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
-          >
-            <li>
-              Build your resume, career capital, and make connections (everyone
-              at the EA hotel, beyond just our hackathon, is working on
-              something high-impact, mostly AI safety)
-            </li>
-            <li>Help save the world</li>
-            <li>
-              Have fun beyond just the work! We set aside two sessions a day for
-              beach walks, games, music, and more.
-            </li>
-            <li>
-              Food and room covered. Most likely each person will have their own
-              room, but if the hotel happens to be very full some people may
-              need to share.
-            </li>
-          </ul>
-
           <h3 className="padding-bottom-16px">Who we&apos;re looking for</h3>
           <ul
             className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
@@ -153,6 +116,43 @@ export default function HackathonPage() {
               <ul>
                 <li>Just tell us how you can help!</li>
               </ul>
+            </li>
+          </ul>
+
+          <p className="color-teal-300 padding-bottom-40px">
+            On the first evening of the hackathon, we will divide team members
+            into 3–4 small teams by{' '}
+            <a
+              href="https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="color-light-teal"
+            >
+              project
+            </a>
+            . Members will get to decide which projects they work on and what
+            they bring to each project. We&apos;re also open to new project
+            suggestions.
+          </p>
+
+          <h3 className="padding-bottom-16px">Why it&apos;s worth it!</h3>
+          <ul
+            className={`color-teal-300 padding-bottom-40px ${styles.bullets}`}
+          >
+            <li>
+              Build your resume, career capital, and make connections (everyone
+              at the EA hotel, beyond just our hackathon, is working on
+              something high-impact, mostly AI safety)
+            </li>
+            <li>Help save the world</li>
+            <li>
+              Have fun beyond just the work! We set aside two sessions a day for
+              beach walks, games, music, and more.
+            </li>
+            <li>
+              Food and room covered. Most likely each person will have their own
+              room, but if the hotel happens to be very full some people may
+              need to share.
             </li>
           </ul>
 

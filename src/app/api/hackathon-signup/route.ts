@@ -69,7 +69,6 @@ export async function POST(req: NextRequest) {
     roomPreference: str(b.roomPreference, 100),
     emergencyContact: str(b.emergencyContact, 500),
     anythingElse: str(b.anythingElse, 5000),
-    successfulProjects: str(b.successfulProjects, 5000),
     arrival: str(b.arrival, 20),
     departure: str(b.departure, 20),
     over18: b.over18 === true,

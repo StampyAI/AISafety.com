@@ -12,7 +12,6 @@ const EMPTY = {
   roomPreference: '',
   emergencyContact: '',
   anythingElse: '',
-  successfulProjects: '',
   arrival: '',
   departure: '',
   // Honeypot – hidden from people, filled in by naive bots.
@@ -123,23 +122,6 @@ export default function ApplicationForm() {
           value={form.skills}
           onChange={set('skills')}
           required
-        />
-      </div>
-
-      <div className={`${styles.field} ${styles.full}`}>
-        <label
-          className="paragraph-small color-teal-300"
-          htmlFor="successfulProjects"
-        >
-          What has been 1 or 2 of your most successful projects (in AI safety or
-          otherwise), and what were the outcomes? A brief answer is fine.{' '}
-          <Optional />
-        </label>
-        <textarea
-          id="successfulProjects"
-          className={`text-field ${styles.textarea}`}
-          value={form.successfulProjects}
-          onChange={set('successfulProjects')}
         />
       </div>
 

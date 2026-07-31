@@ -1,8 +1,7 @@
 import ApplicationForm from './ApplicationForm'
 import styles from './page.module.css'
 
-const OG_DESCRIPTION =
-  '17–20 September 2026 at CEEALAR in Blackpool, England. Free to attend. Applications close 14 August.'
+const OG_DESCRIPTION = 'A four-day, in-person hackathon to improve the site.'
 
 export const metadata = {
   title: 'Hackathon 2026 – AISafety.com',

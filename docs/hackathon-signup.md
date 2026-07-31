@@ -86,8 +86,6 @@ function doPost(e) {
     ])
 
     if (data.email) {
-      var name = data.name || 'there'
-
       // Question/answer pairs in form order; empty optional answers are skipped.
       var answers = [
         ['Name', data.name],
@@ -103,9 +101,7 @@ function doPost(e) {
       })
 
       var body =
-        'Hi ' +
-        name +
-        ',\n\n' +
+        'Hi,\n\n' +
         'Thanks for applying to the AISafety.com Hackathon 2026 ' +
         '(https://aisafety.com/hackathon)! This is an automated email ' +
         'confirming your application submission.\n\n' +
@@ -124,9 +120,7 @@ function doPost(e) {
           .join('\n\n')
 
       var htmlBody =
-        '<p>Hi ' +
-        escapeHtml(name) +
-        ',</p>' +
+        '<p>Hi,</p>' +
         '<p>Thanks for applying to the ' +
         '<a href="https://aisafety.com/hackathon">AISafety.com Hackathon 2026</a>! ' +
         'This is an automated email confirming your application submission.</p>' +

@@ -154,19 +154,6 @@ export default function HackathonPage() {
             </li>
           </ul>
 
-          <h3 className="padding-bottom-16px">The venue</h3>
-          <p className="color-teal-300 padding-bottom-16px">
-            We&apos;ll be hosted at{' '}
-            <a
-              href="https://www.ceealar.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="color-light-teal"
-            >
-              CEEALAR
-            </a>{' '}
-            (AKA the EA Hotel), a place worth experiencing in its own right.
-          </p>
           <p className="color-teal-300 padding-bottom-40px">
             If you have any questions please message Bryce on the{' '}
             <a

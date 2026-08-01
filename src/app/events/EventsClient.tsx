@@ -18,6 +18,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import ModeToggle from '@/components/ModeToggle'
 import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
+import { selectFeatured } from '@/lib/featured'
 import { trackFilterApply } from '@/lib/analytics'
 import { placementsById } from '@/lib/placements'
 import type { EventListing } from '@/lib/data/events'
@@ -114,15 +115,20 @@ function titleMetaFor(event: EventListing) {
   const date = formatEventDate(event.startDate, event.endDate)
   const time = formatEventTime(event.startTime, event.endTime)
   const rows: { icon: string; value: string }[] = []
-  // Hybrid events can be attended either way, so the card spells out both
-  // facets ("Online & Oxford, UK") the way /training listings do. The raw
-  // location stays city-only in Airtable so the city filter isn't polluted.
-  if (event.location)
+  // Online events say so via Mode rather than the Location text (mirroring
+  // /training), so Location in Airtable can stay empty for them. Hybrid
+  // events can be attended either way, so the card spells out both facets
+  // ("Online & Oxford, UK") the way /training listings do. The raw location
+  // stays city-only in Airtable so the city filter isn't polluted.
+  if (event.mode === 'Online') {
+    rows.push({ icon: '/images/icons/computer.svg', value: 'Online' })
+  } else if (event.location) {
     rows.push({
       icon: '/images/icons/pin.svg',
       value:
         event.mode === 'Hybrid' ? `Online & ${event.location}` : event.location,
     })
+  }
   if (date) rows.push({ icon: '/images/icons/calendar.svg', value: date })
   if (time) rows.push({ icon: '/images/icons/timer.svg', value: time })
   return rows
@@ -422,10 +428,15 @@ export default function EventsClient({ events }: EventsClientProps) {
     [events, mode]
   )
 
+  const featuredEvents = useMemo(() => selectFeatured(modeEvents), [modeEvents])
+
   // Each event's slot in the full (unfiltered) order of the active mode, so a
   // click is tagged with the rank the visitor saw — not its position within an
   // active filter.
-  const placements = useMemo(() => placementsById(modeEvents), [modeEvents])
+  const placements = useMemo(
+    () => placementsById(modeEvents, new Set(featuredEvents.map(e => e.id))),
+    [modeEvents, featuredEvents]
+  )
 
   const cities = useMemo(() => {
     const set = new Set<string>()
@@ -435,14 +446,6 @@ export default function EventsClient({ events }: EventsClientProps) {
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [modeEvents])
-
-  const featuredEvents = useMemo(
-    () =>
-      (['1', '2'] as const)
-        .map(rank => modeEvents.find(e => e.featured === rank))
-        .filter((e): e is EventListing => e != null),
-    [modeEvents]
-  )
 
   // Each dropdown's counts are faceted (like the 80,000 Hours job board):
   // an option's number is how many events would show if you picked it,

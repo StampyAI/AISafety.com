@@ -6,6 +6,7 @@ import {
   type LengthBucket,
   type TrainingType,
 } from '../training-types'
+import { parseFeaturedRank } from '../featured'
 
 // The redesigned /training page reads from two tables: "Training" holds
 // dated upcoming iterations, "Recurring training" holds evergreen programs
@@ -97,7 +98,8 @@ export interface ProgramBase {
   timeCommitment: string | null
   stipend: string | null
   logo: string | null
-  featured: '1' | '2' | null
+  /** Rank in the featured queue — the two lowest live ranks are displayed. */
+  featured: number | null
   featuredTagline: string | null
   /** From dates for upcoming programs, from "Typical length" for recurring. */
   lengthBucket: LengthBucket | null
@@ -293,7 +295,7 @@ function parseBase(
     timeCommitment: optionalString(fields[FIELD.timeCommitment]),
     stipend: optionalString(fields[FIELD.stipend]),
     logo: logoField?.[0]?.url ?? null,
-    featured: featuredRaw === '1' || featuredRaw === '2' ? featuredRaw : null,
+    featured: parseFeaturedRank(featuredRaw),
     featuredTagline: optionalString(fields[FIELD.featuredTagline]),
     dateAdded: null, // overridden by each caller (needs the record's createdTime)
     lastModified:

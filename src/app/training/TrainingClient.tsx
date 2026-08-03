@@ -23,6 +23,7 @@ import {
   TRAINING_TYPES,
   trainingTypeColor,
 } from '@/lib/training-types'
+import { selectFeatured } from '@/lib/featured'
 import { placementsById } from '@/lib/placements'
 import type {
   ProgramBase,
@@ -259,17 +260,26 @@ export default function TrainingClient({
 
   const modePrograms: ProgramBase[] = mode === 'upcoming' ? programs : recurring
 
+  // Programs whose applications closed are passed over when an open backup
+  // is queued behind them (recurring programs have no applications and
+  // always count as open).
+  const featuredPrograms = useMemo(
+    () =>
+      selectFeatured(modePrograms, p =>
+        'applicationStatus' in p
+          ? (p as TrainingProgram).applicationStatus === 'Open'
+          : true
+      ),
+    [modePrograms]
+  )
+
   // Each program's slot in the full (unfiltered) order of the active set, so a
   // click is tagged with the rank the visitor saw — not its position within an
   // active filter.
-  const placements = useMemo(() => placementsById(modePrograms), [modePrograms])
-
-  const featuredPrograms = useMemo(
+  const placements = useMemo(
     () =>
-      (['1', '2'] as const)
-        .map(rank => modePrograms.find(p => p.featured === rank))
-        .filter((p): p is ProgramBase => p != null),
-    [modePrograms]
+      placementsById(modePrograms, new Set(featuredPrograms.map(p => p.id))),
+    [modePrograms, featuredPrograms]
   )
 
   // Each dropdown's counts are faceted (like the 80,000 Hours job board):

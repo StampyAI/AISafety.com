@@ -9,6 +9,7 @@ import { getMediaChannels } from '@/lib/data/media-channels'
 import { getMapData } from '@/lib/data/map'
 import { getEvents } from '@/lib/data/events'
 import { getTrainingPrograms, getRecurringPrograms } from '@/lib/data/training'
+import { selectFeatured } from '@/lib/featured'
 import type { Catalog, Listing } from './types'
 
 // Known job-board domains. Their favicons are the platform logo, not the
@@ -64,6 +65,13 @@ function deriveFaviconAvoidingJobBoards(
 
 function isFeatured(item: { featured?: string | null }): boolean {
   return item.featured === '1' || item.featured === '2'
+}
+
+// Events and training use a ranked featured queue instead of the fixed
+// 1/2 slots, so "featured" for them means "currently displayed" — the
+// same selection the page itself makes via selectFeatured().
+function displayedIds(items: Array<{ id: string }>): Set<string> {
+  return new Set(items.map(i => i.id))
 }
 
 function compact(
@@ -298,6 +306,12 @@ export async function buildCatalog(): Promise<Catalog> {
     })
   }
 
+  const featuredEventIds = displayedIds(selectFeatured(events))
+  const featuredTrainingIds = displayedIds(
+    selectFeatured(trainingPrograms, p => p.applicationStatus === 'Open')
+  )
+  const featuredRecurringIds = displayedIds(selectFeatured(recurringPrograms))
+
   for (const e of events) {
     listings.push({
       id: `event:${e.id}`,
@@ -323,7 +337,7 @@ export async function buildCatalog(): Promise<Catalog> {
         notYetOpen: e.notYetOpen ? 'Yes' : null,
         featuredTagline: e.featuredTagline,
       }),
-      featured: isFeatured(e),
+      featured: featuredEventIds.has(e.id),
     })
   }
 
@@ -359,7 +373,7 @@ export async function buildCatalog(): Promise<Catalog> {
         notYetOpen: t.notYetOpen ? 'Yes' : null,
         featuredTagline: t.featuredTagline,
       }),
-      featured: isFeatured(t),
+      featured: featuredTrainingIds.has(t.id),
     })
   }
 
@@ -389,7 +403,7 @@ export async function buildCatalog(): Promise<Catalog> {
         length: r.lengthBucket,
         featuredTagline: r.featuredTagline,
       }),
-      featured: isFeatured(r),
+      featured: featuredRecurringIds.has(r.id),
     })
   }
 

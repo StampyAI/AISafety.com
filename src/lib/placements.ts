@@ -6,20 +6,31 @@
 /** A listing that may be one of the two featured cards on a resource page. */
 interface Placeable {
   id: string
-  featured?: '1' | '2' | null
+  featured?: string | number | null
 }
 
-/** Each listing's slot on its page, keyed by record id: the two featured cards
- *  (if the page has them) are 'F1'/'F2'; everything else is numbered '1', '2',
+/** Each listing's slot on its page, keyed by record id: the featured cards
+ *  (if the page has them) are 'F<rank>'; everything else is numbered '1', '2',
  *  '3'… in display order. Pages without featured cards just get the numbered
  *  list. Pass items in the order they render so the slot matches what the
- *  visitor saw. */
-export function placementsById(items: Placeable[]): Map<string, string> {
+ *  visitor saw.
+ *
+ *  Pages with a featured queue (/events, /training) pass `featuredIds` — the
+ *  records their queue actually displays — since a queued backup (rank 3+)
+ *  renders as a normal grid card and must get a grid number, not an F-slot.
+ *  Without `featuredIds`, ranks 1 and 2 count as featured (the fixed-slot
+ *  pages). */
+export function placementsById(
+  items: Placeable[],
+  featuredIds?: Set<string>
+): Map<string, string> {
   const placements = new Map<string, string>()
   let n = 0
   for (const item of items) {
-    if (item.featured === '1') placements.set(item.id, 'F1')
-    else if (item.featured === '2') placements.set(item.id, 'F2')
+    const isFeaturedCard = featuredIds
+      ? featuredIds.has(item.id)
+      : item.featured === '1' || item.featured === '2'
+    if (isFeaturedCard) placements.set(item.id, `F${item.featured}`)
     else {
       n += 1
       placements.set(item.id, String(n))

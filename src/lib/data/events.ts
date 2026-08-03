@@ -1,5 +1,6 @@
 import { fetchAirtableRecords } from './airtable'
 import { EVENT_TYPES, type EventType } from '../event-types'
+import { parseFeaturedRank } from '../featured'
 import { parseAttendMode, type AttendMode } from './training'
 
 const TABLE_ID = 'tblXbN9swwldwq8f7'
@@ -53,7 +54,8 @@ export interface EventListing {
   notYetOpen: boolean
   deadlineType: 'Apply' | 'Register' | null
   logo: string | null
-  featured: '1' | '2' | null
+  /** Rank in the featured queue — the two lowest live ranks are displayed. */
+  featured: number | null
   featuredTagline: string | null
 }
 
@@ -196,7 +198,7 @@ export async function getEvents(): Promise<EventListing[]> {
       notYetOpen,
       deadlineType,
       logo: logoField?.[0]?.url ?? null,
-      featured: featuredRaw === '1' || featuredRaw === '2' ? featuredRaw : null,
+      featured: parseFeaturedRank(featuredRaw),
       featuredTagline: optionalString(f[FIELD.featuredTagline]),
     })
   }

@@ -12,6 +12,10 @@ interface PageHeaderProps {
   topPadding?: string
   /** Show the newsletter signup beside the header (stacked below on mobile). */
   newsletter?: boolean
+  /** Heading for the signup box (defaults to the events & training one). */
+  newsletterHeading?: string
+  /** Substack subscribe page the signup box opens. */
+  newsletterSubscribeUrl?: string
   /** Analytics page name for the signup box's submits (e.g. 'Events'). */
   newsletterTrackingPage?: string
   /** Extra content under the description, e.g. a cross-link to a sister page. */
@@ -25,6 +29,8 @@ export default function PageHeader({
   id,
   topPadding = 'padding-top-56px',
   newsletter,
+  newsletterHeading,
+  newsletterSubscribeUrl,
   newsletterTrackingPage,
   children,
 }: PageHeaderProps) {
@@ -50,7 +56,11 @@ export default function PageHeader({
     <div className={`${styles.heroRow} padding-bottom-56px`}>
       <div className={styles.heroHeader}>{header}</div>
       <div className={styles.newsletterSlot}>
-        <NewsletterSignup trackingPage={newsletterTrackingPage} />
+        <NewsletterSignup
+          heading={newsletterHeading}
+          subscribeUrl={newsletterSubscribeUrl}
+          trackingPage={newsletterTrackingPage}
+        />
       </div>
     </div>
   )

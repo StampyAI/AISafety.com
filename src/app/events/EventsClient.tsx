@@ -365,10 +365,12 @@ function CitySearch({
   )
 }
 
-// The active set is shareable: the non-default tab writes ?view= to the
-// address bar, the default keeps the bare URL. replaceState (not push) so
-// toggling never stacks history entries; history.state is passed through
-// untouched because Next.js keeps its routing internals there.
+// Keeps the historical URLs: "In person" writes ?view=in-person (so old
+// shared links keep working) and "Online" keeps the bare URL, exactly as
+// when online was the default. The online set therefore has no URL of its
+// own — a bare link always opens the in-person default. replaceState (not
+// push) so toggling never stacks history entries; history.state is passed
+// through untouched because Next.js keeps its routing internals there.
 function syncViewParam(next: Mode) {
   const url = new URL(window.location.href)
   if (next === 'online') url.searchParams.delete('view')
@@ -392,7 +394,7 @@ function ViewParamSync({ onView }: { onView: (view: string | null) => void }) {
 }
 
 export default function EventsClient({ events }: EventsClientProps) {
-  const [mode, setMode] = useState<Mode>('online')
+  const [mode, setMode] = useState<Mode>('in-person')
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedCost, setSelectedCost] = useState<string[]>([])
@@ -400,11 +402,15 @@ export default function EventsClient({ events }: EventsClientProps) {
 
   const toggleAnchorRef = useRef<HTMLDivElement>(null)
 
-  // URL -> state, fed by ViewParamSync below. Unknown values fall through to
-  // the default; a deep link doesn't auto-scroll the way a click does.
-  // Landing on online drops the city filter, mirroring switchMode.
+  // URL -> state, fed by ViewParamSync below. A bare URL keeps the current
+  // set: switching to Online clears the param, so null can mean "online,
+  // just toggled" as well as "fresh load" (where state already holds the
+  // in-person default). Unknown values fall through to the default; a deep
+  // link doesn't auto-scroll the way a click does. Landing on online drops
+  // the city filter, mirroring switchMode.
   const applyViewParam = useCallback((view: string | null) => {
-    const next: Mode = view === 'in-person' ? 'in-person' : 'online'
+    if (view === null) return
+    const next: Mode = view === 'online' ? 'online' : 'in-person'
     if (next === 'online') setSelectedCities([])
     setMode(next)
   }, [])

@@ -23,7 +23,7 @@ export default async function FundingPage() {
         title="Funding"
         lastUpdatedIso={lastUpdated.lastUpdated}
         newsletter
-        newsletterHeading="Get a weekly summary of all new funding opportunities"
+        newsletterHeading="Get notified when new funding opportunities are announced"
         newsletterSubscribeUrl="https://aisafetyfunding.substack.com/subscribe"
         newsletterTrackingPage="Funding"
         description={

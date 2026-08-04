@@ -18,10 +18,11 @@
   gap: 8px;
   width: 100%;
   height: fit-content;
-  padding: 4px 4px 4px 16px;
+  padding: 4px;
   border: 1px solid transparent;
   border-radius: 999px;
   background-color: color-mix(in srgb, var(--bright-teal-500) 20%, transparent);
+  cursor: text;
 }
 
 .field:focus-within {
@@ -30,7 +31,10 @@
 
 .input {
   flex: 1 1 auto;
+  align-self: stretch;
   min-width: 0;
+  /* With the field's own 4px, keeps the text 16px from the pill edge. */
+  padding-left: 12px;
   border: none;
   outline: none;
   background-color: transparent;

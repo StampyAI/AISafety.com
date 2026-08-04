@@ -38,7 +38,8 @@ export default function NewsletterSignup({
   return (
     <form className={`width-4-col ${styles.card}`} onSubmit={handleSubmit}>
       <p className={`paragraph-small ${styles.heading}`}>{heading}</p>
-      <div className={styles.field}>
+      {/* A label so clicks anywhere on the pill focus the input. */}
+      <label className={styles.field}>
         <input
           type="email"
           className={`paragraph-small ${styles.input}`}
@@ -55,7 +56,7 @@ export default function NewsletterSignup({
             unoptimized
           />
         </button>
-      </div>
+      </label>
     </form>
   )
 }

@@ -22,6 +22,10 @@ export default async function FundingPage() {
       <PageHeader
         title="Funding"
         lastUpdatedIso={lastUpdated.lastUpdated}
+        newsletter
+        newsletterHeading="Get a weekly summary of all new funding opportunities"
+        newsletterSubscribeUrl="https://aisafetyfunding.substack.com/subscribe"
+        newsletterTrackingPage="Funding"
         description={
           <>
             These organizations offer{' '}

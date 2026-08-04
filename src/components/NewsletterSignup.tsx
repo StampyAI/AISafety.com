@@ -5,15 +5,19 @@ import Image from 'next/image'
 import { trackNewsletterSignup } from '@/lib/analytics'
 import styles from './NewsletterSignup.module.css'
 
-const SUBSCRIBE_URL = 'https://aisafetyeventsandtraining.substack.com/subscribe'
+const DEFAULT_SUBSCRIBE_URL =
+  'https://aisafetyeventsandtraining.substack.com/subscribe'
 
-// Temporary Substack subscribe box shared by /events and /training until the
-// custom newsletter platform lands.
+// Temporary Substack subscribe box shared by /events, /training, and /funding
+// until the custom newsletter platform lands.
 export default function NewsletterSignup({
   heading = 'Get a weekly summary of all new events and training programs',
+  subscribeUrl = DEFAULT_SUBSCRIBE_URL,
   trackingPage,
 }: {
   heading?: string
+  /** Substack subscribe page the box opens (defaults to events & training). */
+  subscribeUrl?: string
   /** Analytics page name (e.g. 'Events'). When set, a submit records a
    *  newsletter_signup event under this page. */
   trackingPage?: string
@@ -26,8 +30,8 @@ export default function NewsletterSignup({
     if (trackingPage) trackNewsletterSignup(trackingPage)
     const trimmed = email.trim()
     const url = trimmed
-      ? `${SUBSCRIBE_URL}?email=${encodeURIComponent(trimmed)}`
-      : SUBSCRIBE_URL
+      ? `${subscribeUrl}?email=${encodeURIComponent(trimmed)}`
+      : subscribeUrl
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 

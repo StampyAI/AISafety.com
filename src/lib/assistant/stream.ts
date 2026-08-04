@@ -49,6 +49,23 @@ function suggestGateRedoMessage(): string {
 Your draft both shows listings and offers a suggest-a-listing form. That combination is not allowed: the form is only for turns with NOTHING to show, or for a user who explicitly asked to add, report, or get something listed (including the "once it's up and running" closing note for someone planning their own). Unless one of those exceptions genuinely applies to THIS turn, rewrite the complete answer without the [[suggest:...]] tag and without any "if you know of one that's missing" prose — the listings you showed plus a resource-page link already complete the answer. If an exception does apply, keep the form. Start your reply with [[/thinking]] on its own line, then the full final answer, then follow-up chips. Do not call any more tools, and do not apologize for or mention this correction — just deliver the final answer.`
 }
 
+/** Text that looks like a tool call written into the reply instead of made
+ *  through the API's tool-use mechanism (`<invoke name="search_listings">`,
+ *  `<parameter ...>`, a `<function_calls>` wrapper — with or without a
+ *  namespace prefix). A model that emits this believed it was acting: no tool
+ *  ran, so the reply is built on results that don't exist, and the visitor
+ *  would see raw markup. Seen in production on 2 August 2026 (two turns in a
+ *  row on /jobs). */
+const PSEUDO_TOOL_CALL_RE =
+  /<\/?\s*(?:\w+:)?(?:function_calls|invoke|parameter)\b/gi
+
+/** Corrective message injected when the model's finished reply contains tool
+ *  calls written as literal text. */
+function textToolCallRedoMessage(): string {
+  return `[AUTOMATED TOOL-CALL AUDIT — this is a server-side check, not the visitor. The visitor will not see your previous draft, so never reference it.]
+Your draft wrote tool calls as literal text (<invoke ...> markup) instead of invoking the tools. Text never executes a tool: no search ran, you have no results from it, and the visitor would have seen raw markup. Redo the turn from scratch: make the search_listings call(s) for real through the tool-use mechanism, wait for their results, and answer only from what they return. Format as always: any reasoning ends with [[/thinking]], then the visible answer, then follow-up chips. Do not apologize for or mention this correction — just deliver the corrected answer.`
+}
+
 /** Encodes a single SSE frame. */
 function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
@@ -202,6 +219,7 @@ export async function runAssistantStream(
   let redoneFabrication = false
   let redoneSplitAnswer = false
   let redoneSuggestGate = false
+  let redoneTextToolCall = false
   // Where the final answer can begin at the earliest: the text length after
   // the last tool round (or redo). Text before this point is treated as
   // reasoning — it preceded a tool call — which lets us repair a reply whose
@@ -318,7 +336,47 @@ export async function runAssistantStream(
 
     apiMessages.push({ role: 'assistant', content: blocks })
     if (stopReason !== 'tool_use') {
-      // The model considers its answer finished. Before accepting it, audit
+      // The model considers its answer finished. The first way it can be
+      // broken: the "answer" is one or more tool calls written as literal
+      // text (see PSEUDO_TOOL_CALL_RE). Nothing ran, so nothing in the reply
+      // can be trusted — send the model back to call the tools for real.
+      // Once per turn, with enough iteration budget left for the tool round
+      // plus the regenerated answer. The injected [[/thinking]] marker hides
+      // the draft from the visitor (the widget shows only what follows the
+      // last marker) exactly like the split-answer and suggest-form redos.
+      const pseudoToolCalls = assistantText
+        .slice(answerStartOffset)
+        .match(PSEUDO_TOOL_CALL_RE)
+      if (
+        pseudoToolCalls &&
+        !redoneTextToolCall &&
+        !signal?.aborted &&
+        iter < MAX_TOOL_ITERATIONS - 2
+      ) {
+        redoneTextToolCall = true
+        console.warn(
+          `[assistant] tool call(s) written as text — ${pseudoToolCalls.length} pseudo-call tag(s) in the finished reply; sending the model back to call the tools for real`
+        )
+        // Surfaces in the admin log's tool list, so redone turns are visible
+        // when skimming conversations.
+        toolCalls.push({
+          name: 'redo_after_text_tool_calls',
+          input: { pseudoCallTags: pseudoToolCalls.length },
+          ok: true,
+        })
+        apiMessages.push({
+          role: 'user',
+          content: textToolCallRedoMessage(),
+        })
+        // Close the discarded draft with a real marker (same trick as the
+        // split-answer redo below) so the live widget's boundary moves past
+        // the draft even if the rewrite forgets its own marker.
+        send('text', { delta: '\n[[/thinking]]\n' })
+        assistantText += '\n[[/thinking]]\n'
+        answerStartOffset = assistantText.length
+        continue
+      }
+      // The next way it can be broken: audit
       // the [[card:...]] ids it wrote: an id matching neither a tool result
       // from this turn nor any catalog listing is fabricated, and its card
       // would render broken. Send the model back to redo the answer — once
@@ -514,12 +572,17 @@ export async function runAssistantStream(
   // missing-marker repair below so it reflects what the model actually wrote.
   const markerCount =
     assistantText.match(/\[\[\s*\/\s*thinking\s*\]\]/gi)?.length ?? 0
-  // Baseline 1; a fabrication redo adds the discarded draft's own marker; a
-  // split-answer redo adds the synthetic marker that closed the draft plus,
-  // at most, a marker the draft itself carried. Upper bounds, so the warn
-  // below still catches genuine mid-answer re-emission.
+  // Baseline 1; a fabrication redo adds the discarded draft's own marker; the
+  // split-answer, suggest-form and text-tool-call redos each add the synthetic
+  // marker that closed the draft plus, at most, a marker the draft itself
+  // carried. Upper bounds, so the warn below still catches genuine mid-answer
+  // re-emission.
   const expectedMarkers =
-    1 + (redoneFabrication ? 1 : 0) + (redoneSplitAnswer ? 2 : 0)
+    1 +
+    (redoneFabrication ? 1 : 0) +
+    (redoneSplitAnswer ? 2 : 0) +
+    (redoneSuggestGate ? 2 : 0) +
+    (redoneTextToolCall ? 2 : 0)
   if (markerCount > expectedMarkers) {
     console.warn(
       `[assistant] re-emitted [[/thinking]] mid-answer (${markerCount} markers, expected ${expectedMarkers}) — earlier answer text was hidden from the visitor`

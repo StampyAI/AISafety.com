@@ -178,9 +178,18 @@ export default function AboutPage() {
             <p className="paragraph-small color-teal-300">
               plex has been working toward reducing existential risk from AI
               since 2015, building infrastructure like the original versions of
-              the AISafety.com resources and AISafety.info before handing over
-              the organization to focus on other projects. He wants to look back
-              from futures where things go well and be proud of his efforts.
+              the AISafety.com resources and{' '}
+              <a
+                href="https://aisafety.info"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="color-light-teal"
+              >
+                AISafety.info
+              </a>{' '}
+              before handing over the organization to focus on other projects.
+              He wants to look back from futures where things go well and be
+              proud of his efforts.
             </p>
           </div>
         </div>

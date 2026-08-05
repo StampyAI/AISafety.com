@@ -162,6 +162,27 @@ export default function AboutPage() {
               unimaginably badly. She set out to help things go well.
             </p>
           </div>
+
+          <div className="width-6-col-narrow">
+            <div className="flex gap-16px items-center padding-bottom-24px">
+              <Image src="/images/plex.png" alt="plex" width={72} height={72} />
+              <div>
+                <p className="paragraph-default-bold padding-bottom-4px">
+                  plex
+                </p>
+                <p className="paragraph-small color-teal-300">
+                  Founder and advisor
+                </p>
+              </div>
+            </div>
+            <p className="paragraph-small color-teal-300">
+              plex has been working toward reducing existential risk from AI
+              since 2015, building infrastructure like the original versions of
+              the AISafety.com resources and AISafety.info before handing over
+              the organization to focus on other projects. He wants to look back
+              from futures where things go well and be proud of his efforts.
+            </p>
+          </div>
         </div>
       </div>
 

@@ -12,6 +12,7 @@ import {
   type ListingRow,
   type OverallListingRow,
   type SearchPanelData,
+  type VisitorShare,
 } from '@/lib/analytics/events'
 import {
   readConversationStats,
@@ -27,6 +28,8 @@ import {
 import { TYPE_ICON, TYPE_LABEL, TYPE_PATH } from '@/lib/search'
 import RefreshThemesButton from './RefreshThemesButton'
 import { getFunders } from '@/lib/data/funding'
+import { getEvents } from '@/lib/data/events'
+import { getTrainingPrograms, getRecurringPrograms } from '@/lib/data/training'
 import { getCourses } from '@/lib/data/self-study'
 import { getAdvisors } from '@/lib/data/advisors'
 import { getCommunities } from '@/lib/data/communities'
@@ -37,8 +40,8 @@ import { getMapData, type MapOrg } from '@/lib/data/map'
 import { getProjects } from '@/lib/data/projects'
 import DateRangePicker from './DateRangePicker'
 import ExcludeToggle from './ExcludeToggle'
-import ExpandableBody from './ExpandableBody'
 import Logo from './Logo'
+import SortableTable, { type SortColumn, type SortValue } from './SortableTable'
 import admin from '../admin.module.css'
 import styles from './analytics.module.css'
 
@@ -158,6 +161,16 @@ async function logosForPage(
     switch (page) {
       case 'Funding':
         return new Map((await getFunders()).map(i => [i.name, i.logo]))
+      case 'Events':
+        return new Map((await getEvents()).map(i => [i.name, i.logo]))
+      case 'Training': {
+        // The Training tab lists both upcoming and recurring programs.
+        const [upcoming, recurring] = await Promise.all([
+          getTrainingPrograms(),
+          getRecurringPrograms(),
+        ])
+        return new Map([...upcoming, ...recurring].map(i => [i.name, i.logo]))
+      }
       case 'Self-study':
         return new Map((await getCourses()).map(i => [i.name, i.image]))
       case 'Advisors':
@@ -569,6 +582,28 @@ export default async function AnalyticsPage({
   const filterShareByPage = new Map(
     data.filterShareByPage.map(r => [r.name, r])
   )
+  // "% of visitors" lookups for the Overview's by-page tables, keyed by the
+  // page label the rows display ('Founders' → 'Founder toolkit') since the
+  // rows are relabelled before they reach CountTable.
+  const shareByLabel = (rows: VisitorShare[]) =>
+    new Map(rows.map(r => [labelByPage.get(r.name) ?? r.name, r]))
+  const clickShare = shareByLabel(data.clickShareByPage)
+  const contributeShare = shareByLabel(data.contributeShareByPage)
+  const airtableShare = shareByLabel(data.airtableShareByPage)
+  const newsletterShare = shareByLabel(data.newsletterShareByPage)
+  // The selected page's own "% of visitors" lookups, keyed by the raw row
+  // names those tables use (listing labels, slots, 'Group: Value', buttons).
+  const shareMap = (rows: VisitorShare[]) => new Map(rows.map(r => [r.name, r]))
+  const listingShare = shareMap(data.listingShare)
+  const positionShare = shareMap(data.positionShare)
+  const filterGroupShare = shareMap(data.filterGroupShare)
+  const filterValueShare = shareMap(data.filterValueShare)
+  const contributeButtonShare = shareMap(data.contributeButtonShare)
+  const hoverShare = shareMap(data.hoverShare)
+  // The "View data in Airtable" stat panel's share of the page's visitors.
+  const airtablePageShare = data.airtableShareByPage.find(
+    r => r.name === data.selectedPage
+  )
   const contributeTotal = data.contributeButtons.reduce(
     (sum, r) => sum + r.count,
     0
@@ -770,7 +805,13 @@ export default async function AnalyticsPage({
                   }))}
                   labelHead="Page"
                   total={totalClicks}
+                  shareFor={name => clickShare.get(name)}
                 />
+                <p className={styles.caption}>
+                  % of visitors = the share of the page&apos;s visitors who
+                  clicked at least one listing (always per-visitor, whichever
+                  count mode is on). Visitor counts began 15 July 2026.
+                </p>
               </Panel>
             </div>
           )}
@@ -800,18 +841,21 @@ export default async function AnalyticsPage({
                     }
                     linkFor={name => urlByName.get(name)}
                     rankFor={name => positionByName.get(name)}
+                    shareFor={name => listingShare.get(name)}
                     total={listingTotal}
                   />
                   <p className={styles.caption}>
                     Slot = where each listing was clicked this period (F1/F2 =
                     featured cards). Blank for clicks logged before slot
-                    tracking.
+                    tracking. % of visitors = the share of this page&apos;s
+                    visitors who clicked the listing.
                   </p>
                 </Panel>
                 <Panel title="Clicks by position">
                   <CountTable
                     rows={data.byPosition}
                     labelHead="Slot"
+                    shareFor={name => positionShare.get(name)}
                     total={positionTotal}
                   />
                   <p className={styles.caption}>
@@ -863,6 +907,7 @@ export default async function AnalyticsPage({
                           faviconFor(hoverUrlByName.get(name))
                         }
                         linkFor={name => hoverUrlByName.get(name)}
+                        shareFor={name => hoverShare.get(name)}
                         total={hoverTotal}
                       />
                       <p className={styles.caption}>
@@ -880,6 +925,7 @@ export default async function AnalyticsPage({
                       rows={data.filterGroups}
                       labelHead="Filter"
                       countHead="Uses"
+                      shareFor={name => filterGroupShare.get(name)}
                       total={filterTotal}
                     />
                     <p className={styles.caption}>
@@ -899,6 +945,7 @@ export default async function AnalyticsPage({
                       rows={data.filterValues}
                       labelHead="Filter: value"
                       countHead="Uses"
+                      shareFor={name => filterValueShare.get(name)}
                       total={filterTotal}
                     />
                   </Panel>
@@ -912,6 +959,7 @@ export default async function AnalyticsPage({
                       rows={data.contributeButtons}
                       labelHead="Button"
                       logoFor={contributeIcon}
+                      shareFor={name => contributeButtonShare.get(name)}
                       total={contributeTotal}
                     />
                     <p className={styles.caption}>
@@ -925,10 +973,15 @@ export default async function AnalyticsPage({
                         label="Card clicks"
                         value={data.airtableViews.toLocaleString()}
                       />
+                      <Stat
+                        label="% of visitors"
+                        value={shareCell(airtablePageShare)}
+                      />
                     </div>
                     <p className={styles.caption}>
-                      Visitors opening this page&apos;s raw data in Airtable.
-                      Recording since 29 July 2026.
+                      Visitors opening this page&apos;s raw data in Airtable. %
+                      of visitors = the share of the page&apos;s visitors who
+                      clicked the card. Recording since 29 July 2026.
                     </p>
                   </Panel>
                 </div>
@@ -964,37 +1017,53 @@ export default async function AnalyticsPage({
                 {data.filtersByPage.length === 0 ? (
                   <p className={styles.dim}>No data yet.</p>
                 ) : (
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Page</th>
-                        <th className={styles.numCol}>Uses</th>
-                        <th className={styles.numCol}>Filtered</th>
-                        <th className={styles.pctCol}>% of visitors</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.filtersByPage.map(r => {
-                        const share = filterShareByPage.get(r.name)
-                        return (
-                          <tr key={r.name}>
-                            <td>{labelByPage.get(r.name) ?? r.name}</td>
-                            <td className={styles.numCol}>
-                              {r.count.toLocaleString()}
-                            </td>
-                            <td className={styles.numCol}>
-                              {(share?.filtered ?? 0).toLocaleString()}
-                            </td>
-                            <td className={styles.pctCol}>
-                              {share && share.visitors > 0
-                                ? pct1(share.filtered, share.visitors)
-                                : '—'}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                  <SortableTable
+                    columns={[
+                      { label: 'Page', sort: 'text' },
+                      {
+                        label: 'Uses',
+                        className: styles.numCol,
+                        sort: 'number',
+                      },
+                      {
+                        label: 'Filtered',
+                        className: styles.numCol,
+                        sort: 'number',
+                      },
+                      {
+                        label: '% of visitors',
+                        className: styles.pctCol,
+                        sort: 'number',
+                      },
+                    ]}
+                    values={data.filtersByPage.map(r => {
+                      const share = filterShareByPage.get(r.name)
+                      return [
+                        labelByPage.get(r.name) ?? r.name,
+                        r.count,
+                        share?.active ?? 0,
+                        share && share.visitors > 0
+                          ? share.active / share.visitors
+                          : null,
+                      ]
+                    })}
+                  >
+                    {data.filtersByPage.map(r => {
+                      const share = filterShareByPage.get(r.name)
+                      return (
+                        <tr key={r.name}>
+                          <td>{labelByPage.get(r.name) ?? r.name}</td>
+                          <td className={styles.numCol}>
+                            {r.count.toLocaleString()}
+                          </td>
+                          <td className={styles.numCol}>
+                            {(share?.active ?? 0).toLocaleString()}
+                          </td>
+                          <td className={styles.pctCol}>{shareCell(share)}</td>
+                        </tr>
+                      )
+                    })}
+                  </SortableTable>
                 )}
                 <p className={styles.caption}>
                   A use = a visitor turning a filter value on. Filtered =
@@ -1012,11 +1081,13 @@ export default async function AnalyticsPage({
                   }))}
                   labelHead="Page"
                   total={contributeTotalByPage}
+                  shareFor={name => contributeShare.get(name)}
                 />
                 <p className={styles.caption}>
                   Clicks on the &quot;Add a …&quot; and &quot;Suggest a
-                  correction&quot; forms. Open a page&apos;s tab for its
-                  per-button split. Recording since 29 July 2026.
+                  correction&quot; forms. % of visitors = the share of the
+                  page&apos;s visitors who clicked one. Open a page&apos;s tab
+                  for its per-button split. Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Airtable views by page">
@@ -1027,10 +1098,12 @@ export default async function AnalyticsPage({
                   }))}
                   labelHead="Page"
                   total={airtableTotalByPage}
+                  shareFor={name => airtableShare.get(name)}
                 />
                 <p className={styles.caption}>
-                  Clicks on the &quot;View data in Airtable&quot; cards.
-                  Recording since 29 July 2026.
+                  Clicks on the &quot;View data in Airtable&quot; cards. % of
+                  visitors = the share of the page&apos;s visitors who clicked
+                  one. Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Newsletter signups by page">
@@ -1042,11 +1115,13 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   countHead="Submits"
                   total={newsletterTotalByPage}
+                  shareFor={name => newsletterShare.get(name)}
                 />
                 <p className={styles.caption}>
                   Submits of the weekly-summary email box on /events and
-                  /training – may not all be successful signups. Recording since
-                  29 July 2026.
+                  /training – may not all be successful signups. % of visitors =
+                  the share of the page&apos;s visitors who submitted it.
+                  Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Footer clicks">
@@ -1334,6 +1409,22 @@ function TruncationNote({ shown, of }: { shown: number; of: number }) {
   )
 }
 
+/** What a slot label or range ('F1', '3', '3–5') sorts by: featured slots
+ *  first, then numeric by the range's lowest slot. null (no slot recorded)
+ *  sorts last. */
+function rankSortValue(rank: string | undefined): number | null {
+  if (!rank) return null
+  const lo = rank.split('–')[0]
+  const n = lo.startsWith('F') ? Number(lo.slice(1)) - 1000 : Number(lo)
+  return Number.isFinite(n) ? n : null
+}
+
+/** "% of visitors" cell text: the share of the page's visitors who did the
+ *  thing, or a dash when the range has no page-view visitors to divide by. */
+function shareCell(share: VisitorShare | undefined): string {
+  return share && share.visitors > 0 ? pct1(share.active, share.visitors) : '—'
+}
+
 function CountTable({
   rows: allRows,
   labelHead,
@@ -1343,6 +1434,7 @@ function CountTable({
   linkFor,
   rankFor,
   pageFor,
+  shareFor,
   total,
 }: {
   rows: Counted[]
@@ -1360,6 +1452,10 @@ function CountTable({
   /** When set, adds a Page column: the resource page each row belongs to,
    *  shown as the page's nav icon and name. */
   pageFor?: (name: string) => PageBadge | undefined
+  /** When set, adds a "% of visitors" column: the share of each page's
+   *  distinct visitors who did the thing at least once — always per-visitor,
+   *  whichever count mode is on. Looked up by the row's displayed name. */
+  shareFor?: (name: string) => VisitorShare | undefined
   /** When set, adds a % column (each row's share of this total) and a Total
    *  footer row. The total is the denominator, so for a sliced "top N" table it
    *  can exceed the sum of the visible rows. */
@@ -1368,82 +1464,46 @@ function CountTable({
   if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
   const rows = allRows.slice(0, MAX_TABLE_ROWS)
   const showPct = total != null && total > 0
-  const colSpan = (rankFor ? 1 : 0) + 2 + (pageFor ? 1 : 0) + (showPct ? 1 : 0)
+  const columns: SortColumn[] = [
+    ...(rankFor
+      ? [{ label: rankHead, className: styles.rankCol, sort: 'rank' as const }]
+      : []),
+    { label: labelHead, sort: 'text' as const },
+    ...(pageFor ? [{ label: 'Page', sort: 'text' as const }] : []),
+    { label: countHead, className: styles.numCol, sort: 'number' as const },
+    ...(showPct
+      ? [{ label: '%', className: styles.pctCol, sort: 'number' as const }]
+      : []),
+    ...(shareFor
+      ? [
+          {
+            label: '% of visitors',
+            className: styles.pctCol,
+            sort: 'number' as const,
+          },
+        ]
+      : []),
+  ]
+  const values: SortValue[][] = rows.map(r => {
+    const share = shareFor?.(r.name)
+    return [
+      ...(rankFor ? [rankSortValue(rankFor(r.name))] : []),
+      r.name,
+      ...(pageFor ? [pageFor(r.name)?.label ?? null] : []),
+      r.count,
+      ...(showPct ? [r.count] : []),
+      ...(shareFor
+        ? [share && share.visitors > 0 ? share.active / share.visitors : null]
+        : []),
+    ]
+  })
   return (
     <>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            {rankFor && <th className={styles.rankCol}>{rankHead}</th>}
-            <th>{labelHead}</th>
-            {pageFor && <th>Page</th>}
-            <th className={styles.numCol}>{countHead}</th>
-            {showPct && <th className={styles.pctCol}>%</th>}
-          </tr>
-        </thead>
-        <ExpandableBody colSpan={colSpan}>
-          {rows.map((r, i) => {
-            const rank = rankFor?.(r.name)
-            const featured = rank?.startsWith('F')
-            const href = linkFor?.(r.name)
-            const badge = pageFor?.(r.name)
-            return (
-              <tr key={i}>
-                {rankFor && (
-                  <td
-                    className={`${styles.rankCol}${
-                      featured ? ` ${styles.rankFeatured}` : ''
-                    }`}
-                  >
-                    {rank ?? '—'}
-                  </td>
-                )}
-                <td className={styles.nameCell}>
-                  {logoFor &&
-                    (href && href !== '#' ? (
-                      <a
-                        className={styles.logoLink}
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`Open ${r.name}`}
-                      >
-                        <Logo src={logoFor(r.name)} />
-                      </a>
-                    ) : (
-                      <Logo src={logoFor(r.name)} />
-                    ))}
-                  <span>{r.name}</span>
-                </td>
-                {pageFor && (
-                  <td>
-                    {badge && (
-                      <span className={styles.pageBadge}>
-                        {badge.icon && (
-                          <span className={styles.pageTabIcon}>
-                            <Image
-                              src={badge.icon}
-                              alt=""
-                              width={12}
-                              height={12}
-                            />
-                          </span>
-                        )}
-                        {badge.label}
-                      </span>
-                    )}
-                  </td>
-                )}
-                <td className={styles.numCol}>{r.count.toLocaleString()}</td>
-                {showPct && (
-                  <td className={styles.pctCol}>{pct1(r.count, total)}</td>
-                )}
-              </tr>
-            )
-          })}
-        </ExpandableBody>
-        {total != null && (
-          <tfoot>
+      <SortableTable
+        columns={columns}
+        values={values}
+        foot={
+          total != null ? (
             <tr className={styles.totalRow}>
               {rankFor && <td className={styles.rankCol} />}
               <td className={styles.totalLabel}>Total</td>
@@ -1452,10 +1512,74 @@ function CountTable({
               {showPct && (
                 <td className={styles.pctCol}>{pct1(total, total)}</td>
               )}
+              {shareFor && <td className={styles.pctCol} />}
             </tr>
-          </tfoot>
-        )}
-      </table>
+          ) : undefined
+        }
+      >
+        {rows.map((r, i) => {
+          const rank = rankFor?.(r.name)
+          const featured = rank?.startsWith('F')
+          const href = linkFor?.(r.name)
+          const badge = pageFor?.(r.name)
+          return (
+            <tr key={i}>
+              {rankFor && (
+                <td
+                  className={`${styles.rankCol}${
+                    featured ? ` ${styles.rankFeatured}` : ''
+                  }`}
+                >
+                  {rank ?? '—'}
+                </td>
+              )}
+              <td className={styles.nameCell}>
+                {logoFor &&
+                  (href && href !== '#' ? (
+                    <a
+                      className={styles.logoLink}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Open ${r.name}`}
+                    >
+                      <Logo src={logoFor(r.name)} />
+                    </a>
+                  ) : (
+                    <Logo src={logoFor(r.name)} />
+                  ))}
+                <span>{r.name}</span>
+              </td>
+              {pageFor && (
+                <td>
+                  {badge && (
+                    <span className={styles.pageBadge}>
+                      {badge.icon && (
+                        <span className={styles.pageTabIcon}>
+                          <Image
+                            src={badge.icon}
+                            alt=""
+                            width={12}
+                            height={12}
+                          />
+                        </span>
+                      )}
+                      {badge.label}
+                    </span>
+                  )}
+                </td>
+              )}
+              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+              {showPct && (
+                <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+              )}
+              {shareFor && (
+                <td className={styles.pctCol}>{shareCell(shareFor(r.name))}</td>
+              )}
+            </tr>
+          )
+        })}
+      </SortableTable>
       {allRows.length > rows.length && (
         <TruncationNote shown={rows.length} of={allRows.length} />
       )}
@@ -1481,62 +1605,68 @@ function OverallListingsTable({
   if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
   const rows = allRows.slice(0, MAX_TABLE_ROWS)
   const showPct = total > 0
-  const colSpan = 3 + (showPct ? 1 : 0)
+  const columns: SortColumn[] = [
+    { label: 'Listing', sort: 'text' },
+    { label: 'Page', sort: 'text' },
+    { label: 'Clicks', className: styles.numCol, sort: 'number' },
+    ...(showPct
+      ? [{ label: '%', className: styles.pctCol, sort: 'number' as const }]
+      : []),
+  ]
+  const values: SortValue[][] = rows.map(r => [
+    r.name,
+    r.pageLabel ?? null,
+    r.count,
+    ...(showPct ? [r.count] : []),
+  ])
   return (
     <>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Listing</th>
-            <th>Page</th>
-            <th className={styles.numCol}>Clicks</th>
-            {showPct && <th className={styles.pctCol}>%</th>}
-          </tr>
-        </thead>
-        <ExpandableBody colSpan={colSpan}>
-          {rows.map((r, i) => {
-            const favicon = faviconFor(r.url)
-            const href = r.url
-            return (
-              <tr key={i}>
-                <td className={styles.nameCell}>
-                  {href && href !== '#' ? (
-                    <a
-                      className={styles.logoLink}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={`Open ${r.name}`}
-                    >
-                      <Logo src={favicon} />
-                    </a>
-                  ) : (
-                    <Logo src={favicon} />
-                  )}
-                  <span>{r.name}</span>
-                </td>
-                <td>
-                  {r.pageLabel && (
-                    <span className={styles.pill}>{r.pageLabel}</span>
-                  )}
-                </td>
-                <td className={styles.numCol}>{r.count.toLocaleString()}</td>
-                {showPct && (
-                  <td className={styles.pctCol}>{pct1(r.count, total)}</td>
-                )}
-              </tr>
-            )
-          })}
-        </ExpandableBody>
-        <tfoot>
+      <SortableTable
+        columns={columns}
+        values={values}
+        foot={
           <tr className={styles.totalRow}>
             <td className={styles.totalLabel}>Total</td>
             <td />
             <td className={styles.numCol}>{total.toLocaleString()}</td>
             {showPct && <td className={styles.pctCol}>{pct1(total, total)}</td>}
           </tr>
-        </tfoot>
-      </table>
+        }
+      >
+        {rows.map((r, i) => {
+          const favicon = faviconFor(r.url)
+          const href = r.url
+          return (
+            <tr key={i}>
+              <td className={styles.nameCell}>
+                {href && href !== '#' ? (
+                  <a
+                    className={styles.logoLink}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open ${r.name}`}
+                  >
+                    <Logo src={favicon} />
+                  </a>
+                ) : (
+                  <Logo src={favicon} />
+                )}
+                <span>{r.name}</span>
+              </td>
+              <td>
+                {r.pageLabel && (
+                  <span className={styles.pill}>{r.pageLabel}</span>
+                )}
+              </td>
+              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+              {showPct && (
+                <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+              )}
+            </tr>
+          )
+        })}
+      </SortableTable>
       {allRows.length > rows.length && (
         <TruncationNote shown={rows.length} of={allRows.length} />
       )}
@@ -1843,36 +1973,34 @@ function QuestionsTable({
   const total = allRows.reduce((s, r) => s + r.count, 0)
   return (
     <>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Question</th>
-            <th className={styles.numCol}>Conversations</th>
-            <th className={styles.pctCol}>%</th>
-          </tr>
-        </thead>
-        <ExpandableBody colSpan={3}>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              <td className={styles.nameCell}>
-                <span>{r.text}</span>
-                {showPill && r.suggested && (
-                  <span className={styles.pill}>Suggested</span>
-                )}
-              </td>
-              <td className={styles.numCol}>{r.count.toLocaleString()}</td>
-              <td className={styles.pctCol}>{pct1(r.count, total)}</td>
-            </tr>
-          ))}
-        </ExpandableBody>
-        <tfoot>
+      <SortableTable
+        columns={[
+          { label: 'Question', sort: 'text' },
+          { label: 'Conversations', className: styles.numCol, sort: 'number' },
+          { label: '%', className: styles.pctCol, sort: 'number' },
+        ]}
+        values={rows.map(r => [r.text, r.count, r.count])}
+        foot={
           <tr className={styles.totalRow}>
             <td className={styles.totalLabel}>Total</td>
             <td className={styles.numCol}>{total.toLocaleString()}</td>
             <td className={styles.pctCol}>{pct1(total, total)}</td>
           </tr>
-        </tfoot>
-      </table>
+        }
+      >
+        {rows.map((r, i) => (
+          <tr key={i}>
+            <td className={styles.nameCell}>
+              <span>{r.text}</span>
+              {showPill && r.suggested && (
+                <span className={styles.pill}>Suggested</span>
+              )}
+            </td>
+            <td className={styles.numCol}>{r.count.toLocaleString()}</td>
+            <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+          </tr>
+        ))}
+      </SortableTable>
       {allRows.length > rows.length && (
         <TruncationNote shown={rows.length} of={allRows.length} />
       )}
@@ -1945,35 +2073,36 @@ function CorrelationsTable({
   }
   const rows = allRows.slice(0, MAX_TABLE_ROWS)
   return (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th>Pages</th>
-          <th className={styles.numCol}>Shared visitors</th>
-          <th>Overlap</th>
-        </tr>
-      </thead>
-      <ExpandableBody colSpan={3}>
-        {rows.map((r, i) => {
-          const a = labelFor(r.a)
-          const b = labelFor(r.b)
-          return (
-            <tr key={i}>
-              <td className={styles.nameCell}>
-                <span>
-                  {a} + {b}
-                </span>
-              </td>
-              <td className={styles.numCol}>{r.both.toLocaleString()}</td>
-              <td>
-                {pct1(r.both, r.aTotal)} of {a} · {pct1(r.both, r.bTotal)} of{' '}
-                {b}
-              </td>
-            </tr>
-          )
-        })}
-      </ExpandableBody>
-    </table>
+    <SortableTable
+      columns={[
+        { label: 'Pages', sort: 'text' },
+        { label: 'Shared visitors', className: styles.numCol, sort: 'number' },
+        { label: 'Overlap' },
+      ]}
+      values={rows.map(r => [
+        `${labelFor(r.a)} + ${labelFor(r.b)}`,
+        r.both,
+        null,
+      ])}
+    >
+      {rows.map((r, i) => {
+        const a = labelFor(r.a)
+        const b = labelFor(r.b)
+        return (
+          <tr key={i}>
+            <td className={styles.nameCell}>
+              <span>
+                {a} + {b}
+              </span>
+            </td>
+            <td className={styles.numCol}>{r.both.toLocaleString()}</td>
+            <td>
+              {pct1(r.both, r.aTotal)} of {a} · {pct1(r.both, r.bTotal)} of {b}
+            </td>
+          </tr>
+        )
+      })}
+    </SortableTable>
   )
 }
 

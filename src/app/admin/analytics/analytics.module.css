@@ -139,6 +139,16 @@
   text-align: right;
 }
 
+/* The numeric and % columns hug their content (width: 1%), which leaves the
+   default cell padding as the only gap between them — widen it so adjacent
+   number columns read as clearly separate. */
+.table th.numCol,
+.table td.numCol,
+.table th.pctCol,
+.table td.pctCol {
+  padding-left: 28px;
+}
+
 /* Per-row share of the chart total — a secondary, dimmer column. */
 .pctCol {
   text-align: right;
@@ -213,6 +223,30 @@
 .showMoreBtn:hover {
   color: var(--white);
   background-color: var(--teal-800);
+}
+
+/* Sortable column headers: the header text is a button, styled to read
+   exactly like a plain header until hovered. The arrow marks the active
+   sort column and direction. */
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color var(--hover-transition);
+}
+
+.sortBtn:hover {
+  color: var(--white);
+}
+
+.sortArrow {
+  font-size: 8px;
 }
 
 .caption {

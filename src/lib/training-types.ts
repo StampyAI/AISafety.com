@@ -2,6 +2,7 @@ export const TRAINING_TYPES = [
   'Fellowship',
   'Course',
   'Bootcamp',
+  'Immersive workshop',
   'Other',
 ] as const
 
@@ -11,6 +12,7 @@ const TRAINING_TYPE_COLOR: Record<string, string> = {
   Fellowship: 'color-orange',
   Bootcamp: 'color-pink',
   Course: 'color-bright-green',
+  'Immersive workshop': 'color-blue',
   Other: 'color-teal-300',
 }
 

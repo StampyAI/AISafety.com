@@ -4,6 +4,7 @@ import {
   fieldString,
   fieldText,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tblyLelYCQjP6w3nV'
 const VIEW_ID = 'viwBfn9CIUVqQHUy6'
@@ -43,6 +44,7 @@ export interface Job {
 }
 
 export async function getJobs(): Promise<Job[]> {
+  if (!hasAirtableCredentials()) return fetchPublicData<Job>('jobs')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

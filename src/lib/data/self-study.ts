@@ -7,6 +7,7 @@ import {
   fieldText,
   publishedFormula,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tblRNYJ0m1cmJXKKk'
 const VIEW_ID = 'viwblgaia3x1gsqBo'
@@ -46,6 +47,7 @@ export interface Course {
 }
 
 export async function getCourses(): Promise<Course[]> {
+  if (!hasAirtableCredentials()) return fetchPublicData<Course>('courses')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

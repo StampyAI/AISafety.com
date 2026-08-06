@@ -1,7 +1,16 @@
 import { fetchAirtableRecords } from './airtable'
+import { getAdvisors } from './advisors'
+import { getCommunities } from './communities'
 import { getEvents } from './events'
+import { getFounderResources } from './founders'
+import { getFunders } from './funding'
+import { getJobs } from './jobs'
+import { getMapData } from './map'
+import { getMediaChannels } from './media-channels'
+import { getProjects } from './projects'
 import { getCourses } from './self-study'
 import { getTrainingPrograms, getRecurringPrograms } from './training'
+import { hasAirtableCredentials } from './public-api'
 
 // Each resource's table ID, view to count from, and a minimal field (by
 // permanent field ID — rename-proof) to fetch.
@@ -67,6 +76,28 @@ const resources = [
 export async function fetchAllCounts(): Promise<
   Partial<Record<string, number>>
 > {
+  // Contributor mode: derive every count from the same public data the pages
+  // render, so each badge matches its page. The Airtable view counts below
+  // aren't available without credentials.
+  if (!hasAirtableCredentials()) {
+    const mapData = await getMapData()
+    return {
+      '/map': mapData.records.filter(r => !r.isMagic).length,
+      '/communities': (await getCommunities()).length,
+      '/jobs': (await getJobs()).length,
+      '/funding': (await getFunders()).length,
+      '/media-channels': (await getMediaChannels()).length,
+      '/advisors': (await getAdvisors()).length,
+      '/projects': (await getProjects()).length,
+      '/founders': (await getFounderResources()).length,
+      '/self-study': (await getCourses()).length,
+      '/events': (await getEvents()).length,
+      '/training':
+        (await getTrainingPrograms()).length +
+        (await getRecurringPrograms()).length,
+    }
+  }
+
   const counts: Partial<Record<string, number>> = {}
   for (const r of resources) {
     const raw = await fetchAirtableRecords({

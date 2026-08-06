@@ -7,6 +7,7 @@ import {
   fieldText,
   publishedFormula,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tblf3KKYnmgcjVGhD'
 const VIEW_ID = 'viwIdRmaCar2Y6gPi'
@@ -43,6 +44,7 @@ export interface Advisor {
 }
 
 export async function getAdvisors(): Promise<Advisor[]> {
+  if (!hasAirtableCredentials()) return fetchPublicData<Advisor>('advisors')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

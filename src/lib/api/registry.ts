@@ -12,6 +12,9 @@ export interface EndpointDef {
   fields: string[]
   // CDN cache TTL (seconds) for this endpoint's responses.
   cacheSeconds: number
+  // Featured slot + tagline are rendered on the public page, so the API
+  // keeps them in the output (default: stripped — see handler.ts).
+  featuredPublic?: boolean
 }
 
 export const ENDPOINTS: EndpointDef[] = [
@@ -42,8 +45,11 @@ export const ENDPOINTS: EndpointDef[] = [
       'size',
       'latitude',
       'longitude',
+      'featured',
+      'featuredTagline',
     ],
     cacheSeconds: 3600,
+    featuredPublic: true,
   },
   {
     slug: 'organizations',
@@ -176,8 +182,11 @@ export const ENDPOINTS: EndpointDef[] = [
       'recipientType',
       'acceptingApplications',
       'url',
+      'featured',
+      'featuredTagline',
     ],
     cacheSeconds: 3600,
+    featuredPublic: true,
   },
   {
     slug: 'courses',
@@ -193,40 +202,83 @@ export const ENDPOINTS: EndpointDef[] = [
       'organizer',
       'url',
       'image',
+      'featured',
+      'featuredTagline',
     ],
     cacheSeconds: 3600,
+    featuredPublic: true,
   },
   {
     slug: 'advisors',
     title: 'Advisors',
     description: 'People offering AI safety career and research advice.',
     filterFields: ['focus', 'status'],
-    fields: ['id', 'name', 'description', 'logo', 'focus', 'status', 'url'],
+    fields: [
+      'id',
+      'name',
+      'description',
+      'logo',
+      'focus',
+      'status',
+      'url',
+      'featured',
+      'featuredTagline',
+    ],
     cacheSeconds: 3600,
+    featuredPublic: true,
   },
   {
     slug: 'media-channels',
     title: 'Media channels',
     description: 'Podcasts, newsletters, blogs, and video channels.',
     filterFields: ['type'],
-    fields: ['id', 'name', 'description', 'logo', 'type', 'url'],
+    fields: [
+      'id',
+      'name',
+      'description',
+      'logo',
+      'type',
+      'url',
+      'featured',
+      'featuredTagline',
+    ],
     cacheSeconds: 3600,
+    featuredPublic: true,
   },
   {
     slug: 'founder-resources',
     title: 'Founder resources',
     description: 'Resources for founders of AI safety projects.',
     filterFields: ['type'],
-    fields: ['id', 'name', 'description', 'image', 'type', 'website'],
+    fields: [
+      'id',
+      'name',
+      'description',
+      'image',
+      'type',
+      'website',
+      'featured',
+      'featuredTagline',
+    ],
     cacheSeconds: 3600,
+    featuredPublic: true,
   },
   {
     slug: 'projects',
     title: 'Projects',
     description: 'Volunteer and collaboration opportunities.',
     filterFields: ['status'],
-    fields: ['id', 'name', 'description', 'status', 'contact'],
+    fields: [
+      'id',
+      'name',
+      'description',
+      'status',
+      'contact',
+      'featured',
+      'featuredTagline',
+    ],
     cacheSeconds: 3600,
+    featuredPublic: true,
   },
 ]
 

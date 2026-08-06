@@ -6,7 +6,10 @@
 // minus the internal curation fields (featured / featuredTagline) — so in
 // contributor mode everything renders except the featured cards.
 
-const PUBLIC_API_ORIGIN = 'https://aisafety.com'
+// Override for testing against a local or preview deployment's API,
+// e.g. PUBLIC_DATA_ORIGIN=http://localhost:3241.
+const PUBLIC_API_ORIGIN =
+  process.env.PUBLIC_DATA_ORIGIN || 'https://aisafety.com'
 
 export function hasAirtableCredentials(): boolean {
   return Boolean(process.env.AIRTABLE_TOKEN && process.env.AIRTABLE_BASE_ID)

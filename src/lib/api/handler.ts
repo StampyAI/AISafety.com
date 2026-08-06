@@ -11,8 +11,12 @@ import {
 
 type Loader = () => Promise<readonly unknown[]>
 
-// Site curation metadata (drives the featured cards); internal, so stripped
-// from every endpoint's output.
+// Featured-card curation metadata. On most collections the featured slot and
+// tagline are rendered on the public page, so they stay in the output
+// (featuredPublic in the registry) — contributor mode needs them to render
+// the same featured cards as the live site. The events/training featured
+// queue is different: ranks 3+ are unpublished backups, so those collections
+// keep stripping the fields.
 const INTERNAL_KEYS = ['featured', 'featuredTagline']
 
 function stripInternal(
@@ -35,7 +39,7 @@ export function createCollectionHandler(slug: string, loader: Loader) {
       const all = (await loader()) as Record<string, unknown>[]
       // Strip before filtering so the free-text `q` search can't match on
       // hidden values.
-      const visible = all.map(stripInternal)
+      const visible = def.featuredPublic ? all : all.map(stripInternal)
       const { searchParams } = new URL(request.url)
       const filtered = applyQuery(visible, searchParams, def.filterFields)
       const origin = getOrigin(request)

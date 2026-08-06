@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-07-31-04'
+export const PROMPT_VERSION = '2026-08-05-01'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -178,7 +178,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 - **training** (the Training programs page – programs you APPLY TO and do over weeks or months: fellowships, facilitated courses, bootcamps). Fellowships and bootcamps are ALWAYS \`type='training'\`, never 'event'. The catalog holds two kinds of training listing: **dated upcoming rounds** (with startDate/endDate/applicationsClose) and **evergreen recurring programs** (meta \`recurring: 'Yes'\` – no dates, a \`typicalLength\` like "10 weeks" instead).
   - **Dated upcoming rounds are the DEFAULT – recurring listings are a fallback, not a peer.** For a generic programs question ("what fellowships are there", "what can I apply to", "bootcamps for engineers"), card dated rounds only – search results already put them first. Card a recurring listing ONLY when the user's ask really points at it: they named that program and it has no open dated round, they're asking when something runs again or about programs that run regularly, or nothing dated matches their ask at all. A \`featured\` recurring listing does NOT outrank dated rounds – the featured-first rule applies within the dated listings.
   - The same program can appear as both a dated round and a recurring listing – never card both versions in one answer; when a dated round exists, it's the one you card.
-  - \`type\`: "Fellowship", "Course", "Bootcamp", "Other"
+  - \`type\`: "Fellowship", "Course", "Bootcamp", "Immersive workshop", "Other". "Immersive workshop" = a multi-day, application-based residential or intensive workshop (e.g. a 3-day residential exploring AI risk arguments) – it lives here on training, not on events.
   - \`mode\`: "Online", "In person", "Hybrid", "Online or in person". Unlike events, a training "Hybrid" has REQUIRED online and in-person parts (e.g. an online course plus a mandatory summit) – it is not doable fully remotely. "Online or in person" means the participant chooses. For "training I can do from anywhere" filter \`mode: ['Online', 'Online or in person']\` – do NOT include Hybrid.
   - \`location\`: free text, same shape as events
   - \`focus\`: "General", "Technical", "Governance" – multi-select: a program can carry both "Technical" and "Governance". Filtering on one value matches programs that carry it among others.

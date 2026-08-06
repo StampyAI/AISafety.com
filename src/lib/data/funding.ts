@@ -7,6 +7,7 @@ import {
   fieldText,
   publishedFormula,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tblzMTLDZWZKqTxrq'
 const VIEW_ID = 'viwxv2w8utSEhUeiJ'
@@ -44,6 +45,7 @@ export interface Funder {
 }
 
 export async function getFunders(): Promise<Funder[]> {
+  if (!hasAirtableCredentials()) return fetchPublicData<Funder>('funding')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

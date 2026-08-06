@@ -360,8 +360,16 @@ async function fetchAirtableRecordsImpl(
   const baseId = process.env.AIRTABLE_BASE_ID
 
   if (!token || !baseId) {
-    console.error('Airtable credentials not configured')
-    return []
+    // Every data module checks hasAirtableCredentials() and falls back to the
+    // public Data API before reaching this point, so landing here means a code
+    // path is missing its contributor-mode fallback. Fail loudly rather than
+    // silently rendering an empty page.
+    throw new Error(
+      'Airtable credentials not configured and this code path has no ' +
+        'contributor-mode fallback (see src/lib/data/public-api.ts). Add ' +
+        'AIRTABLE_TOKEN and AIRTABLE_BASE_ID to .env.local, or add a ' +
+        'fetchPublicData() fallback to the calling data module.'
+    )
   }
 
   const allRecords: AirtableRawRecord[] = []

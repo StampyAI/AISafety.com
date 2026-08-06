@@ -21,7 +21,24 @@ npm install
 npm run dev
 ```
 
-Create `.env.local`:
+That's it — no credentials needed. Without Airtable credentials the dev
+server runs in **contributor mode**: it fetches the site's data from the
+live site's public [Data API](./docs/api.md), so anyone can clone the repo
+and see the full site locally.
+
+A few things work differently in contributor mode:
+
+- Featured cards don't show (their curation data is internal).
+- The "Updated X days ago" line under page titles is hidden.
+- Features that need private credentials — the suggestion forms, the admin
+  panel, and the chatbot — won't work.
+
+None of that gets in the way of working on pages, components, styling, or
+the map.
+
+### Team setup (direct Airtable access)
+
+Team members with access to the Airtable base create `.env.local`:
 
 ```
 AIRTABLE_TOKEN=your_token

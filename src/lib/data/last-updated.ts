@@ -141,8 +141,9 @@ export async function fetchLastUpdated(
 
   const token = process.env.AIRTABLE_TOKEN
   const baseId = process.env.AIRTABLE_BASE_ID
-  if (!token || !baseId)
-    throw new Error('Missing AIRTABLE_TOKEN or AIRTABLE_BASE_ID')
+  // Contributor mode: last-edit dates aren't in the public API, so pages
+  // simply omit their "Updated X ago" line.
+  if (!token || !baseId) return { lastUpdated: null, formattedDate: null }
 
   if (config.type === 'record') {
     const response = await fetchAirtableWithRetry(

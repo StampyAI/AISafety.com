@@ -7,6 +7,7 @@ import {
   fieldStringArray,
   publishedFormula,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tblvzbGL9q9dOO9Nc'
 const VIEW_ID = 'viwJgtDFDmaP8PyoI'
@@ -141,6 +142,18 @@ function compareCategoryIndices(a: number[], b: number[]): number {
 }
 
 export async function getMapData(): Promise<MapData> {
+  if (!hasAirtableCredentials()) {
+    // The public collection excludes the magic control rows (Merch, Last
+    // updated, Suggest entry/correction), so those cards don't appear in
+    // contributor mode and the suggest links use the defaults below.
+    const orgs = await fetchPublicData<Omit<MapOrg, 'isMagic'>>('organizations')
+    return {
+      records: orgs.map(org => ({ ...org, isMagic: false })),
+      suggestEntryLink: '/map/suggest',
+      suggestCorrectionLink: '#',
+    }
+  }
+
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

@@ -1,4 +1,5 @@
 import { fetchAirtableRecords } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 import { EVENT_TYPES, type EventType } from '../event-types'
 import { parseFeaturedRank } from '../featured'
 import { parseAttendMode, type AttendMode } from './training'
@@ -97,6 +98,8 @@ export async function getEvents(): Promise<EventListing[]> {
       readFileSync(join(process.cwd(), 'events.mock.json'), 'utf8')
     ) as EventListing[]
   }
+
+  if (!hasAirtableCredentials()) return fetchPublicData<EventListing>('events')
 
   if (!TABLE_ID) {
     console.warn(

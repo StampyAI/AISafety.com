@@ -1,4 +1,5 @@
 import { fetchAirtableRecords } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 import {
   ENTRY_BARS,
   TRAINING_TYPES,
@@ -305,6 +306,13 @@ function parseBase(
 }
 
 export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
+  if (!hasAirtableCredentials()) {
+    const all = await fetchPublicData<TrainingProgram & { recurring: boolean }>(
+      'training'
+    )
+    return all.filter(p => !p.recurring)
+  }
+
   // Publish/Hide filtering and sorting happen in code below rather than in
   // the Airtable query — filterByFormula and sort reference fields by name,
   // which would break when a field is renamed.
@@ -369,6 +377,13 @@ export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
 }
 
 export async function getRecurringPrograms(): Promise<RecurringProgram[]> {
+  if (!hasAirtableCredentials()) {
+    const all = await fetchPublicData<
+      RecurringProgram & { recurring: boolean }
+    >('training')
+    return all.filter(p => p.recurring)
+  }
+
   const raw = await fetchAirtableRecords({
     tableId: RECURRING_TABLE_ID,
     viewId: RECURRING_VIEW_ID,

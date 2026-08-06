@@ -7,6 +7,7 @@ import {
   fieldText,
   publishedFormula,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tbl59Ye8oxvPjoVJv'
 const VIEW_ID = 'viwzMBhPBk1GpQXnn'
@@ -42,6 +43,8 @@ export interface FounderResource {
 }
 
 export async function getFounderResources(): Promise<FounderResource[]> {
+  if (!hasAirtableCredentials())
+    return fetchPublicData<FounderResource>('founder-resources')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

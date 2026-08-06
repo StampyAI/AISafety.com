@@ -7,6 +7,7 @@ import {
   fieldText,
   publishedFormula,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tblCTOMzyH3vILL5I'
 const VIEW_ID = 'viwT8KTwupcVyGKLZ'
@@ -42,6 +43,8 @@ export interface MediaChannel {
 }
 
 export async function getMediaChannels(): Promise<MediaChannel[]> {
+  if (!hasAirtableCredentials())
+    return fetchPublicData<MediaChannel>('media-channels')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

@@ -8,6 +8,7 @@ import {
   fieldStringArray,
   publishedFormula,
 } from './airtable'
+import { fetchPublicData, hasAirtableCredentials } from './public-api'
 
 const TABLE_ID = 'tbluI5Dll697WiSm8'
 const VIEW_ID = 'viwFIU3lKQHZlpc0b'
@@ -59,6 +60,8 @@ export interface Community {
 }
 
 export async function getCommunities(): Promise<Community[]> {
+  if (!hasAirtableCredentials())
+    return fetchPublicData<Community>('communities')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,

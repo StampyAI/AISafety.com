@@ -90,6 +90,14 @@ export default function MapClient({
 
   const scrollToCards = () => {
     if (!mapWrapperRef.current) return
+
+    // Surface the shareable /map#cards link (issue #226). replaceState rather
+    // than setting location.hash: the latter jump-scrolls instantly, fighting
+    // the animation below, and would stack a history entry per click.
+    const url = new URL(window.location.href)
+    url.hash = 'cards'
+    window.history.replaceState(window.history.state, '', url)
+
     const mapRect = mapWrapperRef.current.getBoundingClientRect()
     const scrollTarget = window.scrollY + mapRect.bottom
 

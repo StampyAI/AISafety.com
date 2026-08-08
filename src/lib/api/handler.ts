@@ -1,13 +1,6 @@
 import { getEndpoint } from './registry'
 import { applyQuery } from './filter'
-import {
-  absolutizeAssets,
-  buildMeta,
-  getOrigin,
-  jsonError,
-  jsonResponse,
-  preflight,
-} from './response'
+import { buildMeta, jsonError, jsonResponse, preflight } from './response'
 
 type Loader = () => Promise<readonly unknown[]>
 
@@ -28,7 +21,7 @@ function stripInternal(
 }
 
 // Builds a GET route handler for a collection endpoint:
-//   load → filter (whitelist + free-text q) → absolutize asset URLs → envelope.
+//   load → filter (whitelist + free-text q) → envelope.
 // The loader reuses the existing src/lib/data getX() functions, so data shaping
 // lives in one place and the API stays a thin, consistent skin over it.
 export function createCollectionHandler(slug: string, loader: Loader) {
@@ -41,9 +34,7 @@ export function createCollectionHandler(slug: string, loader: Loader) {
       // hidden values.
       const visible = def.featuredPublic ? all : all.map(stripInternal)
       const { searchParams } = new URL(request.url)
-      const filtered = applyQuery(visible, searchParams, def.filterFields)
-      const origin = getOrigin(request)
-      const data = filtered.map(record => absolutizeAssets(record, origin))
+      const data = applyQuery(visible, searchParams, def.filterFields)
       return jsonResponse(
         { data, meta: buildMeta(data.length) },
         { cacheSeconds: def.cacheSeconds }

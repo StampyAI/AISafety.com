@@ -1,7 +1,5 @@
-import fs from 'fs'
 import path from 'path'
-import https from 'https'
-import http from 'http'
+import { list, put } from '@vercel/blob'
 import { unstable_cache } from 'next/cache'
 
 export interface AirtableRawRecord {
@@ -82,7 +80,10 @@ export function publishedFormula(
   return `AND({${publishFieldId}} = TRUE(), {${hideFieldId}} = FALSE())`
 }
 
-const CACHE_DIR = path.join(process.cwd(), 'public', 'images', 'airtable-cache')
+// Attachments are mirrored to Vercel Blob under this prefix. Airtable's own
+// attachment URLs are signed and expire within hours, so they must never end
+// up in cached pages or API responses; Blob URLs are permanent.
+const BLOB_PREFIX = 'airtable/'
 const CONCURRENCY = 20
 const DOWNLOAD_MAX_RETRIES = 3
 const DOWNLOAD_RETRY_DELAY_MS = 2000
@@ -107,9 +108,22 @@ const ALLOWED_EXTENSIONS = [
   '.webp',
   '.gif',
   '.avif',
+  // Comb falls back to a site's favicon when no logo is available.
+  '.ico',
 ]
 
-function getExtension(url: string, filename: string): string {
+const MIME_EXTENSIONS: Record<string, string> = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/svg+xml': '.svg',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'image/avif': '.avif',
+  'image/x-icon': '.ico',
+  'image/vnd.microsoft.icon': '.ico',
+}
+
+function getExtension({ url, filename, type }: AirtableAttachment): string {
   const filenameExt = path.extname(filename).toLowerCase()
   if (filenameExt && ALLOWED_EXTENSIONS.includes(filenameExt)) {
     return filenameExt
@@ -119,6 +133,10 @@ function getExtension(url: string, filename: string): string {
   const urlExt = path.extname(urlPath).toLowerCase()
   if (urlExt && ALLOWED_EXTENSIONS.includes(urlExt)) {
     return urlExt
+  }
+
+  if (type && MIME_EXTENSIONS[type]) {
+    return MIME_EXTENSIONS[type]
   }
 
   throw new Error(
@@ -135,6 +153,11 @@ function parseHttpStatus(message: string): number {
 function isRetryableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
   if (RETRYABLE_STATUS_CODES.has(parseHttpStatus(message))) return true
+  // fetch wraps network errors: the useful code lives in error.cause.
+  const cause =
+    error instanceof Error && error.cause instanceof Error
+      ? error.cause.message
+      : ''
   const networkErrors = [
     'ECONNRESET',
     'ETIMEDOUT',
@@ -142,56 +165,19 @@ function isRetryableError(error: unknown): boolean {
     'EPIPE',
     'EAI_AGAIN',
     'socket hang up',
+    'fetch failed',
   ]
-  return networkErrors.some(e => message.includes(e))
+  return networkErrors.some(e => message.includes(e) || cause.includes(e))
 }
 
-function downloadFileOnce(url: string, dest: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest)
-    file.on('error', err => {
-      reject(err)
-    })
-    const protocol = url.startsWith('https') ? https : http
-
-    protocol
-      .get(url, response => {
-        if (response.statusCode === 301 || response.statusCode === 302) {
-          const redirectUrl = response.headers.location
-          if (redirectUrl) {
-            file.close()
-            fs.unlinkSync(dest)
-            downloadFileOnce(redirectUrl, dest).then(resolve).catch(reject)
-            return
-          }
-        }
-
-        if (response.statusCode !== 200) {
-          file.close()
-          fs.unlinkSync(dest)
-          reject(new Error(`HTTP ${response.statusCode}`))
-          return
-        }
-
-        response.pipe(file)
-        file.on('finish', () => {
-          file.close()
-          resolve()
-        })
-      })
-      .on('error', err => {
-        file.close()
-        fs.unlink(dest, () => {})
-        reject(err)
-      })
-  })
-}
-
-async function downloadFile(url: string, dest: string): Promise<void> {
+async function fetchAttachmentBody(url: string): Promise<ArrayBuffer> {
   for (let attempt = 0; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
     try {
-      await downloadFileOnce(url, dest)
-      return
+      const response = await fetch(url, { cache: 'no-store' })
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      return await response.arrayBuffer()
     } catch (error) {
       if (!isRetryableError(error) || attempt === DOWNLOAD_MAX_RETRIES) {
         throw error
@@ -204,89 +190,129 @@ async function downloadFile(url: string, dest: string): Promise<void> {
       await new Promise(r => setTimeout(r, delay))
     }
   }
+  // Unreachable — the loop returns or throws on the final attempt.
+  throw new Error('fetchAttachmentBody exhausted retries without returning')
 }
 
-interface DownloadTask {
+interface MirrorTask {
   recordId: string
   fieldName: string
-  attachment: AirtableAttachment
-  localPath: string
-  localUrl: string
+  /** The record's attachment array; index 0 is rewritten in place. */
+  holder: AirtableAttachment[]
+  pathname: string
 }
 
-async function downloadAttachments(
-  records: AirtableRawRecord[]
-): Promise<void> {
-  // The cache lives under public/ so it can be served as static assets.
-  // That works at build time (writable filesystem) but not at request time
-  // on Vercel serverless (read-only). When the cache dir isn't writable,
-  // skip caching and leave the original Airtable signed URLs in place —
-  // they're valid long enough for an interactive request.
-  try {
-    if (!fs.existsSync(CACHE_DIR)) {
-      fs.mkdirSync(CACHE_DIR, { recursive: true })
-    }
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === 'EROFS' || code === 'EACCES' || code === 'ENOENT') {
-      return
-    }
-    throw err
+// Rewrites every record's first attachment URL to a permanent copy in Vercel
+// Blob, uploading any attachment not yet mirrored. Unlike the filesystem, Blob
+// is writable at request time too, so the same path runs at build time and at
+// runtime (ISR revalidation, the assistant catalog) and expiring signed URLs
+// never end up in cached data or rendered pages.
+async function mirrorAttachments(records: AirtableRawRecord[]): Promise<void> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    // No Blob store configured (e.g. running from a fork without Vercel
+    // access). Signed URLs work for a couple of hours — enough for local dev.
+    console.warn(
+      'BLOB_READ_WRITE_TOKEN not set — images will use expiring Airtable URLs'
+    )
+    return
   }
 
-  const tasks: DownloadTask[] = []
-
+  // Collect every mirrorable attachment first: several tables (e.g. the
+  // per-table counts) carry no attachments at all, and those fetches should
+  // not pay for a Blob listing.
+  const candidates: MirrorTask[] = []
   for (const record of records) {
     for (const [fieldName, value] of Object.entries(record.fields)) {
       if (!isAttachmentArray(value)) continue
 
       const attachment = value[0]
-      const ext = getExtension(attachment.url, attachment.filename)
-      // Use attachment.id in filename so cache auto-invalidates when image is replaced in Airtable
-      const localFilename = `${attachment.id}${ext}`
-      const localPath = path.join(CACHE_DIR, localFilename)
-      const localUrl = `/images/airtable-cache/${localFilename}`
-
-      if (fs.existsSync(localPath)) {
-        // Already cached, just update the URL
-        value[0] = { ...attachment, url: localUrl }
+      let ext: string
+      try {
+        ext = getExtension(attachment)
+      } catch (error) {
+        // One odd attachment must not block deploys or crash consumers of the
+        // shared data cache; its record keeps the signed URL (works ~2h) and
+        // the warning names it so it can be fixed in Airtable.
+        console.warn(`Cannot mirror ${fieldName} for ${record.id}: ${error}`)
         continue
       }
-
-      tasks.push({
+      candidates.push({
         recordId: record.id,
         fieldName,
-        attachment,
-        localPath,
-        localUrl,
+        holder: value,
+        pathname: `${BLOB_PREFIX}${attachment.id}${ext}`,
       })
     }
   }
+  if (candidates.length === 0) return
 
-  if (tasks.length === 0) return
+  // One listing covers every already-mirrored attachment. Pathnames embed the
+  // attachment id, so replacing an image in Airtable changes the pathname and
+  // the new file is uploaded on the next fetch.
+  const existing = new Map<string, string>()
+  try {
+    let cursor: string | undefined
+    do {
+      const page = await list({ prefix: BLOB_PREFIX, cursor })
+      for (const blob of page.blobs) {
+        existing.set(blob.pathname, blob.url)
+      }
+      cursor = page.cursor
+    } while (cursor)
+  } catch (error) {
+    // A Blob outage (or revoked token) must not take down every consumer of
+    // the shared data cache — degrade to signed URLs at runtime, but fail the
+    // build loudly: deploying pages with expiring URLs defeats the mirror.
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      throw error
+    }
+    console.warn(
+      `Blob listing failed — images will use expiring Airtable URLs: ${error}`
+    )
+    return
+  }
 
-  console.log(`Downloading ${tasks.length} attachments...`)
-
+  const tasks: MirrorTask[] = []
   const failures: string[] = []
 
-  // Download in parallel with concurrency limit
+  for (const candidate of candidates) {
+    const mirroredUrl = existing.get(candidate.pathname)
+    if (mirroredUrl) {
+      candidate.holder[0] = { ...candidate.holder[0], url: mirroredUrl }
+    } else {
+      tasks.push(candidate)
+    }
+  }
+
+  if (tasks.length > 0) {
+    console.log(`Mirroring ${tasks.length} attachments to Blob...`)
+  }
+
+  // Upload in parallel with concurrency limit
   for (let i = 0; i < tasks.length; i += CONCURRENCY) {
     const batch = tasks.slice(i, i + CONCURRENCY)
     const results = await Promise.allSettled(
-      batch.map(task => downloadFile(task.attachment.url, task.localPath))
+      batch.map(async task => {
+        const body = await fetchAttachmentBody(task.holder[0].url)
+        return put(task.pathname, body, {
+          access: 'public',
+          addRandomSuffix: false,
+          // Concurrent revalidations can race to upload the same attachment;
+          // both write identical bytes, so overwriting is harmless.
+          allowOverwrite: true,
+          contentType: task.holder[0].type,
+          cacheControlMaxAge: 31536000,
+        })
+      })
     )
 
     for (let j = 0; j < results.length; j++) {
       const task = batch[j]
       const result = results[j]
-      const record = records.find(r => r.id === task.recordId)
 
-      if (result.status === 'fulfilled' && record) {
-        const field = record.fields[task.fieldName]
-        if (isAttachmentArray(field)) {
-          field[0] = { ...field[0], url: task.localUrl }
-        }
-      } else if (result.status === 'rejected') {
+      if (result.status === 'fulfilled') {
+        task.holder[0] = { ...task.holder[0], url: result.value.url }
+      } else {
         failures.push(
           `${task.fieldName} for ${task.recordId}: ${result.reason}`
         )
@@ -295,9 +321,14 @@ async function downloadAttachments(
   }
 
   if (failures.length > 0) {
-    throw new Error(
-      `Failed to download ${failures.length} attachments:\n${failures.join('\n')}`
-    )
+    const message = `Failed to mirror ${failures.length} attachments to Blob (their records keep expiring Airtable URLs):\n${failures.join('\n')}`
+    // A broken image must fail the build, but at request time it would take
+    // down every consumer of the shared data cache (assistant, search, ISR
+    // revalidation) over a single logo — warn and degrade there instead.
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      throw new Error(message)
+    }
+    console.warn(message)
   }
 }
 
@@ -419,7 +450,7 @@ async function fetchAirtableRecordsImpl(
     offset = data.offset || null
   } while (offset)
 
-  await downloadAttachments(allRecords)
+  await mirrorAttachments(allRecords)
 
   return allRecords
 }
@@ -431,7 +462,8 @@ async function fetchAirtableRecordsImpl(
 // records under the old field shape can't be served to new code.
 export const fetchAirtableRecords = unstable_cache(
   fetchAirtableRecordsImpl,
-  ['airtable-records', 'v2'],
+  // v3: attachment URLs moved from local paths to Vercel Blob.
+  ['airtable-records', 'v3'],
   // The tag lets /api/check-rebuild invalidate these entries the minute an
   // Airtable change is detected, so runtime consumers (assistant catalog,
   // search index) don't wait out the hourly revalidate that static pages

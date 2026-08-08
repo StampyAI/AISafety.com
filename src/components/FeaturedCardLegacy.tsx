@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import CardLogo from './CardLogo'
 import TrackedLink from './TrackedLink'
 import styles from './FeaturedCardLegacy.module.css'
 
@@ -54,16 +55,7 @@ export default function FeaturedCardLegacy({
       </p>
       {logo ? (
         <div className="flex items-center gap-16px padding-bottom-24px">
-          <div className="featured-img">
-            <Image
-              src={logo}
-              alt={`${name} logo`}
-              width={64}
-              height={64}
-              className="card-image"
-              unoptimized
-            />
-          </div>
+          <CardLogo src={logo} alt={`${name} logo`} />
           <h3>{name}</h3>
         </div>
       ) : (

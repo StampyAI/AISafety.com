@@ -43,8 +43,8 @@ Every collection endpoint returns a wrapped envelope:
 ```
 
 - IDs are stable Airtable record IDs.
-- Image fields (`logo`, `image`, `mapLogo`) are absolute URLs on the serving
-  origin (the build-time image cache), not Airtable's expiring attachment URLs.
+- Image fields (`logo`, `image`, `mapLogo`) are permanent Vercel Blob URLs
+  (`*.public.blob.vercel-storage.com`), not Airtable's expiring attachment URLs.
 - Dates are ISO-8601 strings.
 
 ## Filtering
@@ -72,7 +72,7 @@ fields are excluded by allowlist.
 src/lib/api/
   constants.ts   license / attribution / base path
   registry.ts    single source of truth for endpoints (filters, fields, TTLs)
-  response.ts    CORS, envelope, meta, absolute-URL helper
+  response.ts    CORS, envelope, meta
   filter.ts      in-memory query/search
   handler.ts     createCollectionHandler() + OPTIONS
 src/lib/data/events.ts            events normalizer (shared with the chatbot)
@@ -84,11 +84,9 @@ src/app/developers/page.tsx       human docs
 
 ## Known limitations and future work
 
-- **Image freshness:** images come from the build-time cache. A brand-new image
-  in Airtable appears after the next redeploy (same model as the site). If an
-  image-bearing collection is fetched at runtime before a redeploy and a new
-  image was just added, that request can 503 until the redeploy, then self-heals.
-  A streaming image proxy would remove this entirely (deferred).
+- **Image freshness:** a brand-new image in Airtable is mirrored to Vercel Blob
+  on the next data refresh (at most an hour, no redeploy needed) and its URL is
+  permanent from then on.
 - **Per-dataset `lastUpdated`** in `meta` (deferred; `generatedAt` is provided).
 - **Pagination** and **server-side sorting** (deferred; collections are small).
 - **UI embed widget**, a zero-code drop-in for non-technical chapters (deferred).

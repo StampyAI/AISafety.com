@@ -1,5 +1,6 @@
 'use client'
 
+import Icon from './Icon'
 import styles from './MapControls.module.css'
 
 interface MapControlsProps {
@@ -44,19 +45,11 @@ export default function MapControls({
           </svg>
         </button>
         <button className={styles.button} title="Reset view" onClick={onReset}>
-          <svg
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fillRule="evenodd"
-              clipRule="evenodd"
-              d="M8 3.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM2.5 8a5.5 5.5 0 1 1 11 0 5.5 5.5 0 0 1-11 0Z"
-              fill="white"
-            />
-            <circle cx="8" cy="8" r="1.5" fill="white" />
-          </svg>
+          <Icon
+            src="/images/icons/crosshair.svg"
+            size={20}
+            className="color-white"
+          />
         </button>
       </div>
     </div>

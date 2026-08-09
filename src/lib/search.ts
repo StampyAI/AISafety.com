@@ -39,17 +39,17 @@ export const TYPE_LABEL: Record<SearchType, string> = {
 }
 
 export const TYPE_ICON: Record<SearchType, string | null> = {
-  advisor: '/images/person.svg',
-  community: '/images/globe.svg',
-  course: '/images/book.svg',
-  event: '/images/calendar.svg',
-  founder: '/images/rocket.svg',
-  funder: '/images/coins.svg',
-  job: '/images/briefcase.svg',
-  map: '/images/map.svg',
-  media: '/images/megaphone.svg',
-  project: '/images/clipboard.svg',
-  training: '/images/grad-cap.svg',
+  advisor: '/images/icons/person.svg',
+  community: '/images/icons/globe.svg',
+  course: '/images/icons/book.svg',
+  event: '/images/icons/calendar.svg',
+  founder: '/images/icons/rocket.svg',
+  funder: '/images/icons/coins.svg',
+  job: '/images/icons/briefcase.svg',
+  map: '/images/icons/map.svg',
+  media: '/images/icons/megaphone.svg',
+  project: '/images/icons/clipboard.svg',
+  training: '/images/icons/grad-cap.svg',
   page: null,
 }
 

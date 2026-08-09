@@ -28,12 +28,6 @@ const resources = [
     adjust: -4, // Grid view includes 4 category header rows that aren't displayed on the site
   },
   {
-    path: '/communities',
-    tableId: 'tbluI5Dll697WiSm8',
-    viewId: 'viwFIU3lKQHZlpc0b',
-    field: 'fld6w8ff8niuQCtF8', // Name
-  },
-  {
     path: '/jobs',
     tableId: 'tblyLelYCQjP6w3nV',
     viewId: 'viwBfn9CIUVqQHUy6',
@@ -110,6 +104,7 @@ export async function fetchAllCounts(): Promise<
 
   // Derive redesigned pages' counts from the same data the page renders, so the
   // nav badge always matches the on-page total exactly.
+  counts['/communities'] = (await getCommunities()).length
   counts['/self-study'] = (await getCourses()).length
   counts['/events'] = (await getEvents()).length
   // Both program sets the page lists: upcoming + recurring.

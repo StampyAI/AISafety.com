@@ -366,7 +366,7 @@ export default function SearchModal({
                   className={`${styles['browse-card-icon']} drop-shadow-light flex items-center justify-center`}
                 >
                   <Image
-                    src="/images/heart.svg"
+                    src="/images/icons/heart.svg"
                     alt=""
                     width={14}
                     height={14}

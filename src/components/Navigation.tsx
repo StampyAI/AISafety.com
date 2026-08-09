@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Icon from './Icon'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -286,11 +287,9 @@ export default function Navigation({
                 }}
               >
                 <div className={styles['nav-item-icon']}>
-                  <Image
-                    width={16}
-                    height={16}
-                    alt={`${item.label} icon`}
-                    src={`/images/${item.icon}`}
+                  <Icon
+                    className="color-teal-bright-800"
+                    src={`/images/icons/${item.icon}`}
                   />
                 </div>
                 <p className="paragraph-small-bold">{item.label}</p>
@@ -325,11 +324,9 @@ export default function Navigation({
                       onClick={() => setIsDropdownOpen(false)}
                     >
                       <div className={styles['nav-item-icon']}>
-                        <Image
-                          width={16}
-                          height={16}
-                          alt={`${item.label} icon`}
-                          src={`/images/${item.icon}`}
+                        <Icon
+                          className="color-teal-bright-800"
+                          src={`/images/icons/${item.icon}`}
                         />
                       </div>
                       <p className="paragraph-small-bold">{item.label}</p>
@@ -421,11 +418,9 @@ export default function Navigation({
               aria-current={pathname === item.href ? 'page' : undefined}
             >
               <div className={styles['nav-item-icon']}>
-                <Image
-                  width={16}
-                  height={16}
-                  alt={`${item.label} icon`}
-                  src={`/images/${item.icon}`}
+                <Icon
+                  className="color-teal-bright-800"
+                  src={`/images/icons/${item.icon}`}
                 />
               </div>
               <p className="paragraph-default-bold">{item.label}</p>
@@ -441,7 +436,10 @@ export default function Navigation({
             onClick={() => setIsMenuOpen(false)}
           >
             <div className={styles['nav-item-icon']}>
-              <Image width={16} height={16} alt="" src="/images/search.svg" />
+              <Icon
+                className="color-teal-bright-800"
+                src="/images/icons/search.svg"
+              />
             </div>
             <p className="paragraph-default-bold">Search</p>
           </SearchButton>

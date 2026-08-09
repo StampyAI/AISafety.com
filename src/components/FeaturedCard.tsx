@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Icon from './Icon'
 import TrackedLink from './TrackedLink'
 import styles from './FeaturedCard.module.css'
 
@@ -43,9 +44,9 @@ function MetaRows({ rows }: { rows: FeaturedCardMeta[] }) {
   return (
     <div className="flex flex-col gap-4px">
       {rows.map((field, i) => (
-        <div key={i} className="flex items-center gap-8px">
-          <Image src={field.icon} alt="" width={16} height={16} unoptimized />
-          <p className="paragraph-xs color-teal-300">{field.value}</p>
+        <div key={i} className="flex items-center gap-8px color-teal-300">
+          <Icon src={field.icon} />
+          <p className="paragraph-xs">{field.value}</p>
         </div>
       ))}
     </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import Image from 'next/image'
+import Icon from '@/components/Icon'
 import { useRef } from 'react'
 import styles from './page.module.css'
 import { MapOrg } from '@/lib/data/map'
@@ -43,7 +43,10 @@ export default function PosterMapClient({ orgs }: PosterMapClientProps) {
         <button onClick={scrollToWarning} className={styles['scroll-button']}>
           View cards{' '}
           <span style={{ color: '#81878f' }}>
-            <Image src="/images/arrow-down.svg" alt="" width={16} height={16} />
+            <Icon
+              src="/images/icons/arrow-down.svg"
+              className="color-teal-bright-400"
+            />
           </span>
         </button>
       </div>

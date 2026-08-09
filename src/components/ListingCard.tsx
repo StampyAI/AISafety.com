@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Icon from './Icon'
 import { trackListingClick } from '@/lib/analytics'
 import styles from './ListingCard.module.css'
 
@@ -17,7 +18,8 @@ export interface ListingCardPill {
 }
 
 interface ListingCardProps {
-  href: string
+  /** External link. Omit for a static, non-clickable card (e.g. projects). */
+  href?: string
   name: string
   description: string
   logo?: string | null
@@ -41,9 +43,9 @@ function MetaRows({ rows }: { rows: ListingCardMeta[] }) {
   return (
     <div className="flex flex-col gap-4px">
       {rows.map((field, i) => (
-        <div key={i} className="flex items-center gap-8px">
-          <Image src={field.icon} alt="" width={16} height={16} unoptimized />
-          <p className="paragraph-xs color-teal-300">{field.value}</p>
+        <div key={i} className="flex items-center gap-8px color-teal-300">
+          <Icon src={field.icon} />
+          <p className="paragraph-xs">{field.value}</p>
         </div>
       ))}
     </div>
@@ -66,23 +68,8 @@ export default function ListingCard({
   placement,
   trackingSource,
 }: ListingCardProps) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="card"
-      onClick={() =>
-        trackListingClick(
-          trackingPage,
-          name,
-          href,
-          listingId,
-          placement,
-          trackingSource
-        )
-      }
-    >
+  const inner = (
+    <>
       {pills && pills.length > 0 && (
         <div className="flex gap-8px padding-bottom-24px">
           {pills.map((pill, i) => (
@@ -132,6 +119,32 @@ export default function ListingCard({
       </p>
 
       <MetaRows rows={meta} />
+    </>
+  )
+
+  // No link → a static, non-clickable card (e.g. projects have no external URL).
+  if (!href) {
+    return <div className="card card-static">{inner}</div>
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="card"
+      onClick={() =>
+        trackListingClick(
+          trackingPage,
+          name,
+          href,
+          listingId,
+          placement,
+          trackingSource
+        )
+      }
+    >
+      {inner}
     </a>
   )
 }

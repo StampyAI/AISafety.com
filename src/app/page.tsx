@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Icon from '@/components/Icon'
 import Link from 'next/link'
 import RelativeDate from '@/components/RelativeDate'
 import TrackedLink from '@/components/TrackedLink'
@@ -468,12 +469,9 @@ export default async function Home() {
           trackingName="AISafety.info"
         >
           <span>AISafety.info</span>
-          <Image
-            loading="lazy"
-            src="/images/arrow-up-right.svg"
-            alt=""
-            width={16}
-            height={16}
+          <Icon
+            src="/images/icons/arrow-up-right.svg"
+            className="color-teal-bright-400"
           />
         </TrackedLink>
       </div>

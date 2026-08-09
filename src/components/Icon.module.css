@@ -1,0 +1,14 @@
+/* Monochrome icon rendered by CSS-masking an svg shape and filling it with the
+   current text color. One shape file → any color via CSS (background-color picks
+   up `currentColor`, or a .color-* utility overrides it). */
+.icon {
+  display: inline-block;
+  flex: none;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}

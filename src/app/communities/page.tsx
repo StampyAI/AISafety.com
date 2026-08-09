@@ -1,7 +1,6 @@
-import Link from 'next/link'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCardLegacy'
+import FeaturedCard from '@/components/FeaturedCard'
 import CommunitiesClient from './CommunitiesClient'
 import CommunitiesMap from './CommunitiesMap'
 import styles from './page.module.css'
@@ -25,6 +24,11 @@ export default async function CommunitiesPage() {
     getCommunities(),
     fetchLastUpdated('communities'),
   ])
+
+  const featuredCommunities = [
+    communities.find(c => c.featured === '1'),
+    communities.find(c => c.featured === '2'),
+  ].filter((c): c is NonNullable<typeof c> => c != null)
 
   return (
     <div>
@@ -50,74 +54,53 @@ export default async function CommunitiesPage() {
           }
         />
 
-        {/* Featured Communities + Related Resources */}
-        <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
-          <div className="flex flex-col-mobile gap-40px">
-            {[
-              communities.find(c => c.featured === '1'),
-              communities.find(c => c.featured === '2'),
-            ]
-              .filter((c): c is NonNullable<typeof c> => c != null)
-              .map(community => (
-                <FeaturedCard
-                  key={community.id}
-                  href={
-                    community.joinLink !== '#' ? community.joinLink : undefined
-                  }
-                  tagline={community.featuredTagline!}
-                  name={community.name}
-                  description={community.description}
-                  logo={community.logo ?? undefined}
-                  metadata={[
-                    { label: 'Platform', value: community.platformText },
-                    {
-                      label: 'Activity level',
-                      value: community.activityLevel,
-                    },
-                    { label: 'Focus', value: community.focus },
-                  ]}
-                  trackingPage="Communities"
-                  trackingId={community.id}
-                  trackingPosition={`F${community.featured}`}
-                  trackingSource="cards"
-                />
-              ))}
-          </div>
-
-          <aside className="hide-mobile">
-            <p className="paragraph-small-bold padding-bottom-32px">
-              Related resources
-            </p>
-            <Link
-              href="https://www.lesswrong.com/community"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block padding-bottom-40px hover-opacity-80"
-            >
-              <h3 className="padding-bottom-16px">
-                Map of LessWrong groups{' '}
-                <span className="color-teal-400">→</span>
-              </h3>
-              <p className="paragraph-small color-teal-300">
-                People in Rationalist groups like these often overlap with those
-                in AI safety
-              </p>
-            </Link>
-            <Link
-              href="https://forum.effectivealtruism.org/groups"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block hover-opacity-80"
-            >
-              <h3 className="padding-bottom-16px">
-                Map of EA groups <span className="color-teal-400">→</span>
-              </h3>
-              <p className="paragraph-small color-teal-300">
-                Effective Altruism groups also tend to be concerned with AI
-                safety
-              </p>
-            </Link>
-          </aside>
+        {/* Featured Communities: two width-6-col cards fill the row; gap-56px
+            must match GRID_GAP in FeaturedCard so the shared gradient lines up.
+            (The "Related resources" links live in CommunitiesClient's sidebar.) */}
+        <div className="flex flex-wrap gap-56px padding-bottom-80px">
+          {featuredCommunities.map((community, i) => (
+            <FeaturedCard
+              key={community.id}
+              className="width-6-col"
+              href={community.joinLink !== '#' ? community.joinLink : undefined}
+              tagline={community.featuredTagline!}
+              name={community.name}
+              description={community.description}
+              logo={community.logo ?? undefined}
+              meta={[
+                ...(community.platformText
+                  ? [
+                      {
+                        icon: '/images/icons/globe.svg',
+                        value: community.platformText,
+                      },
+                    ]
+                  : []),
+                ...(community.activityLevel
+                  ? [
+                      {
+                        icon: '/images/icons/activity.svg',
+                        value: community.activityLevel,
+                      },
+                    ]
+                  : []),
+                ...(community.focus
+                  ? [
+                      {
+                        icon: '/images/icons/target.svg',
+                        value: community.focus,
+                      },
+                    ]
+                  : []),
+              ]}
+              trackingPage="Communities"
+              trackingId={community.id}
+              trackingPosition={`F${community.featured}`}
+              trackingSource="cards"
+              index={i}
+              count={featuredCommunities.length}
+            />
+          ))}
         </div>
 
         {/* Main Content with Search, Cards, and Filters */}

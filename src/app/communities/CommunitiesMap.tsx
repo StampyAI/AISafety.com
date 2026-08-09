@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
-import Image from 'next/image'
+import Icon from '@/components/Icon'
 import MapControls from '@/components/MapControls'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
@@ -644,7 +644,11 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           className={`button-primary ${styles.mapButton}`}
         >
           <p>View online communities</p>
-          <Image src="/images/arrow-down.svg" alt="" width={12} height={12} />
+          <Icon
+            src="/images/icons/arrow-down.svg"
+            size={12}
+            className="color-teal-bright-400"
+          />
         </button>
         <MapControls
           className={styles.mapControls}

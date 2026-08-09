@@ -204,7 +204,12 @@ export default function AboutPage() {
         <div className="flex flex-col gap-56px width-4-col-narrow">
           <div>
             <div className={styles.iconCircle}>
-              <Image src="/images/people.svg" alt="" width={16} height={16} />
+              <Image
+                src="/images/icons/people.svg"
+                alt=""
+                width={16}
+                height={16}
+              />
             </div>
             <p className="paragraph-small color-teal-300 padding-top-24px padding-bottom-24px">
               Volunteers tend to contribute on a project-to-project basis,
@@ -224,7 +229,7 @@ export default function AboutPage() {
           <div>
             <div className={styles.iconCircle}>
               <Image
-                src="/images/speech-bubble.svg"
+                src="/images/icons/speech-bubble.svg"
                 alt=""
                 width={16}
                 height={16}
@@ -248,7 +253,12 @@ export default function AboutPage() {
 
         <div className="width-4-col-narrow">
           <div className={styles.iconCircle}>
-            <Image src="/images/add-doc.svg" alt="" width={16} height={16} />
+            <Image
+              src="/images/icons/add-doc.svg"
+              alt=""
+              width={16}
+              height={16}
+            />
           </div>
           <p className="paragraph-small color-teal-300 padding-top-24px padding-bottom-24px">
             We encourage community members to add listings we may have missed

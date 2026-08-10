@@ -26,7 +26,6 @@ const TRAINING_FIELD = {
   description: 'fldIRngvk0vjSwjh8',
   url: 'fld1dv9ed8uwiaHh4',
   type: 'fldYhxEyLrNOBWIpY',
-  online: 'fld3mfwdhbXgLiIhs',
   mode: 'fldh2n93X7R478mDW',
   startDate: 'fldQ173rUHJa5MHiA',
   startDateApprox: 'flddeSidJxFZXXwDs',
@@ -34,9 +33,7 @@ const TRAINING_FIELD = {
   deadline: 'fldoBOQpi5ZC6TnwU',
   notYetOpen: 'fldEJLrVPCpawJ6vU',
   location: 'fldbXDQcn21eXLIsj',
-  host: 'fldZkYuamVgx1fFRB',
   featured: 'fldohjDIPWGdaYbde',
-  featuredTagline: 'fldEAM4accKaYHkXk',
   publish: 'fldqlN36P6BVFP151',
   hide: 'flddDc88G07fcDQu4',
   focus: 'fldvXetgmH68KXi64',
@@ -52,12 +49,10 @@ const RECURRING_FIELD = {
   description: 'fldmxKtipDTvG4mes',
   url: 'flda40IiCohiSbKoq',
   type: 'fld86l7WsvLm8jm86',
-  online: 'flduUmcLQ4nsMQpwQ',
   mode: 'fldZketwZonfcYWie',
   location: 'fld3wvi1BIj2QSXMV',
   host: 'fldaQgHIMc3RqnFqv',
   featured: 'fldonn5EmegA4Yqlf',
-  featuredTagline: 'fld6KoNRkePsz28ov',
   publish: 'fldpjcvh7n6w4cIsi',
   hide: 'fldnYj4lieZlkXjWB',
   focus: 'fld1yyUL3BM0KQw8l',
@@ -92,7 +87,6 @@ export interface ProgramBase {
   type: string[]
   location: string
   mode: AttendMode
-  host: string
   /** Multi-select: General / Technical / Governance — a program can carry more than one. */
   focus: string[]
   entryBar: EntryBar | null
@@ -101,7 +95,6 @@ export interface ProgramBase {
   logo: string | null
   /** Rank in the featured queue — the two lowest live ranks are displayed. */
   featured: number | null
-  featuredTagline: string | null
   /** From dates for upcoming programs, from "Typical length" for recurring. */
   lengthBucket: LengthBucket | null
 }
@@ -118,6 +111,7 @@ export interface TrainingProgram extends ProgramBase {
 }
 
 export interface RecurringProgram extends ProgramBase {
+  host: string
   /** How long an iteration typically runs, e.g. "10 weeks", "3–6 months". */
   typicalLength: string | null
 }
@@ -205,13 +199,11 @@ function validEntryBar(value: unknown, name: string): EntryBar | null {
 }
 
 /**
- * Reads the Mode single-select. Records from before the field existed (or
- * that a tool hasn't filled in yet) fall back to the legacy Online? checkbox,
- * with a warning so they get fixed.
+ * Reads the Mode single-select. Records without a valid Mode fall back to
+ * the Location, with a warning so they get fixed.
  */
 export function parseAttendMode(
   raw: unknown,
-  online: unknown,
   location: string,
   name: string,
   source: string
@@ -226,11 +218,9 @@ export function parseAttendMode(
   console.warn(
     `[${source}] "${name}" has ${
       raw == null ? 'no Mode set' : `unexpected Mode "${raw}"`
-    } — falling back to the Online? checkbox`
+    } — falling back to the Location`
   )
-  return online === true || location.trim().toLowerCase() === 'online'
-    ? 'Online'
-    : 'In person'
+  return location.trim().toLowerCase() === 'online' ? 'Online' : 'In person'
 }
 
 function validTypes(value: unknown, name: string): string[] {
@@ -252,12 +242,9 @@ interface BaseFieldIds {
   description: string
   url: string
   type: string
-  online: string
   mode: string
   location: string
-  host: string
   featured: string
-  featuredTagline: string
   focus: string
   entryBar: string
   timeCommitment: string
@@ -272,13 +259,7 @@ function parseBase(
   FIELD: BaseFieldIds
 ): ProgramBase {
   const location = optionalString(fields[FIELD.location]) || ''
-  const mode = parseAttendMode(
-    fields[FIELD.mode],
-    fields[FIELD.online],
-    location,
-    name,
-    'training'
-  )
+  const mode = parseAttendMode(fields[FIELD.mode], location, name, 'training')
   const logoField = fields[FIELD.logo] as Array<{ url?: string }> | undefined
   const featuredRaw = fields[FIELD.featured]
 
@@ -290,14 +271,12 @@ function parseBase(
     type: validTypes(fields[FIELD.type], name),
     location,
     mode,
-    host: optionalString(fields[FIELD.host]) || '',
     focus: toArray(fields[FIELD.focus]),
     entryBar: validEntryBar(fields[FIELD.entryBar], name),
     timeCommitment: optionalString(fields[FIELD.timeCommitment]),
     stipend: optionalString(fields[FIELD.stipend]),
     logo: logoField?.[0]?.url ?? null,
     featured: parseFeaturedRank(featuredRaw),
-    featuredTagline: optionalString(fields[FIELD.featuredTagline]),
     dateAdded: null, // overridden by each caller (needs the record's createdTime)
     lastModified:
       optionalString(fields[FIELD.lastModified])?.slice(0, 10) ?? null,
@@ -403,6 +382,7 @@ export async function getRecurringPrograms(): Promise<RecurringProgram[]> {
     results.push({
       ...parseBase(f, record.id, name, RECURRING_FIELD),
       dateAdded: record.createdTime?.slice(0, 10) ?? null,
+      host: optionalString(f[RECURRING_FIELD.host]) || '',
       typicalLength,
       lengthBucket: lengthBucketForTypical(typicalLength),
     })

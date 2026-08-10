@@ -335,7 +335,6 @@ export async function buildCatalog(): Promise<Catalog> {
         applicationsClose: e.applicationsClose,
         deadlineType: e.deadlineType,
         notYetOpen: e.notYetOpen ? 'Yes' : null,
-        featuredTagline: e.featuredTagline,
       }),
       featured: featuredEventIds.has(e.id),
     })
@@ -350,7 +349,6 @@ export async function buildCatalog(): Promise<Catalog> {
       type: 'training',
       name: t.name,
       description: clamp(t.description, 280),
-      organization: t.host || undefined,
       logo: t.logo ?? deriveFaviconFromUrl(t.url),
       url: t.url,
       pageUrl: '/training',
@@ -360,7 +358,6 @@ export async function buildCatalog(): Promise<Catalog> {
         type: t.type.join(', '),
         mode: t.mode,
         location: t.location,
-        host: t.host,
         focus: t.focus.join(', '),
         entryBar: t.entryBar,
         timeCommitment: t.timeCommitment,
@@ -371,7 +368,6 @@ export async function buildCatalog(): Promise<Catalog> {
         endDate: t.endDate,
         applicationsClose: t.applicationsClose,
         notYetOpen: t.notYetOpen ? 'Yes' : null,
-        featuredTagline: t.featuredTagline,
       }),
       featured: featuredTrainingIds.has(t.id),
     })
@@ -401,7 +397,6 @@ export async function buildCatalog(): Promise<Catalog> {
         stipend: r.stipend,
         typicalLength: r.typicalLength,
         length: r.lengthBucket,
-        featuredTagline: r.featuredTagline,
       }),
       featured: featuredRecurringIds.has(r.id),
     })

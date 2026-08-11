@@ -47,7 +47,7 @@ export default function MapControls({
         <button className={styles.button} title="Zoom to fit" onClick={onReset}>
           <Icon
             src="/images/icons/scan.svg"
-            size={20}
+            size={24}
             className="color-white"
           />
         </button>

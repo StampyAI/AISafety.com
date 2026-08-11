@@ -14,6 +14,8 @@ import Icon from '@/components/Icon'
 ## Designing a new icon
 
 - **Sizes**: 12×12 (small), 16×16 (**default — ~90% of use**), 24×24 (large).
+  Icons render at **exactly** one of these three — never an in-between value
+  (no `size={20}` or `size={28}`). Large is always 24.
 - **Style**: **1px stroke**, **rounded** corners/joins, teal-300 `#AAB2B3`.
   Knockouts (the negative-space gaps where strokes meet) are also **1px**.
 - **Equal visual _area_**: size every icon so it carries roughly the same amount

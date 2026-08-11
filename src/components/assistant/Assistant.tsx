@@ -267,18 +267,7 @@ export default function Assistant() {
         aria-expanded={isOpen}
       >
         {isOpen ? (
-          <svg
-            className={styles.pillIcon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <Icon src="/images/icons/chevron-down.svg" size={28} />
         ) : (
           <Icon src="/images/icons/speech-bubble-sparkle.svg" size={28} />
         )}

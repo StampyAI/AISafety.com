@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { PAGES } from '@/lib/assistant/pages'
 import { DEFAULT_MODEL_ID, MODELS } from '@/lib/assistant/models'
 import styles from '../admin.module.css'
+import Icon from '@/components/Icon'
 
 export interface ContextOverrides {
   currentPage: string
@@ -286,23 +287,11 @@ export default function EditorPanel({
               aria-expanded={versionsOpen}
             >
               <span>Saved versions ({versions.length})</span>
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                style={{
-                  transform: versionsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.15s ease-out',
-                }}
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+              <Icon
+                src="/images/icons/chevron-down.svg"
+                size={12}
+                className={styles.editorVersionListChevron}
+              />
             </button>
             {versionsOpen && (
               <div className={styles.editorVersionListBody}>

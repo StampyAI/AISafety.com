@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
+import Icon from '@/components/Icon'
 import { trackNewsletterSignup } from '@/lib/analytics'
 import styles from './NewsletterSignup.module.css'
 
@@ -48,12 +48,10 @@ export default function NewsletterSignup({
           onChange={e => setEmail(e.target.value)}
         />
         <button type="submit" className={styles.submit} aria-label="Subscribe">
-          <Image
+          <Icon
             src="/images/icons/arrow-right.svg"
-            alt=""
-            width={16}
-            height={16}
-            unoptimized
+            size={16}
+            className="color-white"
           />
         </button>
       </label>

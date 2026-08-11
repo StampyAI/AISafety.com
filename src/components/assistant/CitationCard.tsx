@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { CitationRef, ListingType } from '@/lib/assistant/types'
+import Icon from '@/components/Icon'
 import styles from './Assistant.module.css'
 
 interface Props {
@@ -13,93 +14,29 @@ interface Props {
 }
 
 function TypeIcon({ type }: { type: ListingType }) {
-  const common = {
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  }
   switch (type) {
     case 'job':
-      return (
-        <svg {...common}>
-          <rect x="3" y="7" width="18" height="13" rx="2" />
-          <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-        </svg>
-      )
+      return <Icon src="/images/icons/briefcase.svg" size={16} />
     case 'funder':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 7v10M9 9.5c0-1 1-2 3-2s3 1 3 2-1 1.5-3 2-3 1-3 2 1 2 3 2 3-1 3-2" />
-        </svg>
-      )
+      return <Icon src="/images/icons/coins.svg" size={16} />
     case 'advisor':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 21c0-4 4-7 8-7s8 3 8 7" />
-        </svg>
-      )
+      return <Icon src="/images/icons/person.svg" size={16} />
     case 'community':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
-        </svg>
-      )
+      return <Icon src="/images/icons/globe.svg" size={16} />
     case 'course':
-      return (
-        <svg {...common}>
-          <path d="M4 19.5V5a2 2 0 0 1 2-2h13v17H6a2 2 0 0 0-2 2.5z" />
-          <path d="M8 7h8M8 11h8" />
-        </svg>
-      )
+      return <Icon src="/images/icons/book.svg" size={16} />
     case 'founder-resource':
-      return (
-        <svg {...common}>
-          <path d="M5 16l4-4-3-3 6-7 3 3 4-4" />
-          <path d="M9 12l-3 8M14 18l-2 2" />
-        </svg>
-      )
+      return <Icon src="/images/icons/rocket.svg" size={16} />
     case 'project':
-      return (
-        <svg {...common}>
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <path d="M9 10l2 2 4-4" />
-        </svg>
-      )
+      return <Icon src="/images/icons/clipboard.svg" size={16} />
     case 'media-channel':
-      return (
-        <svg {...common}>
-          <path d="M3 11v2a4 4 0 0 0 4 4h1l5 4V5l-5 4H7a4 4 0 0 0-4 2z" />
-          <path d="M19 8a5 5 0 0 1 0 8" />
-        </svg>
-      )
+      return <Icon src="/images/icons/megaphone.svg" size={16} />
     case 'org':
-      return (
-        <svg {...common}>
-          <rect x="4" y="9" width="16" height="11" rx="1" />
-          <path d="M9 20v-5h6v5M9 9V5h6v4" />
-        </svg>
-      )
+      return <Icon src="/images/icons/building.svg" size={16} />
     case 'event':
-      return (
-        <svg {...common}>
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M8 3v4M16 3v4M3 10h18" />
-        </svg>
-      )
+      return <Icon src="/images/icons/calendar.svg" size={16} />
     case 'training':
-      return (
-        <svg {...common}>
-          <path d="M12 4L2 9l10 5 10-5-10-5z" />
-          <path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5" />
-        </svg>
-      )
+      return <Icon src="/images/icons/grad-cap.svg" size={16} />
   }
 }
 

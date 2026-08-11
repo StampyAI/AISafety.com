@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Icon from '@/components/Icon'
 import { trackSearchClick, trackSearchQuery } from '@/lib/analytics'
 import type { SearchEntry, SearchType } from '@/lib/data/search-index'
 import {
@@ -281,21 +282,7 @@ export default function SearchModal({
           >
             <span className={styles['shortcut-hint-esc']}>esc</span>
             <span className={styles['shortcut-hint-x']} aria-hidden="true">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 10 10"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M1.5 1.5L8.5 8.5M1.5 8.5L8.5 1.5"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              </svg>
+              <Icon src="/images/icons/x.svg" size={12} />
             </span>
           </button>
         </div>
@@ -365,11 +352,10 @@ export default function SearchModal({
                 <div
                   className={`${styles['browse-card-icon']} drop-shadow-light flex items-center justify-center`}
                 >
-                  <Image
+                  <Icon
                     src="/images/icons/heart.svg"
-                    alt=""
-                    width={14}
-                    height={14}
+                    size={16}
+                    className="color-teal-300"
                   />
                 </div>
                 <span
@@ -528,40 +514,14 @@ function ResultIcon({ entry }: { entry: SearchEntry }) {
 
 function SearchIcon() {
   return (
-    <svg
+    <Icon
+      src="/images/icons/search.svg"
+      size={16}
       className={`${styles['input-icon']} color-teal-400`}
-      width="20"
-      height="20"
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M13.5 13.5L17 17"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
+    />
   )
 }
 
 function CloseIcon() {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 10 10"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M2 2L8 8M2 8L8 2"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
+  return <Icon src="/images/icons/x.svg" size={12} />
 }

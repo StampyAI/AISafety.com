@@ -18,6 +18,7 @@ import { extractChips, stripChipTokens } from '@/lib/assistant/tokens'
 import Composer from './Composer'
 import MessageContent from './MessageContent'
 import ToolCallPill from './ToolCallPill'
+import Icon from '@/components/Icon'
 import styles from './Assistant.module.css'
 
 const SCROLL_LOCK_THRESHOLD = 60
@@ -743,20 +744,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                   aria-label="Edit message"
                   title="Edit"
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
-                  </svg>
+                  <Icon src="/images/icons/pencil.svg" size={16} />
                 </button>
                 <div className={styles.userMessage}>{m.content}</div>
               </div>

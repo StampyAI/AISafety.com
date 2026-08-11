@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Icon from '@/components/Icon'
 import { trackAirtableView, trackContributeClick } from '@/lib/analytics'
 import styles from './ContributeButtons.module.css'
 
@@ -129,12 +130,10 @@ export default function ContributeButtons({
           className={styles.airtableImg}
         />
         <span className={`${styles.badge} ${styles.airtableArrow}`}>
-          <Image
+          <Icon
             src="/images/icons/arrow-up-right-figma.svg"
-            alt=""
-            width={24}
-            height={24}
-            unoptimized
+            size={24}
+            className="color-white"
           />
         </span>
         <div className={styles.airtableTextWrap}>

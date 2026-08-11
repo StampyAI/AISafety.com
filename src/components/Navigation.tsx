@@ -344,27 +344,7 @@ export default function Navigation({
             <SearchButton
               className={`${styles['nav-search-button']} flex items-center justify-center color-white`}
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="9"
-                  cy="9"
-                  r="6"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M13.5 13.5L17 17"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <Icon src="/images/icons/search.svg" size={24} />
             </SearchButton>
           </nav>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import Icon from '@/components/Icon'
 import styles from './Assistant.module.css'
 
 const MAX_TEXTAREA_HEIGHT_PX = 120
@@ -63,15 +64,7 @@ const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer(
             aria-label="Stop"
             title="Stop"
           >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <rect x="6" y="6" width="12" height="12" rx="1.5" />
-            </svg>
+            <Icon src="/images/icons/stop.svg" size={12} />
           </button>
         ) : (
           <button
@@ -81,20 +74,7 @@ const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer(
             onClick={onSubmit}
             aria-label="Send"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="12" y1="19" x2="12" y2="5" />
-              <polyline points="5 12 12 5 19 12" />
-            </svg>
+            <Icon src="/images/icons/arrow-up.svg" size={16} />
           </button>
         )}
       </div>

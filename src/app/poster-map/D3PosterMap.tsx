@@ -5,6 +5,7 @@ import * as d3 from 'd3'
 import QRCode from 'qrcode'
 import styles from './page.module.css'
 import { MapOrg } from '@/lib/data/map'
+import Icon from '@/components/Icon'
 
 interface D3PosterMapProps {
   orgs: MapOrg[]
@@ -411,48 +412,33 @@ export default function D3PosterMap({ orgs }: D3PosterMapProps) {
             className={styles['map-control-button']}
             title="Zoom in"
           >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M8 2.5C8.27614 2.5 8.5 2.72386 8.5 3V7.5H13C13.2761 7.5 13.5 7.72386 13.5 8C13.5 8.27614 13.2761 8.5 13 8.5H8.5V13C8.5 13.2761 8.27614 13.5 8 13.5C7.72386 13.5 7.5 13.2761 7.5 13V8.5H3C2.72386 8.5 2.5 8.27614 2.5 8C2.5 7.72386 2.72386 7.5 3 7.5H7.5V3C7.5 2.72386 7.72386 2.5 8 2.5Z"
-                fill="white"
-              />
-            </svg>
+            <Icon
+              src="/images/icons/plus.svg"
+              size={16}
+              className="color-white"
+            />
           </button>
           <button
             id="poster-zoom-out"
             className={styles['map-control-button']}
             title="Zoom out"
           >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M2.5 8C2.5 7.72386 2.72386 7.5 3 7.5H13C13.2761 7.5 13.5 7.72386 13.5 8C13.5 8.27614 13.2761 8.5 13 8.5H3C2.72386 8.5 2.5 8.27614 2.5 8Z"
-                fill="white"
-              />
-            </svg>
+            <Icon
+              src="/images/icons/minus.svg"
+              size={16}
+              className="color-white"
+            />
           </button>
           <button
             id="poster-recenter"
             className={styles['map-control-button']}
             title="Reset view"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"
-                fill="white"
-              />
-            </svg>
+            <Icon
+              src="/images/icons/scan.svg"
+              size={16}
+              className="color-white"
+            />
           </button>
         </div>
       </div>

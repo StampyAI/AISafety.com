@@ -80,7 +80,7 @@ export default function ThinkingBlock({
       {open && (
         <div className={styles.thinkBody}>
           {events.map((ev, i) => {
-            if (ev.kind === 'thinking_done') return null
+            if (ev.kind === 'thinking_done' || ev.kind === 'redo') return null
             if (ev.kind === 'text') {
               const stripped = stripChipTokens(ev.text)
               if (!stripped.trim()) return null

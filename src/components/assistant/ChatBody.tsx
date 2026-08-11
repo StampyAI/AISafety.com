@@ -93,6 +93,76 @@ function appendTextDelta(
   return next
 }
 
+/** The answer window that was actually ON SCREEN when the redo at `redoIdx`
+ *  fired, or null when the visitor was looking at the loading dots. Walks the
+ *  redo chain from the start: the window before the first redo was displayed
+ *  live; once a draft freezes it stays frozen through any later redos (their
+ *  preceding windows streamed hidden behind it and were never seen); and when
+ *  nothing was frozen, a rewrite was only on screen once its own
+ *  thinking_done — the second one after that redo — had text following it. */
+function frozenDraftAt(
+  events: MessageEvent[],
+  redoIdx: number
+): MessageEvent[] | null {
+  let prevRedo = -1
+  let shown: MessageEvent[] | null = null
+  for (let i = 0; i <= redoIdx && i < events.length; i++) {
+    if (events[i].kind !== 'redo') continue
+    if (shown === null) shown = liveWindowBefore(events, i, prevRedo)
+    prevRedo = i
+  }
+  return shown
+}
+
+/** The window the visitor was watching live inside (prevRedo, r): bounded
+ *  below by the last thinking_done/tool before r. Before any redo, text is
+ *  visible once some [[/thinking]] marker has arrived; after a redo (with
+ *  nothing frozen), only once the rewrite's OWN marker — the second
+ *  thinking_done after the redo — has been passed. Null when that window was
+ *  never displayed or holds no text. */
+function liveWindowBefore(
+  events: MessageEvent[],
+  r: number,
+  prevRedo: number
+): MessageEvent[] | null {
+  let prevBoundary = -1
+  let sawThinkingDone = false
+  for (let b = r - 1; b > prevRedo; b--) {
+    const kind = events[b].kind
+    if (kind === 'thinking_done' || kind === 'tool') {
+      if (prevBoundary === -1) prevBoundary = b
+      if (kind === 'thinking_done') {
+        sawThinkingDone = true
+        break
+      }
+    }
+  }
+  if (prevBoundary === -1) return null
+  if (prevRedo === -1) {
+    // Pre-redo: visible once any marker arrived at or before the boundary.
+    if (!sawThinkingDone) {
+      let anyMarker = false
+      for (let b = prevBoundary - 1; b >= 0; b--) {
+        if (events[b].kind === 'thinking_done') {
+          anyMarker = true
+          break
+        }
+      }
+      if (!anyMarker) return null
+    }
+  } else {
+    // After a redo with nothing frozen: the dots stayed up until the
+    // rewrite's own marker (its second thinking_done) arrived.
+    let markers = 0
+    for (let b = prevRedo + 1; b <= prevBoundary; b++) {
+      if (events[b].kind === 'thinking_done') markers++
+    }
+    if (markers < 2) return null
+  }
+  const w = events.slice(prevBoundary + 1, r)
+  return w.some(e => e.kind === 'text' && e.text.trim()) ? w : null
+}
+
 function appendDeltaToLastText(
   events: MessageEvent[],
   delta: string
@@ -192,6 +262,8 @@ function AssistantMessageView({
           />
         )
       }
+      // Boundary/redo marker events render nothing themselves.
+      if (ev.kind !== 'tool') return null
       const call = message.toolCalls.find(tc => tc.id === ev.toolCallId)
       if (!call) return null
       return <ToolCallPill key={`${keyPrefix}-${i}`} call={call} />
@@ -200,10 +272,73 @@ function AssistantMessageView({
   // While streaming, show a loading indicator until the bot finishes its
   // reasoning and emits [[/thinking]]. After the boundary, stream only the
   // user-facing answer. The reasoning/tool trail is never shown.
+  // Index of the last redo event — the server sent the model back to rewrite
+  // a broken draft (fabricated cards, unearned suggest form, …).
+  let lastRedo = -1
+  for (let i = message.events.length - 1; i >= 0; i--) {
+    if (message.events[i].kind === 'redo') {
+      lastRedo = i
+      break
+    }
+  }
+
   if (hasBoundary) {
-    const post = message.events.slice(boundary + 1)
+    // The visible window never extends into a redo event: everything after it
+    // is the rewrite's reasoning, not answer text.
+    let end = message.events.length
+    for (let i = boundary + 1; i < message.events.length; i++) {
+      if (message.events[i].kind === 'redo') {
+        end = i
+        break
+      }
+    }
+    let post = message.events.slice(boundary + 1, end)
+    let frozenDraft = false
+    if (lastRedo !== -1) {
+      // A redo rewrote (or is rewriting) the reply. Rewrites are
+      // near-verbatim, so if a retracted draft was on screen, hold it there
+      // for the rest of the stream and settle into the rewrite in one step at
+      // the end — far less jarring than visibly deleting a long answer and
+      // re-typing it. If the visitor only ever saw the loading dots, stream
+      // the rewrite live instead, but only once its own [[/thinking]] has
+      // arrived (at most one boundary, the synthetic draft-closer, precedes
+      // it after the redo) — text before that is rewrite reasoning, never
+      // answer. The same rules apply when the stream ended mid-rewrite
+      // (Stop, token limit, reload): show the draft rather than leaking the
+      // rewrite's reasoning or blanking the bubble.
+      const draft = frozenDraftAt(message.events, lastRedo)
+      let markersAfterRedo = 0
+      for (let i = lastRedo + 1; i < message.events.length; i++) {
+        if (message.events[i].kind === 'thinking_done') markersAfterRedo++
+      }
+      const rewriteVisible =
+        markersAfterRedo >= 2 &&
+        post.some(e => e.kind === 'text' && e.text.trim())
+      if (message.isStreaming) {
+        if (draft) {
+          post = draft
+          frozenDraft = true
+        } else if (!rewriteVisible) {
+          post = []
+        }
+      } else if (!rewriteVisible && draft) {
+        post = draft
+        frozenDraft = true
+      }
+      // Not streaming, no draft, rewrite's marker never arrived: leave post
+      // as-is — a completed rewrite that forgot its own marker is still the
+      // real answer.
+    }
     if (post.length > 0) {
-      return <>{renderInline(post, 'post', message.isStreaming)}</>
+      return (
+        <>
+          {renderInline(
+            post,
+            frozenDraft ? 'draft' : 'post',
+            message.isStreaming
+          )}
+        </>
+      )
     }
     if (message.isStreaming) {
       return (
@@ -576,6 +711,14 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                     citations: allListings,
                   }
                 })
+              )
+            } else if (eventType === 'redo') {
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === asstId
+                    ? { ...m, events: [...m.events, { kind: 'redo' }] }
+                    : m
+                )
               )
             } else if (eventType === 'error') {
               setMessages(prev =>

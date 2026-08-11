@@ -79,6 +79,11 @@ export type MessageEvent =
   | { kind: 'text'; text: string }
   | { kind: 'tool'; toolCallId: string }
   | { kind: 'thinking_done' }
+  /** Server sent the model back to redo an answer that carded fabricated
+   *  ids. Text after this event is the redo's reasoning (never shown); the
+   *  widget keeps the retracted draft on screen until the corrected answer
+   *  (after the redo's own thinking_done) starts streaming. */
+  | { kind: 'redo' }
 
 export interface CitationRef {
   id: string

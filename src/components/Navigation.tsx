@@ -344,7 +344,7 @@ export default function Navigation({
             <SearchButton
               className={`${styles['nav-search-button']} flex items-center justify-center color-white`}
             >
-              <Icon src="/images/icons/search.svg" size={24} />
+              <Icon src="/images/icons/search-large.svg" size={24} />
             </SearchButton>
           </nav>
 

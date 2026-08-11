@@ -92,7 +92,7 @@ export default function FeaturedCard({
         />
       ) : (
         <Image
-          src="/images/bookmark-small.svg"
+          src="/images/bookmarks/bookmark-small.svg"
           alt=""
           className={styles.bookmark}
           width={16}

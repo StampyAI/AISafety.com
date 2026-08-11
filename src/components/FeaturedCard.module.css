@@ -46,8 +46,9 @@
   width: 16px;
   height: 24px;
   background-color: currentColor;
-  -webkit-mask: url('/images/bookmark-small.svg') no-repeat center / contain;
-  mask: url('/images/bookmark-small.svg') no-repeat center / contain;
+  -webkit-mask: url('/images/bookmarks/bookmark-small.svg') no-repeat center /
+    contain;
+  mask: url('/images/bookmarks/bookmark-small.svg') no-repeat center / contain;
 }
 
 /* Tagline pill: teal-tinted outline, no fill. Padding + typography come from

@@ -177,7 +177,7 @@ function renderInline(
             aria-label={`Open ${cit.name}`}
             onClick={() => onCitationClick?.(cit)}
           >
-            <Icon src="/images/icons/arrow-up-right.svg" size={12} />
+            <Icon src="/images/icons/arrow-up-right-small.svg" size={12} />
           </a>
         )
       }
@@ -199,7 +199,7 @@ function renderInline(
             aria-label={`Open ${cit.name}`}
             onClick={() => onCitationClick?.(cit)}
           >
-            <Icon src="/images/icons/arrow-up-right.svg" size={12} />
+            <Icon src="/images/icons/arrow-up-right-small.svg" size={12} />
           </a>
         )
       }

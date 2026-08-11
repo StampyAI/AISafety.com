@@ -68,14 +68,21 @@ export default async function CommunitiesPage() {
               description={community.description}
               logo={community.logo ?? undefined}
               meta={[
-                ...(community.platformText
+                ...(community.location
                   ? [
                       {
-                        icon: '/images/icons/globe.svg',
-                        value: community.platformText,
+                        icon: '/images/icons/pin.svg',
+                        value: community.location,
                       },
                     ]
-                  : []),
+                  : community.platformText
+                    ? [
+                        {
+                          icon: '/images/icons/computer.svg',
+                          value: community.platformText,
+                        },
+                      ]
+                    : []),
                 ...(community.activityLevel
                   ? [
                       {

@@ -95,7 +95,7 @@ export default function FilterDropdown({
         {label}
         <Icon
           src="/images/icons/chevron-down.svg"
-          size={12}
+          size={16}
           className={styles.chevron}
         />
       </button>

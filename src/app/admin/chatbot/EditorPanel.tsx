@@ -289,7 +289,7 @@ export default function EditorPanel({
               <span>Saved versions ({versions.length})</span>
               <Icon
                 src="/images/icons/chevron-down.svg"
-                size={12}
+                size={16}
                 className={styles.editorVersionListChevron}
               />
             </button>

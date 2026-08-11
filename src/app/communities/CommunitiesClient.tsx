@@ -147,7 +147,7 @@ export default function CommunitiesClient({
         <FilterDropdown
           trackingPage="Communities"
           title="Platform"
-          icon="/images/icons/globe.svg"
+          icon="/images/icons/computer.svg"
           options={platformOptions}
           selected={platformFilters}
           counts={filterCounts.platform}
@@ -183,11 +183,16 @@ export default function CommunitiesClient({
               description={community.description}
               logo={community.logo}
               meta={[
-                {
-                  icon: '/images/icons/globe.svg',
-                  value:
-                    community.platformText || community.platform.join(', '),
-                },
+                community.location
+                  ? {
+                      icon: '/images/icons/pin.svg',
+                      value: community.location,
+                    }
+                  : {
+                      icon: '/images/icons/computer.svg',
+                      value:
+                        community.platformText || community.platform.join(', '),
+                    },
                 ...(community.activityLevel
                   ? [
                       {

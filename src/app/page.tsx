@@ -65,7 +65,7 @@ export default async function Home() {
         <div className={styles['card-full-width-1-right-card']}>
           <Image
             loading="lazy"
-            src="/images/bookmark-light.svg"
+            src="/images/bookmarks/bookmark-light.svg"
             alt=""
             className={styles.bookmark}
             width={24}
@@ -157,7 +157,7 @@ export default async function Home() {
         <div className={styles['card-full-width-3-right-card-light']}>
           <Image
             loading="lazy"
-            src="/images/bookmark-dark.svg"
+            src="/images/bookmarks/bookmark-dark.svg"
             alt=""
             className={styles.bookmark}
             width={24}
@@ -219,7 +219,7 @@ export default async function Home() {
           >
             <Image
               loading="lazy"
-              src="/images/bookmark-light.svg"
+              src="/images/bookmarks/bookmark-light.svg"
               alt=""
               className={styles.bookmark}
               width={24}
@@ -323,7 +323,7 @@ export default async function Home() {
           <div className={styles['card-half-width-bottom-card-light']}>
             <Image
               loading="lazy"
-              src="/images/bookmark-dark.svg"
+              src="/images/bookmarks/bookmark-dark.svg"
               alt=""
               className={styles.bookmark}
               width={24}
@@ -403,7 +403,7 @@ export default async function Home() {
           <div className={styles['card-third-width-bottom-card']}>
             <Image
               loading="lazy"
-              src="/images/bookmark-dark-small.svg"
+              src="/images/bookmarks/bookmark-dark-small.svg"
               alt=""
               className={styles.bookmark}
               width={24}

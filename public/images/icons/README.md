@@ -17,8 +17,26 @@ import Icon from '@/components/Icon'
   32×32 (xl — for hero moments). Icons render at **exactly** one of these four —
   never an in-between value (no `size={20}` or `size={28}`). Large is 24;
   **xl (32) is the default grid doubled**.
+- **A file's native size IS its display size.** A 16px icon file renders _only_
+  at 16, a 24px file _only_ at 24 — never scaled up or down. If you need the same
+  glyph at another size, that's a **separate file** authored at that size (e.g.
+  `x.svg` at 16 and `x-small.svg` at 12), where the designer keeps it optically
+  balanced. Enforced by `scripts/check-icon-sizes.mjs` (runs on `build` and
+  pre-commit).
 - **Style**: **1px stroke**, **rounded** corners/joins, teal-300 `#AAB2B3`.
   Knockouts (the negative-space gaps where strokes meet) are also **1px**.
+- **Line-art, not solid fills.** Icons are drawn as **outlines** (hollow) — even
+  accent marks like the sparkle in `speech-bubble-sparkle` are 1px strokes, never
+  a filled glyph. An icon should read as line-art at any size.
+- **Color.** The shape is one monochrome file recolored via CSS, so color is a
+  property of _where it's shown_, not the file:
+  - **On cards** → `teal-300` (muted metadata). This is also the **default**
+    anywhere on the dark page.
+  - **White** → only inside a _filled/emphasis control_ (assistant launcher pill,
+    map zoom buttons, send button, active filter pill) where the icon is the
+    foreground on a colored fill.
+  - **Dark** (`teal-bright-800`) → on a **light/white surface** (nav category
+    chips, search-modal circles) for contrast.
 - **Equal visual _area_**: size every icon so it carries roughly the same amount
   of _ink_ — they should read at the same weight, not fill the same box.
 - **Stroke aligned inside** the guide shape (the guide is the outer edge).

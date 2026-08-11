@@ -64,7 +64,7 @@ const Composer = forwardRef<HTMLTextAreaElement, Props>(function Composer(
             aria-label="Stop"
             title="Stop"
           >
-            <Icon src="/images/icons/stop.svg" size={12} />
+            <Icon src="/images/icons/stop.svg" size={16} />
           </button>
         ) : (
           <button

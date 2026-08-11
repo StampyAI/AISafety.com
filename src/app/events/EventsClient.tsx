@@ -269,7 +269,7 @@ function CitySearch({
                 onRemove(city)
               }}
             >
-              <Icon src="/images/icons/x.svg" size={12} />
+              <Icon src="/images/icons/x-small.svg" size={12} />
             </button>
           </span>
         ))}

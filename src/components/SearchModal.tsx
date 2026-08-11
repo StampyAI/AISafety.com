@@ -282,7 +282,7 @@ export default function SearchModal({
           >
             <span className={styles['shortcut-hint-esc']}>esc</span>
             <span className={styles['shortcut-hint-x']} aria-hidden="true">
-              <Icon src="/images/icons/x.svg" size={12} />
+              <Icon src="/images/icons/x-small.svg" size={12} />
             </span>
           </button>
         </div>
@@ -325,7 +325,11 @@ export default function SearchModal({
                       className={`${styles['browse-card-icon']} drop-shadow-light flex items-center justify-center`}
                     >
                       {icon && (
-                        <Image src={icon} alt="" width={14} height={14} />
+                        <Icon
+                          src={icon}
+                          size={16}
+                          className="color-teal-bright-800"
+                        />
                       )}
                     </div>
                     <span
@@ -474,7 +478,7 @@ function ResultIcon({ entry }: { entry: SearchEntry }) {
       <div
         className={`${styles['result-icon']} ${styles['result-icon-page']} drop-shadow-light flex items-center justify-center`}
       >
-        <Image src={entry.logo} alt="" width={18} height={18} />
+        <Icon src={entry.logo} size={16} className="color-teal-bright-800" />
       </div>
     )
   }
@@ -523,5 +527,5 @@ function SearchIcon() {
 }
 
 function CloseIcon() {
-  return <Icon src="/images/icons/x.svg" size={12} />
+  return <Icon src="/images/icons/x-small.svg" size={12} />
 }

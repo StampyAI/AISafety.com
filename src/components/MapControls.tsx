@@ -44,9 +44,9 @@ export default function MapControls({
             />
           </svg>
         </button>
-        <button className={styles.button} title="Reset view" onClick={onReset}>
+        <button className={styles.button} title="Zoom to fit" onClick={onReset}>
           <Icon
-            src="/images/icons/crosshair.svg"
+            src="/images/icons/scan.svg"
             size={20}
             className="color-white"
           />

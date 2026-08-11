@@ -267,9 +267,9 @@ export default function Assistant() {
         aria-expanded={isOpen}
       >
         {isOpen ? (
-          <Icon src="/images/icons/chevron-down.svg" size={24} />
+          <Icon src="/images/icons/chevron-down-xl.svg" size={32} />
         ) : (
-          <Icon src="/images/icons/speech-bubble-sparkle.svg" size={24} />
+          <Icon src="/images/icons/speech-bubble-sparkle-xl.svg" size={32} />
         )}
       </button>
 

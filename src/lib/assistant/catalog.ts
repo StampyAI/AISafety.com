@@ -253,6 +253,7 @@ export async function buildCatalog(): Promise<Catalog> {
       type: 'project',
       name: p.name,
       description: clamp(p.description, 280),
+      details: p.descriptionLong?.trim() || undefined,
       url: p.email ? `mailto:${p.email}` : '#',
       pageUrl: '/projects',
       dateAdded: p.dateAdded ?? undefined,

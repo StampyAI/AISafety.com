@@ -55,7 +55,9 @@ function precompute(listing: Listing): ScoreInputs {
     nameTokens: new Set(tokenize(listing.name)),
     orgTokens: new Set(tokenize(listing.organization ?? '')),
     metaTokens: new Set(tokenize(Object.values(listing.meta).join(' '))),
-    descTokens: new Set(tokenize(listing.description)),
+    descTokens: new Set(
+      tokenize(listing.description + ' ' + (listing.details ?? ''))
+    ),
   }
 }
 

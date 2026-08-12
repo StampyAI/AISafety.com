@@ -16,6 +16,7 @@ const VIEW_ID = 'viwVgPN3hgpGa8dRE'
 const FIELD = {
   projectName: 'fldtfqsPSKc5ubNs4', // Project Name
   descriptionShort: 'fldbeRqlUCLsgOcCT', // Description (short)
+  descriptionLong: 'fldmSMJIiJukmgoEU', // Description (long)
   status: 'fld57KJsNvSKFLoHT', // Status
   contactName: 'fldejiM6qWUfXAeqO', // Contact name
   contactEmail: 'fldNhMihsnXhsHMnc', // Contact email
@@ -33,6 +34,11 @@ export interface Project {
   lastModified: string | null
   name: string
   description: string
+  /** Fuller background from Airtable's "Description (long)". Not displayed
+   *  anywhere on the site — it feeds only the chatbot's get_listing detail
+   *  view, and is stripped from the public Data API (it can name people who
+   *  never agreed to appear in a public dump). */
+  descriptionLong: string | null
   logo: string | null
   contact: string
   email: string | null
@@ -63,6 +69,7 @@ export async function getProjects(): Promise<Project[]> {
       lastModified: fieldDateOnly(f[FIELD.lastModified]),
       name,
       description: fieldString(f[FIELD.descriptionShort]) || '',
+      descriptionLong: fieldString(f[FIELD.descriptionLong]),
       logo: null,
       contact: fieldString(f[FIELD.contactName]) || '',
       email: fieldString(f[FIELD.contactEmail]),

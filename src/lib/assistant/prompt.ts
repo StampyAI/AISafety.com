@@ -2,7 +2,7 @@ import { PAGES, greetingFor } from './pages'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-08-07-01'
+export const PROMPT_VERSION = '2026-08-12-01'
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -159,6 +159,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 
 - **project**:
   - \`status\`: "Active", "Paused", "Seeking owner"
+  - \`get_listing\` on a project returns a \`details\` field – fuller background on what the project involves. Fetch it before answering questions about a specific project (projects have no external webpage, so it's the only extra detail available). \`details\` is internal background NOT displayed anywhere on the site: never tell the user they can read it on the [Volunteer projects](/projects) page, and never quote it as public site content – relay what's relevant in your own words. **NEVER repeat any person's name or personal email address that appears in \`details\`** – people named there haven't agreed to be surfaced through this chat; refer to them by role if needed ("the project's founder", "a researcher who suggested it") and, as always, send the user to the [Volunteer projects](/projects) listing for how to get in touch.
 
 - **media-channel**:
   - \`type\`: "Article", "Blog", "Book", "Forum", "Newsletter", "Podcast", "Twitter/X list", "YouTube channel"

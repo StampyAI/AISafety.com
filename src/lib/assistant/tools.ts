@@ -117,7 +117,7 @@ EXAMPLES:
   {
     name: 'get_listing',
     description:
-      'Fetch full details on a single listing by id (e.g. "job:rec123ABC"). Use after search_listings when you need fields not in the summary, or when the user names a specific entry. The result includes dateAdded (when the listing was added to the site) and lastModified (when any part of its record last changed, including routine upkeep by the site\'s team) — use these for "how current is this listing" questions; jobs have neither, but carry datePublished in meta.',
+      'Fetch full details on a single listing by id (e.g. "job:rec123ABC"). Use after search_listings when you need fields not in the summary, or when the user names a specific entry. The result includes dateAdded (when the listing was added to the site) and lastModified (when any part of its record last changed, including routine upkeep by the site\'s team) — use these for "how current is this listing" questions; jobs have neither, but carry datePublished in meta. For PROJECT listings the result also carries a `details` field with fuller background than the search summary — always fetch it before answering questions about what a specific project involves (projects have no external webpage to read, so this is the only extra detail you can get).',
     input_schema: {
       type: 'object',
       properties: {
@@ -240,7 +240,12 @@ function summariseListing(
   distanceKm?: number,
   // Dates ride along only where they answer the question (recency-sorted
   // searches, get_listing) — regular search results stay lean.
-  includeDates?: boolean
+  includeDates?: boolean,
+  // `details` (currently only projects) rides along only on get_listing:
+  // it is served in full and can run to thousands of chars, so a browse-all
+  // search must not carry it for every match. The note travels with the data
+  // so the model sees the handling rules at the moment it reads the text.
+  includeDetails?: boolean
 ): object {
   const eventStatus =
     l.type === 'event' || l.type === 'training'
@@ -256,6 +261,13 @@ function summariseListing(
     ...(eventStatus ?? {}),
     ...(includeDates && l.dateAdded ? { dateAdded: l.dateAdded } : {}),
     ...(includeDates && l.lastModified ? { lastModified: l.lastModified } : {}),
+    ...(includeDetails && l.details
+      ? {
+          details: l.details,
+          detailsNote:
+            "Internal background — NOT displayed anywhere on the site, so never tell the user to read it on the listing page or present it as public site content; relay what is relevant in your own words. NEVER repeat any person's name or personal email that appears in it.",
+        }
+      : {}),
     url: l.url,
     pageUrl: l.pageUrl,
     ...(l.featured ? { featured: true } : {}),
@@ -330,7 +342,9 @@ function executeGetListing(
   const today = new Date().toISOString().slice(0, 10)
   return {
     ok: true,
-    content: JSON.stringify(summariseListing(listing, today, undefined, true)),
+    content: JSON.stringify(
+      summariseListing(listing, today, undefined, true, true)
+    ),
     listings: [listing],
   }
 }

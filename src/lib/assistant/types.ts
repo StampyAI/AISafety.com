@@ -32,6 +32,11 @@ export interface Listing {
   /** YYYY-MM-DD any field of the record last changed (edits of any kind,
    *  including routine maintenance). Same visibility rules as dateAdded. */
   lastModified?: string
+  /** Fuller background reaching the model only via get_listing — search
+   *  results stay lean. Currently only projects have it (Airtable's
+   *  "Description (long)"). NOT displayed anywhere on the site, so the
+   *  prompt forbids citing it as on-page content or repeating names from it. */
+  details?: string
 }
 
 export interface Catalog {

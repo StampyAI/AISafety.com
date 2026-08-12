@@ -480,6 +480,12 @@ export interface DashboardData {
    *  each against the page's distinct visitors. Keyed by the same row names
    *  the corresponding tables use. */
   listingShare: VisitorShare[]
+  /** The Top listings footer's "% of visitors": distinct visitors who clicked
+   *  ANY listing on `selectedPage` vs the page's distinct visitors. Not the
+   *  sum of the `listingShare` rows — a visitor who clicked three listings
+   *  counts once here. Narrowed by `selectedSource` like the rows above it.
+   *  Null when no page is selected. */
+  anyListingShare: VisitorShare | null
   positionShare: VisitorShare[]
   filterGroupShare: VisitorShare[]
   filterValueShare: VisitorShare[]
@@ -554,6 +560,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   newsletterByPage: [],
   newsletterShareByPage: [],
   listingShare: [],
+  anyListingShare: null,
   positionShare: [],
   filterGroupShare: [],
   filterValueShare: [],
@@ -930,6 +937,19 @@ function aggregate(
     }))
   }
   const listingShare = shareOnPage(pageClicks, listingMember)
+  // The footer's "any listing" share: one Set across every listing click on
+  // the page, so a visitor who clicked several listings still counts once —
+  // deliberately NOT the sum of the per-listing rows.
+  const anyListingVids = new Set<string>()
+  for (const e of pageClicks) if (e.vid) anyListingVids.add(e.vid)
+  const anyListingShare: VisitorShare | null =
+    selectedPage != null
+      ? {
+          name: 'Any listing',
+          active: anyListingVids.size,
+          visitors: pageVisitorCount,
+        }
+      : null
   const positionShare = shareOnPage(
     pageClicks.filter(e => e.position),
     e => e.position as string
@@ -1038,6 +1058,7 @@ function aggregate(
     newsletterByPage,
     newsletterShareByPage,
     listingShare,
+    anyListingShare,
     positionShare,
     filterGroupShare,
     filterValueShare,

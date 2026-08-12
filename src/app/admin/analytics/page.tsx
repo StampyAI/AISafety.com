@@ -843,12 +843,15 @@ export default async function AnalyticsPage({
                     rankFor={name => positionByName.get(name)}
                     shareFor={name => listingShare.get(name)}
                     total={listingTotal}
+                    totalShare={data.anyListingShare ?? undefined}
                   />
                   <p className={styles.caption}>
                     Slot = where each listing was clicked this period (F1/F2 =
                     featured cards). Blank for clicks logged before slot
                     tracking. % of visitors = the share of this page&apos;s
-                    visitors who clicked the listing.
+                    visitors who clicked the listing; the Total row is the share
+                    who clicked any listing at all (each visitor counted once,
+                    so it&apos;s less than the column&apos;s sum).
                   </p>
                 </Panel>
                 <Panel title="Clicks by position">
@@ -1436,6 +1439,7 @@ function CountTable({
   pageFor,
   shareFor,
   total,
+  totalShare,
 }: {
   rows: Counted[]
   labelHead: string
@@ -1460,6 +1464,11 @@ function CountTable({
    *  footer row. The total is the denominator, so for a sliced "top N" table it
    *  can exceed the sum of the visible rows. */
   total?: number
+  /** The Total row's "% of visitors" cell: the share of visitors who did the
+   *  thing at least once, counted across the whole table. Computed from
+   *  distinct visitors, not by summing the rows — a visitor who did several
+   *  things counts once. Blank when unset. */
+  totalShare?: VisitorShare
 }) {
   if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
   const rows = allRows.slice(0, MAX_TABLE_ROWS)
@@ -1512,7 +1521,18 @@ function CountTable({
               {showPct && (
                 <td className={styles.pctCol}>{pct1(total, total)}</td>
               )}
-              {shareFor && <td className={styles.pctCol} />}
+              {shareFor && (
+                <td className={styles.pctCol}>
+                  {/* active 0 means the range's clicks predate visitor ids
+                      (or all came from private browsing) — that's unknown,
+                      not a true 0%, so it gets the same dash as the rows. */}
+                  {totalShare
+                    ? totalShare.active > 0
+                      ? shareCell(totalShare)
+                      : '—'
+                    : null}
+                </td>
+              )}
             </tr>
           ) : undefined
         }

@@ -39,6 +39,8 @@ export default function DateRangePicker({
   }
 
   const setPreset = (key: string) => {
+    setCustomFrom('')
+    setCustomTo('')
     const params = carryOver()
     params.set('range', key)
     router.push(`${pathname}?${params.toString()}`)

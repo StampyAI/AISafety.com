@@ -71,6 +71,63 @@ function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 }
 
+const THINKING_MARKER_RE = /\[\[\s*\/\s*thinking\s*\]\]/gi
+const THINKING_MARKER_CANON = '[[/thinking]]'
+
+// A retraction only counts when the content it would preserve is substantial
+// enough that the visitor plausibly read it. Below this, moving the boundary
+// (the widget's normal last-marker rule) loses almost nothing, while a wrong
+// truncation would abort the real answer and ship the junk between two
+// stuttered markers as the whole reply. Observed retracted drafts run
+// 1,800+ chars; marker-stutter junk is a few bytes.
+const MIN_RETRACTED_CHARS = 80
+
+/** The prompt makes [[/thinking]] a one-way door: once the model emits it and
+ *  the answer begins, re-emitting it retracts everything already streamed —
+ *  the widget shows only what follows the LAST marker, so the visitor watches
+ *  their answer get deleted and rewritten. Returns the index (within one
+ *  generation's text) of the first marker that retracts a substantial visible
+ *  answer, or -1. Two deliberate blind spots, because this guard ends
+ *  generations and a wrong cut aborts the real answer: markers not at the
+ *  start of a line don't count (a marker merely QUOTED mid-sentence — the
+ *  prompt's own rules quote it — must never trigger a cut), and markers with
+ *  under MIN_RETRACTED_CHARS of content since the last accepted marker just
+ *  move the boundary like the widget would. Missed genuine re-marks degrade
+ *  to the widget's pre-existing last-marker handling, never worse. */
+function findRetractionMarker(genText: string): number {
+  let acceptedEnd = -1
+  for (const m of genText.matchAll(THINKING_MARKER_RE)) {
+    const idx = m.index ?? 0
+    const lineStart = genText.lastIndexOf('\n', idx - 1) + 1
+    if (idx > 0 && genText.slice(lineStart, idx).trim()) continue
+    if (
+      acceptedEnd !== -1 &&
+      genText.slice(acceptedEnd, idx).trim().length >= MIN_RETRACTED_CHARS
+    ) {
+      return idx
+    }
+    acceptedEnd = idx + m[0].length
+  }
+  return -1
+}
+
+/** Length of the trailing chunk of `text` that might still grow into a
+ *  [[/thinking]] marker as more deltas arrive (e.g. ends in "[[", "[[/thin").
+ *  Those bytes are held back from the client until disambiguated, so that
+ *  when a retraction is cut mid-stream the client never receives any
+ *  fragment of the second marker. */
+function markerPrefixHold(text: string): number {
+  const start = text.lastIndexOf('[[')
+  if (start !== -1) {
+    const tail = text.slice(start)
+    if (!tail.includes(']]')) {
+      const canon = tail.replace(/\s+/g, '').toLowerCase()
+      if (THINKING_MARKER_CANON.startsWith(canon)) return text.length - start
+    }
+  }
+  return text.endsWith('[') ? 1 : 0
+}
+
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream; charset=utf-8',
   'Cache-Control': 'no-cache, no-transform',
@@ -273,6 +330,21 @@ export async function runAssistantStream(
     let currentToolUse: { id: string; name: string; inputJson: string } | null =
       null
     let stopReason: string | null = null
+    // This generation's text, forwarded to the client through a gate that
+    // holds back a tail that might still become a [[/thinking]] marker. When
+    // the model re-emits the marker to retract an answer the visitor has
+    // already watched stream in, we cut the generation at the retraction and
+    // keep the first answer — without the gate, fragments of the second
+    // marker would already have been sent.
+    let genText = ''
+    let sentUpTo = 0
+    let truncatedRewrite = false
+    const flushText = (upTo: number) => {
+      if (upTo > sentUpTo) {
+        send('text', { delta: genText.slice(sentUpTo, upTo) })
+        sentUpTo = upTo
+      }
+    }
 
     for await (const event of response) {
       if (event.type === 'message_start') {
@@ -287,6 +359,9 @@ export async function runAssistantStream(
         if (event.content_block.type === 'text') {
           currentTextBlock = ''
         } else if (event.content_block.type === 'tool_use') {
+          // Any held-back text belongs before this tool call — flush it now
+          // so the client's event order matches the model's output order.
+          flushText(genText.length)
           currentToolUse = {
             id: event.content_block.id,
             name: event.content_block.name,
@@ -301,7 +376,54 @@ export async function runAssistantStream(
         if (event.delta.type === 'text_delta') {
           currentTextBlock += event.delta.text
           assistantText += event.delta.text
-          send('text', { delta: event.delta.text })
+          genText += event.delta.text
+          const retractionAt = findRetractionMarker(genText)
+          if (retractionAt !== -1) {
+            // The model is retracting the answer it already streamed (it
+            // re-emitted [[/thinking]] and would now rewrite from scratch —
+            // observed rewrites are near-verbatim). Keep the answer the
+            // visitor has, cut the generation here, and skip the rewrite.
+            flushText(retractionAt)
+            const dropped = genText.length - retractionAt
+            assistantText = assistantText.slice(
+              0,
+              assistantText.length - dropped
+            )
+            // The dropped bytes usually sit in the current (open) text block,
+            // but a marker can span a block boundary — trim any remainder off
+            // blocks already pushed, so the apiMessages transcript matches
+            // assistantText, the client stream, and the stored log exactly.
+            let leftover = dropped - currentTextBlock.length
+            currentTextBlock = currentTextBlock.slice(
+              0,
+              Math.max(0, currentTextBlock.length - dropped)
+            )
+            while (leftover > 0) {
+              const lastBlock = blocks[blocks.length - 1]
+              if (!lastBlock || lastBlock.type !== 'text') break
+              const take = Math.min(leftover, lastBlock.text.length)
+              lastBlock.text = lastBlock.text.slice(
+                0,
+                lastBlock.text.length - take
+              )
+              if (!lastBlock.text) blocks.pop()
+              leftover -= take
+            }
+            truncatedRewrite = true
+            stopReason = 'end_turn'
+            console.warn(
+              '[assistant] re-emitted [[/thinking]] after the answer began — kept the first answer and dropped the rewrite'
+            )
+            // Surfaces in the admin log's tool list, so affected turns are
+            // visible when skimming conversations.
+            toolCalls.push({
+              name: 'kept_first_answer_dropped_rewrite',
+              input: {},
+              ok: true,
+            })
+            break
+          }
+          flushText(genText.length - markerPrefixHold(genText))
         } else if (event.delta.type === 'input_json_delta' && currentToolUse) {
           currentToolUse.inputJson += event.delta.partial_json
         }
@@ -332,6 +454,24 @@ export async function runAssistantStream(
       } else if (event.type === 'message_delta') {
         if (event.delta.stop_reason) stopReason = event.delta.stop_reason
       }
+    }
+
+    if (truncatedRewrite) {
+      // Stop the model from generating the rest of the retracted rewrite.
+      try {
+        response.controller.abort()
+      } catch {
+        // Stream already closed.
+      }
+    } else {
+      flushText(genText.length)
+    }
+    // Normally every text block was pushed at its content_block_stop; after a
+    // truncation break the current (cut) block still needs capturing so the
+    // transcript matches what the visitor saw.
+    if (currentTextBlock) {
+      blocks.push({ type: 'text', text: currentTextBlock })
+      currentTextBlock = ''
     }
 
     apiMessages.push({ role: 'assistant', content: blocks })
@@ -368,9 +508,13 @@ export async function runAssistantStream(
           role: 'user',
           content: textToolCallRedoMessage(),
         })
-        // Close the discarded draft with a real marker (same trick as the
-        // split-answer redo below) so the live widget's boundary moves past
-        // the draft even if the rewrite forgets its own marker.
+        // Tell the widget a redo is starting, then close the discarded draft
+        // with a real marker (same trick as the split-answer redo below) so
+        // the boundary moves past the draft even if the rewrite forgets its
+        // own marker. The redo event lets the widget keep a draft the visitor
+        // already read on screen — swapped for the rewrite once it streams —
+        // instead of blanking to a loading indicator.
+        send('redo', {})
         send('text', { delta: '\n[[/thinking]]\n' })
         assistantText += '\n[[/thinking]]\n'
         answerStartOffset = assistantText.length
@@ -410,6 +554,14 @@ export async function runAssistantStream(
           input: { fabricated },
           ok: true,
         })
+        // Tell the widget a redo is starting (it keeps the draft on screen
+        // until the corrected answer streams, instead of blanking to a
+        // loading indicator), then close the discarded draft with a real
+        // marker like the other redos, so the boundary moves past the draft
+        // even if the rewrite forgets its own marker.
+        send('redo', {})
+        send('text', { delta: '\n[[/thinking]]\n' })
+        assistantText += '\n[[/thinking]]\n'
         apiMessages.push({
           role: 'user',
           content: fabricationRedoMessage(fabricated),
@@ -457,10 +609,12 @@ export async function runAssistantStream(
           ok: true,
         })
         apiMessages.push({ role: 'user', content: splitAnswerRedoMessage() })
-        // Close the discarded draft with a real marker, sent as a text delta
-        // so the live widget's boundary moves past the draft even if the
-        // rewrite forgets its own marker — and so the stored transcript and
-        // the client's own copy of the reply stay identical.
+        // Tell the widget a redo is starting, then close the discarded draft
+        // with a real marker, sent as a text delta so the live widget's
+        // boundary moves past the draft even if the rewrite forgets its own
+        // marker — and so the stored transcript and the client's own copy of
+        // the reply stay identical.
+        send('redo', {})
         send('text', { delta: '\n[[/thinking]]\n' })
         assistantText += '\n[[/thinking]]\n'
         answerStartOffset = assistantText.length
@@ -494,9 +648,11 @@ export async function runAssistantStream(
           ok: true,
         })
         apiMessages.push({ role: 'user', content: suggestGateRedoMessage() })
-        // Close the discarded draft with a real marker (same trick as the
-        // split-answer redo above) so the live widget's boundary moves past
-        // the draft even if the rewrite forgets its own marker.
+        // Tell the widget a redo is starting, then close the discarded draft
+        // with a real marker (same trick as the split-answer redo above) so
+        // the live widget's boundary moves past the draft even if the rewrite
+        // forgets its own marker.
+        send('redo', {})
         send('text', { delta: '\n[[/thinking]]\n' })
         assistantText += '\n[[/thinking]]\n'
         answerStartOffset = assistantText.length
@@ -572,14 +728,12 @@ export async function runAssistantStream(
   // missing-marker repair below so it reflects what the model actually wrote.
   const markerCount =
     assistantText.match(/\[\[\s*\/\s*thinking\s*\]\]/gi)?.length ?? 0
-  // Baseline 1; a fabrication redo adds the discarded draft's own marker; the
-  // split-answer, suggest-form and text-tool-call redos each add the synthetic
-  // marker that closed the draft plus, at most, a marker the draft itself
-  // carried. Upper bounds, so the warn below still catches genuine mid-answer
-  // re-emission.
+  // Baseline 1; each redo adds the synthetic marker that closed the draft
+  // plus, at most, a marker the draft itself carried. Upper bounds, so the
+  // warn below still catches genuine mid-answer re-emission.
   const expectedMarkers =
     1 +
-    (redoneFabrication ? 1 : 0) +
+    (redoneFabrication ? 2 : 0) +
     (redoneSplitAnswer ? 2 : 0) +
     (redoneSuggestGate ? 2 : 0) +
     (redoneTextToolCall ? 2 : 0)

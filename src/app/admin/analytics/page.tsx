@@ -814,11 +814,13 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   total={totalClicks}
                   shareFor={name => clickShare.get(name)}
+                  totalShare={data.siteClickShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   % of visitors = the share of the page&apos;s visitors who
                   clicked at least one listing (always per-visitor, whichever
-                  count mode is on). Visitor counts began 15 July 2026.
+                  count mode is on); the Total row is the share of all visitors
+                  site-wide. Visitor counts began 15 July 2026.
                 </p>
               </Panel>
             </div>
@@ -920,11 +922,14 @@ export default async function AnalyticsPage({
                         linkFor={name => hoverUrlByName.get(name)}
                         shareFor={name => hoverShare.get(name)}
                         total={hoverTotal}
+                        totalShare={data.anyHoverShare ?? undefined}
                       />
                       <p className={styles.caption}>
                         A hover is recorded when the cursor rests on a map
                         listing for half a second – or, on a phone, when a tap
-                        opens its tooltip.
+                        opens its tooltip. The Total row&apos;s % of visitors is
+                        the share who hovered any listing at all (each visitor
+                        counted once).
                       </p>
                     </Panel>
                   </div>
@@ -972,10 +977,13 @@ export default async function AnalyticsPage({
                       logoFor={contributeIcon}
                       shareFor={name => contributeButtonShare.get(name)}
                       total={contributeTotal}
+                      totalShare={data.anyContributeShare ?? undefined}
                     />
                     <p className={styles.caption}>
-                      Clicks on this page&apos;s add and correction forms.
-                      Recording since 29 July 2026.
+                      Clicks on this page&apos;s add and correction forms; the
+                      Total row&apos;s % of visitors is the share who clicked
+                      any of them (each visitor counted once). Recording since
+                      29 July 2026.
                     </p>
                   </Panel>
                   <Panel title="View data in Airtable">
@@ -1093,12 +1101,14 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   total={contributeTotalByPage}
                   shareFor={name => contributeShare.get(name)}
+                  totalShare={data.siteContributeShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   Clicks on the &quot;Add a …&quot; and &quot;Suggest a
                   correction&quot; forms. % of visitors = the share of the
-                  page&apos;s visitors who clicked one. Open a page&apos;s tab
-                  for its per-button split. Recording since 29 July 2026.
+                  page&apos;s visitors who clicked one; the Total row is the
+                  share of all visitors site-wide. Open a page&apos;s tab for
+                  its per-button split. Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Airtable views by page">
@@ -1110,11 +1120,13 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   total={airtableTotalByPage}
                   shareFor={name => airtableShare.get(name)}
+                  totalShare={data.siteAirtableShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   Clicks on the &quot;View data in Airtable&quot; cards. % of
                   visitors = the share of the page&apos;s visitors who clicked
-                  one. Recording since 29 July 2026.
+                  one; the Total row is the share of all visitors site-wide.
+                  Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Newsletter signups by page">
@@ -1127,12 +1139,14 @@ export default async function AnalyticsPage({
                   countHead="Submits"
                   total={newsletterTotalByPage}
                   shareFor={name => newsletterShare.get(name)}
+                  totalShare={data.siteNewsletterShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   Submits of the weekly-summary email box on /events and
                   /training – may not all be successful signups. % of visitors =
-                  the share of the page&apos;s visitors who submitted it.
-                  Recording since 29 July 2026.
+                  the share of the page&apos;s visitors who submitted it; the
+                  Total row divides by visitors to those two pages combined,
+                  since only they have the box. Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Footer clicks">

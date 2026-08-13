@@ -475,6 +475,16 @@ export interface DashboardData {
   /** Distinct visitors who submitted the newsletter box on each page vs the
    *  page's distinct visitors. */
   newsletterShareByPage: VisitorShare[]
+  /** The Overview by-page tables' Total rows: distinct visitors who clicked
+   *  any listing / contribute button / Airtable card anywhere on the site vs
+   *  distinct visitors site-wide — a visitor active on three pages counts
+   *  once on both sides. */
+  siteClickShare: VisitorShare | null
+  siteContributeShare: VisitorShare | null
+  siteAirtableShare: VisitorShare | null
+  /** Same for the newsletter box, but divided by visitors to the pages that
+   *  have it (Events and Training) rather than the whole site. */
+  siteNewsletterShare: VisitorShare | null
   /** For `selectedPage`'s own tables: distinct visitors per listing / slot /
    *  filter group / filter value / contribute button / hovered listing,
    *  each against the page's distinct visitors. Keyed by the same row names
@@ -494,6 +504,12 @@ export interface DashboardData {
    *  Not the sum of the `filterGroupShare` rows — a visitor who used three
    *  filters counts once here. Null when no page is selected. */
   anyFilterShare: VisitorShare | null
+  /** Contribute buttons' footer: distinct visitors who clicked ANY contribute
+   *  button on `selectedPage` vs the page's distinct visitors. */
+  anyContributeShare: VisitorShare | null
+  /** Top hovered listings' footer (map pages only): distinct visitors who
+   *  hovered ANY listing on `selectedPage` vs the page's distinct visitors. */
+  anyHoverShare: VisitorShare | null
   contributeButtonShare: VisitorShare[]
   hoverShare: VisitorShare[]
   /** Clicks on the footer's external links, one row per link ('Donate',
@@ -564,12 +580,18 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   airtableShareByPage: [],
   newsletterByPage: [],
   newsletterShareByPage: [],
+  siteClickShare: null,
+  siteContributeShare: null,
+  siteAirtableShare: null,
+  siteNewsletterShare: null,
   listingShare: [],
   anyListingShare: null,
   positionShare: [],
   filterGroupShare: [],
   filterValueShare: [],
   anyFilterShare: null,
+  anyContributeShare: null,
+  anyHoverShare: null,
   contributeButtonShare: [],
   hoverShare: [],
   footerClicks: [],
@@ -943,19 +965,22 @@ function aggregate(
     }))
   }
   const listingShare = shareOnPage(pageClicks, listingMember)
-  // The footer's "any listing" share: one Set across every listing click on
-  // the page, so a visitor who clicked several listings still counts once —
-  // deliberately NOT the sum of the per-listing rows.
-  const anyListingVids = new Set<string>()
-  for (const e of pageClicks) if (e.vid) anyListingVids.add(e.vid)
-  const anyListingShare: VisitorShare | null =
+  // The Total rows' "any at all" shares: one Set across every qualifying
+  // event, so a visitor who did several still counts once — deliberately NOT
+  // the sum of the per-row shares.
+  const distinctVids = (hits: AnalyticsEvent[]): number => {
+    const vids = new Set<string>()
+    for (const e of hits) if (e.vid) vids.add(e.vid)
+    return vids.size
+  }
+  const anyOnPage = (
+    hits: AnalyticsEvent[],
+    name: string
+  ): VisitorShare | null =>
     selectedPage != null
-      ? {
-          name: 'Any listing',
-          active: anyListingVids.size,
-          visitors: pageVisitorCount,
-        }
+      ? { name, active: distinctVids(hits), visitors: pageVisitorCount }
       : null
+  const anyListingShare = anyOnPage(pageClicks, 'Any listing')
   const positionShare = shareOnPage(
     pageClicks.filter(e => e.position),
     e => e.position as string
@@ -968,19 +993,7 @@ function aggregate(
     pageFilters,
     e => `${e.source ?? '(unknown)'}: ${e.label ?? '(unknown)'}`
   )
-  // The Filter usage footer's "any filter" share: one Set across every filter
-  // activation on the page, so a visitor who used several filters still counts
-  // once — deliberately NOT the sum of the per-group rows.
-  const anyFilterVids = new Set<string>()
-  for (const e of pageFilters) if (e.vid) anyFilterVids.add(e.vid)
-  const anyFilterShare: VisitorShare | null =
-    selectedPage != null
-      ? {
-          name: 'Any filter',
-          active: anyFilterVids.size,
-          visitors: pageVisitorCount,
-        }
-      : null
+  const anyFilterShare = anyOnPage(pageFilters, 'Any filter')
 
   // Contribute-button and Airtable-card clicks. uniqueClicks dedupes on
   // page+label, which is exactly the button identity here.
@@ -997,10 +1010,9 @@ function aggregate(
       .filter(e => e.page === selectedPage)
       .map(e => listingMember(e))
   )
-  const contributeButtonShare = shareOnPage(
-    contributeHits.filter(e => e.page === selectedPage),
-    listingMember
-  )
+  const pageContributeHits = contributeHits.filter(e => e.page === selectedPage)
+  const contributeButtonShare = shareOnPage(pageContributeHits, listingMember)
+  const anyContributeShare = anyOnPage(pageContributeHits, 'Any button')
   const airtableHits = inRange.filter(e => e.type === 'airtable_view' && e.page)
   const airtableClicks = unique ? uniqueClicks(airtableHits) : airtableHits
   const airtableByPage = tally(airtableClicks.map(e => e.page as string))
@@ -1016,6 +1028,32 @@ function aggregate(
     : newsletterHits
   const newsletterByPage = tally(newsletterSubmits.map(e => e.page as string))
   const newsletterShareByPage = shareByPage(newsletterHits)
+
+  // The Overview by-page tables' Total rows: distinct visitors who did the
+  // thing anywhere on the site vs distinct visitors site-wide — both sides
+  // count a visitor once however many pages they touched.
+  const siteVisitors = new Set<string>()
+  for (const vids of viewVidsByPage.values())
+    for (const v of vids) siteVisitors.add(v)
+  const anyOnSite = (hits: AnalyticsEvent[], name: string): VisitorShare => ({
+    name,
+    active: distinctVids(hits),
+    visitors: siteVisitors.size,
+  })
+  const siteClickShare = anyOnSite(pageHits, 'Any listing')
+  const siteContributeShare = anyOnSite(contributeHits, 'Any button')
+  const siteAirtableShare = anyOnSite(airtableHits, 'Any card')
+  // The newsletter box only renders on Events and Training, so its Total row
+  // divides by those pages' visitors — a site-wide denominator would count
+  // visitors who never saw the box.
+  const newsletterVisitors = new Set<string>()
+  for (const p of ['Events', 'Training'])
+    for (const v of viewVidsByPage.get(p) ?? []) newsletterVisitors.add(v)
+  const siteNewsletterShare: VisitorShare = {
+    name: 'Any submit',
+    active: distinctVids(newsletterHits),
+    visitors: newsletterVisitors.size,
+  }
   const footerHits = inRange.filter(e => e.type === 'footer_click')
   const footerEvents = unique ? uniqueClicks(footerHits) : footerHits
   const footerClicks = tally(footerEvents.map(e => listingMember(e)))
@@ -1029,6 +1067,7 @@ function aggregate(
   // emits hover events.
   let topHovered: ListingRow[] = []
   let hoverShare: VisitorShare[] = []
+  let anyHoverShare: VisitorShare | null = null
   if (selectedPage != null && MAP_PAGES.has(selectedPage)) {
     const hoverHits = inRange.filter(e => e.type === 'listing_hover' && e.page)
     const hovers = (unique ? uniqueClicks(hoverHits) : hoverHits).filter(
@@ -1036,6 +1075,7 @@ function aggregate(
     )
     topHovered = listingRows(hovers)
     hoverShare = shareOnPage(hovers, listingMember)
+    anyHoverShare = anyOnPage(hovers, 'Any listing')
   }
 
   // The Map tab's by-area rollup compares clicks against hovers per area, and
@@ -1076,12 +1116,18 @@ function aggregate(
     airtableShareByPage,
     newsletterByPage,
     newsletterShareByPage,
+    siteClickShare,
+    siteContributeShare,
+    siteAirtableShare,
+    siteNewsletterShare,
     listingShare,
     anyListingShare,
     positionShare,
     filterGroupShare,
     filterValueShare,
     anyFilterShare,
+    anyContributeShare,
+    anyHoverShare,
     contributeButtonShare,
     hoverShare,
     footerClicks,

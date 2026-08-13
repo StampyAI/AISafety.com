@@ -5,18 +5,40 @@ const COOKIE_NAME = 'aisafety_admin'
 // 30 days. Re-auth when expired.
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
-/** Passwords that grant admin access: the primary owner password plus optional
- *  shareable ones (a "successif…" password for the partner reviewing chat logs,
- *  a "volunteer…" password for site volunteers). Each lives in its own env var,
- *  so any one can be revoked on its own — drop the env var and that password
- *  (and any cookie derived from it) stops working immediately, while the others
- *  are untouched. */
+interface PasswordRole {
+  /** Env var holding the password. Unset or empty means this role is disabled. */
+  env: string
+  /** May open the playground and conversation log, and read chat transcripts. */
+  chatbot: boolean
+  /** May open the analytics dashboard. */
+  analytics: boolean
+}
+
+/** Every password that grants admin access, and the areas each one opens. Each
+ *  lives in its own env var, so any one can be revoked on its own — drop the env
+ *  var and that password (and any cookie derived from it) stops working
+ *  immediately, while the others are untouched. */
+const PASSWORD_ROLES: PasswordRole[] = [
+  // Primary owner password: the whole admin.
+  { env: 'ADMIN_PASSWORD', chatbot: true, analytics: true },
+  // Partner reviewing chat logs: chat areas only, no analytics.
+  { env: 'ADMIN_PASSWORD_SUCCESSIF', chatbot: true, analytics: false },
+  // Site volunteers: the whole admin.
+  { env: 'ADMIN_PASSWORD_VOLUNTEER', chatbot: true, analytics: true },
+  // Analytics-only volunteers: the dashboard, with the chat areas out of reach.
+  { env: 'ADMIN_PASSWORD_ANALYTICS', chatbot: false, analytics: true },
+]
+
+/** Configured passwords whose role satisfies `grants`. Roles left unconfigured
+ *  drop out, so every caller fails closed on an empty list. */
+function passwordsWhere(grants: (role: PasswordRole) => boolean): string[] {
+  return PASSWORD_ROLES.filter(grants)
+    .map(role => process.env[role.env])
+    .filter((p): p is string => typeof p === 'string' && p.length > 0)
+}
+
 function validPasswords(): string[] {
-  return [
-    process.env.ADMIN_PASSWORD,
-    process.env.ADMIN_PASSWORD_SUCCESSIF,
-    process.env.ADMIN_PASSWORD_VOLUNTEER,
-  ].filter((p): p is string => typeof p === 'string' && p.length > 0)
+  return passwordsWhere(() => true)
 }
 
 /** Cookie value derived from a password. Forging the cookie therefore requires
@@ -28,29 +50,33 @@ function cookieValueFor(password: string): string {
     .digest('hex')
 }
 
-export async function isAdmin(): Promise<boolean> {
-  const accepted = validPasswords().map(cookieValueFor)
+/** True when the session's cookie was derived from one of `passwords`. */
+async function sessionHolds(passwords: string[]): Promise<boolean> {
+  const accepted = passwords.map(cookieValueFor)
   if (accepted.length === 0) return false
   const c = await cookies()
   const got = c.get(COOKIE_NAME)?.value
   return got != null && accepted.includes(got)
 }
 
-/** True when the session was authenticated with a password allowed into the
- *  analytics dashboard: the primary owner password or the shared volunteer
- *  password. The Successif password is deliberately excluded — that partner
- *  reviews chat logs only. Fails closed if neither password is configured. */
+/** Signed in with any accepted password. Use this only to tell "signed in" from
+ *  "signed out" — for anything gating a section of the admin, ask the specific
+ *  capability instead, since not every password reaches every area. */
+export async function isAdmin(): Promise<boolean> {
+  return sessionHolds(validPasswords())
+}
+
+/** True when the session may use the playground and conversation log, and read
+ *  chat transcripts. The analytics-only password is deliberately excluded — that
+ *  volunteer sees the dashboard and nothing else. */
+export async function canViewChatbot(): Promise<boolean> {
+  return sessionHolds(passwordsWhere(role => role.chatbot))
+}
+
+/** True when the session may open the analytics dashboard. The Successif
+ *  password is deliberately excluded — that partner reviews chat logs only. */
 export async function canViewAnalytics(): Promise<boolean> {
-  const accepted = [
-    process.env.ADMIN_PASSWORD,
-    process.env.ADMIN_PASSWORD_VOLUNTEER,
-  ]
-    .filter((p): p is string => typeof p === 'string' && p.length > 0)
-    .map(cookieValueFor)
-  if (accepted.length === 0) return false
-  const c = await cookies()
-  const got = c.get(COOKIE_NAME)?.value
-  return got != null && accepted.includes(got)
+  return sessionHolds(passwordsWhere(role => role.analytics))
 }
 
 export async function setAdminCookie(password: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { isAdmin } from '@/lib/admin/auth'
+import { canViewChatbot } from '@/lib/admin/auth'
 import {
   isConversationsTableConfigured,
   listConversationsPage,
@@ -23,7 +23,7 @@ function collectCardIds(text: string, into: Set<string>): void {
 const REC_RE = /rec[A-Za-z0-9]+/
 
 async function ensureAuth(): Promise<Response | null> {
-  if (!(await isAdmin())) {
+  if (!(await canViewChatbot())) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },

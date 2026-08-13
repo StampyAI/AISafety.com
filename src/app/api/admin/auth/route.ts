@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
     })
   }
   // checkAdminPassword has confirmed this is one of the accepted passwords;
-  // mint the cookie derived from it so isAdmin() recognises the session.
+  // mint the cookie derived from it so the capability checks recognise the
+  // session and grant exactly the areas this password opens.
   await setAdminCookie(body.password as string)
   return new Response(JSON.stringify({ ok: true }), {
     headers: { 'Content-Type': 'application/json' },

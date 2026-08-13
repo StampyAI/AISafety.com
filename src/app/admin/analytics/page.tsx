@@ -20,6 +20,7 @@ import {
   type TopQuestion,
 } from '@/lib/analytics/conversations'
 import { readQuestionThemes, type ThemeSummary } from '@/lib/analytics/themes'
+import { canViewChatbot } from '@/lib/admin/auth'
 import {
   buildSearchIndex,
   type SearchEntry,
@@ -460,6 +461,13 @@ export default async function AnalyticsPage({
   const tabReq = tabRaw === 'funnel' ? 'chatbot' : tabRaw
   const onResourceTab = tabReq != null && !OVERVIEW_KEYS.has(tabReq)
 
+  // The Chatbot tab is transcript-derived — visitor funnel plus verbatim first
+  // messages — so an analytics-only volunteer doesn't get it: hidden from the
+  // tab bar below, data left unfetched here, and a bookmarked ?tab=chatbot
+  // falls back to the default tab rather than rendering an empty panel.
+  const showChatbotTab = await canViewChatbot()
+  const onChatbotTab = tabReq === 'chatbot' && showChatbotTab
+
   const [data, funders, convStats, themes, searchIndex] = await Promise.all([
     readDashboard(
       range,
@@ -470,8 +478,8 @@ export default async function AnalyticsPage({
     getFunders().catch(() => []),
     // The transcript-derived stats only render on the Chatbot tab, so only
     // fetch the (ever-growing) conversation log when it's the active tab.
-    tabReq === 'chatbot' ? readConversationStats(range) : null,
-    tabReq === 'chatbot' ? readQuestionThemes() : null,
+    onChatbotTab ? readConversationStats(range) : null,
+    onChatbotTab ? readQuestionThemes() : null,
     // Resolves clicked search results to their resource page; only the Search
     // tab reads it. On error the page icons resolve from recorded types alone.
     tabReq === 'search'
@@ -498,7 +506,13 @@ export default async function AnalyticsPage({
 
   // Resolve the active tab: the requested one if it's a real tab, else the
   // default overview ('pages'). onResourceView gates the per-page panels.
-  const tabKeys = new Set<string>([...OVERVIEW_KEYS, ...resourceNames])
+  const overviewTabs = showChatbotTab
+    ? OVERVIEW_TABS
+    : OVERVIEW_TABS.filter(t => t.key !== 'chatbot')
+  const tabKeys = new Set<string>([
+    ...overviewTabs.map(t => t.key),
+    ...resourceNames,
+  ])
   const activeTab = tabReq && tabKeys.has(tabReq) ? tabReq : 'pages'
   const onResourceView = !OVERVIEW_KEYS.has(activeTab)
 
@@ -705,7 +719,7 @@ export default async function AnalyticsPage({
       ) : (
         <>
           <DashboardTabs
-            overview={OVERVIEW_TABS}
+            overview={overviewTabs}
             pages={resourceTabs}
             active={activeTab}
             params={sp}

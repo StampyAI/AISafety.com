@@ -1,11 +1,14 @@
 import { redirect } from 'next/navigation'
-import { isAdmin } from '@/lib/admin/auth'
+import { canViewAnalytics, canViewChatbot } from '@/lib/admin/auth'
+import { adminHomeHref } from './nav'
 
-// /admin is an index that bounces to the right place: the playground when
-// already authenticated, otherwise the login page.
+// /admin is an index that bounces to the right place: the first area this
+// session can open, or the login page when it can't open any.
 export default async function AdminIndexPage() {
-  if (await isAdmin()) {
-    redirect('/admin/chatbot/playground')
-  }
-  redirect('/admin/login')
+  redirect(
+    adminHomeHref({
+      chatbot: await canViewChatbot(),
+      analytics: await canViewAnalytics(),
+    })
+  )
 }

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
-import { canViewAnalytics, isAdmin } from '@/lib/admin/auth'
+import { canViewAnalytics, canViewChatbot } from '@/lib/admin/auth'
 import AdminHeader from '../AdminHeader'
-import { adminTabs } from '../nav'
+import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
 
 export const metadata = {
@@ -14,16 +14,18 @@ export default async function AnalyticsLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Owner and volunteers only. A signed-in partner holding the Successif
-  // password is sent to the chat area they're allowed to use; everyone else to
-  // the login page.
+  const chatbot = await canViewChatbot()
+  // A signed-in partner holding the Successif password is sent to the chat area
+  // they're allowed to use; everyone else to the login page.
   if (!(await canViewAnalytics())) {
-    redirect((await isAdmin()) ? '/admin/chatbot/playground' : '/admin/login')
+    redirect(chatbot ? '/admin/chatbot/playground' : '/admin/login')
   }
-  // analytics access is guaranteed here, so the Analytics tab is always present.
+  // Analytics access is guaranteed here, so the Analytics tab is always present;
+  // the chatbot tabs drop out for an analytics-only session.
+  const access = { chatbot, analytics: true }
   return (
     <>
-      <AdminHeader tabs={adminTabs(true)} />
+      <AdminHeader tabs={adminTabs(access)} brandHref={adminHomeHref(access)} />
       <main className={styles.consoleWrap}>{children}</main>
     </>
   )

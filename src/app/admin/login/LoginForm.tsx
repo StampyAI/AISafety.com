@@ -26,7 +26,9 @@ export default function LoginForm() {
         setBusy(false)
         return
       }
-      router.push('/admin/chatbot/playground')
+      // /admin bounces to the first area this password opens — the playground
+      // for most, the dashboard for an analytics-only volunteer.
+      router.push('/admin')
       router.refresh()
     } catch {
       setError('Network error')

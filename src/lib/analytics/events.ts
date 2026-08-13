@@ -489,6 +489,11 @@ export interface DashboardData {
   positionShare: VisitorShare[]
   filterGroupShare: VisitorShare[]
   filterValueShare: VisitorShare[]
+  /** The Filter usage/values footers' "% of visitors": distinct visitors who
+   *  turned on ANY filter on `selectedPage` vs the page's distinct visitors.
+   *  Not the sum of the `filterGroupShare` rows — a visitor who used three
+   *  filters counts once here. Null when no page is selected. */
+  anyFilterShare: VisitorShare | null
   contributeButtonShare: VisitorShare[]
   hoverShare: VisitorShare[]
   /** Clicks on the footer's external links, one row per link ('Donate',
@@ -564,6 +569,7 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   positionShare: [],
   filterGroupShare: [],
   filterValueShare: [],
+  anyFilterShare: null,
   contributeButtonShare: [],
   hoverShare: [],
   footerClicks: [],
@@ -962,6 +968,19 @@ function aggregate(
     pageFilters,
     e => `${e.source ?? '(unknown)'}: ${e.label ?? '(unknown)'}`
   )
+  // The Filter usage footer's "any filter" share: one Set across every filter
+  // activation on the page, so a visitor who used several filters still counts
+  // once — deliberately NOT the sum of the per-group rows.
+  const anyFilterVids = new Set<string>()
+  for (const e of pageFilters) if (e.vid) anyFilterVids.add(e.vid)
+  const anyFilterShare: VisitorShare | null =
+    selectedPage != null
+      ? {
+          name: 'Any filter',
+          active: anyFilterVids.size,
+          visitors: pageVisitorCount,
+        }
+      : null
 
   // Contribute-button and Airtable-card clicks. uniqueClicks dedupes on
   // page+label, which is exactly the button identity here.
@@ -1062,6 +1081,7 @@ function aggregate(
     positionShare,
     filterGroupShare,
     filterValueShare,
+    anyFilterShare,
     contributeButtonShare,
     hoverShare,
     footerClicks,

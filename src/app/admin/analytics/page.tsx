@@ -642,12 +642,6 @@ export default async function AnalyticsPage({
       : label === 'Suggest a correction'
         ? '/images/pencil-small.svg'
         : '/images/star-small.svg'
-  // The filter-usage caption's denominator: the page's distinct visitors, only
-  // meaningful in unique mode (total mode's byPage rows count views).
-  const filterPageVisitors = unique
-    ? data.visits.byPage.find(p => p.name === data.selectedPage)?.count
-    : undefined
-
   // Site-wide leaderboards for the Overview tab. The listings total is every
   // page's clicks (same denominator as "Clicks by page"); the position total is
   // only the clicks that carry a slot. Resolve each row's page to its site label
@@ -944,17 +938,16 @@ export default async function AnalyticsPage({
                       countHead="Uses"
                       shareFor={name => filterGroupShare.get(name)}
                       total={filterTotal}
+                      totalShare={data.anyFilterShare ?? undefined}
                     />
                     <p className={styles.caption}>
                       A use = a visitor turning a filter value on; switching a
                       value off isn&apos;t counted.{' '}
                       {data.filterUsers.toLocaleString()} visitor
                       {data.filterUsers === 1 ? '' : 's'} filtered this page
-                      this period
-                      {filterPageVisitors
-                        ? ` – ${pct1(data.filterUsers, filterPageVisitors)} of its visitors`
-                        : ''}
-                      . Recording since 29 July 2026.
+                      this period; the Total row&apos;s % of visitors is the
+                      share who used any filter at all (each visitor counted
+                      once). Recording since 29 July 2026.
                     </p>
                   </Panel>
                   <Panel title="Filter values">
@@ -964,6 +957,7 @@ export default async function AnalyticsPage({
                       countHead="Uses"
                       shareFor={name => filterValueShare.get(name)}
                       total={filterTotal}
+                      totalShare={data.anyFilterShare ?? undefined}
                     />
                   </Panel>
                 </div>

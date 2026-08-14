@@ -307,7 +307,9 @@ export async function buildCatalog(): Promise<Catalog> {
     })
   }
 
-  const featuredEventIds = displayedIds(selectFeatured(events))
+  const featuredEventIds = displayedIds(
+    selectFeatured(events, e => e.applicationStatus === 'Open')
+  )
   const featuredTrainingIds = displayedIds(
     selectFeatured(trainingPrograms, p => p.applicationStatus === 'Open')
   )

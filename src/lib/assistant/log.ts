@@ -2,6 +2,7 @@ import {
   isConversationsTableConfigured,
   recordCitationClick,
 } from '@/lib/admin/airtable'
+import { recordMessageRating } from '@/lib/assistant/message-rating'
 
 export interface AssistantTurnEvent {
   kind: 'turn'
@@ -55,11 +56,24 @@ export interface AssistantSuggestEvent {
   sessionId?: string | null
 }
 
+export interface AssistantRatingEvent {
+  kind: 'rating'
+  /** Thumbs up or down on an assistant reply. */
+  value: 'up' | 'down'
+  /** Which assistant turn was rated (its index in the stored conversation
+   *  history), so the rating can be pinned to the exact turn. */
+  turnIndex: number
+  currentPage: string
+  /** Conversation this rating belongs to, so it can be recorded on the row. */
+  sessionId?: string | null
+}
+
 export type AssistantEvent =
   | AssistantTurnEvent
   | AssistantClickEvent
   | AssistantOpenEvent
   | AssistantSuggestEvent
+  | AssistantRatingEvent
 
 export async function logAssistantEvent(event: AssistantEvent): Promise<void> {
   const line = JSON.stringify({
@@ -99,6 +113,23 @@ export async function logAssistantEvent(event: AssistantEvent): Promise<void> {
     } catch (err) {
       console.warn(
         `[assistant] click persist failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+    }
+  }
+
+  // Persist the thumbs rating. recordMessageRating is the single isolation
+  // point for rating storage — it self-guards (no-ops/logs until the dedicated
+  // Airtable field exists) and never writes to another field.
+  if (event.kind === 'rating' && event.sessionId) {
+    try {
+      await recordMessageRating({
+        session: event.sessionId,
+        turnIndex: event.turnIndex,
+        value: event.value,
+      })
+    } catch (err) {
+      console.warn(
+        `[assistant] rating persist failed: ${err instanceof Error ? err.message : String(err)}`
       )
     }
   }

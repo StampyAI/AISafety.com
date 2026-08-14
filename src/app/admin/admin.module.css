@@ -828,6 +828,12 @@
   color: var(--teal-500);
 }
 
+.convRating {
+  margin-left: 8px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
 .convTurnContent {
   font-size: 13px;
   color: var(--white);

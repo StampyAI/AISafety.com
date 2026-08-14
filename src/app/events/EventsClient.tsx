@@ -433,7 +433,13 @@ export default function EventsClient({ events }: EventsClientProps) {
     [events, mode]
   )
 
-  const featuredEvents = useMemo(() => selectFeatured(modeEvents), [modeEvents])
+  // Events whose applications/registrations closed (competitions can run for
+  // months after their deadline) are passed over when an open backup is
+  // queued behind them, matching /training.
+  const featuredEvents = useMemo(
+    () => selectFeatured(modeEvents, e => e.applicationStatus === 'Open'),
+    [modeEvents]
+  )
 
   // Each event's slot in the full (unfiltered) order of the active mode, so a
   // click is tagged with the rank the visitor saw — not its position within an

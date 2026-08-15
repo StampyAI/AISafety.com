@@ -435,10 +435,18 @@ export default function EventsClient({ events }: EventsClientProps) {
 
   // Events whose applications/registrations closed (competitions can run for
   // months after their deadline) are passed over when an open backup is
-  // queued behind them, matching /training.
+  // queued behind them, matching /training. Hybrid events are featured under
+  // Online only — in the In person view they appear in the grid but never in
+  // the featured row.
   const featuredEvents = useMemo(
-    () => selectFeatured(modeEvents, e => e.applicationStatus === 'Open'),
-    [modeEvents]
+    () =>
+      selectFeatured(
+        mode === 'online'
+          ? modeEvents
+          : modeEvents.filter(e => e.mode !== 'Hybrid'),
+        e => e.applicationStatus === 'Open'
+      ),
+    [modeEvents, mode]
   )
 
   // Each event's slot in the full (unfiltered) order of the active mode, so a

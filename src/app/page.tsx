@@ -239,11 +239,11 @@ export default async function Home() {
             </div>
             <p className="padding-bottom-24px">
               Learn key concepts and research perspectives in AI safety, split
-              into two tracks.
+              into two main tracks.
             </p>
             <div className="block">
               <TrackedLink
-                href="https://bluedot.org/"
+                href="https://bluedot.org/courses"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="button-secondary"

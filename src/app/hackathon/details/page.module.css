@@ -1,0 +1,32 @@
+/* Attendee-details form. Layout classes (.fields/.field/.full/.textarea/.hp)
+   are reused from ../page.module.css; only what's new to this page lives
+   here. */
+
+/* The 1–5 excitement ratings reuse .checkbox, made round so they read as
+   pick-one. */
+.radio {
+  border-radius: 50%;
+}
+
+/* One project per row: name + blurb left, ratings right; the "why" box (only
+   shown for high ratings) spans underneath. Stacks on mobile. */
+.project {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 24px;
+  align-items: center;
+}
+
+.why {
+  grid-column: 1 / -1;
+}
+
+.select {
+  cursor: pointer;
+}
+
+@media (max-width: 991px) {
+  .project {
+    grid-template-columns: 1fr;
+  }
+}

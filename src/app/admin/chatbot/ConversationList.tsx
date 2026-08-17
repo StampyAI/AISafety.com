@@ -506,11 +506,23 @@ function ConversationRow({
   const [notes, setNotes] = useState(conv.notes)
   const [saveStatus, setSaveStatus] = useState('')
   const data = conv.data
-  const turnCount = data?.history.filter(t => t.role === 'user').length ?? 0
+  // Visitor messages actually stored in the (windowed) history — what the
+  // transcript below can show.
+  const storedTurns = data?.history.filter(t => t.role === 'user').length ?? 0
+  // True length of the conversation: the per-turn arrays get one entry per
+  // logged turn and are never windowed, unlike history. turnTimes is the
+  // newest of them; tools counts too when it has the per-turn shape (one
+  // array per turn). Rows predating both fall back to the stored history.
+  const loggedTurns =
+    data?.turnTimes?.length ||
+    (data?.tools?.every(t => Array.isArray(t)) ? data.tools.length : 0)
+  const turnCount = loggedTurns > 0 ? loggedTurns : storedTurns
+  const missingTurns = Math.max(0, turnCount - storedTurns)
   const geo = data ? geoString(data.geo) : ''
   // Collapsed row previews the visitor's OPENING message (how they first
-  // arrived), not the most recent turn. Fall back to the latest-turn field
-  // for old rows that have no stored history.
+  // arrived), not the most recent turn — or the oldest still stored, when a
+  // long chat has outgrown the history window. Fall back to the latest-turn
+  // field for old rows that have no stored history.
   const firstUser =
     data?.history.find(t => t.role === 'user')?.content ?? data?.user ?? ''
   // Cards and links the visitor clicked. New clicks are stored turn-scoped as
@@ -701,6 +713,20 @@ function ConversationRow({
                     )
                   })}
                 </div>
+                {/* The stored history is a window (the last 50 messages; 14
+                    on rows logged before 17 Aug 2026), so a long chat's
+                    opening turns are gone from the transcript even though
+                    the per-turn arrays still count them. Say so, rather than
+                    letting the visible start read as the real one. */}
+                {missingTurns > 0 && data.history.length > 0 && (
+                  <div
+                    className={styles.convNavDivider}
+                    title="The log keeps only the most recent messages of a conversation; earlier turns were not stored"
+                  >
+                    {missingTurns} earlier turn{missingTurns === 1 ? '' : 's'}{' '}
+                    not stored
+                  </div>
+                )}
                 {data.history.length > 0 ? (
                   data.history.map((t, i) => {
                     const reads =

@@ -205,12 +205,6 @@ export const SECTIONS: readonly Section[] = [
     fields: [
       {
         type: 'agree',
-        key: 'preReading',
-        label:
-          'I’ll have a quick read of the [projects list](https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21) and the [user archetypes](https://app.notion.com/p/User-archetypes-26405b2ef69580449232e7f3c5e8cc7c) before the hackathon, so I arrive with some context',
-      },
-      {
-        type: 'agree',
         key: 'ceealarTerms',
         label:
           'I agree to CEEALAR’s [terms and conditions](https://www.ceealar.org/terms-and-conditions) and [code of conduct](https://www.ceealar.org/code-of-conduct)',

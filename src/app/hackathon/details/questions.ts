@@ -103,7 +103,6 @@ export const SECTIONS: readonly Section[] = [
     ],
   },
   {
-    title: 'Your stay at CEEALAR',
     fields: [
       {
         type: 'select',

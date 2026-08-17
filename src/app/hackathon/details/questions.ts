@@ -63,9 +63,10 @@ export function maxLen(f: Field): number {
   return f.type === 'textarea' ? 5000 : 500
 }
 
+// One untitled section at the moment (Bryce removed the headings); split into
+// several with `title`/`intro` if the form grows headings again.
 export const SECTIONS: readonly Section[] = [
   {
-    title: 'About you',
     fields: [
       { type: 'text', key: 'fullName', label: 'Name' },
       { type: 'email', key: 'email', label: 'Email' },
@@ -100,10 +101,6 @@ export const SECTIONS: readonly Section[] = [
         key: 'over18',
         label: 'I will be at least 18 years old by the date of this event',
       },
-    ],
-  },
-  {
-    fields: [
       {
         type: 'select',
         key: 'checkIn',
@@ -196,10 +193,6 @@ export const SECTIONS: readonly Section[] = [
         ],
         half: true,
       },
-    ],
-  },
-  {
-    fields: [
       {
         type: 'agree',
         key: 'ceealarTerms',

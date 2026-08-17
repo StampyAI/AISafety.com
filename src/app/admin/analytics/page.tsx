@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {
   readDashboard,
   sourceSlug,
+  PAGE_NAME_BY_PATH,
   type Counted,
   type DateRange,
   type ChatbotFunnel,
@@ -17,6 +18,7 @@ import {
 import {
   readConversationStats,
   type ConversationStats,
+  type RatedReply,
   type TopQuestion,
 } from '@/lib/analytics/conversations'
 import { readQuestionThemes, type ThemeSummary } from '@/lib/analytics/themes'
@@ -399,6 +401,9 @@ function labelFor(e: {
     return e.query ? `Searched for “${e.query}”` : 'Searched'
   if (e.type === 'filter_apply')
     return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
+  // A rating's label is the bare value ('up' | 'down'), so spell it out.
+  if (e.type === 'chatbot_rating')
+    return e.label === 'up' ? 'Rated a reply 👍' : 'Rated a reply 👎'
   // search_click carries the result's title as its label, like listing clicks.
   return e.label ?? EVENT_LABELS[e.type] ?? e.type
 }
@@ -1798,6 +1803,38 @@ function ChatbotView({
 
       {conv?.available && (
         <>
+          <Panel title="Reply ratings">
+            <div className={styles.funnel}>
+              <Stat
+                label="replies rated 👍"
+                value={conv.ratedUp.toLocaleString()}
+              />
+              <Stat
+                label="replies rated 👎"
+                value={conv.ratedDown.toLocaleString()}
+              />
+              <Stat
+                label="of rated replies got a thumbs up"
+                value={share(conv.thumbsUpShare)}
+              />
+              <Stat
+                label="of conversations included a rating"
+                value={share(conv.ratedConversationShare)}
+              />
+            </div>
+            <div className={styles.tileTable}>
+              <RatedRepliesTable rows={conv.ratedReplies} />
+            </div>
+            <p className={styles.caption}>
+              Thumbs ratings visitors gave the chatbot&apos;s replies, from the
+              conversation log, for conversations started in the selected date
+              range. Each reply counts once, under its latest rating (switching
+              thumbs overwrites). The table lists every rated reply, newest
+              first; a reply that has scrolled out of a long conversation&apos;s
+              stored transcript keeps its rating but not its text.
+            </p>
+          </Panel>
+
           <div className={styles.grid}>
             <Panel title="Conversation length">
               <CountTable
@@ -2026,6 +2063,67 @@ function QuestionsTable({
             </td>
             <td className={styles.numCol}>{r.count.toLocaleString()}</td>
             <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+          </tr>
+        ))}
+      </SortableTable>
+      {allRows.length > rows.length && (
+        <TruncationNote shown={rows.length} of={allRows.length} />
+      )}
+    </>
+  )
+}
+
+/** Longest a question or reply snippet gets in the rated-replies table. */
+const SNIPPET_CHARS = 220
+
+function snippet(text: string): string {
+  return text.length > SNIPPET_CHARS
+    ? `${text.slice(0, SNIPPET_CHARS - 1).trimEnd()}…`
+    : text
+}
+
+/** Every rated reply in the range, newest first: when, which thumb, the
+ *  visitor's question with the reply beneath it, and the page the chat was
+ *  on. Sortable by time, rating and page. */
+function RatedRepliesTable({ rows: allRows }: { rows: RatedReply[] }) {
+  if (allRows.length === 0)
+    return <p className={styles.dim}>No ratings in this range yet.</p>
+  const rows = allRows.slice(0, MAX_TABLE_ROWS)
+  return (
+    <>
+      <SortableTable
+        columns={[
+          { label: 'Visitor asked → chatbot replied' },
+          { label: 'Rating', className: styles.numCol, sort: 'text' },
+          { label: 'Page', className: styles.numCol, sort: 'text' },
+          { label: 'When', className: styles.numCol, sort: 'text' },
+        ]}
+        values={rows.map(r => [null, r.rating, r.page, r.at])}
+      >
+        {rows.map((r, i) => (
+          <tr key={i}>
+            <td>
+              {r.question != null && r.reply != null ? (
+                <>
+                  <div>{snippet(r.question)}</div>
+                  <div className={styles.dim}>{snippet(r.reply)}</div>
+                </>
+              ) : (
+                <div className={styles.dim}>
+                  Reply text not in the stored transcript
+                </div>
+              )}
+            </td>
+            <td
+              className={styles.numCol}
+              title={r.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}
+            >
+              {r.rating === 'up' ? '👍' : '👎'}
+            </td>
+            <td className={styles.numCol}>
+              {r.page ? (PAGE_NAME_BY_PATH[r.page] ?? r.page) : '—'}
+            </td>
+            <td className={styles.numCol}>{formatTime(r.at)}</td>
           </tr>
         ))}
       </SortableTable>

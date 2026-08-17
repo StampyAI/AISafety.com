@@ -690,6 +690,11 @@
   gap: 8px;
 }
 
+/* A table sitting under a row of stat tiles in the same panel. */
+.tileTable {
+  margin-top: 16px;
+}
+
 .funnelStage {
   flex: 1;
   min-width: 120px;

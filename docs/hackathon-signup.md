@@ -76,10 +76,13 @@ and `/api/hackathon-details` insists on that echo, so a script version that
 predates the details form (which would just append an empty row to the
 applications tab) is reported as a failure rather than a silent success.
 
-Applications go to the _first_ tab (keep it first): Timestamp, Name, Email,
-Skills & experience, Anything else, Personal links. Details go to the
-"Attendee details" tab: Timestamp, then one column per question label in form
-order. The script creates that tab (and the Timestamp column) if missing.
+Both tabs are written **by header name**, so columns can be reordered or
+extra review columns added in the Sheet without breaking anything (a label
+with no matching header gets a new column at the end). Applications go to the
+_first_ tab (keep it first) under Name, Email, Skills & experience, Anything
+else, Personal links, plus Timestamp; details go to the "Attendee details"
+tab under one column per question label. The script creates that tab (and a
+Timestamp column) if missing.
 Every non-empty answer is stored with a leading apostrophe – the Sheets "keep
 as text" prefix, invisible in the cell – so phone numbers keep their leading
 `+`/`0` and nobody can plant a formula in the sheet through a form field.
@@ -154,19 +157,63 @@ function trySend(mail) {
   }
 }
 
-/** Application form (/hackathon): fixed columns on the first tab. */
+/** Append one row to `sheet`, placing each [label, value] under the column
+ *  whose header matches the label (plus a Timestamp column) and adding a
+ *  column for any label not seen before. Header = whatever row 1 holds, so
+ *  columns can be reordered or extra ones added in the Sheet without
+ *  breaking anything. Returns the row number written. */
+function appendByLabel(sheet, answers) {
+  var lastCol = sheet.getLastColumn()
+  var headers = lastCol
+    ? sheet
+        .getRange(1, 1, 1, lastCol)
+        .getValues()[0]
+        .map(function (h) {
+          return String(h)
+        })
+    : []
+  var known = headers.length
+  if (headers.indexOf('Timestamp') === -1) headers.push('Timestamp')
+  answers.forEach(function (a) {
+    if (headers.indexOf(a[0]) === -1) headers.push(a[0])
+  })
+  if (headers.length > known) {
+    // New headers are written in one go, after growing the tab if needed
+    // (a fresh tab has 26 columns).
+    if (headers.length > sheet.getMaxColumns()) {
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        headers.length - sheet.getMaxColumns()
+      )
+    }
+    sheet
+      .getRange(1, known + 1, 1, headers.length - known)
+      .setValues([headers.slice(known)])
+    if (known === 0) sheet.setFrozenRows(1)
+  }
+
+  var row = headers.map(function () {
+    return ''
+  })
+  row[headers.indexOf('Timestamp')] = new Date()
+  answers.forEach(function (a) {
+    row[headers.indexOf(a[0])] = asText(a[1])
+  })
+  sheet.appendRow(row)
+  return sheet.getLastRow()
+}
+
+/** Application form (/hackathon): first tab, columns matched by header name
+ *  (Name, Email, Skills & experience, Anything else, Personal links). */
 function handleApplication(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
-  sheet.appendRow([
-    new Date(),
-    asText(data.name),
-    asText(data.email),
-    asText(data.skills),
-    asText(data.anythingElse),
-    asText(data.links),
+  var row = appendByLabel(sheet, [
+    ['Name', data.name],
+    ['Email', data.email],
+    ['Skills & experience', data.skills],
+    ['Anything else', data.anythingElse],
+    ['Personal links', data.links],
   ])
-
-  var row = sheet.getLastRow()
   if (!data.email) return { emailed: true, row: row }
 
   var answers = renderAnswers([
@@ -221,54 +268,14 @@ function handleApplication(data) {
 }
 
 /** Attendee-details form (/hackathon/details): answers arrive as
- *  [label, value] pairs and are written into the DETAILS_SHEET tab by label,
- *  adding a column for any label not seen before. */
+ *  [label, value] pairs and go into the DETAILS_SHEET tab by label. */
 function handleDetails(details) {
   var ss = SpreadsheetApp.getActiveSpreadsheet()
   var sheet = ss.getSheetByName(DETAILS_SHEET) || ss.insertSheet(DETAILS_SHEET)
   var answers = (details.answers || []).map(function (a) {
     return [String(a[0]), a[1] == null ? '' : String(a[1])]
   })
-
-  // Header row = whatever row 1 holds, plus Timestamp and any label not seen
-  // before. New headers are written in one go, after growing the tab if
-  // needed (a fresh tab has 26 columns).
-  var lastCol = sheet.getLastColumn()
-  var headers = lastCol
-    ? sheet
-        .getRange(1, 1, 1, lastCol)
-        .getValues()[0]
-        .map(function (h) {
-          return String(h)
-        })
-    : []
-  var known = headers.length
-  if (headers.indexOf('Timestamp') === -1) headers.push('Timestamp')
-  answers.forEach(function (a) {
-    if (headers.indexOf(a[0]) === -1) headers.push(a[0])
-  })
-  if (headers.length > known) {
-    if (headers.length > sheet.getMaxColumns()) {
-      sheet.insertColumnsAfter(
-        sheet.getMaxColumns(),
-        headers.length - sheet.getMaxColumns()
-      )
-    }
-    sheet
-      .getRange(1, known + 1, 1, headers.length - known)
-      .setValues([headers.slice(known)])
-    if (known === 0) sheet.setFrozenRows(1)
-  }
-
-  var row = headers.map(function () {
-    return ''
-  })
-  row[headers.indexOf('Timestamp')] = new Date()
-  answers.forEach(function (a) {
-    row[headers.indexOf(a[0])] = asText(a[1])
-  })
-  sheet.appendRow(row)
-  var rowNumber = sheet.getLastRow()
+  var rowNumber = appendByLabel(sheet, answers)
 
   if (!details.email) return { emailed: true, row: rowNumber }
 

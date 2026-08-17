@@ -13,6 +13,7 @@ import {
   buildApiMessages,
   runAssistantStream,
   sseResponse,
+  validateLogHistory,
   validateMessages,
   type AssistantRunResult,
 } from '@/lib/assistant/stream'
@@ -86,9 +87,13 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // `messages` is the window the model sees; `logHistory` is the wider window
+  // the conversation log stores (same cleaned list, longer tail).
   let messages: ChatMessage[]
+  let logHistory: ChatMessage[]
   try {
     messages = validateMessages(body.messages)
+    logHistory = validateLogHistory(body.messages)
   } catch (err) {
     return new Response(
       JSON.stringify({
@@ -175,10 +180,13 @@ export async function POST(req: NextRequest) {
           geo: ctx.geo ?? null,
           utm: ctx.utm ?? null,
           user: userQuery,
-          // Full conversation including the assistant's just-finished reply
+          // The log's history window plus the assistant's just-finished reply
           // (empty when generation produced nothing), so the upsert persists
           // the up-to-date History in one row.
-          history: [...messages, { role: 'assistant', content: assistantText }],
+          history: [
+            ...logHistory,
+            { role: 'assistant', content: assistantText },
+          ],
           toolCalls,
           response: assistantText,
           fallbackCards: result?.fallbackCardIds ?? [],

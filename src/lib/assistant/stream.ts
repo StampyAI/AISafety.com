@@ -13,7 +13,15 @@ import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
 // requires this parameter, so it can't be "unlimited" — pick a value well
 // above any realistic response size.
 const MAX_TOKENS = 4096
+// Messages the MODEL sees each turn (7 exchanges) — bounds prompt size and
+// keeps old tool results from crowding out the current question.
 const MAX_HISTORY = 14
+// Messages the conversation LOG keeps (25 exchanges). Wider than the model's
+// window so long chats stay readable in the admin transcript, but bounded so
+// the serialized row stays well inside Airtable's 100,000-character long-text
+// limit (a typical message is ~1,000 chars; upsertConversation also trims
+// further if a row would still overflow).
+const LOG_HISTORY = 50
 const MAX_TOOL_ITERATIONS = 10
 // Hard server-side budget matching the prompt's "at most 5 page reads per
 // turn" rule — each read is a multi-second external fetch, so a runaway model
@@ -183,9 +191,23 @@ export function sseResponse(
   return new Response(stream, { headers: SSE_HEADERS })
 }
 
-/** Validates and normalises the incoming messages array. Throws on bad input
- *  so the route can return a 400 with a useful message. */
+/** Validates and normalises the incoming messages array, then windows it to
+ *  the last MAX_HISTORY messages — the slice the MODEL sees. Throws on bad
+ *  input so the route can return a 400 with a useful message. */
 export function validateMessages(messages: unknown): ChatMessage[] {
+  return cleanMessages(messages).slice(-MAX_HISTORY)
+}
+
+/** The same cleaned messages, windowed to the last LOG_HISTORY — the slice
+ *  the conversation LOG stores. The widget sends the whole conversation every
+ *  turn, so long chats keep their earlier turns in the admin transcript even
+ *  though the model only ever sees the last MAX_HISTORY. Always a superset of
+ *  validateMessages() for the same input (both are tails of one list). */
+export function validateLogHistory(messages: unknown): ChatMessage[] {
+  return cleanMessages(messages).slice(-LOG_HISTORY)
+}
+
+function cleanMessages(messages: unknown): ChatMessage[] {
   if (!Array.isArray(messages)) throw new Error('messages must be an array')
   const out: ChatMessage[] = []
   for (const m of messages) {
@@ -205,7 +227,7 @@ export function validateMessages(messages: unknown): ChatMessage[] {
   if (out[out.length - 1].role !== 'user') {
     throw new Error('last message must be from user')
   }
-  return out.slice(-MAX_HISTORY)
+  return out
 }
 
 /** Builds the Anthropic message list, prepending the context line to the

@@ -24,6 +24,13 @@
     Ratings         (long text)         — JSON map of turn index → 'up'/'down',
                                           written out-of-band by the rating
                                           logger
+    Delivery        (long text)         — JSON map of turn index → what the
+                                          visitor's browser reported about
+                                          the reply (received / stopped /
+                                          left the page mid-answer, panel
+                                          closed, tab hidden, seen later); see
+                                          TurnDelivery. Written out-of-band by
+                                          the delivery logger
 
   Prompt drafts are NOT persisted to Airtable. They live in browser
   localStorage in the admin editor. Production prompts ship via code.
@@ -49,6 +56,7 @@ const FIELD = {
   data: 'fld9TbBixMYVOssja', // Data
   clicked: 'fld3PKIZx3Oo1oxkm', // Clicked
   ratings: 'fld0ZRhDFjpcHTJnm', // Ratings
+  delivery: 'fld2HdrWqxHN7BSTH', // Delivery
   createdAt: 'fldterZrwZHKm2taI', // Created at
 } as const
 
@@ -162,11 +170,56 @@ export interface ConversationData {
   utm: Record<string, string> | null
   pageState: Record<string, unknown> | null
   zeroMatches: boolean
-  /** Set when the latest turn produced no usable reply: 'abandoned' (visitor
-   *  left before/without an answer) or 'error' (generation failed). Absent on
-   *  normal turns. */
+  /** Set when the latest turn didn't complete: 'abandoned' (the visitor's
+   *  connection dropped — tab closed or Stop pressed — before generation
+   *  finished; `response` holds whatever had streamed by then, possibly
+   *  nothing) or 'error' (generation failed). Absent on normal turns. */
   status?: 'abandoned' | 'error'
 }
+
+/** What the visitor's browser reported about one reply — the signals the
+ *  server can't see. Every duration is milliseconds from the moment the
+ *  visitor sent their message. Exactly one of received/stopped/error/left is
+ *  expected per turn (the outcome); the rest are context around it. Absent
+ *  entirely on turns from before this was tracked, on browsers the owner
+ *  excluded from logging, and when the report never reached us (e.g. the tab
+ *  was closed and the browser dropped the final request). */
+export interface TurnDelivery {
+  /** The stream finished in the visitor's browser — the whole reply arrived. */
+  received?: number
+  /** The visitor pressed Stop (or cleared the chat) mid-reply. */
+  stopped?: number
+  /** The browser hit an error mid-reply (network drop, malformed frame). */
+  error?: number
+  /** The page was unloaded (tab closed, full navigation) mid-reply. */
+  left?: number
+  /** The chat panel was closed while the reply was still streaming (first
+   *  time it happened during this turn). */
+  panelClosed?: number
+  /** The tab went to the background while the reply was still streaming
+   *  (first time). */
+  tabHidden?: number
+  /** Whether the chat panel was open at the moment of the outcome. */
+  panelOpen?: boolean
+  /** Whether the tab was visible at the moment of the outcome. */
+  tabVisible?: boolean
+  /** A reply that arrived with the panel closed or the tab hidden was later
+   *  brought into view (panel reopened / tab refocused). Absent means it
+   *  hadn't been, as of the last report. */
+  seen?: number
+}
+export type DeliveryByTurn = Record<string, TurnDelivery>
+
+const DELIVERY_NUMBER_KEYS = [
+  'received',
+  'stopped',
+  'error',
+  'left',
+  'panelClosed',
+  'tabHidden',
+  'seen',
+] as const
+const DELIVERY_BOOLEAN_KEYS = ['panelOpen', 'tabVisible'] as const
 
 /** Raw record fields, keyed by permanent field ID (see FIELD above). The
  *  Clicked field holds a JSON array of listing ids whose cards the visitor
@@ -189,6 +242,10 @@ export interface ConversationRow {
   /** Visitor's thumbs ratings of the bot's replies, keyed by the reply's index
    *  in the message list ('up' | 'down'). Empty when nothing was rated. */
   ratings: MessageRatings
+  /** What the visitor's browser reported about each reply (did it arrive, was
+   *  the panel open, did they leave mid-answer…), keyed by the reply's index
+   *  in the message list. Empty when nothing was reported. */
+  delivery: DeliveryByTurn
 }
 
 export type MessageRatingValue = 'up' | 'down'
@@ -258,6 +315,35 @@ function parseRatings(raw: string | undefined): MessageRatings {
   }
 }
 
+/** The Delivery field holds a JSON object of turn index → TurnDelivery. Each
+ *  entry is rebuilt from only the known keys with the right types, so a
+ *  malformed value can't leak odd shapes into the viewer. */
+function parseDelivery(raw: string | undefined): DeliveryByTurn {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+    const out: DeliveryByTurn = {}
+    for (const [turn, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+      const v = value as Record<string, unknown>
+      const entry: TurnDelivery = {}
+      for (const key of DELIVERY_NUMBER_KEYS) {
+        if (typeof v[key] === 'number') entry[key] = v[key]
+      }
+      for (const key of DELIVERY_BOOLEAN_KEYS) {
+        if (typeof v[key] === 'boolean') entry[key] = v[key]
+      }
+      if (Object.keys(entry).length > 0) out[turn] = entry
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
 function str(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -282,6 +368,7 @@ function rowToConversation(
     data: parseData(str(f[FIELD.data]) || undefined),
     clickedCitations: parseClicked(str(f[FIELD.clicked]) || undefined),
     ratings: parseRatings(str(f[FIELD.ratings]) || undefined),
+    delivery: parseDelivery(str(f[FIELD.delivery]) || undefined),
   }
 }
 
@@ -586,6 +673,66 @@ export async function recordMessageRating(
   if (!res.ok) {
     throw new Error(
       `Airtable rating update failed: ${res.status} ${await res.text()}`
+    )
+  }
+}
+
+// How long to wait for a conversation's row to appear before giving up on a
+// delivery report (see recordTurnDelivery).
+const DELIVERY_ROW_WAIT_ATTEMPTS = 4
+const DELIVERY_ROW_WAIT_MS = 1500
+
+/** Records what the visitor's browser reported about one reply. Merges the
+ *  patch into that turn's entry, so the outcome ('received' with the panel
+ *  state) and a later 'seen' land in the same object. Reads-modifies-writes
+ *  only the Delivery field — its own column, like Clicked and Ratings, so
+ *  none of the out-of-band writers can clobber the turn upsert or each other.
+ *
+ *  Unlike clicks and ratings, the main report ('received') fires the instant
+ *  the stream ends in the browser — the same moment the server's own turn
+ *  write starts (in after(), once the stream closes). On a conversation's
+ *  FIRST turn the row usually doesn't exist yet when the report arrives, so
+ *  rather than dropping it we wait briefly for the row. Still missing after
+ *  that (the turn write failed, or the browser is excluded from logging)
+ *  → warn and drop, never create a dataless row. */
+export async function recordTurnDelivery(
+  session: string,
+  turnIndex: number,
+  patch: Partial<TurnDelivery>
+): Promise<void> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  let existing = await findConversationBySession(session)
+  for (
+    let attempt = 0;
+    !existing && attempt < DELIVERY_ROW_WAIT_ATTEMPTS;
+    attempt++
+  ) {
+    await new Promise(resolve => setTimeout(resolve, DELIVERY_ROW_WAIT_MS))
+    existing = await findConversationBySession(session)
+  }
+  if (!existing) {
+    console.warn(
+      `[assistant] delivery report dropped — no conversation row for session ${session} after ${(DELIVERY_ROW_WAIT_ATTEMPTS * DELIVERY_ROW_WAIT_MS) / 1000}s`
+    )
+    return
+  }
+  const current = parseDelivery(
+    str(existing.fields[FIELD.delivery]) || undefined
+  )
+  const key = String(turnIndex)
+  const next: DeliveryByTurn = {
+    ...current,
+    [key]: { ...current[key], ...patch },
+  }
+  const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      fields: { [FIELD.delivery]: JSON.stringify(next) },
+    }),
+  })
+  if (!res.ok) {
+    throw new Error(
+      `Airtable delivery update failed: ${res.status} ${await res.text()}`
     )
   }
 }

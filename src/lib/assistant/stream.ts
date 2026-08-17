@@ -260,6 +260,10 @@ export interface AssistantRunResult {
    *  Logged per turn so the admin transcript can show the same degraded state
    *  the visitor saw rather than a full card the model only pretended to have. */
   fallbackCardIds: string[]
+  /** True when the visitor's connection dropped (or they pressed Stop) before
+   *  generation finished. `assistantText`/`toolCalls` then hold whatever had
+   *  streamed by that point; citations and fallback cards are not computed. */
+  aborted?: boolean
 }
 
 interface RunOptions {
@@ -306,434 +310,458 @@ export async function runAssistantStream(
   // the case where that treatment would be wrong.
   let answerStartOffset = 0
 
-  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-    if (signal?.aborted) {
-      return { assistantText, toolCalls, citations: [], fallbackCardIds: [] }
-    }
-    const response = await client.messages.create(
-      {
-        model,
-        max_tokens: MAX_TOKENS,
-        // Opus 5 turns API-level thinking ON when this field is omitted
-        // (earlier models defaulted to off). The assistant does its reasoning
-        // in visible text ending with the [[/thinking]] marker, and this loop
-        // only reconstructs text/tool_use blocks — API thinking blocks would
-        // be dropped from the echoed assistant turn, breaking tool rounds. So
-        // keep it explicitly off.
-        thinking: { type: 'disabled' },
-        system: [
-          { type: 'text', text: systemPrompt },
-          { type: 'text', text: pagesBlock },
-          { type: 'text', text: donationGuide },
-          {
-            type: 'text',
-            text: `You are currently running on ${modelDisplayName(model)}. If a user asks what model powers you, this is the answer.`,
-            // Cache the whole static prefix (tools + all system blocks). The
-            // prefix is byte-identical across the up-to-10 tool-use iterations
-            // in a turn and across conversation turns, so after the first
-            // write each request reads it at ~0.1x cost. 5-minute TTL (the
-            // default) comfortably covers both. Render order is
-            // tools -> system -> messages, so this one breakpoint on the last
-            // system block caches the tool definitions too.
-            cache_control: { type: 'ephemeral' },
-          },
-        ],
-        tools: TOOL_DEFINITIONS,
-        messages: apiMessages,
-        stream: true,
-      },
-      { signal }
-    )
+  // What the visitor had received when their connection dropped. Returned
+  // instead of thrown so the route can log the partial reply they actually
+  // saw (marked aborted) rather than losing the turn's text entirely.
+  const abortedResult = (): AssistantRunResult => ({
+    assistantText,
+    toolCalls,
+    citations: [],
+    fallbackCardIds: [],
+    aborted: true,
+  })
 
-    // Reconstruct the assistant turn so we can append it to apiMessages and
-    // feed tool results back in the next iteration.
-    const blocks: Anthropic.ContentBlockParam[] = []
-    let currentTextBlock = ''
-    let currentToolUse: { id: string; name: string; inputJson: string } | null =
-      null
-    let stopReason: string | null = null
-    // This generation's text, forwarded to the client through a gate that
-    // holds back a tail that might still become a [[/thinking]] marker. When
-    // the model re-emits the marker to retract an answer the visitor has
-    // already watched stream in, we cut the generation at the retraction and
-    // keep the first answer — without the gate, fragments of the second
-    // marker would already have been sent.
-    let genText = ''
-    let sentUpTo = 0
-    let truncatedRewrite = false
-    const flushText = (upTo: number) => {
-      if (upTo > sentUpTo) {
-        send('text', { delta: genText.slice(sentUpTo, upTo) })
-        sentUpTo = upTo
-      }
-    }
-
-    for await (const event of response) {
-      if (event.type === 'message_start') {
-        // One-line cache-stats log per API call so we can confirm prompt
-        // caching is working in the Vercel logs. `cache_read_input_tokens > 0`
-        // means the static tools+system prefix was served from cache.
-        const u = event.message.usage
-        console.log(
-          `[assistant] cache iter=${iter} read=${u.cache_read_input_tokens ?? 0} write=${u.cache_creation_input_tokens ?? 0} input=${u.input_tokens}`
-        )
-      } else if (event.type === 'content_block_start') {
-        if (event.content_block.type === 'text') {
-          currentTextBlock = ''
-        } else if (event.content_block.type === 'tool_use') {
-          // Any held-back text belongs before this tool call — flush it now
-          // so the client's event order matches the model's output order.
-          flushText(genText.length)
-          currentToolUse = {
-            id: event.content_block.id,
-            name: event.content_block.name,
-            inputJson: '',
-          }
-          send('tool_call_start', {
-            id: event.content_block.id,
-            name: event.content_block.name,
-          })
-        }
-      } else if (event.type === 'content_block_delta') {
-        if (event.delta.type === 'text_delta') {
-          currentTextBlock += event.delta.text
-          assistantText += event.delta.text
-          genText += event.delta.text
-          const retractionAt = findRetractionMarker(genText)
-          if (retractionAt !== -1) {
-            // The model is retracting the answer it already streamed (it
-            // re-emitted [[/thinking]] and would now rewrite from scratch —
-            // observed rewrites are near-verbatim). Keep the answer the
-            // visitor has, cut the generation here, and skip the rewrite.
-            flushText(retractionAt)
-            const dropped = genText.length - retractionAt
-            assistantText = assistantText.slice(
-              0,
-              assistantText.length - dropped
-            )
-            // The dropped bytes usually sit in the current (open) text block,
-            // but a marker can span a block boundary — trim any remainder off
-            // blocks already pushed, so the apiMessages transcript matches
-            // assistantText, the client stream, and the stored log exactly.
-            let leftover = dropped - currentTextBlock.length
-            currentTextBlock = currentTextBlock.slice(
-              0,
-              Math.max(0, currentTextBlock.length - dropped)
-            )
-            while (leftover > 0) {
-              const lastBlock = blocks[blocks.length - 1]
-              if (!lastBlock || lastBlock.type !== 'text') break
-              const take = Math.min(leftover, lastBlock.text.length)
-              lastBlock.text = lastBlock.text.slice(
-                0,
-                lastBlock.text.length - take
-              )
-              if (!lastBlock.text) blocks.pop()
-              leftover -= take
-            }
-            truncatedRewrite = true
-            stopReason = 'end_turn'
-            console.warn(
-              '[assistant] re-emitted [[/thinking]] after the answer began — kept the first answer and dropped the rewrite'
-            )
-            // Surfaces in the admin log's tool list, so affected turns are
-            // visible when skimming conversations.
-            toolCalls.push({
-              name: 'kept_first_answer_dropped_rewrite',
-              input: {},
-              ok: true,
-            })
-            break
-          }
-          flushText(genText.length - markerPrefixHold(genText))
-        } else if (event.delta.type === 'input_json_delta' && currentToolUse) {
-          currentToolUse.inputJson += event.delta.partial_json
-        }
-      } else if (event.type === 'content_block_stop') {
-        if (currentToolUse) {
-          let parsedInput: Record<string, unknown> = {}
-          try {
-            parsedInput = currentToolUse.inputJson
-              ? JSON.parse(currentToolUse.inputJson)
-              : {}
-          } catch (err) {
-            console.warn(
-              `[assistant] tool ${currentToolUse.name} sent malformed JSON, treating input as empty`,
-              err
-            )
-          }
-          blocks.push({
-            type: 'tool_use',
-            id: currentToolUse.id,
-            name: currentToolUse.name,
-            input: parsedInput,
-          })
-          currentToolUse = null
-        } else if (currentTextBlock) {
-          blocks.push({ type: 'text', text: currentTextBlock })
-          currentTextBlock = ''
-        }
-      } else if (event.type === 'message_delta') {
-        if (event.delta.stop_reason) stopReason = event.delta.stop_reason
-      }
-    }
-
-    if (truncatedRewrite) {
-      // Stop the model from generating the rest of the retracted rewrite.
-      try {
-        response.controller.abort()
-      } catch {
-        // Stream already closed.
-      }
-    } else {
-      flushText(genText.length)
-    }
-    // Normally every text block was pushed at its content_block_stop; after a
-    // truncation break the current (cut) block still needs capturing so the
-    // transcript matches what the visitor saw.
-    if (currentTextBlock) {
-      blocks.push({ type: 'text', text: currentTextBlock })
-      currentTextBlock = ''
-    }
-
-    apiMessages.push({ role: 'assistant', content: blocks })
-    if (stopReason !== 'tool_use') {
-      // The model considers its answer finished. The first way it can be
-      // broken: the "answer" is one or more tool calls written as literal
-      // text (see PSEUDO_TOOL_CALL_RE). Nothing ran, so nothing in the reply
-      // can be trusted — send the model back to call the tools for real.
-      // Once per turn, with enough iteration budget left for the tool round
-      // plus the regenerated answer. The injected [[/thinking]] marker hides
-      // the draft from the visitor (the widget shows only what follows the
-      // last marker) exactly like the split-answer and suggest-form redos.
-      const pseudoToolCalls = assistantText
-        .slice(answerStartOffset)
-        .match(PSEUDO_TOOL_CALL_RE)
-      if (
-        pseudoToolCalls &&
-        !redoneTextToolCall &&
-        !signal?.aborted &&
-        iter < MAX_TOOL_ITERATIONS - 2
-      ) {
-        redoneTextToolCall = true
-        console.warn(
-          `[assistant] tool call(s) written as text — ${pseudoToolCalls.length} pseudo-call tag(s) in the finished reply; sending the model back to call the tools for real`
-        )
-        // Surfaces in the admin log's tool list, so redone turns are visible
-        // when skimming conversations.
-        toolCalls.push({
-          name: 'redo_after_text_tool_calls',
-          input: { pseudoCallTags: pseudoToolCalls.length },
-          ok: true,
-        })
-        apiMessages.push({
-          role: 'user',
-          content: textToolCallRedoMessage(),
-        })
-        // Tell the widget a redo is starting, then close the discarded draft
-        // with a real marker (same trick as the split-answer redo below) so
-        // the boundary moves past the draft even if the rewrite forgets its
-        // own marker. The redo event lets the widget keep a draft the visitor
-        // already read on screen — swapped for the rewrite once it streams —
-        // instead of blanking to a loading indicator.
-        send('redo', {})
-        send('text', { delta: '\n[[/thinking]]\n' })
-        assistantText += '\n[[/thinking]]\n'
-        answerStartOffset = assistantText.length
-        continue
-      }
-      // The next way it can be broken: audit
-      // the [[card:...]] ids it wrote: an id matching neither a tool result
-      // from this turn nor any catalog listing is fabricated, and its card
-      // would render broken. Send the model back to redo the answer — once
-      // per turn, and only with enough iteration budget left for the search
-      // it skipped plus the regenerated answer. If the redo fabricates again,
-      // fall through to the existing graceful degradation (fallback link in
-      // the widget, UNRESOLVED badge in the admin).
-      const refsSoFar = new Map<string, CitationRef>()
-      for (const l of cited) refsSoFar.set(l.id, toCitationRef(l))
-      for (const c of extractCitations(assistantText, catalog)) {
-        refsSoFar.set(c.id, c)
-      }
-      const { fabricated } = auditCardCitations(
-        assistantText,
-        Array.from(refsSoFar.values()),
-        catalog
+  try {
+    for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+      if (signal?.aborted) return abortedResult()
+      const response = await client.messages.create(
+        {
+          model,
+          max_tokens: MAX_TOKENS,
+          // Opus 5 turns API-level thinking ON when this field is omitted
+          // (earlier models defaulted to off). The assistant does its reasoning
+          // in visible text ending with the [[/thinking]] marker, and this loop
+          // only reconstructs text/tool_use blocks — API thinking blocks would
+          // be dropped from the echoed assistant turn, breaking tool rounds. So
+          // keep it explicitly off.
+          thinking: { type: 'disabled' },
+          system: [
+            { type: 'text', text: systemPrompt },
+            { type: 'text', text: pagesBlock },
+            { type: 'text', text: donationGuide },
+            {
+              type: 'text',
+              text: `You are currently running on ${modelDisplayName(model)}. If a user asks what model powers you, this is the answer.`,
+              // Cache the whole static prefix (tools + all system blocks). The
+              // prefix is byte-identical across the up-to-10 tool-use iterations
+              // in a turn and across conversation turns, so after the first
+              // write each request reads it at ~0.1x cost. 5-minute TTL (the
+              // default) comfortably covers both. Render order is
+              // tools -> system -> messages, so this one breakpoint on the last
+              // system block caches the tool definitions too.
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+          tools: TOOL_DEFINITIONS,
+          messages: apiMessages,
+          stream: true,
+        },
+        { signal }
       )
-      if (
-        fabricated.length > 0 &&
-        !redoneFabrication &&
-        iter < MAX_TOOL_ITERATIONS - 2
-      ) {
-        redoneFabrication = true
-        console.warn(
-          `[assistant] fabricated card id(s) ${fabricated.join(', ')} — sending the model back to redo the answer`
-        )
-        // Surfaces in the admin log's tool list, so redone turns are visible
-        // when skimming conversations.
-        toolCalls.push({
-          name: 'redo_after_fabricated_cards',
-          input: { fabricated },
-          ok: true,
-        })
-        // Tell the widget a redo is starting (it keeps the draft on screen
-        // until the corrected answer streams, instead of blanking to a
-        // loading indicator), then close the discarded draft with a real
-        // marker like the other redos, so the boundary moves past the draft
-        // even if the rewrite forgets its own marker.
-        send('redo', {})
-        send('text', { delta: '\n[[/thinking]]\n' })
-        assistantText += '\n[[/thinking]]\n'
-        apiMessages.push({
-          role: 'user',
-          content: fabricationRedoMessage(fabricated),
-        })
-        answerStartOffset = assistantText.length
-        continue
-      }
-      // The other way a "finished" reply can be broken: the model began its
-      // user-facing answer, then ran a tool round, then finished without
-      // emitting [[/thinking]] after it. Every renderer treats text before
-      // the last tool round as reasoning in that case, so the visitor would
-      // get a reply that opens mid-thought — a real visitor received "Two
-      // that could give you a useful second opinion:" as the whole reply and
-      // complained. Short pre-search narration is what the marker-injection
-      // repair below is for; when the text that injection would hide is too
-      // long to be narration, send the model back to rewrite the complete
-      // answer instead of amputating it. Skipped after a fabrication redo:
-      // there the pre-redo text is a discarded draft that SHOULD stay
-      // hidden, and the injection repair already handles it.
-      const hiddenIfInjected =
-        assistantText
-          .slice(0, answerStartOffset)
-          .split(/\[\[\s*\/\s*thinking\s*\]\]/i)
-          .pop() ?? ''
-      if (
-        answerStartOffset > 0 &&
-        !redoneFabrication &&
-        !redoneSplitAnswer &&
-        !signal?.aborted &&
-        iter < MAX_TOOL_ITERATIONS - 1 &&
-        !/\[\[\s*\/\s*thinking\s*\]\]/i.test(
-          assistantText.slice(answerStartOffset)
-        ) &&
-        looksLikeAnswerText(hiddenIfInjected)
-      ) {
-        redoneSplitAnswer = true
-        console.warn(
-          `[assistant] split answer — ${hiddenIfInjected.trim().length} chars of answer text sat before the last tool round with no [[/thinking]] after them; sending the model back to rewrite`
-        )
-        // Surfaces in the admin log's tool list, so redone turns are visible
-        // when skimming conversations.
-        toolCalls.push({
-          name: 'redo_after_split_answer',
-          input: { hiddenChars: hiddenIfInjected.trim().length },
-          ok: true,
-        })
-        apiMessages.push({ role: 'user', content: splitAnswerRedoMessage() })
-        // Tell the widget a redo is starting, then close the discarded draft
-        // with a real marker, sent as a text delta so the live widget's
-        // boundary moves past the draft even if the rewrite forgets its own
-        // marker — and so the stored transcript and the client's own copy of
-        // the reply stay identical.
-        send('redo', {})
-        send('text', { delta: '\n[[/thinking]]\n' })
-        assistantText += '\n[[/thinking]]\n'
-        answerStartOffset = assistantText.length
-        continue
-      }
-      // A third way a finished reply can be wrong: it shows listings AND
-      // volunteers a per-type suggest form. The prompt's Honest-failure rule
-      // forbids the combination, but the model keeps closing carded answers
-      // with "if you know of one that's missing…" anyway, so enforce it
-      // here. The redo asks the model to drop the form unless an exception
-      // applies (a judgment the server can't make); it runs once per turn,
-      // so a form kept on the rewrite is accepted.
-      const visibleAnswer =
-        assistantText.split(/\[\[\s*\/\s*thinking\s*\]\]/i).pop() ?? ''
-      if (
-        visibleAnswer.includes('[[card:') &&
-        PER_TYPE_SUGGEST_RE.test(visibleAnswer) &&
-        !redoneSuggestGate &&
-        !signal?.aborted &&
-        iter < MAX_TOOL_ITERATIONS - 1
-      ) {
-        redoneSuggestGate = true
-        console.warn(
-          '[assistant] unearned suggest form — the answer both cards listings and offers a suggest form; sending the model back to rewrite'
-        )
-        // Surfaces in the admin log's tool list, so redone turns are visible
-        // when skimming conversations.
-        toolCalls.push({
-          name: 'redo_after_unearned_suggest_form',
-          input: {},
-          ok: true,
-        })
-        apiMessages.push({ role: 'user', content: suggestGateRedoMessage() })
-        // Tell the widget a redo is starting, then close the discarded draft
-        // with a real marker (same trick as the split-answer redo above) so
-        // the live widget's boundary moves past the draft even if the rewrite
-        // forgets its own marker.
-        send('redo', {})
-        send('text', { delta: '\n[[/thinking]]\n' })
-        assistantText += '\n[[/thinking]]\n'
-        answerStartOffset = assistantText.length
-        continue
-      }
-      break
-    }
 
-    const toolUseBlocks = blocks.filter(
-      (b): b is Anthropic.ToolUseBlockParam => b.type === 'tool_use'
-    )
-    if (toolUseBlocks.length === 0) break
+      // Reconstruct the assistant turn so we can append it to apiMessages and
+      // feed tool results back in the next iteration.
+      const blocks: Anthropic.ContentBlockParam[] = []
+      let currentTextBlock = ''
+      let currentToolUse: {
+        id: string
+        name: string
+        inputJson: string
+      } | null = null
+      let stopReason: string | null = null
+      // This generation's text, forwarded to the client through a gate that
+      // holds back a tail that might still become a [[/thinking]] marker. When
+      // the model re-emits the marker to retract an answer the visitor has
+      // already watched stream in, we cut the generation at the retraction and
+      // keep the first answer — without the gate, fragments of the second
+      // marker would already have been sent.
+      let genText = ''
+      let sentUpTo = 0
+      let truncatedRewrite = false
+      const flushText = (upTo: number) => {
+        if (upTo > sentUpTo) {
+          send('text', { delta: genText.slice(sentUpTo, upTo) })
+          sentUpTo = upTo
+        }
+      }
 
-    const toolResults: Anthropic.ToolResultBlockParam[] = []
-    for (const tu of toolUseBlocks) {
-      const overReadBudget =
-        tu.name === 'read_listing_page' &&
-        toolCalls.filter(c => c.name === 'read_listing_page').length >=
-          MAX_PAGE_READS_PER_TURN
-      const result = overReadBudget
-        ? {
-            ok: false,
-            content:
-              'Page-read budget for this turn is used up. Answer from what you already have — do not request another page read.',
-            listings: [],
+      for await (const event of response) {
+        if (event.type === 'message_start') {
+          // One-line cache-stats log per API call so we can confirm prompt
+          // caching is working in the Vercel logs. `cache_read_input_tokens > 0`
+          // means the static tools+system prefix was served from cache.
+          const u = event.message.usage
+          console.log(
+            `[assistant] cache iter=${iter} read=${u.cache_read_input_tokens ?? 0} write=${u.cache_creation_input_tokens ?? 0} input=${u.input_tokens}`
+          )
+        } else if (event.type === 'content_block_start') {
+          if (event.content_block.type === 'text') {
+            currentTextBlock = ''
+          } else if (event.content_block.type === 'tool_use') {
+            // Any held-back text belongs before this tool call — flush it now
+            // so the client's event order matches the model's output order.
+            flushText(genText.length)
+            currentToolUse = {
+              id: event.content_block.id,
+              name: event.content_block.name,
+              inputJson: '',
+            }
+            send('tool_call_start', {
+              id: event.content_block.id,
+              name: event.content_block.name,
+            })
           }
-        : await executeTool(tu.name, tu.input as unknown, catalog)
-      toolCalls.push({ name: tu.name, input: tu.input, ok: result.ok })
-      cited.push(...result.listings)
-      const n = result.listings.length
-      const summary =
-        tu.name === 'search_listings'
-          ? `${n} match${n === 1 ? '' : 'es'}`
-          : tu.name === 'get_listing'
-            ? result.ok
-              ? 'fetched'
-              : 'not found'
-            : tu.name === 'read_listing_page'
+        } else if (event.type === 'content_block_delta') {
+          if (event.delta.type === 'text_delta') {
+            currentTextBlock += event.delta.text
+            assistantText += event.delta.text
+            genText += event.delta.text
+            const retractionAt = findRetractionMarker(genText)
+            if (retractionAt !== -1) {
+              // The model is retracting the answer it already streamed (it
+              // re-emitted [[/thinking]] and would now rewrite from scratch —
+              // observed rewrites are near-verbatim). Keep the answer the
+              // visitor has, cut the generation here, and skip the rewrite.
+              flushText(retractionAt)
+              const dropped = genText.length - retractionAt
+              assistantText = assistantText.slice(
+                0,
+                assistantText.length - dropped
+              )
+              // The dropped bytes usually sit in the current (open) text block,
+              // but a marker can span a block boundary — trim any remainder off
+              // blocks already pushed, so the apiMessages transcript matches
+              // assistantText, the client stream, and the stored log exactly.
+              let leftover = dropped - currentTextBlock.length
+              currentTextBlock = currentTextBlock.slice(
+                0,
+                Math.max(0, currentTextBlock.length - dropped)
+              )
+              while (leftover > 0) {
+                const lastBlock = blocks[blocks.length - 1]
+                if (!lastBlock || lastBlock.type !== 'text') break
+                const take = Math.min(leftover, lastBlock.text.length)
+                lastBlock.text = lastBlock.text.slice(
+                  0,
+                  lastBlock.text.length - take
+                )
+                if (!lastBlock.text) blocks.pop()
+                leftover -= take
+              }
+              truncatedRewrite = true
+              stopReason = 'end_turn'
+              console.warn(
+                '[assistant] re-emitted [[/thinking]] after the answer began — kept the first answer and dropped the rewrite'
+              )
+              // Surfaces in the admin log's tool list, so affected turns are
+              // visible when skimming conversations.
+              toolCalls.push({
+                name: 'kept_first_answer_dropped_rewrite',
+                input: {},
+                ok: true,
+              })
+              break
+            }
+            flushText(genText.length - markerPrefixHold(genText))
+          } else if (
+            event.delta.type === 'input_json_delta' &&
+            currentToolUse
+          ) {
+            currentToolUse.inputJson += event.delta.partial_json
+          }
+        } else if (event.type === 'content_block_stop') {
+          if (currentToolUse) {
+            let parsedInput: Record<string, unknown> = {}
+            try {
+              parsedInput = currentToolUse.inputJson
+                ? JSON.parse(currentToolUse.inputJson)
+                : {}
+            } catch (err) {
+              console.warn(
+                `[assistant] tool ${currentToolUse.name} sent malformed JSON, treating input as empty`,
+                err
+              )
+            }
+            blocks.push({
+              type: 'tool_use',
+              id: currentToolUse.id,
+              name: currentToolUse.name,
+              input: parsedInput,
+            })
+            currentToolUse = null
+          } else if (currentTextBlock) {
+            blocks.push({ type: 'text', text: currentTextBlock })
+            currentTextBlock = ''
+          }
+        } else if (event.type === 'message_delta') {
+          if (event.delta.stop_reason) stopReason = event.delta.stop_reason
+        }
+      }
+
+      if (truncatedRewrite) {
+        // Stop the model from generating the rest of the retracted rewrite.
+        try {
+          response.controller.abort()
+        } catch {
+          // Stream already closed.
+        }
+      } else {
+        flushText(genText.length)
+      }
+      // Normally every text block was pushed at its content_block_stop; after a
+      // truncation break the current (cut) block still needs capturing so the
+      // transcript matches what the visitor saw.
+      if (currentTextBlock) {
+        blocks.push({ type: 'text', text: currentTextBlock })
+        currentTextBlock = ''
+      }
+
+      apiMessages.push({ role: 'assistant', content: blocks })
+      if (stopReason !== 'tool_use') {
+        // The model considers its answer finished. The first way it can be
+        // broken: the "answer" is one or more tool calls written as literal
+        // text (see PSEUDO_TOOL_CALL_RE). Nothing ran, so nothing in the reply
+        // can be trusted — send the model back to call the tools for real.
+        // Once per turn, with enough iteration budget left for the tool round
+        // plus the regenerated answer. The injected [[/thinking]] marker hides
+        // the draft from the visitor (the widget shows only what follows the
+        // last marker) exactly like the split-answer and suggest-form redos.
+        const pseudoToolCalls = assistantText
+          .slice(answerStartOffset)
+          .match(PSEUDO_TOOL_CALL_RE)
+        if (
+          pseudoToolCalls &&
+          !redoneTextToolCall &&
+          !signal?.aborted &&
+          iter < MAX_TOOL_ITERATIONS - 2
+        ) {
+          redoneTextToolCall = true
+          console.warn(
+            `[assistant] tool call(s) written as text — ${pseudoToolCalls.length} pseudo-call tag(s) in the finished reply; sending the model back to call the tools for real`
+          )
+          // Surfaces in the admin log's tool list, so redone turns are visible
+          // when skimming conversations.
+          toolCalls.push({
+            name: 'redo_after_text_tool_calls',
+            input: { pseudoCallTags: pseudoToolCalls.length },
+            ok: true,
+          })
+          apiMessages.push({
+            role: 'user',
+            content: textToolCallRedoMessage(),
+          })
+          // Tell the widget a redo is starting, then close the discarded draft
+          // with a real marker (same trick as the split-answer redo below) so
+          // the boundary moves past the draft even if the rewrite forgets its
+          // own marker. The redo event lets the widget keep a draft the visitor
+          // already read on screen — swapped for the rewrite once it streams —
+          // instead of blanking to a loading indicator.
+          send('redo', {})
+          send('text', { delta: '\n[[/thinking]]\n' })
+          assistantText += '\n[[/thinking]]\n'
+          answerStartOffset = assistantText.length
+          continue
+        }
+        // The next way it can be broken: audit
+        // the [[card:...]] ids it wrote: an id matching neither a tool result
+        // from this turn nor any catalog listing is fabricated, and its card
+        // would render broken. Send the model back to redo the answer — once
+        // per turn, and only with enough iteration budget left for the search
+        // it skipped plus the regenerated answer. If the redo fabricates again,
+        // fall through to the existing graceful degradation (fallback link in
+        // the widget, UNRESOLVED badge in the admin).
+        const refsSoFar = new Map<string, CitationRef>()
+        for (const l of cited) refsSoFar.set(l.id, toCitationRef(l))
+        for (const c of extractCitations(assistantText, catalog)) {
+          refsSoFar.set(c.id, c)
+        }
+        const { fabricated } = auditCardCitations(
+          assistantText,
+          Array.from(refsSoFar.values()),
+          catalog
+        )
+        if (
+          fabricated.length > 0 &&
+          !redoneFabrication &&
+          iter < MAX_TOOL_ITERATIONS - 2
+        ) {
+          redoneFabrication = true
+          console.warn(
+            `[assistant] fabricated card id(s) ${fabricated.join(', ')} — sending the model back to redo the answer`
+          )
+          // Surfaces in the admin log's tool list, so redone turns are visible
+          // when skimming conversations.
+          toolCalls.push({
+            name: 'redo_after_fabricated_cards',
+            input: { fabricated },
+            ok: true,
+          })
+          // Tell the widget a redo is starting (it keeps the draft on screen
+          // until the corrected answer streams, instead of blanking to a
+          // loading indicator), then close the discarded draft with a real
+          // marker like the other redos, so the boundary moves past the draft
+          // even if the rewrite forgets its own marker.
+          send('redo', {})
+          send('text', { delta: '\n[[/thinking]]\n' })
+          assistantText += '\n[[/thinking]]\n'
+          apiMessages.push({
+            role: 'user',
+            content: fabricationRedoMessage(fabricated),
+          })
+          answerStartOffset = assistantText.length
+          continue
+        }
+        // The other way a "finished" reply can be broken: the model began its
+        // user-facing answer, then ran a tool round, then finished without
+        // emitting [[/thinking]] after it. Every renderer treats text before
+        // the last tool round as reasoning in that case, so the visitor would
+        // get a reply that opens mid-thought — a real visitor received "Two
+        // that could give you a useful second opinion:" as the whole reply and
+        // complained. Short pre-search narration is what the marker-injection
+        // repair below is for; when the text that injection would hide is too
+        // long to be narration, send the model back to rewrite the complete
+        // answer instead of amputating it. Skipped after a fabrication redo:
+        // there the pre-redo text is a discarded draft that SHOULD stay
+        // hidden, and the injection repair already handles it.
+        const hiddenIfInjected =
+          assistantText
+            .slice(0, answerStartOffset)
+            .split(/\[\[\s*\/\s*thinking\s*\]\]/i)
+            .pop() ?? ''
+        if (
+          answerStartOffset > 0 &&
+          !redoneFabrication &&
+          !redoneSplitAnswer &&
+          !signal?.aborted &&
+          iter < MAX_TOOL_ITERATIONS - 1 &&
+          !/\[\[\s*\/\s*thinking\s*\]\]/i.test(
+            assistantText.slice(answerStartOffset)
+          ) &&
+          looksLikeAnswerText(hiddenIfInjected)
+        ) {
+          redoneSplitAnswer = true
+          console.warn(
+            `[assistant] split answer — ${hiddenIfInjected.trim().length} chars of answer text sat before the last tool round with no [[/thinking]] after them; sending the model back to rewrite`
+          )
+          // Surfaces in the admin log's tool list, so redone turns are visible
+          // when skimming conversations.
+          toolCalls.push({
+            name: 'redo_after_split_answer',
+            input: { hiddenChars: hiddenIfInjected.trim().length },
+            ok: true,
+          })
+          apiMessages.push({ role: 'user', content: splitAnswerRedoMessage() })
+          // Tell the widget a redo is starting, then close the discarded draft
+          // with a real marker, sent as a text delta so the live widget's
+          // boundary moves past the draft even if the rewrite forgets its own
+          // marker — and so the stored transcript and the client's own copy of
+          // the reply stay identical.
+          send('redo', {})
+          send('text', { delta: '\n[[/thinking]]\n' })
+          assistantText += '\n[[/thinking]]\n'
+          answerStartOffset = assistantText.length
+          continue
+        }
+        // A third way a finished reply can be wrong: it shows listings AND
+        // volunteers a per-type suggest form. The prompt's Honest-failure rule
+        // forbids the combination, but the model keeps closing carded answers
+        // with "if you know of one that's missing…" anyway, so enforce it
+        // here. The redo asks the model to drop the form unless an exception
+        // applies (a judgment the server can't make); it runs once per turn,
+        // so a form kept on the rewrite is accepted.
+        const visibleAnswer =
+          assistantText.split(/\[\[\s*\/\s*thinking\s*\]\]/i).pop() ?? ''
+        if (
+          visibleAnswer.includes('[[card:') &&
+          PER_TYPE_SUGGEST_RE.test(visibleAnswer) &&
+          !redoneSuggestGate &&
+          !signal?.aborted &&
+          iter < MAX_TOOL_ITERATIONS - 1
+        ) {
+          redoneSuggestGate = true
+          console.warn(
+            '[assistant] unearned suggest form — the answer both cards listings and offers a suggest form; sending the model back to rewrite'
+          )
+          // Surfaces in the admin log's tool list, so redone turns are visible
+          // when skimming conversations.
+          toolCalls.push({
+            name: 'redo_after_unearned_suggest_form',
+            input: {},
+            ok: true,
+          })
+          apiMessages.push({ role: 'user', content: suggestGateRedoMessage() })
+          // Tell the widget a redo is starting, then close the discarded draft
+          // with a real marker (same trick as the split-answer redo above) so
+          // the live widget's boundary moves past the draft even if the rewrite
+          // forgets its own marker.
+          send('redo', {})
+          send('text', { delta: '\n[[/thinking]]\n' })
+          assistantText += '\n[[/thinking]]\n'
+          answerStartOffset = assistantText.length
+          continue
+        }
+        break
+      }
+
+      const toolUseBlocks = blocks.filter(
+        (b): b is Anthropic.ToolUseBlockParam => b.type === 'tool_use'
+      )
+      if (toolUseBlocks.length === 0) break
+
+      const toolResults: Anthropic.ToolResultBlockParam[] = []
+      for (const tu of toolUseBlocks) {
+        const overReadBudget =
+          tu.name === 'read_listing_page' &&
+          toolCalls.filter(c => c.name === 'read_listing_page').length >=
+            MAX_PAGE_READS_PER_TURN
+        const result = overReadBudget
+          ? {
+              ok: false,
+              content:
+                'Page-read budget for this turn is used up. Answer from what you already have — do not request another page read.',
+              listings: [],
+            }
+          : await executeTool(tu.name, tu.input as unknown, catalog)
+        toolCalls.push({ name: tu.name, input: tu.input, ok: result.ok })
+        cited.push(...result.listings)
+        const n = result.listings.length
+        const summary =
+          tu.name === 'search_listings'
+            ? `${n} match${n === 1 ? '' : 'es'}`
+            : tu.name === 'get_listing'
               ? result.ok
-                ? 'read'
-                : 'unreadable'
-              : 'done'
-      send('tool_call_done', {
-        id: tu.id,
-        name: tu.name,
-        ok: result.ok,
-        summary,
-        input: tu.input,
-        listings: result.listings.map(toCitationRef),
-      })
-      toolResults.push({
-        type: 'tool_result',
-        tool_use_id: tu.id,
-        content: result.content,
-        is_error: !result.ok,
-      })
+                ? 'fetched'
+                : 'not found'
+              : tu.name === 'read_listing_page'
+                ? result.ok
+                  ? 'read'
+                  : 'unreadable'
+                : 'done'
+        send('tool_call_done', {
+          id: tu.id,
+          name: tu.name,
+          ok: result.ok,
+          summary,
+          input: tu.input,
+          listings: result.listings.map(toCitationRef),
+        })
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: tu.id,
+          content: result.content,
+          is_error: !result.ok,
+        })
+      }
+      apiMessages.push({ role: 'user', content: toolResults })
+      answerStartOffset = assistantText.length
     }
-    apiMessages.push({ role: 'user', content: toolResults })
-    answerStartOffset = assistantText.length
+  } catch (err) {
+    // The Anthropic call rejects when `signal` fires mid-generation (the
+    // visitor closed the tab or pressed Stop). That's an abandonment, not a
+    // failure: hand back what streamed so far and let the route log it.
+    // Anything else is a real error and propagates as before.
+    if (!signal?.aborted) throw err
+    return abortedResult()
   }
 
   // Citations come from the listings the model actually used (via tools).

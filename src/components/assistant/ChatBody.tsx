@@ -198,6 +198,16 @@ export interface ChatBodyHandle {
   focusInput: () => void
 }
 
+/** How one reply's request went, from the browser's point of view. See the
+ *  `onTurnLifecycle` prop. */
+export interface TurnLifecycleEvent {
+  phase: 'start' | 'received' | 'stopped' | 'error'
+  /** The reply's index in the message list. */
+  turnIndex: number
+  /** Milliseconds since the message was sent (0 for 'start'). */
+  ms: number
+}
+
 interface AssistantMessageViewProps {
   message: UIMessage
   // Every listing seen so far in the conversation, so a card for a
@@ -406,6 +416,14 @@ interface Props {
    *  retries — lets the public chatbot count engagement while the admin
    *  playground (which doesn't pass this) stays out of the numbers. */
   onUserSend?: () => void
+  /** Fires once when a reply's request goes out ('start') and once when it
+   *  ends: 'received' (the stream finished and an answer showed), 'stopped'
+   *  (the visitor pressed Stop / cleared the chat), or 'error' (the request
+   *  failed, the server sent an error, or the reply came back blank).
+   *  `turnIndex` is the reply's position in the message list (matching its
+   *  index in the stored history); `ms` is measured from the send. Lets the
+   *  public chatbot report whether the visitor actually got the answer. */
+  onTurnLifecycle?: (event: TurnLifecycleEvent) => void
   /** Fires whenever the message count transitions between 0 and >0, so the
    *  parent can show/hide a clear button without polling. */
   onHasMessagesChange?: (hasMessages: boolean) => void
@@ -430,6 +448,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     onLinkClick,
     onRate,
     onUserSend,
+    onTurnLifecycle,
     onHasMessagesChange,
     closeOnEscape,
     onCloseEscape,
@@ -448,6 +467,11 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
   useEffect(() => {
     onUserSendRef.current = onUserSend
   }, [onUserSend])
+  // Same for onTurnLifecycle.
+  const onTurnLifecycleRef = useRef(onTurnLifecycle)
+  useEffect(() => {
+    onTurnLifecycleRef.current = onTurnLifecycle
+  }, [onTurnLifecycle])
 
   // Hydrate from session storage (when key provided)
   useEffect(() => {
@@ -591,6 +615,15 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
       const controller = new AbortController()
       abortRef.current = controller
 
+      // Delivery reporting: the reply's index is where asstMsg sits in the
+      // list, which is also its index in the history the server stores.
+      // Timed from here so `ms` is the visitor's real wait, including the
+      // context lookups before the request goes out.
+      const turnIndex = baseHistory.length
+      const sentAt = Date.now()
+      onTurnLifecycleRef.current?.({ phase: 'start', turnIndex, ms: 0 })
+      let outcome: TurnLifecycleEvent['phase'] = 'error'
+
       try {
         const extras =
           typeof bodyExtras === 'function'
@@ -632,6 +665,8 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
         // is reasoning. Used below to repair a reply whose [[/thinking]]
         // marker never arrived.
         let lastToolTextOffset = 0
+        // The server reported a generation failure mid-stream.
+        let sawServerError = false
 
         while (true) {
           const { done, value } = await reader.read()
@@ -729,6 +764,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                 )
               )
             } else if (eventType === 'error') {
+              sawServerError = true
               setMessages(prev =>
                 prev.map(m =>
                   m.id === asstId
@@ -789,8 +825,10 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
               : m
           )
         )
+        if (answer.trim() !== '' && !sawServerError) outcome = 'received'
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
+          outcome = 'stopped'
           setMessages(prev =>
             prev.map(m => (m.id === asstId ? { ...m, isStreaming: false } : m))
           )
@@ -810,6 +848,11 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
       } finally {
         setIsWaiting(false)
         abortRef.current = null
+        onTurnLifecycleRef.current?.({
+          phase: outcome,
+          turnIndex,
+          ms: Date.now() - sentAt,
+        })
       }
     },
     [bodyExtras, endpoint, isWaiting, messages]

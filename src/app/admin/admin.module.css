@@ -834,6 +834,20 @@
   vertical-align: middle;
 }
 
+/* What the visitor's browser reported about a reply ("received in 33s",
+ * "left the page at 12s") — same muted inline style as the turn time; the
+ * warn variant marks replies that never reached anyone. */
+.convDelivery {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--teal-500);
+}
+
+.convDeliveryWarn {
+  color: #ffb87a;
+}
+
 .convTurnContent {
   font-size: 13px;
   color: var(--white);

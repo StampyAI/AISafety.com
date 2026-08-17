@@ -140,6 +140,20 @@ interface ConversationData {
   status?: 'abandoned' | 'error'
 }
 
+/** What the visitor's browser reported about one reply (see TurnDelivery in
+ *  lib/admin/airtable.ts). All durations are ms from the visitor's send. */
+interface TurnDelivery {
+  received?: number
+  stopped?: number
+  error?: number
+  left?: number
+  panelClosed?: number
+  tabHidden?: number
+  panelOpen?: boolean
+  tabVisible?: boolean
+  seen?: number
+}
+
 interface Conversation {
   id: string
   createdAt: string
@@ -154,6 +168,9 @@ interface Conversation {
   /** Visitor's thumbs ratings of the bot's replies (turn index → 'up' |
    *  'down'), from the row's Ratings field. */
   ratings: Record<string, 'up' | 'down'>
+  /** What the visitor's browser reported about each reply (turn index →
+   *  TurnDelivery), from the row's Delivery field. */
+  delivery: Record<string, TurnDelivery>
 }
 
 /** "United States" for an ISO-3166 alpha-2 code, US English spelling. */
@@ -215,6 +232,139 @@ function formatTime(iso: string): string {
 
 function formatLatency(ms: number): string {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
+/** "8s", "1m 12s" — a time-since-send for the delivery notes, coarser than
+ *  formatLatency because these mark moments a person did something. */
+function formatElapsed(ms: number): string {
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  return `${m}m ${s - m * 60}s`
+}
+
+/** The visitor-side story of one reply, for the transcript and row badge:
+ *  a short label, whether it deserves attention (`warn`), and a longer
+ *  tooltip. Undefined when the browser reported nothing for the turn (older
+ *  rows, excluded browsers, or a report that never arrived). */
+function describeDelivery(
+  d: TurnDelivery | undefined
+): { label: string; warn: boolean; title: string } | undefined {
+  if (!d) return undefined
+  if (d.left != null) {
+    return {
+      label: `left the page at ${formatElapsed(d.left)}`,
+      warn: true,
+      title:
+        'The visitor closed the tab or navigated away while the reply was still streaming — they did not get the whole answer',
+    }
+  }
+  if (d.stopped != null) {
+    return {
+      label: `stopped at ${formatElapsed(d.stopped)}`,
+      warn: false,
+      title: 'The visitor pressed Stop (or cleared the chat) mid-reply',
+    }
+  }
+  if (d.error != null) {
+    return {
+      label: `failed in the browser at ${formatElapsed(d.error)}`,
+      warn: true,
+      title:
+        "The visitor's browser hit an error before the reply finished (network drop, or the server sent an error) — they saw an error message",
+    }
+  }
+  if (d.received != null) {
+    const base = `received in ${formatElapsed(d.received)}`
+    // Out of view when it arrived?
+    const outOfView =
+      d.panelOpen === false
+        ? 'panel closed'
+        : d.tabVisible === false
+          ? 'tab in background'
+          : undefined
+    if (!outOfView) {
+      const detail =
+        d.panelClosed != null
+          ? ` (panel closed at ${formatElapsed(d.panelClosed)}, reopened before it finished)`
+          : d.tabHidden != null
+            ? ` (tab hidden at ${formatElapsed(d.tabHidden)}, back before it finished)`
+            : ''
+      return {
+        label: base + detail,
+        warn: false,
+        title:
+          'The whole reply arrived in the visitor’s browser with the chat panel open and the tab visible — measured from when they sent the message',
+      }
+    }
+    const when =
+      outOfView === 'panel closed'
+        ? d.panelClosed
+        : (d.tabHidden ?? d.panelClosed)
+    const whenNote = when != null ? ` at ${formatElapsed(when)}` : ''
+    if (d.seen != null) {
+      return {
+        label: `${base} · ${outOfView}${whenNote} · seen at ${formatElapsed(d.seen)}`,
+        warn: false,
+        title: `The reply arrived while the ${outOfView === 'panel closed' ? 'chat panel was closed' : 'tab was in the background'}; the visitor came back to it ${formatElapsed(d.seen)} after sending`,
+      }
+    }
+    return {
+      label: `${base} · ${outOfView}${whenNote} · not seen`,
+      warn: true,
+      title: `The reply arrived while the ${outOfView === 'panel closed' ? 'chat panel was closed' : 'tab was in the background'}, and the visitor had not come back to it as of their last report`,
+    }
+  }
+  if (d.seen != null) {
+    // A 'seen' without its outcome — the outcome report was lost. Say what
+    // we know rather than nothing.
+    return {
+      label: `seen at ${formatElapsed(d.seen)}`,
+      warn: false,
+      title:
+        'The visitor brought this reply into view (the browser’s earlier report on how it arrived did not reach us)',
+    }
+  }
+  return undefined
+}
+
+/** Row-header badge for the latest turn: only the cases worth flagging when
+ *  skimming (the transcript carries the full note per reply). */
+function deliveryBadge(
+  d: TurnDelivery | undefined
+): { text: string; title: string } | undefined {
+  if (!d) return undefined
+  if (d.left != null) {
+    return {
+      text: 'LEFT MID-REPLY',
+      title:
+        'The visitor closed the tab or navigated away while the reply was still streaming',
+    }
+  }
+  if (d.stopped != null) {
+    return { text: 'STOPPED', title: 'The visitor pressed Stop mid-reply' }
+  }
+  if (d.error != null) {
+    return {
+      text: 'NOT DELIVERED',
+      title:
+        "The visitor's browser hit an error before the reply finished — they saw an error message",
+    }
+  }
+  if (
+    d.received != null &&
+    (d.panelOpen === false || d.tabVisible === false) &&
+    d.seen == null
+  ) {
+    return {
+      text: 'UNSEEN',
+      title:
+        d.panelOpen === false
+          ? 'The reply arrived after the visitor closed the chat panel, and they had not reopened it as of their last report'
+          : 'The reply arrived while the tab was in the background, and the visitor had not come back to it as of their last report',
+    }
+  }
+  return undefined
 }
 
 /** When the user message at history index msgIdx was sent, e.g. "14:03" — or
@@ -550,6 +700,36 @@ function ConversationRow({
     }
     return m
   }, [conv.ratings])
+  // What the visitor's browser reported about the latest reply, and the badge
+  // (if any) it earns in the collapsed row. Turn indices are message-list
+  // positions, so the latest reply is the last stored message when it's the
+  // bot's (every logged turn appends one, even an empty abandoned/error one).
+  const latestDelivery = useMemo(() => {
+    const history = data?.history ?? []
+    const last = history.length - 1
+    if (last < 0 || history[last].role !== 'assistant') return undefined
+    return conv.delivery[String(last)]
+  }, [data, conv.delivery])
+  const latestBadge = useMemo(
+    () => deliveryBadge(latestDelivery),
+    [latestDelivery]
+  )
+  // An abandoned turn now keeps whatever had streamed before the connection
+  // dropped. Distinguish "nothing the visitor could read" from "cut off
+  // part-way through the answer", and let the browser's own report name the
+  // cause when it has one (Stop pressed / left). Visible text is what follows
+  // the last [[/thinking]] marker; with no marker yet, a turn that had made
+  // tool calls was still in its reasoning preamble (which the widget hides
+  // behind the tool activity), so nothing readable had shown.
+  const abandonedHadText = useMemo(() => {
+    if (data?.status !== 'abandoned') return false
+    const parts = data.response.split(/\[\[\s*\/\s*thinking\s*\]\]/i)
+    if (parts.length === 1) {
+      const lastTools = data.tools[data.tools.length - 1]
+      if (Array.isArray(lastTools) && lastTools.length > 0) return false
+    }
+    return (parts.pop() ?? '').trim().length > 0
+  }, [data])
   // Where the visitor ended up if they navigated mid-conversation. conv.page
   // is the page the chat STARTED on (per-turn pages live in data.pages), so a
   // differing last entry means the conversation moved — surface the hop in
@@ -624,20 +804,45 @@ function ConversationRow({
             {data?.zeroMatches && !showedSuggest && (
               <span className={styles.convRowZero}>NO MATCH</span>
             )}
-            {data?.status === 'abandoned' && (
-              <span
-                className={styles.convRowAbandoned}
-                title="The user left before (or without) an answer streamed — only their question was logged"
-              >
-                NO REPLY
-              </span>
-            )}
+            {data?.status === 'abandoned' &&
+              (latestBadge &&
+              (latestBadge.text === 'STOPPED' ||
+                latestBadge.text === 'LEFT MID-REPLY') ? (
+                <span
+                  className={styles.convRowAbandoned}
+                  title={latestBadge.title}
+                >
+                  {latestBadge.text}
+                </span>
+              ) : abandonedHadText ? (
+                <span
+                  className={styles.convRowAbandoned}
+                  title="The visitor's connection dropped while the reply was streaming — the part they had received is logged"
+                >
+                  CUT OFF
+                </span>
+              ) : (
+                <span
+                  className={styles.convRowAbandoned}
+                  title="The visitor left before (or without) an answer streamed — only their question was logged"
+                >
+                  NO REPLY
+                </span>
+              ))}
             {data?.status === 'error' && (
               <span
                 className={styles.convRowError}
                 title="Generation failed for this turn — only the user's question was logged"
               >
                 ERROR
+              </span>
+            )}
+            {!data?.status && latestBadge && (
+              <span
+                className={styles.convRowAbandoned}
+                title={latestBadge.title}
+              >
+                {latestBadge.text}
               </span>
             )}
           </span>
@@ -783,6 +988,24 @@ function ConversationRow({
                                 {ratingByTurn.get(i) === 'up' ? '👍' : '👎'}
                               </span>
                             )}
+                            {t.role === 'assistant' &&
+                              (() => {
+                                const note = describeDelivery(
+                                  conv.delivery[String(i)]
+                                )
+                                return note ? (
+                                  <span
+                                    className={
+                                      note.warn
+                                        ? `${styles.convDelivery} ${styles.convDeliveryWarn}`
+                                        : styles.convDelivery
+                                    }
+                                    title={note.title}
+                                  >
+                                    {note.label}
+                                  </span>
+                                ) : null
+                              })()}
                           </div>
                           <VisitedPages reads={reads} />
                           {t.role === 'user' ? (

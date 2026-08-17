@@ -126,8 +126,10 @@ export async function POST(req: NextRequest) {
     // tab before the first token, or generation errored — the question they
     // typed is still useful signal. It shows what people asked when the bot
     // failed them, so we keep it instead of dropping the whole turn. `status`
-    // marks the no-reply turns so the admin viewer can flag them: 'abandoned'
-    // (visitor left before/without an answer) or 'error' (generation failed).
+    // marks the incomplete turns so the admin viewer can flag them:
+    // 'abandoned' (visitor's connection dropped before generation finished —
+    // the reply holds whatever had streamed by then, possibly nothing) or
+    // 'error' (generation failed).
     const logTurn = (
       result: AssistantRunResult | null,
       status?: 'abandoned' | 'error'
@@ -168,7 +170,17 @@ export async function POST(req: NextRequest) {
       // A bare fire-and-forget promise gets frozen (and usually lost) the
       // moment the response stream closes, so conversations were never
       // reaching Airtable in production.
-      after(() =>
+      //
+      // The PROMISE form, deliberately: after(fn) defers fn until the
+      // response's 'close' event, and only listens for that event from the
+      // first after() call in the request. On an abandoned turn the visitor's
+      // disconnect has already fired 'close' by the time the abort reaches
+      // this code, so a callback registered here would wait for an event
+      // that never comes and silently never run — abandoned turns weren't
+      // being logged at all. Handing after() the in-flight promise instead
+      // starts the write now and keeps the function alive until it settles,
+      // regardless of where the response is in its lifecycle.
+      after(
         storeConversationTurn({
           // When the user's message arrived (not when the log write runs), so
           // the admin transcript can show real gaps between turns.
@@ -214,13 +226,22 @@ export async function POST(req: NextRequest) {
         signal,
       })
     } catch (err) {
-      // Generation threw (API/model error, or the stream aborted mid-flight).
-      // This turn used to vanish entirely; still log the visitor's query so we
-      // can see what was asked, then re-throw so sseResponse emits the error
-      // event (or handles the abort) exactly as before. A client disconnect is
-      // an abandonment, not a bug, so flag it accordingly.
+      // Generation threw (API/model error). This turn used to vanish entirely;
+      // still log the visitor's query so we can see what was asked, then
+      // re-throw so sseResponse emits the error event exactly as before. (An
+      // abort surfacing here — runAssistantStream normally absorbs those — is
+      // still an abandonment, not a bug.)
       logTurn(null, signal.aborted ? 'abandoned' : 'error')
       throw err
+    }
+    if (result.aborted) {
+      // The visitor's connection dropped mid-generation (tab closed, or Stop
+      // pressed). Log the partial reply they had received by then — earlier
+      // this discarded the text, so the admin log couldn't show what they
+      // saw — and skip the citation/fallback bookkeeping, which was never
+      // computed for the cut-off text.
+      logTurn(result, 'abandoned')
+      return
     }
     send('done', {})
     // Log every completed turn — including ones where the visitor left before

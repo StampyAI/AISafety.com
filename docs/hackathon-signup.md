@@ -59,7 +59,11 @@ Lives in the applications Sheet: Extensions → Apps Script, deployed as a web
 app ("Execute as: Me", "Who has access: Anyone"), owned by Bryce's Google
 account. Redeploy after edits via Deploy → Manage deployments → edit → new
 version — this keeps the same `/exec` URL. A redeploy publishes the last
-_saved_ editor code, so paste + Cmd+S first.
+_saved_ editor code, so paste + Cmd+S first. When pasting the block below,
+keep the editor's existing `var SHARED_SECRET = '…'` line – the copy here has
+the secret redacted, and deploying the placeholder makes the script answer
+`unauthorized` to both forms. Redeploy _before_ emailing the details-form link;
+the new script is backward-compatible with the application form.
 
 Requests carry `form: 'details'` for the details form; anything else is treated
 as an application. The details branch replies `{ ok: true, form: 'details' }`
@@ -70,12 +74,18 @@ applications tab) is reported as a failure rather than a silent success.
 Applications go to the _first_ tab (keep it first): Timestamp, Name, Email,
 Skills & experience, Anything else, Personal links. Details go to the
 "Attendee details" tab: Timestamp, then one column per question label in form
-order. The script creates that tab if it's missing.
+order. The script creates that tab (and the Timestamp column) if missing.
+Cell values that start with `=` are stored with a leading apostrophe – the
+Sheets "keep as text" prefix – so nobody can plant a formula in the sheet
+through a form field.
 
 Confirmation emails echo the person's answers back to them. They're sent with
 both `htmlBody` (what Gmail shows — flows naturally at any window width) and a
 plain-text `body` fallback (hard-wrapped at ~76 chars by the mail pipeline,
-which is why htmlBody exists).
+which is why htmlBody exists). If sending fails (e.g. Gmail quota) the row is
+already stored, so the script still reports success but with `emailed: false`,
+which `/api/hackathon-details` logs as a warning rather than failing the
+submission (a failure would just prompt a duplicate row).
 
 Current code (secret redacted; the real one is in the deployed script and in
 the env vars):
@@ -89,6 +99,14 @@ function escapeHtml(s) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+/** Sheets treats a cell value beginning with "=" as a formula. A leading
+ *  apostrophe is the Sheets "keep as text" prefix, so no form answer can
+ *  become a formula in the private sheet. */
+function asText(v) {
+  v = v == null ? '' : String(v)
+  return v.charAt(0) === '=' ? "'" + v : v
 }
 
 /** Plain-text + HTML renderings of [question, answer] pairs, for the emails.
@@ -117,19 +135,32 @@ function renderAnswers(answers) {
   }
 }
 
+/** Send the confirmation; a failure (e.g. Gmail quota) is reported back to
+ *  the caller rather than thrown, because by now the row is stored and a
+ *  reported failure would only prompt a duplicate submission. */
+function trySend(mail) {
+  try {
+    MailApp.sendEmail(mail)
+    return true
+  } catch (err) {
+    console.error('confirmation email failed: ' + err)
+    return false
+  }
+}
+
 /** Application form (/hackathon): fixed columns on the first tab. */
 function handleApplication(data) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
   sheet.appendRow([
     new Date(),
-    data.name || '',
-    data.email || '',
-    data.skills || '',
-    data.anythingElse || '',
-    data.links || '',
+    asText(data.name),
+    asText(data.email),
+    asText(data.skills),
+    asText(data.anythingElse),
+    asText(data.links),
   ])
 
-  if (!data.email) return
+  if (!data.email) return true
 
   var answers = renderAnswers([
     ['Name', data.name],
@@ -173,7 +204,7 @@ function handleApplication(data) {
     '<p><strong>Your form answers</strong></p>' +
     answers.html
 
-  MailApp.sendEmail({
+  return trySend({
     to: data.email,
     subject: 'AISafety.com Hackathon 2026 - application received',
     body: body,
@@ -191,6 +222,9 @@ function handleDetails(details) {
     return [String(a[0]), a[1] == null ? '' : String(a[1])]
   })
 
+  // Header row = whatever row 1 holds, plus Timestamp and any label not seen
+  // before. New headers are written in one go, after growing the tab if
+  // needed (a fresh tab has 26 columns).
   var lastCol = sheet.getLastColumn()
   var headers = lastCol
     ? sheet
@@ -200,37 +234,34 @@ function handleDetails(details) {
           return String(h)
         })
     : []
-  if (headers.length === 0) {
-    headers = ['Timestamp']
-    sheet.getRange(1, 1).setValue('Timestamp')
-    sheet.setFrozenRows(1)
+  var known = headers.length
+  if (headers.indexOf('Timestamp') === -1) headers.push('Timestamp')
+  answers.forEach(function (a) {
+    if (headers.indexOf(a[0]) === -1) headers.push(a[0])
+  })
+  if (headers.length > known) {
+    if (headers.length > sheet.getMaxColumns()) {
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        headers.length - sheet.getMaxColumns()
+      )
+    }
+    sheet
+      .getRange(1, known + 1, 1, headers.length - known)
+      .setValues([headers.slice(known)])
+    if (known === 0) sheet.setFrozenRows(1)
   }
 
   var row = headers.map(function () {
     return ''
   })
+  row[headers.indexOf('Timestamp')] = new Date()
   answers.forEach(function (a) {
-    var col = headers.indexOf(a[0])
-    if (col === -1) {
-      headers.push(a[0])
-      col = headers.length - 1
-      // A fresh tab has 26 columns; grow it before writing past the edge.
-      if (col + 1 > sheet.getMaxColumns()) {
-        sheet.insertColumnsAfter(
-          sheet.getMaxColumns(),
-          col + 1 - sheet.getMaxColumns()
-        )
-      }
-      sheet.getRange(1, col + 1).setValue(a[0])
-      row.push('')
-    }
-    row[col] = a[1]
+    row[headers.indexOf(a[0])] = asText(a[1])
   })
-  var ts = headers.indexOf('Timestamp')
-  if (ts !== -1) row[ts] = new Date()
   sheet.appendRow(row)
 
-  if (!details.email) return
+  if (!details.email) return true
 
   var rendered = renderAnswers(answers)
 
@@ -259,7 +290,7 @@ function handleDetails(details) {
     '<p><strong>Your answers</strong></p>' +
     rendered.html
 
-  MailApp.sendEmail({
+  return trySend({
     to: details.email,
     subject: 'AISafety.com Hackathon 2026 - your details',
     body: body,
@@ -282,12 +313,14 @@ function doPost(e) {
     }
 
     if (data.form === 'details') {
-      handleDetails(data.details || {})
-      return out.setContent(JSON.stringify({ ok: true, form: 'details' }))
+      var emailed = handleDetails(data.details || {})
+      return out.setContent(
+        JSON.stringify({ ok: true, form: 'details', emailed: emailed })
+      )
     }
 
-    handleApplication(data)
-    return out.setContent(JSON.stringify({ ok: true }))
+    var sent = handleApplication(data)
+    return out.setContent(JSON.stringify({ ok: true, emailed: sent }))
   } catch (err) {
     return out.setContent(JSON.stringify({ ok: false, error: String(err) }))
   }

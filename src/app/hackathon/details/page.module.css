@@ -9,20 +9,13 @@
 }
 
 /* One project per row: name + blurb left, ratings right; the "why" box (only
-   shown for high ratings) spans underneath. Stacks on mobile. */
+   shown for high ratings) spans underneath via the shared .full. Stacks on
+   mobile. */
 .project {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px 24px;
   align-items: center;
-}
-
-.why {
-  grid-column: 1 / -1;
-}
-
-.select {
-  cursor: pointer;
 }
 
 @media (max-width: 991px) {

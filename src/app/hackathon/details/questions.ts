@@ -16,8 +16,7 @@ export type Field =
       hint?: string
       /** Take half the row on desktop (fields are full-width by default). */
       half?: boolean
-      /** Server-side length cap; defaults to 500 for single-line, 5000 for
-       *  textarea. */
+      /** Length cap, enforced client- and server-side; see maxLen(). */
       max?: number
     }
   | {
@@ -66,7 +65,9 @@ export type Section = {
 }
 
 /** Candidate hackathon projects for the excitement question. Placeholder list
- *  drawn from the Notion projects list – the core team finalises it. */
+ *  drawn from the Notion projects list – the core team finalises it. Names
+ *  become Sheet column headers, so settle the wording before the link goes
+ *  out. */
 export const PROJECTS: readonly { name: string; blurb: string }[] = [
   {
     name: 'Chatbot v2',
@@ -116,6 +117,26 @@ export const PROJECTS: readonly { name: string; blurb: string }[] = [
 export const RATINGS = [1, 2, 3, 4, 5] as const
 /** Ratings at or above this need a "why" answer. */
 export const WHY_FROM = 4
+/** Length caps shared by the form (maxLength) and the API route. */
+export const WHY_MAX = 2000
+export const OTHER_MAX = 500
+export function maxLen(f: Field): number {
+  if ('max' in f && f.max) return f.max
+  return f.type === 'textarea' ? 5000 : 500
+}
+
+/** Picking this for check-in or check-out means the dates must be explained
+ *  in the travel-notes box; both the form and the route enforce it. */
+export const OTHER_DATE = 'Other (say more below)'
+export const DATE_KEYS = ['checkIn', 'checkOut'] as const
+export const NOTES_KEY = 'travelNotes'
+export function needsTravelNotes(values: Record<string, unknown>): boolean {
+  const notes = values[NOTES_KEY]
+  return (
+    DATE_KEYS.some(k => values[k] === OTHER_DATE) &&
+    !(typeof notes === 'string' && notes.trim())
+  )
+}
 
 export const SECTIONS: readonly Section[] = [
   {
@@ -156,7 +177,7 @@ export const SECTIONS: readonly Section[] = [
       {
         type: 'agree',
         key: 'over18',
-        label: 'I confirm that I’m 18 or over',
+        label: 'I will be at least 18 years old by the date of this event',
         required: true,
       },
     ],
@@ -173,7 +194,7 @@ export const SECTIONS: readonly Section[] = [
         options: [
           'Wednesday 16 September',
           'Thursday 17 September',
-          'Other (say more below)',
+          OTHER_DATE,
         ],
         required: true,
         half: true,
@@ -182,43 +203,47 @@ export const SECTIONS: readonly Section[] = [
         type: 'select',
         key: 'checkOut',
         label: 'Check-out date',
-        options: [
-          'Sunday 20 September',
-          'Monday 21 September',
-          'Other (say more below)',
-        ],
+        options: ['Sunday 20 September', 'Monday 21 September', OTHER_DATE],
         required: true,
         half: true,
       },
       {
         type: 'textarea',
-        key: 'travelNotes',
+        key: NOTES_KEY,
         label: 'Anything about your travel or dates we should know?',
         hint: 'e.g. roughly when you’ll arrive, or dates outside the options above',
       },
       {
+        type: 'select',
+        key: 'roomPreference',
+        label: 'Do you have a preference for having your own room?',
+        hint: 'It’s possible that some people may need to share a room – either all female or all male, max two people per room.',
+        options: [
+          'Fine with sharing',
+          'Weak preference for own room',
+          'Strong preference for own room',
+        ],
+        required: true,
+      },
+      {
         type: 'textarea',
         key: 'dietary',
-        label: 'Dietary requirements and allergies',
-        hint: 'All food at the hackathon is vegan. Write “none” if you have none.',
+        label: 'Do you have any allergies or dietary needs or preferences?',
+        hint: 'If so, please list the allergen and its severity. All food will be vegan. Write “none” if you have none.',
         required: true,
       },
       {
         type: 'textarea',
         key: 'medical',
-        label: 'Any medical conditions we should know about?',
-        hint: 'Only what you’re comfortable sharing – this stays with the organizing team.',
-      },
-      {
-        type: 'text',
-        key: 'roomNeeds',
-        label: 'Any room preferences or needs?',
-        hint: 'e.g. accessibility needs. We’ll pass these on to CEEALAR but can’t guarantee anything.',
+        label:
+          'Do you have any particular medical or mental health needs you would like us to know about?',
+        hint: 'This stays with the organizing team.',
       },
       {
         type: 'text',
         key: 'emergencyName',
         label: 'Emergency contact – name',
+        hint: 'We’d only use this in a medical or other emergency',
         required: true,
       },
       {
@@ -267,8 +292,8 @@ export const SECTIONS: readonly Section[] = [
         options: [
           'Product and design',
           'Development',
-          'Promotion',
           'Project management',
+          'Promotion',
         ],
         other: 'Another track – tell us your idea below',
         required: true,
@@ -278,14 +303,13 @@ export const SECTIONS: readonly Section[] = [
         key: 'experience',
         label: 'Years of experience in your chosen track(s)',
         hint: 'Rough numbers are fine, e.g. “design 4, development 1”',
-        required: true,
       },
       {
         type: 'textarea',
         key: 'successfulProjects',
-        label: 'Your three most successful projects, including their outcomes',
-        hint: 'Any field, not just AI safety',
-        required: true,
+        label:
+          'What have been one or two of your most successful projects, and what were the outcomes?',
+        hint: 'In AI safety or otherwise – a brief answer is fine',
       },
       {
         type: 'projects',
@@ -305,7 +329,7 @@ export const SECTIONS: readonly Section[] = [
   {
     title: 'Fun',
     intro:
-      'We set aside time each day for a break from the screens. Tick anything you’d like to join.',
+      'We set aside time each day for a break from the screens. Check any you’d like to join.',
     fields: [
       {
         type: 'checkboxes',
@@ -329,7 +353,7 @@ export const SECTIONS: readonly Section[] = [
         type: 'agree',
         key: 'preReading',
         label:
-          'I’ll have a quick read of the [projects list](https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21) and the user archetypes before the hackathon, so I arrive with some context',
+          'I’ll have a quick read of the [projects list](https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21) and the [user archetypes](https://app.notion.com/p/User-archetypes-26405b2ef69580449232e7f3c5e8cc7c) before the hackathon, so I arrive with some context',
         required: true,
       },
       {

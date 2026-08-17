@@ -1,16 +1,23 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import base from '../page.module.css'
 import styles from './page.module.css'
 import {
   FIELDS,
+  NOTES_KEY,
+  OTHER_MAX,
   PROJECTS,
   RATINGS,
   SECTIONS,
   WHY_FROM,
+  WHY_MAX,
+  maxLen,
+  needsTravelNotes,
   type Field,
 } from './questions'
+
+const PROJECTS_KEY = FIELDS.find(f => f.type === 'projects')?.key ?? 'projects'
 
 type ProjectAnswer = { rating: number; why: string }
 
@@ -92,45 +99,35 @@ export default function DetailsForm() {
       },
     }))
 
-  /** Checks the browser can't do natively: at-least-one for required
-   *  checkbox groups, and a rating for every project. Returns a message and
-   *  the id of the element to scroll to, or null when everything's fine. */
-  function validate(): { message: string; id: string } | null {
+  // Rules the browser can't express with `required` alone are fed to it as
+  // custom validity, so a failed submit scrolls to and flags the field like
+  // any other: at least one option in required checkbox groups, and travel
+  // notes when a check-in/out date is "Other". (Ratings use `required` on the
+  // radios; the "why" box is only rendered when it's required.)
+  useEffect(() => {
     for (const f of FIELDS) {
-      if (f.type === 'checkboxes' && f.required) {
-        const ticked = values.multi[f.key]?.length ?? 0
-        const other = values.text[`${f.key}Other`]?.trim()
-        if (!ticked && !other) {
-          return {
-            message: `Please tick at least one option under “${f.label}”.`,
-            id: f.key,
-          }
-        }
-      }
-      if (f.type === 'projects' && f.required) {
-        const missing = PROJECTS.find(p => !values.projects[p.name]?.rating)
-        if (missing) {
-          return {
-            message: `Please rate every project – “${missing.name}” is missing a rating.`,
-            id: f.key,
-          }
-        }
-      }
+      if (f.type !== 'checkboxes' || !f.required) continue
+      const first = document.querySelector<HTMLInputElement>(
+        `#${f.key} input[type="checkbox"]`
+      )
+      const ok =
+        (values.multi[f.key]?.length ?? 0) > 0 ||
+        !!values.text[`${f.key}Other`]?.trim()
+      first?.setCustomValidity(ok ? '' : 'Please choose at least one option.')
     }
-    return null
-  }
+    const notes = document.getElementById(
+      NOTES_KEY
+    ) as HTMLTextAreaElement | null
+    notes?.setCustomValidity(
+      needsTravelNotes(values.text)
+        ? 'Please tell us your dates here, since you picked "Other" above.'
+        : ''
+    )
+  }, [values])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (busy) return
-    const problem = validate()
-    if (problem) {
-      setError(problem.message)
-      document
-        .getElementById(problem.id)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      return
-    }
     setBusy(true)
     setError('')
     try {
@@ -141,7 +138,7 @@ export default function DetailsForm() {
           ...values.text,
           ...values.multi,
           ...values.agree,
-          projects: values.projects,
+          [PROJECTS_KEY]: values.projects,
         }),
       })
       if (res.ok) {
@@ -208,6 +205,7 @@ export default function DetailsForm() {
               value={values.text[f.key] ?? ''}
               onChange={e => setText(f.key, e.target.value)}
               required={f.required}
+              maxLength={maxLen(f)}
             />
           </div>
         )
@@ -227,6 +225,7 @@ export default function DetailsForm() {
                 setText(f.key, e.target.value)
               }}
               required={f.required}
+              maxLength={maxLen(f)}
             />
           </div>
         )
@@ -239,7 +238,7 @@ export default function DetailsForm() {
             </label>
             <select
               id={f.key}
-              className={`text-field ${styles.select}`}
+              className="text-field cursor-pointer"
               value={values.text[f.key] ?? ''}
               onChange={e => setText(f.key, e.target.value)}
               required={f.required}
@@ -305,6 +304,7 @@ export default function DetailsForm() {
                   aria-label={f.other}
                   value={values.text[otherKey] ?? ''}
                   onChange={e => setText(otherKey, e.target.value)}
+                  maxLength={OTHER_MAX}
                   autoFocus
                 />
               )}
@@ -366,7 +366,17 @@ export default function DetailsForm() {
                             name={`project-${i}`}
                             className={`checkbox ${styles.radio}`}
                             checked={answer?.rating === r}
-                            onChange={() => setProject(p.name, { rating: r })}
+                            // Dropping below WHY_FROM hides the "why" box, so
+                            // clear it rather than send text they can't see.
+                            onChange={() =>
+                              setProject(
+                                p.name,
+                                r >= WHY_FROM
+                                  ? { rating: r }
+                                  : { rating: r, why: '' }
+                              )
+                            }
+                            required={f.required}
                           />
                           <span className="paragraph-small color-white">
                             {r}
@@ -376,7 +386,7 @@ export default function DetailsForm() {
                     </div>
                     {(answer?.rating ?? 0) >= WHY_FROM && (
                       <textarea
-                        className={`text-field ${base.textarea} ${styles.why}`}
+                        className={`text-field ${base.textarea} ${base.full}`}
                         aria-label={`Why are you excited about ${p.name}, and what could you contribute?`}
                         placeholder="Why are you excited, and what could you contribute?"
                         value={answer?.why ?? ''}
@@ -385,6 +395,7 @@ export default function DetailsForm() {
                           setProject(p.name, { why: e.target.value })
                         }}
                         required
+                        maxLength={WHY_MAX}
                       />
                     )}
                   </div>

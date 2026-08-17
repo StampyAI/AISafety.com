@@ -44,7 +44,7 @@ export default function HackathonDetailsPage() {
             Your answers go to a private spreadsheet that only the organizing
             team can see. We pass on to CEEALAR just what they need to host you
             – name, contact details, nationality, gender and pronouns, emergency
-            contact, dietary requirements, and dates.
+            contact, dietary requirements, room preference, and dates.
           </p>
 
           <DetailsForm />

@@ -4,9 +4,13 @@ import { Redis } from '@upstash/redis'
 import { getClientIp } from '@/lib/assistant/rate-limit'
 import {
   FIELDS,
+  OTHER_MAX,
   PROJECTS,
   RATINGS,
   WHY_FROM,
+  WHY_MAX,
+  maxLen,
+  needsTravelNotes,
   plainLabel,
 } from '@/app/hackathon/details/questions'
 
@@ -84,9 +88,7 @@ export async function POST(req: NextRequest) {
       case 'tel':
       case 'textarea':
       case 'select': {
-        const max =
-          'max' in f && f.max ? f.max : f.type === 'textarea' ? 5000 : 500
-        const v = str(b[f.key], max)
+        const v = str(b[f.key], maxLen(f))
         if (f.type === 'select' && v && !f.options.includes(v)) {
           return new Response('invalid option', { status: 400 })
         }
@@ -106,7 +108,7 @@ export async function POST(req: NextRequest) {
         const picked = Array.isArray(raw)
           ? f.options.filter(o => raw.includes(o))
           : []
-        const other = f.other ? str(b[`${f.key}Other`], 500) : ''
+        const other = f.other ? str(b[`${f.key}Other`], OTHER_MAX) : ''
         const v = [...picked, other && `Other: ${other}`]
           .filter(Boolean)
           .join(', ')
@@ -137,7 +139,9 @@ export async function POST(req: NextRequest) {
           )
             ? (a.rating as number)
             : 0
-          const why = str(a.why, 2000)
+          // A "why" only counts for ratings that show the box; anything else
+          // is stale text from a since-lowered rating.
+          const why = rating >= WHY_FROM ? str(a.why, WHY_MAX) : ''
           if (f.required && !rating) missing.push(f.key)
           if (rating >= WHY_FROM && !why) missing.push(`${f.key}:${p.name}`)
           answers.push([
@@ -150,6 +154,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (needsTravelNotes(b)) missing.push('travelNotes')
   if (missing.length) {
     return new Response('missing required fields', { status: 400 })
   }
@@ -178,7 +183,7 @@ export async function POST(req: NextRequest) {
   // the details form by echoing `form` back; a script version that predates
   // the details form (which ignores `details` and would only append an
   // empty row to the applications tab) doesn't, and we report failure.
-  let result: { ok?: boolean; form?: string }
+  let result: { ok?: boolean; form?: string; emailed?: boolean }
   try {
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
@@ -190,7 +195,7 @@ export async function POST(req: NextRequest) {
       }),
       signal: AbortSignal.timeout(20_000),
     })
-    result = (await res.json()) as { ok?: boolean; form?: string }
+    result = (await res.json()) as typeof result
   } catch (err) {
     console.error('[hackathon-details] Apps Script call failed:', err)
     return new Response('submission failed', { status: 502 })
@@ -201,6 +206,12 @@ export async function POST(req: NextRequest) {
       result
     )
     return new Response('submission failed', { status: 502 })
+  }
+  if (result.emailed === false) {
+    // The row is stored; only the confirmation email failed (e.g. Gmail
+    // quota). Not worth failing the submission over – it would just prompt
+    // a duplicate – but worth seeing in the logs.
+    console.warn('[hackathon-details] stored, but confirmation email failed')
   }
 
   return new Response(null, { status: 204 })

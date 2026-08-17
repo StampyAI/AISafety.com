@@ -144,7 +144,7 @@ export const SECTIONS: readonly Section[] = [
   {
     title: 'About you',
     fields: [
-      { type: 'text', key: 'fullName', label: 'Full name', required: true },
+      { type: 'text', key: 'fullName', label: 'Name', required: true },
       { type: 'email', key: 'email', label: 'Email', required: true },
       {
         type: 'tel',
@@ -158,7 +158,7 @@ export const SECTIONS: readonly Section[] = [
         type: 'text',
         key: 'discord',
         label: 'Discord handle',
-        hint: 'We coordinate on Discord before and during the hackathon',
+        hint: 'We coordinate on Discord during the hackathon',
         required: true,
         half: true,
       },
@@ -187,7 +187,7 @@ export const SECTIONS: readonly Section[] = [
   {
     title: 'Your stay at CEEALAR',
     intro:
-      'The hackathon runs all day Thursday 17 September to all day Sunday 20 September 2026. Ideally arrive on Wednesday evening and leave on Sunday evening or Monday morning – those extra nights are covered too. Meals: lunch and dinner from Thursday to Sunday, with self-serve breakfast.',
+      'The hackathon runs all day Thursday 17 September to all day Sunday 20 September 2026. Ideally arrive on Wednesday evening and leave on Sunday evening or Monday morning.',
     fields: [
       {
         type: 'select',

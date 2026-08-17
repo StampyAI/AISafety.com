@@ -36,9 +36,8 @@ export default function HackathonDetailsPage() {
             >
               CEEALAR
             </a>{' '}
-            (the EA Hotel) in Blackpool, England. Please fill this in as soon as
-            you can, so we can confirm rooms and catering with CEEALAR, get
-            T-shirts made, and start putting teams together.
+            (the EA Hotel) in Blackpool, England. Please fill this in by{' '}
+            <strong>21 August</strong>.
           </p>
 
           <DetailsForm />

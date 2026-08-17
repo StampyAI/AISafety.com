@@ -334,8 +334,8 @@ export async function listConversationsPage(opts: {
 
 /** Every conversation created inside the given window (epoch-ms bounds, either
  *  side open), fetched with only the fields the analytics dashboard's chatbot
- *  panels read — Data (the transcript) and Clicked — so the payload stays as
- *  small as the ever-growing log allows. */
+ *  panels read — Data (the transcript), Clicked and Ratings — so the payload
+ *  stays as small as the ever-growing log allows. */
 export async function listConversationsForStats(range: {
   startMs: number | null
   endMs: number | null
@@ -362,6 +362,7 @@ export async function listConversationsForStats(range: {
   params.set('returnFieldsByFieldId', 'true')
   params.append('fields[]', FIELD.data)
   params.append('fields[]', FIELD.clicked)
+  params.append('fields[]', FIELD.ratings)
   const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
   return rows.map(rowToConversation)
 }

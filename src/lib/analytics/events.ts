@@ -1159,7 +1159,7 @@ function aggregate(
 /** Page paths as their resource-page analytics names, so page views line up
  *  with the names listing clicks already use ('/funding' and 'Funding' are the
  *  same interest). Unknown paths pass through as-is. */
-const PAGE_NAME_BY_PATH: Record<string, string> = {
+export const PAGE_NAME_BY_PATH: Record<string, string> = {
   '/': 'Home',
   '/map': 'Map',
   '/communities': 'Communities',

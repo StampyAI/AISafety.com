@@ -5,11 +5,12 @@
 
 import { franc } from 'franc-min'
 import { PAGES, DEFAULT_CHIPS } from '@/lib/assistant/pages'
-import { extractChips } from '@/lib/assistant/tokens'
+import { extractChips, stripChipTokens } from '@/lib/assistant/tokens'
 import {
   isConversationsTableConfigured,
   listConversationsForStats,
   type ConversationRow,
+  type HistoryTurn,
 } from '@/lib/admin/airtable'
 import type { Counted, DateRange } from './events'
 
@@ -20,6 +21,22 @@ export interface TopQuestion {
   count: number
   /** True when it matches one of the chatbot's suggested-question chips. */
   suggested: boolean
+}
+
+/** One thumbs-rated bot reply, for the dashboard's rated-replies table. */
+export interface RatedReply {
+  /** When the visitor sent the message this reply answered (ISO). Falls back
+   *  to the conversation's creation time for rows without per-turn times. */
+  at: string
+  rating: 'up' | 'down'
+  /** The visitor's message the reply answered, or null when that turn has
+   *  fallen out of the stored (windowed) history. */
+  question: string | null
+  /** The reply itself as plain text (card/chip markers stripped), or null
+   *  when it's fallen out of the stored history. */
+  reply: string | null
+  /** Page the chat was open on for that turn ('/funding', …), when stored. */
+  page: string | null
 }
 
 export interface ConversationStats {
@@ -43,6 +60,18 @@ export interface ConversationStats {
   /** Share (0–1) of conversations where the visitor clicked a listing card or
    *  link out of a reply, or null with no data. */
   clickedShare: number | null
+  /** Bot replies the visitor rated thumbs up / thumbs down (each reply counts
+   *  once, under its final rating — a switched thumb overwrites). */
+  ratedUp: number
+  ratedDown: number
+  /** Share (0–1) of rated replies that got a thumbs up, or null when nothing
+   *  in the range was rated. */
+  thumbsUpShare: number | null
+  /** Share (0–1) of conversations where the visitor rated at least one reply,
+   *  or null with no data. */
+  ratedConversationShare: number | null
+  /** Every rated reply in the range, newest first. */
+  ratedReplies: RatedReply[]
   /** Conversations bucketed by how many messages the visitor sent. */
   lengthBuckets: Counted[]
   /** Conversations bucketed by auto-detected language, busiest first. */
@@ -58,6 +87,11 @@ const EMPTY_STATS: ConversationStats = {
   suggestedShare: null,
   followUpMessageShare: null,
   clickedShare: null,
+  ratedUp: 0,
+  ratedDown: 0,
+  thumbsUpShare: null,
+  ratedConversationShare: null,
+  ratedReplies: [],
   lengthBuckets: [],
   languages: [],
   topQuestions: [],
@@ -103,6 +137,79 @@ function conversationLength(row: ConversationRow): number {
     return d.turnTimes.length
   if (Array.isArray(d.tools) && d.tools.length > 0) return d.tools.length
   return userMessages(row).length
+}
+
+/** `[[card:ID|note]]` and `[[suggest:type]]` markers in a reply — dropped for
+ *  the plain-text snippet. */
+const CARD_OR_SUGGEST_TOKEN = /\[\[\s*(?:card|suggest)\s*:[^\]\n]*\]\]/gi
+/** End of the model's reasoning; the answer is what follows the LAST one
+ *  (same rule as the transcript viewer and the live renderer). */
+const THINKING_DONE = /\[\[\s*\/\s*thinking\s*\]\]/gi
+
+/** A stored reply as the readable answer: reasoning before the final
+ *  thinking marker dropped, card/suggest/chip markers removed, whitespace
+ *  collapsed. */
+function replyText(raw: string): string {
+  let answer = raw
+  let last: RegExpExecArray | null = null
+  THINKING_DONE.lastIndex = 0
+  for (let m = THINKING_DONE.exec(raw); m; m = THINKING_DONE.exec(raw)) {
+    last = m
+  }
+  if (last) answer = raw.slice(last.index + last[0].length)
+  return stripChipTokens(answer.replace(CARD_OR_SUGGEST_TOKEN, ''))
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** The per-turn entry (turn time, page) behind the message at history index
+ *  `msgIdx`. The per-turn arrays hold one entry per logged turn since the
+ *  conversation began while the history is a sliding window, so the two are
+ *  aligned from the END: the window's last user message belongs to the last
+ *  entry, and so on backwards. Same rule the Conversation Log viewer uses. */
+function turnEntryFor(
+  history: HistoryTurn[],
+  entries: unknown[],
+  msgIdx: number
+): unknown {
+  const totalUsers = history.filter(t => t.role === 'user').length
+  const usersUpToHere = history
+    .slice(0, msgIdx)
+    .filter(t => t.role === 'user').length
+  return entries[entries.length - 1 - (totalUsers - usersUpToHere)]
+}
+
+/** The rated replies on one conversation row. The rating's turn index is the
+ *  reply's position in the message list, which matches the stored history
+ *  unless the conversation outgrew the history window (or an errored turn
+ *  left the two out of step) — then the reply text can't be recovered and
+ *  the entry keeps only its rating and time. */
+function ratedRepliesOf(row: ConversationRow): RatedReply[] {
+  const out: RatedReply[] = []
+  const d = row.data
+  for (const [key, rating] of Object.entries(row.ratings)) {
+    const idx = Number(key)
+    if (!Number.isInteger(idx) || idx < 0) continue
+    const reply = d?.history[idx]
+    const question = idx > 0 ? d?.history[idx - 1] : undefined
+    const aligned = reply?.role === 'assistant' && question?.role === 'user'
+    // Look the turn up by the user message that started it (index idx - 1;
+    // the slice bound idx includes it), so the time/page belong to this reply.
+    const at = aligned
+      ? turnEntryFor(d!.history, d!.turnTimes ?? [], idx)
+      : undefined
+    const page = aligned
+      ? turnEntryFor(d!.history, d!.pages ?? [], idx)
+      : undefined
+    out.push({
+      at: typeof at === 'string' ? at : row.createdAt,
+      rating,
+      question: aligned ? question!.content : null,
+      reply: aligned ? replyText(reply!.content) : null,
+      page: typeof page === 'string' ? page : null,
+    })
+  }
+  return out
 }
 
 /** ISO 639-3 codes franc may return here, mapped to display names. Detection
@@ -309,6 +416,10 @@ export async function readConversationStats(
   let clicked = 0
   let totalMessages = 0
   let pillMessages = 0
+  let ratedUp = 0
+  let ratedDown = 0
+  let ratedConversations = 0
+  const ratedReplies: RatedReply[] = []
 
   for (const row of rows) {
     const messages = userMessages(row)
@@ -318,6 +429,13 @@ export async function readConversationStats(
       languages.push(detectLanguage(messages))
     }
     if (row.clickedCitations.length > 0) clicked += 1
+    const rated = ratedRepliesOf(row)
+    if (rated.length > 0) ratedConversations += 1
+    for (const r of rated) {
+      if (r.rating === 'up') ratedUp += 1
+      else ratedDown += 1
+      ratedReplies.push(r)
+    }
     const pills = countFollowUpMessages(row)
     totalMessages += pills.messages
     pillMessages += pills.followUps
@@ -350,6 +468,14 @@ export async function readConversationStats(
     followUpMessageShare:
       totalMessages > 0 ? pillMessages / totalMessages : null,
     clickedShare: rows.length > 0 ? clicked / rows.length : null,
+    ratedUp,
+    ratedDown,
+    thumbsUpShare:
+      ratedUp + ratedDown > 0 ? ratedUp / (ratedUp + ratedDown) : null,
+    ratedConversationShare:
+      rows.length > 0 ? ratedConversations / rows.length : null,
+    // ISO timestamps compare chronologically as strings.
+    ratedReplies: ratedReplies.sort((a, b) => (a.at < b.at ? 1 : -1)),
     // Buckets in display order (1 → 11+), only the non-empty ones.
     lengthBuckets: LENGTH_BUCKETS.map(b => ({
       name: b.label,

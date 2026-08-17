@@ -201,7 +201,7 @@ export const PAGES: PageInfo[] = [
   When: Thursday 17th September – Sunday 20th September 2026.
   Where: CEEALAR (the EA Hotel) in Blackpool, England.
   Cost: Free, including accommodation and all meals. Travel in general isn't covered, but for very strong applicants it may be considered.
-  Applications close: 14 August 2026 (decisions by 21 August), via the form on this page (asks for name, email, skills/experience, personal links, anything else).
+  Applications: CLOSED on 14 August 2026 (decisions by 21 August). We may still consider late applications from very strong candidates – the form on this page (asks for name, email, skills/experience, personal links, anything else) still accepts late applications, but no decision or decision date is promised. Don't tell people applications are open or encourage everyone to apply; do say that someone who thinks they'd be a very strong fit is welcome to submit a late application.
   Once a year, the core AISafety.com team gets together with a group of amazing volunteers and spends an extended weekend getting a bunch of stuff done to improve the site. We also do some relaxed fun activities between work sessions.
   Who we're looking for: Product managers and designers – to execute the vision for new projects, build out design mockups, conduct user research, offer consulting, and brainstorm product solutions. Project managers – to lead and organize project efforts and run sprints. Developers – to work with product managers, designers, and AI tools to bring some amazing new things to life. Connectors, people with an audience, and subject-matter experts – to help us with targeted community outreach, general outreach, social media, and to give takes to product managers and designers. Promotion people – to help us spread awareness of the site and each resource page in various ways, maybe including SEO. Anything else – just tell us how you can help!
   On the first day of the hackathon we will divide everyone into small teams by project (the project list: https://app.notion.com/p/15aaef8c3f9640018d6b256d39b4ee8a?pvs=21). Participants will get to decide which projects they work on and in what way they contribute. We're also open to new project suggestions.
@@ -210,11 +210,11 @@ export const PAGES: PageInfo[] = [
     audience:
       'Volunteers who want to spend a long weekend improving AISafety.com in person.',
     greeting:
-      'Curious about the hackathon? Ask me anything about the event – and if you want in, the application form is right on this page.',
+      'Curious about the hackathon? Ask me anything about the event. Applications closed on 14 August, but very strong late applicants may still be considered.',
     chips: [
       'What happens at the hackathon?',
       'Who is the hackathon looking for?',
-      'When do applications close?',
+      'Can I still apply?',
     ],
   },
   {

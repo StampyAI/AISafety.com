@@ -24,7 +24,7 @@ export default function HackathonDetailsPage() {
             <span className="color-light-teal">a few more details</span>.
           </h2>
 
-          <p className="color-teal-300 padding-bottom-40px">
+          <p className="color-teal-300 padding-bottom-16px">
             Congratulations on your place at the hackathon – Thursday 17 to
             Sunday 20 September 2026 at{' '}
             <a
@@ -37,8 +37,10 @@ export default function HackathonDetailsPage() {
             </a>{' '}
             (the EA Hotel) in Blackpool, England. It runs all day Thursday to
             all day Sunday, so ideally arrive on Wednesday evening and leave on
-            Sunday evening or Monday morning. Please fill this in by{' '}
-            <strong>21 August</strong>.
+            Sunday evening or Monday morning.
+          </p>
+          <p className="color-teal-300 padding-bottom-40px">
+            Please complete this form by <strong>21 August</strong>.
           </p>
 
           <DetailsForm />

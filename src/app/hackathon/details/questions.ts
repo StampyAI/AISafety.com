@@ -50,7 +50,8 @@ export type Field =
     }
 
 export type Section = {
-  title: string
+  /** Omit for a run of fields with no heading of their own. */
+  title?: string
   intro?: string
   fields: readonly Field[]
 }
@@ -201,7 +202,6 @@ export const SECTIONS: readonly Section[] = [
     ],
   },
   {
-    title: 'Last things',
     fields: [
       {
         type: 'agree',

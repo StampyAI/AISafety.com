@@ -306,13 +306,19 @@ export default function DetailsForm() {
       onSubmit={handleSubmit}
     >
       {SECTIONS.map((s, i) => (
-        <Fragment key={s.title}>
-          <div className={`${base.full} ${i > 0 ? 'padding-top-24px' : ''}`}>
-            <h3 className={s.intro ? 'padding-bottom-8px' : ''}>{s.title}</h3>
-            {s.intro && (
-              <p className="paragraph-small color-teal-300">{s.intro}</p>
-            )}
-          </div>
+        <Fragment key={s.title ?? i}>
+          {(s.title || s.intro) && (
+            <div className={`${base.full} ${i > 0 ? 'padding-top-24px' : ''}`}>
+              {s.title && (
+                <h3 className={s.intro ? 'padding-bottom-8px' : ''}>
+                  {s.title}
+                </h3>
+              )}
+              {s.intro && (
+                <p className="paragraph-small color-teal-300">{s.intro}</p>
+              )}
+            </div>
+          )}
           {s.fields.map(renderField)}
         </Fragment>
       ))}

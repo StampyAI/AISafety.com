@@ -21,8 +21,7 @@ export default function HackathonDetailsPage() {
 
           <h2 className="padding-bottom-40px">
             You&apos;re in! We just need{' '}
-            <span className="color-light-teal">a few more details</span> before
-            September.
+            <span className="color-light-teal">a few more details</span>.
           </h2>
 
           <p className="color-teal-300 padding-bottom-40px">

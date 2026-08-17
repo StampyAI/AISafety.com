@@ -17,6 +17,11 @@
     Created at      (created time)      — auto, first-turn timestamp
     Data            (long text)         — JSON payload, see ConversationData
                                           below for shape
+    Clicked         (long text)         — JSON array of click keys, written
+                                          out-of-band by the click logger
+    Ratings         (long text)         — JSON map of turn index → 'up'/'down',
+                                          written out-of-band by the rating
+                                          logger
 
   Prompt drafts are NOT persisted to Airtable. They live in browser
   localStorage in the admin editor. Production prompts ship via code.
@@ -38,6 +43,7 @@ const FIELD = {
   tags: 'fldAkUlONRN894SZN', // Tags
   data: 'fld9TbBixMYVOssja', // Data
   clicked: 'fld3PKIZx3Oo1oxkm', // Clicked
+  ratings: 'fld0ZRhDFjpcHTJnm', // Ratings
   createdAt: 'fldterZrwZHKm2taI', // Created at
 } as const
 
@@ -169,7 +175,13 @@ export interface ConversationRow {
   data: ConversationData | null
   /** Listing ids whose cards the visitor clicked during this conversation. */
   clickedCitations: string[]
+  /** Visitor's thumbs ratings of the bot's replies, keyed by the reply's index
+   *  in the message list ('up' | 'down'). Empty when nothing was rated. */
+  ratings: MessageRatings
 }
+
+export type MessageRatingValue = 'up' | 'down'
+export type MessageRatings = Record<string, MessageRatingValue>
 
 const EMPTY_DATA: ConversationData = {
   user: '',
@@ -216,6 +228,25 @@ function parseClicked(raw: string | undefined): string[] {
   }
 }
 
+/** The Ratings field holds a JSON object of turn index → 'up' | 'down'.
+ *  Anything malformed (or any entry that isn't a valid rating) is dropped. */
+function parseRatings(raw: string | undefined): MessageRatings {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+    const out: MessageRatings = {}
+    for (const [turn, value] of Object.entries(parsed)) {
+      if (value === 'up' || value === 'down') out[turn] = value
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
 function str(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -239,6 +270,7 @@ function rowToConversation(
       : [],
     data: parseData(str(f[FIELD.data]) || undefined),
     clickedCitations: parseClicked(str(f[FIELD.clicked]) || undefined),
+    ratings: parseRatings(str(f[FIELD.ratings]) || undefined),
   }
 }
 
@@ -498,6 +530,37 @@ export async function recordCitationClick(
   if (!res.ok) {
     throw new Error(
       `Airtable click update failed: ${res.status} ${await res.text()}`
+    )
+  }
+}
+
+/** Records the visitor's thumbs rating of one bot reply. Reads-modifies-writes
+ *  only the Ratings field (disjoint from the turn upsert's fields and from
+ *  Clicked, so none of the three writers can clobber another). A switched
+ *  thumb overwrites the earlier value for that turn; re-sending the same value
+ *  is a no-op. Like clicks, a rating that arrives before the conversation row
+ *  exists is dropped rather than creating a dataless row. */
+export async function recordMessageRating(
+  session: string,
+  turnIndex: number,
+  value: MessageRatingValue
+): Promise<void> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  const existing = await findConversationBySession(session)
+  if (!existing) return
+  const current = parseRatings(str(existing.fields[FIELD.ratings]) || undefined)
+  const key = String(turnIndex)
+  if (current[key] === value) return
+  const next: MessageRatings = { ...current, [key]: value }
+  const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      fields: { [FIELD.ratings]: JSON.stringify(next) },
+    }),
+  })
+  if (!res.ok) {
+    throw new Error(
+      `Airtable rating update failed: ${res.status} ${await res.text()}`
     )
   }
 }

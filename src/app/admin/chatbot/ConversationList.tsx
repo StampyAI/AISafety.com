@@ -151,11 +151,9 @@ interface Conversation {
   tags: string[]
   data: ConversationData | null
   clickedCitations: string[]
-  /** Per-turn thumbs ratings (turn index → 'up' | 'down'). Populated once
-   *  rating persistence is wired to its dedicated Airtable field; absent until
-   *  then, so the transcript badge stays dormant rather than reading ratings
-   *  out of another field. */
-  ratings?: Record<string, 'up' | 'down'>
+  /** Visitor's thumbs ratings of the bot's replies (turn index → 'up' |
+   *  'down'), from the row's Ratings field. */
+  ratings: Record<string, 'up' | 'down'>
 }
 
 /** "United States" for an ISO-3166 alpha-2 code, US English spelling. */
@@ -528,15 +526,11 @@ function ConversationRow({
     }
     return s
   }, [conv.clickedCitations])
-  // Thumbs ratings the visitor left, by turn index. Read from the row's
-  // dedicated ratings map — deliberately NOT from clickedCitations: ratings
-  // must not piggyback on the Clicked field. That map isn't populated yet
-  // (persistence is pending an Airtable schema addition — see
-  // recordMessageRating and the PR), so this is currently always empty and the
-  // badge stays dormant until the read side is wired.
+  // Thumbs ratings the visitor left, by turn index (same indexing as the
+  // `<turnIndex>:…` click keys above, so the badge lands on the exact reply).
   const ratingByTurn = useMemo(() => {
     const m = new Map<number, 'up' | 'down'>()
-    for (const [turn, value] of Object.entries(conv.ratings ?? {})) {
+    for (const [turn, value] of Object.entries(conv.ratings)) {
       const n = Number(turn)
       if (Number.isInteger(n) && (value === 'up' || value === 'down')) {
         m.set(n, value)

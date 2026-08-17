@@ -45,6 +45,11 @@ Both routes read the same two variables. When either is unset, dev builds log
 the submission and pretend success (so the forms can be tested locally);
 production returns a 500.
 
+Both are stored as _Sensitive_ in Vercel, so `vercel env pull` writes the
+literal placeholder `[SENSITIVE]` for them – don't copy that into the Apps
+Script. The only readable copy of the secret is the `SHARED_SECRET` line in
+the Apps Script editor; when pasting a new script version, keep that line.
+
 ## Abuse protection
 
 - Honeypot field (`website`) – filled → request is dropped with a fake success.

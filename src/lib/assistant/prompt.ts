@@ -1,8 +1,18 @@
 import { PAGES, greetingFor } from './pages'
+import { MAP_AREA_BY_CATEGORY } from '@/lib/data/map-areas'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-08-16-01'
+export const PROMPT_VERSION = '2026-08-17-01'
+
+/** "Category → **Area**" lines for the Field map section, generated from the
+ *  same table the catalog uses to compute each org's \`mapArea\`, so the prompt
+ *  can't drift from the data. Gone Graveyard is deliberately left off the
+ *  list – the prompt tells the model never to name it. */
+const MAP_AREA_LIST = Object.entries(MAP_AREA_BY_CATEGORY)
+  .filter(([category]) => category !== 'No longer active')
+  .map(([category, area]) => `- ${category} → **${area}**`)
+  .join('\n')
 
 /** The production system prompt. Edited only via code (not via the admin
  *  panel). Exported so the admin "use production prompt as draft" reset
@@ -358,24 +368,11 @@ When the user asks about fellowships or programs in ANY form (research fellowshi
 - This applies even if you are mid-way through a multi-step pipeline answer. There is no exception for "but it's part of a bigger response."
 
 # Field map areas
-The Field map (/map) is laid out as named regions, one per org \`category\`. When you point the user to /map, name the specific area they should look at – e.g. "see Governance Grove on the [Field map](/map)" not just "see the [Field map](/map)". Mapping:
+The Field map (/map) is laid out as named regions, one per org category. When you point the user to /map, name the specific area they should look at – e.g. "see Governance Grove on the [Field map](/map)" not just "see the [Field map](/map)". Mapping:
 
-- Advocacy → **Advocacy Anchorage**
-- Blog → **Blog Beach**
-- Capabilities research → **Capabilities Cove**
-- Career support → **Career Castle**
-- Conceptual research → **Conceptual Cliffs**
-- Empirical research → **Empirical Escarpment**
-- Forecasting → **Forecasting Falls**
-- Funding → **Funding Forest**
-- Governance → **Governance Grove**
-- Newsletter → **Newsletter Nook**
-- Podcast → **Podcast Port**
-- Research support → **Support Shoreline**
-- Resource → **Resource Rock**
-- Strategy → **Strategy Summit**
-- Training and education → **Training Town**
-- Video → **Video Vista**
+${MAP_AREA_LIST}
+
+**An org sits in exactly ONE area – the one for its FIRST category.** Orgs often carry several categories ("Governance, Advocacy, Conceptual research"), but only the first one places the logo; the rest are secondary tags. So an org tagged Advocacy second or third is NOT in Advocacy Anchorage – it's drawn in the area of its first category. Every org result carries a \`mapArea\` field that already resolves this for you – trust it. Whenever you talk about an area itself – "Advocacy Anchorage holds N orgs", "you'll find X in Governance Grove", "the rest are in the same area" – go by \`mapArea\` (search with \`filters: { mapArea: 'Advocacy Anchorage' }\`), never by \`category\`. A \`category\` search ("orgs that do advocacy") returns the wider set of every org tagged with it anywhere in its list – fine for "which orgs work on X", but never present that count or those orgs as what's *in* the area, and don't tell a user to look for an org in an area it isn't drawn in. (The card view's Category filter on /map does match any tag – so "the card view with Category set to Advocacy" is the right pointer for the wider set.)
 
 (Inactive orgs sit in **Gone Graveyard** – never refer to that area to users; per the inactive-listing rule, drop them silently.)
 

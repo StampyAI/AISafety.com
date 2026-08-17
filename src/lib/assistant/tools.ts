@@ -26,7 +26,9 @@ ARGUMENTS:
     advisor: focus, status
     founder-resource: type
     media-channel: type ("Podcast"|"Newsletter"|"Blog"|"Video"|"Forum")
-    org: category, status
+    org: category, mapArea, status
+      – \`category\` is EVERY category the org is tagged with (comma-separated, e.g. "Governance, Advocacy, Conceptual research"). Filter on it for "orgs that do X" (any tag counts).
+      – \`mapArea\` is the ONE named region the org's logo is drawn in on the Field map (e.g. "Advocacy Anchorage", "Governance Grove"), decided by its FIRST category only. Filter on it when the user asks what's in an area, or whenever you're about to describe an area ("X area holds…", "see it in X area"). An org tagged Advocacy as a second or third category is NOT in Advocacy Anchorage.
     event: type ("Competition"|"Conference"|"Hackathon"|"Meetup"|"Talk"|"Workshop"|"Other"), mode ("Online"|"In person"|"Hybrid"), location (free text, usually "City, Country" like "Berkeley, USA" — or "Online"), cost ("Free"|"Free (assistance available)"|"Free (cash prize available)"|"Pay to attend"|"Pay to attend (assistance available)" — substring match means cost: "Free" catches all three Free variants and cost: "Pay to attend" both paid ones. "(assistance available)" = the organizer offers financial support: needs-based travel/accommodation support on free events, ticket discounts/aid on paid ones)
     training: type ("Fellowship"|"Course"|"Bootcamp"|"Immersive workshop"|"Other"), mode ("Online"|"In person"|"Hybrid"|"Online or in person"), location (free text like events), focus ("General"|"Technical"|"Governance" — multi-select, a program can carry both "Technical" and "Governance"; filtering on one value matches programs that carry it among others), entryBar ("Low"|"Mid"|"High"), timeCommitment ("Full-time"|"Part-time"), stipend ("No stipend"|"Expenses covered"|"Stipend included"), length ("Under 1 month"|"1–3 months"|"3+ months" — how long the program runs), recurring ("Yes" — only evergreen programs carry it)
 
@@ -61,6 +63,12 @@ EXAMPLES:
 
   // Browse all advisors
   search_listings({ type: 'advisor' })
+
+  // Every org drawn in one Field map region (first category only)
+  search_listings({ type: 'org', filters: { mapArea: 'Advocacy Anchorage' } })
+
+  // Every org tagged Advocacy anywhere in its category list (wider set)
+  search_listings({ type: 'org', filters: { category: 'Advocacy' } })
 
   // Upcoming fellowships (dated rounds and evergreen programs together)
   search_listings({ type: 'training', filters: { type: 'Fellowship' } })

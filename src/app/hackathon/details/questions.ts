@@ -133,8 +133,10 @@ export const NOTES_KEY = 'travelNotes'
 export function needsTravelNotes(values: Record<string, unknown>): boolean {
   const notes = values[NOTES_KEY]
   return (
-    DATE_KEYS.some(k => values[k] === OTHER_DATE) &&
-    !(typeof notes === 'string' && notes.trim())
+    DATE_KEYS.some(k => {
+      const v = values[k]
+      return typeof v === 'string' && v.trim() === OTHER_DATE
+    }) && !(typeof notes === 'string' && notes.trim())
   )
 }
 

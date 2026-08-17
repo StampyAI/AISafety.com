@@ -110,9 +110,11 @@ export default function DetailsForm() {
       const first = document.querySelector<HTMLInputElement>(
         `#${f.key} input[type="checkbox"]`
       )
+      // An open-but-empty "Other" box counts here; its own `required` then
+      // flags the box itself instead of the first checkbox.
       const ok =
         (values.multi[f.key]?.length ?? 0) > 0 ||
-        !!values.text[`${f.key}Other`]?.trim()
+        !!values.agree[`${f.key}OtherOpen`]
       first?.setCustomValidity(ok ? '' : 'Please choose at least one option.')
     }
     const notes = document.getElementById(
@@ -305,6 +307,7 @@ export default function DetailsForm() {
                   value={values.text[otherKey] ?? ''}
                   onChange={e => setText(otherKey, e.target.value)}
                   maxLength={OTHER_MAX}
+                  required={f.required && ticked.length === 0}
                   autoFocus
                 />
               )}

@@ -75,17 +75,17 @@ Applications go to the _first_ tab (keep it first): Timestamp, Name, Email,
 Skills & experience, Anything else, Personal links. Details go to the
 "Attendee details" tab: Timestamp, then one column per question label in form
 order. The script creates that tab (and the Timestamp column) if missing.
-Cell values that start with `=` are stored with a leading apostrophe – the
-Sheets "keep as text" prefix – so nobody can plant a formula in the sheet
-through a form field.
+Every non-empty answer is stored with a leading apostrophe – the Sheets "keep
+as text" prefix, invisible in the cell – so phone numbers keep their leading
+`+`/`0` and nobody can plant a formula in the sheet through a form field.
 
 Confirmation emails echo the person's answers back to them. They're sent with
 both `htmlBody` (what Gmail shows — flows naturally at any window width) and a
 plain-text `body` fallback (hard-wrapped at ~76 chars by the mail pipeline,
 which is why htmlBody exists). If sending fails (e.g. Gmail quota) the row is
-already stored, so the script still reports success but with `emailed: false`,
-which `/api/hackathon-details` logs as a warning rather than failing the
-submission (a failure would just prompt a duplicate row).
+already stored, so the script still reports success but with `emailed: false`
+(plus the Sheet `row` it wrote), which both API routes log as a warning rather
+than failing the submission (a failure would just prompt a duplicate row).
 
 Current code (secret redacted; the real one is in the deployed script and in
 the env vars):
@@ -101,12 +101,13 @@ function escapeHtml(s) {
     .replace(/>/g, '&gt;')
 }
 
-/** Sheets treats a cell value beginning with "=" as a formula. A leading
- *  apostrophe is the Sheets "keep as text" prefix, so no form answer can
- *  become a formula in the private sheet. */
+/** Sheets parses written values like typed input: "=…" becomes a formula,
+ *  "+447700900123" or "07700900123" become numbers (losing the + / 0). A
+ *  leading apostrophe is the Sheets "keep as text" prefix – not shown in the
+ *  cell – so every non-empty answer is stored exactly as typed. */
 function asText(v) {
   v = v == null ? '' : String(v)
-  return v.charAt(0) === '=' ? "'" + v : v
+  return v ? "'" + v : v
 }
 
 /** Plain-text + HTML renderings of [question, answer] pairs, for the emails.
@@ -160,7 +161,8 @@ function handleApplication(data) {
     asText(data.links),
   ])
 
-  if (!data.email) return true
+  var row = sheet.getLastRow()
+  if (!data.email) return { emailed: true, row: row }
 
   var answers = renderAnswers([
     ['Name', data.name],
@@ -204,12 +206,13 @@ function handleApplication(data) {
     '<p><strong>Your form answers</strong></p>' +
     answers.html
 
-  return trySend({
+  var emailed = trySend({
     to: data.email,
     subject: 'AISafety.com Hackathon 2026 - application received',
     body: body,
     htmlBody: htmlBody,
   })
+  return { emailed: emailed, row: row }
 }
 
 /** Attendee-details form (/hackathon/details): answers arrive as
@@ -260,8 +263,9 @@ function handleDetails(details) {
     row[headers.indexOf(a[0])] = asText(a[1])
   })
   sheet.appendRow(row)
+  var rowNumber = sheet.getLastRow()
 
-  if (!details.email) return true
+  if (!details.email) return { emailed: true, row: rowNumber }
 
   var rendered = renderAnswers(answers)
 
@@ -290,12 +294,13 @@ function handleDetails(details) {
     '<p><strong>Your answers</strong></p>' +
     rendered.html
 
-  return trySend({
+  var emailed = trySend({
     to: details.email,
     subject: 'AISafety.com Hackathon 2026 - your details',
     body: body,
     htmlBody: htmlBody,
   })
+  return { emailed: emailed, row: rowNumber }
 }
 
 function doPost(e) {
@@ -312,15 +317,25 @@ function doPost(e) {
       )
     }
 
+    // Both branches reply with whether the confirmation email went out and
+    // the Sheet row that was written, so the API routes can log a mail
+    // failure against a row without putting the person's email in the logs.
     if (data.form === 'details') {
-      var emailed = handleDetails(data.details || {})
+      var d = handleDetails(data.details || {})
       return out.setContent(
-        JSON.stringify({ ok: true, form: 'details', emailed: emailed })
+        JSON.stringify({
+          ok: true,
+          form: 'details',
+          emailed: d.emailed,
+          row: d.row,
+        })
       )
     }
 
-    var sent = handleApplication(data)
-    return out.setContent(JSON.stringify({ ok: true, emailed: sent }))
+    var a = handleApplication(data)
+    return out.setContent(
+      JSON.stringify({ ok: true, emailed: a.emailed, row: a.row })
+    )
   } catch (err) {
     return out.setContent(JSON.stringify({ ok: false, error: String(err) }))
   }

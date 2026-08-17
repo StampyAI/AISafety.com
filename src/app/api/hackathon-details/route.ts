@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
   // the details form by echoing `form` back; a script version that predates
   // the details form (which ignores `details` and would only append an
   // empty row to the applications tab) doesn't, and we report failure.
-  let result: { ok?: boolean; form?: string; emailed?: boolean }
+  let result: { ok?: boolean; form?: string; emailed?: boolean; row?: number }
   try {
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
@@ -210,8 +210,11 @@ export async function POST(req: NextRequest) {
   if (result.emailed === false) {
     // The row is stored; only the confirmation email failed (e.g. Gmail
     // quota). Not worth failing the submission over – it would just prompt
-    // a duplicate – but worth seeing in the logs.
-    console.warn('[hackathon-details] stored, but confirmation email failed')
+    // a duplicate – but worth seeing in the logs. The Sheet row number
+    // identifies the person without putting their email in the logs.
+    console.warn(
+      `[hackathon-details] stored as row ${result.row ?? '?'} of the details tab, but the confirmation email failed`
+    )
   }
 
   return new Response(null, { status: 204 })

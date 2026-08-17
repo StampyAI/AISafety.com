@@ -16,7 +16,7 @@ applicants get by email.
 ```
 
 Neither form goes to Airtable: they include personal data (emergency
-contacts, medical and dietary needs) that must stay out of the shared base, and
+contacts, allergies and dietary needs) that must stay out of the shared base, and
 the team reviews them in a private Google Sheet instead.
 
 ## The details form (`/hackathon/details`)

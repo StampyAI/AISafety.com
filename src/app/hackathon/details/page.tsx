@@ -25,8 +25,7 @@ export default function HackathonDetailsPage() {
           </h2>
 
           <p className="color-teal-300 padding-bottom-16px">
-            Congratulations on your place at the hackathon – Thursday 17 to
-            Sunday 20 September 2026 at{' '}
+            Congratulations on your place at the hackathon at{' '}
             <a
               href="https://www.ceealar.org"
               target="_blank"
@@ -35,12 +34,14 @@ export default function HackathonDetailsPage() {
             >
               CEEALAR
             </a>{' '}
-            (the EA Hotel) in Blackpool, England. It runs all day Thursday to
-            all day Sunday, so ideally arrive on Wednesday evening and leave on
-            Sunday evening or Monday morning.
+            (the EA Hotel) in Blackpool, England. It runs all day Thursday 17
+            September to all day Sunday 20 September, so ideally arrive on
+            Wednesday evening and leave on Sunday evening or Monday morning.
           </p>
           <p className="color-teal-300 padding-bottom-40px">
-            Please complete this form by <strong>24 August</strong>.
+            All the details below are required by either us or CEEALAR in order
+            to run the hackathon.{' '}
+            <strong>Please submit the form by 24 August.</strong>
           </p>
 
           <DetailsForm />

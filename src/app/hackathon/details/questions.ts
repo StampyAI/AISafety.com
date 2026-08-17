@@ -7,8 +7,9 @@
 //
 // Labels and hints may contain markdown-style links: [text](https://…).
 
-// Nothing is currently required (Bryce's call, 17 Aug 2026); the `required`
-// flag is still honoured by the form and the route if a question needs it.
+// `required` is enforced by the form (browser validation) and the API route;
+// required and optional fields look the same. Optional, by Bryce's call
+// (17 Aug 2026): travel notes, dietary, T-shirt size, anything else.
 export type Field =
   | {
       type: 'text' | 'email' | 'tel' | 'textarea'
@@ -68,11 +69,12 @@ export function maxLen(f: Field): number {
 export const SECTIONS: readonly Section[] = [
   {
     fields: [
-      { type: 'text', key: 'fullName', label: 'Name' },
-      { type: 'email', key: 'email', label: 'Email' },
+      { type: 'text', key: 'fullName', required: true, label: 'Name' },
+      { type: 'email', key: 'email', required: true, label: 'Email' },
       {
         type: 'tel',
         key: 'phone',
+        required: true,
         label: 'Phone number',
         hint: 'Including the country code',
         half: true,
@@ -80,25 +82,29 @@ export const SECTIONS: readonly Section[] = [
       {
         type: 'text',
         key: 'discord',
+        required: true,
         label: 'Discord handle',
-        hint: 'We coordinate on Discord during the hackathon – if you don’t have an account, please create one',
+        hint: 'If you don’t have a Discord account, please create one',
         half: true,
       },
       {
         type: 'text',
         key: 'nationality',
+        required: true,
         label: 'Nationality',
         half: true,
       },
       {
         type: 'text',
         key: 'genderPronouns',
+        required: true,
         label: 'Gender and pronouns',
         half: true,
       },
       {
         type: 'select',
         key: 'checkIn',
+        required: true,
         label: 'Check-in date',
         options: [
           'Wednesday 16 September',
@@ -110,6 +116,7 @@ export const SECTIONS: readonly Section[] = [
       {
         type: 'select',
         key: 'checkOut',
+        required: true,
         label: 'Check-out date',
         options: [
           'Sunday 20 September',
@@ -127,6 +134,7 @@ export const SECTIONS: readonly Section[] = [
       {
         type: 'select',
         key: 'roomPreference',
+        required: true,
         label: 'Do you have a preference for having your own room?',
         hint: 'It’s possible that some people may need to share a room – either all female or all male, max two people per room.',
         options: [
@@ -138,30 +146,26 @@ export const SECTIONS: readonly Section[] = [
       {
         type: 'textarea',
         key: 'dietary',
-        label: 'Do you have any allergies or dietary needs or preferences?',
+        label: 'Do you have any allergies or dietary needs?',
         hint: 'If so, please list the allergen and its severity. All food will be vegan.',
-      },
-      {
-        type: 'textarea',
-        key: 'medical',
-        label:
-          'Do you have any particular medical or mental health needs you would like us to know about?',
       },
       {
         type: 'text',
         key: 'emergencyName',
+        required: true,
         label: 'Emergency contact – name',
-        hint: 'We’d only use this in a medical or other emergency',
       },
       {
         type: 'tel',
         key: 'emergencyPhone',
+        required: true,
         label: 'Emergency contact – phone number',
         half: true,
       },
       {
         type: 'text',
         key: 'emergencyRelation',
+        required: true,
         label: 'Their relationship to you',
         half: true,
       },
@@ -177,14 +181,12 @@ export const SECTIONS: readonly Section[] = [
           'Men’s L',
           'Men’s XL',
           'Men’s 2XL',
-          'Men’s 3XL',
           'Women’s XS',
           'Women’s S',
           'Women’s M',
           'Women’s L',
           'Women’s XL',
           'Women’s 2XL',
-          'Women’s 3XL',
         ],
         half: true,
       },
@@ -196,13 +198,15 @@ export const SECTIONS: readonly Section[] = [
       {
         type: 'agree',
         key: 'ceealarTerms',
+        required: true,
         label:
           'I agree to CEEALAR’s [terms and conditions](https://www.ceealar.org/terms-and-conditions) and [code of conduct](https://www.ceealar.org/code-of-conduct)',
       },
       {
         type: 'agree',
         key: 'over18',
-        label: 'I will be at least 18 years old by the date of this event',
+        required: true,
+        label: 'I will be at least 18 years old by the start of this event',
       },
     ],
   },

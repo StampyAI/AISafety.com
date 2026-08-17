@@ -4,9 +4,6 @@ import { Fragment, useEffect, useState } from 'react'
 import base from '../page.module.css'
 import { FIELDS, OTHER_MAX, SECTIONS, maxLen, type Field } from './questions'
 
-// "(optional)" markers only make sense when something is required.
-const ANY_REQUIRED = FIELDS.some(f => f.required)
-
 /** Answers by field key. Checkbox groups hold the ticked options; their
  *  free-text "Other" box is stored under `${key}Other`. */
 type Values = {
@@ -16,10 +13,6 @@ type Values = {
 }
 
 const EMPTY: Values = { text: { website: '' }, multi: {}, agree: {} }
-
-function Optional() {
-  return <em className="color-teal-400">(optional)</em>
-}
 
 /** Render a label/hint string, turning [text](url) into links. */
 function Text({ children }: { children: string }) {
@@ -144,7 +137,7 @@ export default function DetailsForm() {
     const width = 'half' in f && f.half ? '' : base.full
     const label = (
       <>
-        <Text>{f.label}</Text> {ANY_REQUIRED && !f.required && <Optional />}
+        <Text>{f.label}</Text>
         {f.hint && (
           <>
             <br />
@@ -335,7 +328,7 @@ export default function DetailsForm() {
         />
       </div>
 
-      <div className={base.full}>
+      <div className={`${base.full} margin-top-16px`}>
         <button type="submit" className="button-primary" disabled={busy}>
           {busy ? 'Submitting…' : 'Submit'}
         </button>

@@ -25,7 +25,7 @@ export default function HackathonDetailsPage() {
             September.
           </h2>
 
-          <p className="color-teal-300 padding-bottom-16px">
+          <p className="color-teal-300 padding-bottom-40px">
             Congratulations on your place at the hackathon – Thursday 17 to
             Sunday 20 September 2026 at{' '}
             <a
@@ -39,12 +39,6 @@ export default function HackathonDetailsPage() {
             (the EA Hotel) in Blackpool, England. Please fill this in as soon as
             you can, so we can confirm rooms and catering with CEEALAR, get
             T-shirts made, and start putting teams together.
-          </p>
-          <p className="paragraph-small color-teal-400 padding-bottom-40px">
-            Your answers go to a private spreadsheet that only the organizing
-            team can see. We pass on to CEEALAR just what they need to host you
-            – name, contact details, nationality, gender and pronouns, emergency
-            contact, dietary requirements, room preference, and dates.
           </p>
 
           <DetailsForm />

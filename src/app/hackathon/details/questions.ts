@@ -97,11 +97,6 @@ export const SECTIONS: readonly Section[] = [
         half: true,
       },
       {
-        type: 'agree',
-        key: 'over18',
-        label: 'I will be at least 18 years old by the date of this event',
-      },
-      {
         type: 'select',
         key: 'checkIn',
         label: 'Check-in date',
@@ -203,6 +198,11 @@ export const SECTIONS: readonly Section[] = [
         type: 'textarea',
         key: 'anythingElse',
         label: 'Anything else you’d like us to know?',
+      },
+      {
+        type: 'agree',
+        key: 'over18',
+        label: 'I will be at least 18 years old by the date of this event',
       },
     ],
   },

@@ -706,7 +706,8 @@ export async function runAssistantStream(
       cited.push(...result.listings)
       const n = result.listings.length
       const summary =
-        tu.name === 'search_listings'
+        result.summary ??
+        (tu.name === 'search_listings'
           ? `${n} match${n === 1 ? '' : 'es'}`
           : tu.name === 'get_listing'
             ? result.ok
@@ -716,7 +717,7 @@ export async function runAssistantStream(
               ? result.ok
                 ? 'read'
                 : 'unreadable'
-              : 'done'
+              : 'done')
       send('tool_call_done', {
         id: tu.id,
         name: tu.name,

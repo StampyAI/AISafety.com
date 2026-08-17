@@ -19,7 +19,7 @@ interface HistoryTurn {
 
 interface LoggedToolCall {
   name: string
-  input?: { id?: string }
+  input?: { id?: string; query?: string }
   ok?: boolean
 }
 
@@ -85,8 +85,10 @@ function fallbackCardsForMessage(
   return set
 }
 
-/** Web visits (live page reads) the bot made while composing a reply — shown
- *  in the transcript so it's clear when an answer drew on a listing's page. */
+/** Lookups beyond the catalog that the bot made while composing a reply —
+ *  live page reads and past-round history checks — shown in the transcript
+ *  so it's clear when an answer drew on a listing's page or on rounds the
+ *  site no longer displays. */
 function VisitedPages({ reads }: { reads: LoggedToolCall[] }) {
   const listings = useContext(ListingInfoContext)
   if (reads.length === 0) return null
@@ -95,6 +97,17 @@ function VisitedPages({ reads }: { reads: LoggedToolCall[] }) {
       {reads.map((r, i) => {
         const id = r.input?.id ?? ''
         const info = resolveListing(listings, id)
+        if (r.name === 'get_program_history') {
+          const query = typeof r.input?.query === 'string' ? r.input.query : ''
+          const subject = info?.name ?? (query ? `"${query}"` : id)
+          return (
+            <span key={i}>
+              {r.ok ? '🕘 checked past rounds of ' : '🕘 tried past rounds of '}
+              {subject}
+              {r.ok ? '' : ' – lookup failed'}
+            </span>
+          )
+        }
         const name = info?.name ?? id
         const url = info?.url
         return (
@@ -927,7 +940,11 @@ function ConversationRow({
                             data.history,
                             data.tools ?? [],
                             i
-                          ).filter(c => c.name === 'read_listing_page')
+                          ).filter(
+                            c =>
+                              c.name === 'read_listing_page' ||
+                              c.name === 'get_program_history'
+                          )
                         : []
                     // The visitor moved to a different page before sending
                     // this message — mark it so the transcript reads in the

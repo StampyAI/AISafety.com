@@ -2,7 +2,7 @@ import { fetchAirtableRecords } from './airtable'
 import { fetchPublicData, hasAirtableCredentials } from './public-api'
 import { EVENT_TYPES, type EventType } from '../event-types'
 import { parseFeaturedRank } from '../featured'
-import { parseAttendMode, type AttendMode } from './training'
+import { parseAttendMode, type AttendMode, type ProgramRound } from './training'
 
 const TABLE_ID = 'tblXbN9swwldwq8f7'
 const VIEW_ID: string | undefined = undefined
@@ -204,4 +204,43 @@ export async function getEvents(): Promise<EventListing[]> {
   })
 
   return results
+}
+
+/**
+ * Every published, non-hidden event in the Events table, past and upcoming,
+ * in table order. getEvents() drops events once they've ended; the chatbot's
+ * round-history tool needs those too ("when did this last run?"). Same raw
+ * fetch (identical arguments) as getEvents, so both read one cached
+ * Airtable result.
+ */
+export async function getEventRounds(): Promise<ProgramRound[]> {
+  // The public Data API serves only what the live page shows, so contributor
+  // mode has no history to offer (the chatbot needs credentials anyway).
+  if (!hasAirtableCredentials()) return []
+
+  const raw = await fetchAirtableRecords({
+    tableId: TABLE_ID,
+    viewId: VIEW_ID,
+    returnFieldsByFieldId: true,
+  })
+
+  const rounds: ProgramRound[] = []
+  for (const record of raw) {
+    const f = record.fields
+    const name = optionalString(f[FIELD.name])
+    if (!name) continue
+    if (f[FIELD.publish] !== true || f[FIELD.hide] === true) continue
+    rounds.push({
+      id: record.id,
+      name,
+      url: normalizeUrl(optionalString(f[FIELD.url]) || ''),
+      description: optionalString(f[FIELD.description]) || '',
+      host: optionalString(f[FIELD.host]),
+      startDate: optionalString(f[FIELD.startDate]),
+      startDateApprox: null,
+      endDate: optionalString(f[FIELD.endDate]),
+      applicationsClose: optionalString(f[FIELD.deadline]),
+    })
+  }
+  return rounds
 }

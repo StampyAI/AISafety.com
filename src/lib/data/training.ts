@@ -116,6 +116,27 @@ export interface RecurringProgram extends ProgramBase {
   typicalLength: string | null
 }
 
+/**
+ * One dated round of a training program or event as recorded in Airtable —
+ * past or upcoming. The resource pages drop rounds once they've started or
+ * ended; the chatbot's round-history tool reads these so it can answer
+ * "when has this run before?" and "will there be another round?" from the
+ * site's own records instead of guessing.
+ */
+export interface ProgramRound {
+  id: string
+  name: string
+  url: string
+  description: string
+  /** Events only — the organizer, when recorded. */
+  host: string | null
+  startDate: string | null
+  /** Org's own wording ("early September 2026") when the start is approximate. */
+  startDateApprox: string | null
+  endDate: string | null
+  applicationsClose: string | null
+}
+
 function optionalString(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null
 }
@@ -353,6 +374,46 @@ export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
   })
 
   return results
+}
+
+/**
+ * Every published, non-hidden round in the Training table, past and
+ * upcoming, in table order. getTrainingPrograms() drops rounds once they've
+ * started; the chatbot's round-history tool needs those too. Same raw fetch
+ * (identical arguments) as getTrainingPrograms, so both read one cached
+ * Airtable result.
+ */
+export async function getTrainingRounds(): Promise<ProgramRound[]> {
+  // The public Data API serves only what the live page shows, so contributor
+  // mode has no round history to offer (the chatbot needs credentials anyway).
+  if (!hasAirtableCredentials()) return []
+
+  const raw = await fetchAirtableRecords({
+    tableId: TRAINING_TABLE_ID,
+    returnFieldsByFieldId: true,
+  })
+
+  const rounds: ProgramRound[] = []
+  for (const record of raw) {
+    const f = record.fields
+    const name = optionalString(f[TRAINING_FIELD.name])
+    if (!name) continue
+    if (f[TRAINING_FIELD.publish] !== true || f[TRAINING_FIELD.hide] === true)
+      continue
+    rounds.push({
+      id: record.id,
+      name,
+      url: normalizeUrl(optionalString(f[TRAINING_FIELD.url]) || ''),
+      description: optionalString(f[TRAINING_FIELD.description]) || '',
+      host: null,
+      startDate: optionalString(f[TRAINING_FIELD.startDate]),
+      startDateApprox:
+        optionalString(f[TRAINING_FIELD.startDateApprox])?.trim() || null,
+      endDate: optionalString(f[TRAINING_FIELD.endDate]),
+      applicationsClose: optionalString(f[TRAINING_FIELD.deadline]),
+    })
+  }
+  return rounds
 }
 
 export async function getRecurringPrograms(): Promise<RecurringProgram[]> {

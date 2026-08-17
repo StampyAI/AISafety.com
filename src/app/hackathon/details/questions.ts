@@ -104,8 +104,6 @@ export const SECTIONS: readonly Section[] = [
   },
   {
     title: 'Your stay at CEEALAR',
-    intro:
-      'The hackathon runs all day Thursday 17 September to all day Sunday 20 September 2026. Ideally arrive on Wednesday evening and leave on Sunday evening or Monday morning.',
     fields: [
       {
         type: 'select',

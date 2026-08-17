@@ -35,7 +35,9 @@ export default function HackathonDetailsPage() {
             >
               CEEALAR
             </a>{' '}
-            (the EA Hotel) in Blackpool, England. Please fill this in by{' '}
+            (the EA Hotel) in Blackpool, England. It runs all day Thursday to
+            all day Sunday, so ideally arrive on Wednesday evening and leave on
+            Sunday evening or Monday morning. Please fill this in by{' '}
             <strong>21 August</strong>.
           </p>
 

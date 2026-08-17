@@ -2,24 +2,10 @@
 
 import { Fragment, useEffect, useState } from 'react'
 import base from '../page.module.css'
-import styles from './page.module.css'
-import {
-  FIELDS,
-  NOTES_KEY,
-  OTHER_MAX,
-  PROJECTS,
-  RATINGS,
-  SECTIONS,
-  WHY_FROM,
-  WHY_MAX,
-  maxLen,
-  needsTravelNotes,
-  type Field,
-} from './questions'
+import { FIELDS, OTHER_MAX, SECTIONS, maxLen, type Field } from './questions'
 
-const PROJECTS_KEY = FIELDS.find(f => f.type === 'projects')?.key ?? 'projects'
-
-type ProjectAnswer = { rating: number; why: string }
+// "(optional)" markers only make sense when something is required.
+const ANY_REQUIRED = FIELDS.some(f => f.required)
 
 /** Answers by field key. Checkbox groups hold the ticked options; their
  *  free-text "Other" box is stored under `${key}Other`. */
@@ -27,15 +13,9 @@ type Values = {
   text: Record<string, string>
   multi: Record<string, string[]>
   agree: Record<string, boolean>
-  projects: Record<string, ProjectAnswer>
 }
 
-const EMPTY: Values = {
-  text: { website: '' },
-  multi: {},
-  agree: {},
-  projects: {},
-}
+const EMPTY: Values = { text: { website: '' }, multi: {}, agree: {} }
 
 function Optional() {
   return <em className="color-teal-400">(optional)</em>
@@ -75,7 +55,9 @@ function grow(el: HTMLTextAreaElement) {
 export default function DetailsForm() {
   const [values, setValues] = useState(EMPTY)
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
+  // false = not sent yet; 'emailed' / 'stored' = sent, with / without an
+  // email address to confirm to.
+  const [done, setDone] = useState<false | 'emailed' | 'stored'>(false)
   const [error, setError] = useState('')
 
   const setText = (key: string, value: string) =>
@@ -90,20 +72,11 @@ export default function DetailsForm() {
     })
   const setAgree = (key: string, checked: boolean) =>
     setValues(v => ({ ...v, agree: { ...v.agree, [key]: checked } }))
-  const setProject = (name: string, patch: Partial<ProjectAnswer>) =>
-    setValues(v => ({
-      ...v,
-      projects: {
-        ...v.projects,
-        [name]: { ...(v.projects[name] ?? { rating: 0, why: '' }), ...patch },
-      },
-    }))
 
-  // Rules the browser can't express with `required` alone are fed to it as
-  // custom validity, so a failed submit scrolls to and flags the field like
-  // any other: at least one option in required checkbox groups, and travel
-  // notes when a check-in/out date is "Other". (Ratings use `required` on the
-  // radios; the "why" box is only rendered when it's required.)
+  // A required checkbox group is a rule the browser can't express with
+  // `required` alone, so it's fed in as custom validity and a failed submit
+  // scrolls to and flags the group like any other field. No group is required
+  // at the moment.
   useEffect(() => {
     for (const f of FIELDS) {
       if (f.type !== 'checkboxes' || !f.required) continue
@@ -117,14 +90,6 @@ export default function DetailsForm() {
         !!values.agree[`${f.key}OtherOpen`]
       first?.setCustomValidity(ok ? '' : 'Please choose at least one option.')
     }
-    const notes = document.getElementById(
-      NOTES_KEY
-    ) as HTMLTextAreaElement | null
-    notes?.setCustomValidity(
-      needsTravelNotes(values.text)
-        ? 'Please tell us your dates here, since you picked "Other" above.'
-        : ''
-    )
   }, [values])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -140,11 +105,10 @@ export default function DetailsForm() {
           ...values.text,
           ...values.multi,
           ...values.agree,
-          [PROJECTS_KEY]: values.projects,
         }),
       })
       if (res.ok) {
-        setDone(true)
+        setDone(values.text.email?.trim() ? 'emailed' : 'stored')
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } else if (res.status === 429) {
         setError(
@@ -167,9 +131,10 @@ export default function DetailsForm() {
       <div className="padding-bottom-56px">
         <h3 className="padding-bottom-16px">Thanks!</h3>
         <p className="color-teal-300">
-          We&apos;ve emailed you a copy of your answers. If anything changes –
-          especially your dates – just reply to that email. See you in
-          Blackpool!
+          {done === 'emailed'
+            ? 'We’ve emailed you a copy of your answers. If anything changes – especially your dates – just reply to that email.'
+            : 'If anything changes – especially your dates – just let Bryce know.'}{' '}
+          See you in Blackpool!
         </p>
       </div>
     )
@@ -179,7 +144,7 @@ export default function DetailsForm() {
     const width = 'half' in f && f.half ? '' : base.full
     const label = (
       <>
-        <Text>{f.label}</Text> {!f.required && <Optional />}
+        <Text>{f.label}</Text> {ANY_REQUIRED && !f.required && <Optional />}
         {f.hint && (
           <>
             <br />
@@ -331,81 +296,6 @@ export default function DetailsForm() {
             />
             <span className="paragraph-small color-white">{label}</span>
           </label>
-        )
-
-      case 'projects':
-        return (
-          <div
-            key={f.key}
-            id={f.key}
-            role="group"
-            aria-labelledby={`${f.key}-label`}
-            className={`${base.field} ${base.full}`}
-          >
-            <p id={`${f.key}-label`} className="paragraph-small color-teal-300">
-              {label}
-            </p>
-            <div className="flex flex-col gap-24px">
-              {PROJECTS.map((p, i) => {
-                const answer = values.projects[p.name]
-                return (
-                  <div key={p.name} className={styles.project}>
-                    <div>
-                      <p className="paragraph-small color-white">{p.name}</p>
-                      <p className="paragraph-xs color-teal-400">{p.blurb}</p>
-                    </div>
-                    <div
-                      className="flex gap-16px"
-                      role="radiogroup"
-                      aria-label={p.name}
-                    >
-                      {RATINGS.map(r => (
-                        <label
-                          key={r}
-                          className="flex items-center cursor-pointer"
-                        >
-                          <input
-                            type="radio"
-                            name={`project-${i}`}
-                            className={`checkbox ${styles.radio}`}
-                            checked={answer?.rating === r}
-                            // Dropping below WHY_FROM hides the "why" box, so
-                            // clear it rather than send text they can't see.
-                            onChange={() =>
-                              setProject(
-                                p.name,
-                                r >= WHY_FROM
-                                  ? { rating: r }
-                                  : { rating: r, why: '' }
-                              )
-                            }
-                            required={f.required}
-                          />
-                          <span className="paragraph-small color-white">
-                            {r}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    {(answer?.rating ?? 0) >= WHY_FROM && (
-                      <textarea
-                        className={`text-field ${base.textarea} ${base.full}`}
-                        aria-label={`Why are you excited about ${p.name}, and what could you contribute?`}
-                        placeholder="Why are you excited, and what could you contribute?"
-                        value={answer?.why ?? ''}
-                        onChange={e => {
-                          grow(e.target)
-                          setProject(p.name, { why: e.target.value })
-                        }}
-                        required
-                        maxLength={WHY_MAX}
-                      />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
         )
     }
   }

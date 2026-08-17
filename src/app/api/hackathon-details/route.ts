@@ -5,12 +5,7 @@ import { getClientIp } from '@/lib/assistant/rate-limit'
 import {
   FIELDS,
   OTHER_MAX,
-  PROJECTS,
-  RATINGS,
-  WHY_FROM,
-  WHY_MAX,
   maxLen,
-  needsTravelNotes,
   plainLabel,
 } from '@/app/hackathon/details/questions'
 
@@ -123,38 +118,9 @@ export async function POST(req: NextRequest) {
         answers.push([label, yes ? 'Yes' : ''])
         break
       }
-
-      case 'projects': {
-        const raw =
-          b[f.key] && typeof b[f.key] === 'object'
-            ? (b[f.key] as Record<string, unknown>)
-            : {}
-        for (const p of PROJECTS) {
-          const a =
-            raw[p.name] && typeof raw[p.name] === 'object'
-              ? (raw[p.name] as Record<string, unknown>)
-              : {}
-          const rating = (RATINGS as readonly number[]).includes(
-            a.rating as number
-          )
-            ? (a.rating as number)
-            : 0
-          // A "why" only counts for ratings that show the box; anything else
-          // is stale text from a since-lowered rating.
-          const why = rating >= WHY_FROM ? str(a.why, WHY_MAX) : ''
-          if (f.required && !rating) missing.push(f.key)
-          if (rating >= WHY_FROM && !why) missing.push(`${f.key}:${p.name}`)
-          answers.push([
-            `${f.short} – ${p.name}`,
-            rating ? (why ? `${rating} – ${why}` : String(rating)) : '',
-          ])
-        }
-        break
-      }
     }
   }
 
-  if (needsTravelNotes(b)) missing.push('travelNotes')
   if (missing.length) {
     return new Response('missing required fields', { status: 400 })
   }

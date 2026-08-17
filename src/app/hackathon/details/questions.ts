@@ -189,15 +189,15 @@ export const SECTIONS: readonly Section[] = [
         half: true,
       },
       {
+        type: 'textarea',
+        key: 'anythingElse',
+        label: 'Anything else you’d like us to know?',
+      },
+      {
         type: 'agree',
         key: 'ceealarTerms',
         label:
           'I agree to CEEALAR’s [terms and conditions](https://www.ceealar.org/terms-and-conditions) and [code of conduct](https://www.ceealar.org/code-of-conduct)',
-      },
-      {
-        type: 'textarea',
-        key: 'anythingElse',
-        label: 'Anything else you’d like us to know?',
       },
       {
         type: 'agree',

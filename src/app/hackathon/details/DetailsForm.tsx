@@ -337,7 +337,7 @@ export default function DetailsForm() {
 
       <div className={base.full}>
         <button type="submit" className="button-primary" disabled={busy}>
-          {busy ? 'Sending…' : 'Send details'}
+          {busy ? 'Submitting…' : 'Submit'}
         </button>
         {error && (
           <p className="paragraph-small color-orange margin-top-16px">

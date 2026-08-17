@@ -842,8 +842,9 @@
   line-height: 1.5;
 }
 
-/* "Visited the web" note on a chatbot turn — one entry per live page read
- * (read_listing_page) the bot made while composing that reply. */
+/* "Visited the web" / "checked past rounds" note on a chatbot turn — one
+ * entry per live page read (read_listing_page) or round-history lookup
+ * (get_program_history) the bot made while composing that reply. */
 .convTurnVisited {
   display: flex;
   flex-wrap: wrap;

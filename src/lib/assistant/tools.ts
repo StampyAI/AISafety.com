@@ -2,6 +2,13 @@ import type Anthropic from '@anthropic-ai/sdk'
 import type { Catalog, Listing, ListingType } from './types'
 import { isReadableUrl, readPage } from './read-page'
 import { searchCatalog } from './search'
+import {
+  getRoundIndex,
+  queryWords,
+  searchRounds,
+  MAX_ROUNDS,
+  type IndexedRound,
+} from './program-history'
 
 export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
@@ -32,7 +39,7 @@ ARGUMENTS:
 
 Events ('event') are things to attend — conferences, hackathons, meetups, talks, workshops, competitions — on /events. Training programs ('training') are things to apply to and do — fellowships, facilitated courses, bootcamps — on /training. Fellowships and bootcamps are ALWAYS 'training', never 'event'. The 'training' type mixes two kinds of listing: dated upcoming rounds (with startDate/endDate/applicationsClose meta) and evergreen recurring programs (meta \`recurring: 'Yes'\`, no dates, with a \`typicalLength\` like "10 weeks" instead). Dated rounds are the default to card — results list them first; only surface a recurring listing when the user's ask really points at it (a named program with no open dated round, "when does X run again", programs that run regularly, or nothing dated fits). The same program can appear as both — never card both versions in one answer.
 
-Meta fields you can read off event/training results: startDate, endDate, applicationsClose, host, mode, cost (events), plus (training) startDateApprox, length, and typicalLength. When \`startDateApprox\` is present (e.g. "early September 2026") it is the org's own wording and the ISO startDate is only an approximate anchor — describe timing with the approx wording, never the exact ISO date. The catalog only contains upcoming or currently-running listings (past ones are excluded), sorted soonest-first (recurring programs come after, in the site's order). NOTE: a future start date does NOT mean you can still apply — the application window may already be closed. For every event/training result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'not_yet_open' | 'unknown' | 'recurring') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Card/recommend listings with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program). 'not_yet_open' means the round is announced but applications/registrations haven't opened yet — you may surface it as upcoming, but don't tell the user to apply now. 'unknown' means there's no closing date on file (rolling, walk-in, or not yet announced) — you may surface it, but never assert it's open or closed; just say the application deadline is unknown. Do NOT tell the user to check the link (if the deadline were findable there, we'd already have it on the site). 'recurring' means an evergreen program with no dated round listed — fine to recommend; follow its applicationsNote for how to talk about timing.
+Meta fields you can read off event/training results: startDate, endDate, applicationsClose, host, mode, cost (events), plus (training) startDateApprox, length, and typicalLength. When \`startDateApprox\` is present (e.g. "early September 2026") it is the org's own wording and the ISO startDate is only an approximate anchor — describe timing with the approx wording, never the exact ISO date. The catalog only contains upcoming or currently-running listings (past ones are excluded — for a program's earlier rounds use \`get_program_history\`), sorted soonest-first (recurring programs come after, in the site's order). NOTE: a future start date does NOT mean you can still apply — the application window may already be closed. For every event/training result the server pre-computes \`applicationsStatus\` ('open' | 'closed' | 'not_yet_open' | 'unknown' | 'recurring') and a plain-English \`applicationsNote\`. TRUST these — do not do your own date arithmetic. Card/recommend listings with \`applicationsStatus: 'open'\`; for 'closed' don't suggest applying (only mention it if the user named that program). 'not_yet_open' means the round is announced but applications/registrations haven't opened yet — you may surface it as upcoming, but don't tell the user to apply now. 'unknown' means there's no closing date on file (rolling, walk-in, or not yet announced) — you may surface it, but never assert it's open or closed; just say the application deadline is unknown. Do NOT tell the user to check the link (if the deadline were findable there, we'd already have it on the site). 'recurring' means an evergreen program with no dated round listed — fine to recommend; follow its applicationsNote for how to talk about timing.
 
 • \`near\` — optional geo filter. Object with \`{city: string, radiusKm?: number}\` or \`{lat, lng, radiusKm?}\`. Default radius is 500km, intentionally wide. Currently only \`community\` listings have coordinates; for other types \`near\` does a fallback substring match on the location meta field. Results within range are ranked by distance ascending. USE THIS for any "near X" / "in X" / "around X" / "close to X" location queries instead of putting the city in the query.
 
@@ -156,6 +163,30 @@ Rules:
       required: ['id'],
     },
   },
+  {
+    name: 'get_program_history',
+    description: `Every round of a training program or event that the site has on file — PAST rounds included, which search_listings never shows (the catalog holds only upcoming or running rounds). Use it whenever the user asks how often something runs, when previous rounds ran, whether or when there will be another round ("would there be one starting in January?"), what its usual season or deadline is, or how many times it has run — and BEFORE telling the user a program's next dates aren't known, since the pattern of past rounds is usually the most useful thing you can offer them.
+
+Pass \`id\` (the catalog id of the training / event / org listing in question, copied from a search_listings or get_listing result — use it whenever you have one) and/or \`query\` (the program's short name: "Pathfinder Fellowship", "MATS", "EA Global London"). Season, year and "cohort" words are ignored, so a dated listing's full name works fine as the query. Matching is deliberately generous, so results can include sub-streams or sibling programs from the same organizer — read the names and use only the rounds that are actually the same program.
+
+Each round carries name, startDate (plus startDateApprox where the organizer only gave rough wording — describe timing with that wording), endDate, applicationsClose, and status ('past' | 'running' | 'upcoming' | 'undated'), newest first. Rounds currently listed on the site also carry an \`id\` — only THOSE can be carded. Past rounds have no id and are NEVER cards: describe them in prose. Use the rounds to describe the cadence honestly (e.g. "it has run each semester — rounds began in August 2025, December 2025 and August 2026, with applications closing a few weeks before each start"), then say plainly that the next round isn't dated on the site unless a round here is 'upcoming' or listed. Never present a past round as something to apply to, and never turn a pattern into a promised date — "if the pattern holds" is the most you can say. If nothing matches, retry once with a shorter name or the acronym before concluding the site has no record of other rounds — and say it that way ("the site has no record of other rounds"), never that the program has never run before.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: {
+          type: 'string',
+          description:
+            'Catalog id of the listing whose rounds you want, e.g. "training:rec123ABC" or "event:rec123ABC". Copy it from a search_listings or get_listing result.',
+        },
+        query: {
+          type: 'string',
+          description:
+            'The program\'s short name, e.g. "Pathfinder Fellowship", "MATS", "EA Global London". Use instead of (or as well as) id.',
+        },
+      },
+      required: [],
+    },
+  },
 ]
 
 interface SearchInput {
@@ -173,6 +204,11 @@ interface GetListingInput {
 
 interface ReadListingPageInput {
   id?: string
+}
+
+interface ProgramHistoryInput {
+  id?: string
+  query?: string
 }
 
 /** Pre-computed application-window status for an event or training program,
@@ -202,7 +238,7 @@ function eventApplicationStatus(
     return {
       applicationsStatus: 'recurring',
       applicationsNote:
-        "An evergreen program that runs repeatedly — no dates for the next round are listed here. Fine to recommend the program itself; for the current round's dates and deadline, point the user to the program's own page, and suggest the AI Safety Events & Training newsletter to catch new rounds as they are announced.",
+        "An evergreen program that runs repeatedly — no dates for the next round are listed here. Fine to recommend the program itself. If the user asks when it runs, how often, or whether there'll be another round, call get_program_history with this listing's id first — the site usually has its earlier rounds on file, and their pattern is the honest answer. For the current round's dates and deadline, point the user to the program's own page, and suggest the AI Safety Events & Training newsletter to catch new rounds as they are announced.",
     }
   }
   const close =
@@ -284,6 +320,9 @@ export interface ToolExecutionResult {
   ok: boolean
   content: string
   listings: Listing[]
+  /** Short outcome for the chat's tool pill ("3 rounds"); the stream falls
+   *  back to a per-tool default when absent. */
+  summary?: string
 }
 
 async function executeSearch(
@@ -396,6 +435,114 @@ async function executeReadListingPage(
   }
 }
 
+/** Where a round sits relative to today, from its own dates. A round with
+ *  only a start date is treated as one day long. */
+function roundStatus(
+  round: IndexedRound['round'],
+  today: string
+): 'past' | 'running' | 'upcoming' | 'undated' {
+  const start = round.startDate?.slice(0, 10) ?? null
+  const end = (round.endDate ?? round.startDate)?.slice(0, 10) ?? null
+  if (!start && !end) return 'undated'
+  if (end && end < today) return 'past'
+  if (start && start > today) return 'upcoming'
+  return 'running'
+}
+
+async function executeProgramHistory(
+  input: ProgramHistoryInput,
+  catalog: Catalog
+): Promise<ToolExecutionResult> {
+  const id = typeof input.id === 'string' ? input.id.trim() : ''
+  const queryText = typeof input.query === 'string' ? input.query.trim() : ''
+  if (!id && !queryText) {
+    return {
+      ok: false,
+      content:
+        "Error: pass id (a catalog id copied from a search_listings/get_listing result) and/or query (the program's name).",
+      listings: [],
+    }
+  }
+  const listing = id ? catalog.listings.find(l => l.id === id) : undefined
+  if (id && !listing && !queryText) {
+    return {
+      ok: false,
+      content: `No listing with id ${id}. Ids come only from search_listings/get_listing results — do not guess them. Pass query with the program's name instead.`,
+      listings: [],
+    }
+  }
+  const text = queryText || listing!.name
+
+  const index = await getRoundIndex()
+  if (index.rounds.length === 0) {
+    return {
+      ok: false,
+      content:
+        'Round history is not available in this environment (no Airtable connection), so past rounds cannot be checked here.',
+      listings: [],
+    }
+  }
+
+  const { matches, total } = searchRounds(index, { text, url: listing?.url })
+  if (matches.length === 0) {
+    const distinctive = queryWords(text)
+    return {
+      ok: true,
+      content: JSON.stringify({
+        query: text,
+        matches: 0,
+        note:
+          distinctive.length === 0
+            ? 'The query has no distinctive words once seasons, years and words like "cohort" are ignored — pass the program\'s own name (e.g. "Pathfinder Fellowship", "MATS").'
+            : 'No rounds on file match this name. Retry once with a shorter name or the acronym before concluding; if that also finds nothing, tell the user the site has no record of other rounds of this program (never that it has never run — the site may simply not have tracked it).',
+      }),
+      listings: [],
+      summary: 'no rounds',
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const live = new Map(catalog.listings.map(l => [l.id, l]))
+  const listings: Listing[] = []
+  const rounds = matches
+    .map(({ entry }) => {
+      const r = entry.round
+      const liveListing = live.get(`${entry.kind}:${r.id}`)
+      if (liveListing) listings.push(liveListing)
+      return {
+        ...(liveListing ? { id: liveListing.id } : {}),
+        kind: entry.kind,
+        name: r.name,
+        ...(r.host ? { host: r.host } : {}),
+        status: roundStatus(r, today),
+        startDate: r.startDate,
+        ...(r.startDateApprox ? { startDateApprox: r.startDateApprox } : {}),
+        endDate: r.endDate,
+        applicationsClose: r.applicationsClose,
+      }
+    })
+    // Newest first, undated last — the recent rounds say most about the
+    // current cadence.
+    .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''))
+
+  return {
+    ok: true,
+    content: JSON.stringify({
+      query: text,
+      matches: rounds.length,
+      ...(total > rounds.length
+        ? {
+            truncated: `Showing the ${MAX_ROUNDS} strongest of ${total} matches — pass a more specific name if the program you want isn't here.`,
+          }
+        : {}),
+      note: "Every round on file for names matching the query, newest first. Rounds WITH an id are listed on the site now and may be carded; rounds without an id (past, or started already) are history — describe them in prose only, never as [[card:…]] and never as something to apply to. Same-organizer sub-streams or sibling programs can appear here — judge by name which rounds are truly the same program. applicationsClose is each round's deadline: the gap between it and startDate shows roughly how far ahead applications usually close — describe that as the pattern, never as a promise about the next round.",
+      rounds,
+    }),
+    listings,
+    summary: `${rounds.length} round${rounds.length === 1 ? '' : 's'}`,
+  }
+}
+
 export async function executeTool(
   name: string,
   input: unknown,
@@ -409,6 +556,8 @@ export async function executeTool(
       return executeGetListing(safeInput as GetListingInput, catalog)
     case 'read_listing_page':
       return executeReadListingPage(safeInput as ReadListingPageInput, catalog)
+    case 'get_program_history':
+      return executeProgramHistory(safeInput as ProgramHistoryInput, catalog)
     default:
       return {
         ok: false,

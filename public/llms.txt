@@ -24,5 +24,5 @@ The site does not publish articles or research. It is a directory and discovery 
 ## Other Pages
 
 - [About](https://aisafety.com/about): Information about the team, mission, and how to get involved
-- [Hackathon 2026](https://aisafety.com/hackathon): The annual AISafety.com hackathon – event details and signup
+- [Hackathon 2026](https://aisafety.com/hackathon): The annual AISafety.com hackathon – event details and application form (applications closed 14 August 2026; late applications from very strong candidates may still be considered)
 - [AISafety.info](https://aisafety.info): Sister site explaining what AI safety is, why it matters, and what you can do to help

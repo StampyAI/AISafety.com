@@ -6,7 +6,7 @@ const OG_DESCRIPTION = 'A four-day, in-person hackathon to improve the site.'
 export const metadata = {
   title: 'Hackathon 2026 – AISafety.com',
   description:
-    'Join the AISafety.com team at CEEALAR in Blackpool, England, 17–20 September 2026, for a four-day hackathon to improve the site. Free to attend – applications close 14 August.',
+    'Join the AISafety.com team at CEEALAR in Blackpool, England, 17–20 September 2026, for a four-day hackathon to improve the site. Free to attend – applications closed 14 August 2026.',
   alternates: { canonical: '/hackathon' },
   openGraph: {
     title: 'AISafety.com Hackathon 2026',
@@ -63,9 +63,10 @@ export default function HackathonPage() {
             Free, including accommodation and all meals
           </p>
           <p className="padding-bottom-40px">
-            <strong>Applications close</strong>
+            <strong>Applications closed</strong>
             <br />
-            14 August 2026 (decisions by 21 August)
+            14 August 2026 (decisions by 21 August). We may still consider late
+            applications from very strong candidates.
           </p>
 
           <p className="color-teal-300 padding-bottom-40px">

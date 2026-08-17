@@ -4,12 +4,14 @@
   ─── assistant_conversations ───
   ID env var: ADMIN_CONVERSATIONS_TABLE_ID
   One row per CONVERSATION (keyed by Session). Each turn updates the row
-  in place: refresh the latest fields, extend Data.history, accumulate
-  Data.tools/citations.
+  in place: refresh the latest fields, replace Data.history with the
+  latest turn's window (the widget resends the whole conversation each
+  turn; the route windows it to the last 50 messages before logging),
+  accumulate Data.tools/citations.
 
   Fields:
     Session         (single line text)  — natural key
-    Page            (single line text)  — page of the latest turn
+    Page            (single line text)  — page the conversation started on
     Latency ms      (number)            — latest turn's latency
     Prompt version  (single line text)  — latest, e.g. "2026-05-07-1"
     Notes           (long text)         — admin annotations
@@ -30,6 +32,9 @@
 const TOKEN = process.env.AIRTABLE_TOKEN
 const BASE = process.env.AIRTABLE_BASE_ID
 const CONVERSATIONS_TABLE = process.env.ADMIN_CONVERSATIONS_TABLE_ID
+// Ceiling for the serialized Data JSON, under Airtable's 100,000-character
+// long-text limit with margin. See upsertConversation.
+const MAX_DATA_CHARS = 90_000
 
 // Permanent Airtable field IDs for the conversations table. All reads set
 // returnFieldsByFieldId and all writes key fields by ID, so renaming a
@@ -127,6 +132,12 @@ export interface StoredCitation {
 export interface ConversationData {
   user: string
   response: string
+  /** The conversation as of the latest turn, WINDOWED: the last 50 messages
+   *  (25 exchanges; rows written before 17 Aug 2026 kept only the model's
+   *  14-message window), then trimmed further if the row would overflow
+   *  Airtable's long-text limit. Per-turn arrays (`tools`, `turnTimes`,
+   *  `pages`) are never windowed, so their length is the true turn count and
+   *  they align with `history` from the END. */
   history: HistoryTurn[]
   tools: unknown[]
   /** One entry per logged turn (aligned with `tools`): card ids in that
@@ -474,6 +485,19 @@ export async function upsertConversation(input: {
     ...(input.status ? { status: input.status } : {}),
   }
 
+  // Airtable rejects long-text values over 100,000 characters, and a rejected
+  // write loses the whole turn. The route already windows history to 50
+  // messages, which fits comfortably at typical message sizes; this is the
+  // backstop for the rare chat of very long replies. Drop the oldest messages
+  // until the serialized row fits — the transcript viewer already handles a
+  // window that opens mid-exchange, and the per-turn arrays keep the true
+  // turn count.
+  let serialized = JSON.stringify(data)
+  while (serialized.length > MAX_DATA_CHARS && data.history.length > 2) {
+    data.history = data.history.slice(1)
+    serialized = JSON.stringify(data)
+  }
+
   const fields: ConversationFields = {
     [FIELD.session]: input.session ?? '',
     // The page where the conversation STARTED — written on create, never
@@ -484,7 +508,7 @@ export async function upsertConversation(input: {
     ...(existing ? {} : { [FIELD.page]: input.page }),
     [FIELD.latencyMs]: input.latencyMs,
     [FIELD.promptVersion]: input.promptVersion,
-    [FIELD.data]: JSON.stringify(data),
+    [FIELD.data]: serialized,
   }
 
   const res = existing

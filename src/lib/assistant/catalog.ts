@@ -7,6 +7,7 @@ import { getFounderResources } from '@/lib/data/founders'
 import { getProjects } from '@/lib/data/projects'
 import { getMediaChannels } from '@/lib/data/media-channels'
 import { getMapData } from '@/lib/data/map'
+import { mapAreaFor } from '@/lib/data/map-areas'
 import { getEvents } from '@/lib/data/events'
 import { getTrainingPrograms, getRecurringPrograms } from '@/lib/data/training'
 import { selectFeatured } from '@/lib/featured'
@@ -298,6 +299,10 @@ export async function buildCatalog(): Promise<Catalog> {
       lastModified: o.lastModified ?? undefined,
       meta: compact({
         category: o.category,
+        // Named region the org's logo sits in on /map — decided by its FIRST
+        // category only. Lets the model answer "what's in Advocacy Anchorage"
+        // without mistaking every org tagged Advocacy for one drawn there.
+        mapArea: mapAreaFor(o.category),
         status: o.status,
         scale: o.scale,
         // Acronym/short name (e.g. "AED", "MIRI") so users can search the org

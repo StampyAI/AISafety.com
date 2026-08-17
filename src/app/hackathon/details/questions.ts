@@ -80,7 +80,7 @@ export const SECTIONS: readonly Section[] = [
         type: 'text',
         key: 'discord',
         label: 'Discord handle',
-        hint: 'We coordinate on Discord during the hackathon',
+        hint: 'We coordinate on Discord during the hackathon – if you don’t have an account, please create one',
         half: true,
       },
       {

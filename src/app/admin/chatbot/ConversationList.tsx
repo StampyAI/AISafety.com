@@ -151,6 +151,9 @@ interface Conversation {
   tags: string[]
   data: ConversationData | null
   clickedCitations: string[]
+  /** Visitor's thumbs ratings of the bot's replies (turn index → 'up' |
+   *  'down'), from the row's Ratings field. */
+  ratings: Record<string, 'up' | 'down'>
 }
 
 /** "United States" for an ISO-3166 alpha-2 code, US English spelling. */
@@ -523,6 +526,18 @@ function ConversationRow({
     }
     return s
   }, [conv.clickedCitations])
+  // Thumbs ratings the visitor left, by turn index (same indexing as the
+  // `<turnIndex>:…` click keys above, so the badge lands on the exact reply).
+  const ratingByTurn = useMemo(() => {
+    const m = new Map<number, 'up' | 'down'>()
+    for (const [turn, value] of Object.entries(conv.ratings)) {
+      const n = Number(turn)
+      if (Number.isInteger(n) && (value === 'up' || value === 'down')) {
+        m.set(n, value)
+      }
+    }
+    return m
+  }, [conv.ratings])
   // Where the visitor ended up if they navigated mid-conversation. conv.page
   // is the page the chat STARTED on (per-turn pages live in data.pages), so a
   // differing last entry means the conversation moved — surface the hop in
@@ -730,6 +745,18 @@ function ConversationRow({
                                   </span>
                                 ) : null
                               })()}
+                            {t.role === 'assistant' && ratingByTurn.has(i) && (
+                              <span
+                                className={styles.convRating}
+                                title={
+                                  ratingByTurn.get(i) === 'up'
+                                    ? 'The visitor rated this reply thumbs up'
+                                    : 'The visitor rated this reply thumbs down'
+                                }
+                              >
+                                {ratingByTurn.get(i) === 'up' ? '👍' : '👎'}
+                              </span>
+                            )}
                           </div>
                           <VisitedPages reads={reads} />
                           {t.role === 'user' ? (

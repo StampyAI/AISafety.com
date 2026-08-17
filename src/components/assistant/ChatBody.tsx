@@ -187,6 +187,9 @@ export interface UIMessage {
   followUpChips: string[]
   isStreaming: boolean
   error?: string
+  /** Visitor's thumbs rating of this assistant reply, if any. Kept in the
+   *  session-persisted message so it survives a reload within the tab. */
+  rating?: 'up' | 'down'
 }
 
 export interface ChatBodyHandle {
@@ -395,6 +398,10 @@ interface Props {
    *  index in the stored history), so the admin can badge the one link the
    *  visitor clicked instead of every copy of that href across the chat. */
   onLinkClick?: (href: string, label: string, turnIndex?: number) => void
+  /** Fires when the visitor thumbs-rates an assistant reply. `turnIndex` is
+   *  the reply's position in the message list (matching its index in the
+   *  stored history), so the rating can be pinned to the exact turn. */
+  onRate?: (value: 'up' | 'down', turnIndex: number) => void
   /** Fires when the user sends a message (typed or via a chip), excluding
    *  retries — lets the public chatbot count engagement while the admin
    *  playground (which doesn't pass this) stays out of the numbers. */
@@ -421,6 +428,7 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     onSuggest,
     onCitationClick,
     onLinkClick,
+    onRate,
     onUserSend,
     onHasMessagesChange,
     closeOnEscape,
@@ -837,6 +845,22 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     [messages]
   )
 
+  // Record the visitor's thumbs rating of an assistant reply. Re-clicking the
+  // already-chosen thumb is a no-op; switching thumbs overwrites. The turn's
+  // position in the list (matching the stored history index) is handed up so
+  // the rating can be pinned to the exact turn.
+  const handleRate = useCallback(
+    (msgId: string, value: 'up' | 'down') => {
+      const idx = messages.findIndex(m => m.id === msgId)
+      if (idx === -1 || messages[idx].rating === value) return
+      setMessages(prev =>
+        prev.map(m => (m.id === msgId ? { ...m, rating: value } : m))
+      )
+      onRate?.(value, idx)
+    },
+    [messages, onRate]
+  )
+
   // Union of every listing cited across the whole conversation. Cards resolve
   // against this (not just the current turn's results), so re-showing a
   // previously-surfaced listing renders even when this turn ran no search.
@@ -938,6 +962,50 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                         {chip}
                       </button>
                     ))}
+                  </div>
+                )}
+                {!m.isStreaming && !m.error && m.content.trim() && (
+                  <div className={styles.feedbackRow}>
+                    <button
+                      type="button"
+                      className={`${styles.feedbackButton} ${styles.feedbackButtonUp}${m.rating === 'up' ? ` ${styles.feedbackButtonActive}` : ''}`}
+                      onClick={() => handleRate(m.id, 'up')}
+                      aria-label="Good response"
+                      aria-pressed={m.rating === 'up'}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z" />
+                        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.feedbackButton} ${styles.feedbackButtonDown}${m.rating === 'down' ? ` ${styles.feedbackButtonActive}` : ''}`}
+                      onClick={() => handleRate(m.id, 'down')}
+                      aria-label="Bad response"
+                      aria-pressed={m.rating === 'down'}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z" />
+                        <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
+                      </svg>
+                    </button>
                   </div>
                 )}
                 {m.error && (

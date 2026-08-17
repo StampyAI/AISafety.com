@@ -96,6 +96,10 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   'chatbot_open',
   'chatbot_message',
   'chatbot_click',
+  // A thumbs up/down on a chatbot reply. `label` is 'up' | 'down', `page`
+  // the path the chat was open on. The per-turn detail lives on the
+  // conversation row (Ratings field); this is the aggregate signal.
+  'chatbot_rating',
   // The privacy page's analytics switch: the opt-out is the browser's last
   // recorded event, the opt-in its first after coming back.
   'analytics_optout',

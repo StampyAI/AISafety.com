@@ -204,6 +204,20 @@ export default function Assistant() {
     [currentPage, fireLog]
   )
 
+  const handleRate = useCallback(
+    (value: 'up' | 'down', turnIndex: number) => {
+      void fireLog({
+        kind: 'rating',
+        value,
+        turnIndex,
+        currentPage,
+        sessionId: getSessionId(),
+      })
+      trackEvent('chatbot_rating', { label: value, page: currentPage })
+    },
+    [currentPage, fireLog]
+  )
+
   const handleClear = useCallback(() => {
     chatRef.current?.clear()
     setHasMessages(false)
@@ -419,6 +433,7 @@ export default function Assistant() {
           onSuggest={handleSuggest}
           onCitationClick={handleCitationClick}
           onLinkClick={handleLinkClick}
+          onRate={handleRate}
           onUserSend={handleUserSend}
           onHasMessagesChange={setHasMessages}
           resizeKey={`${isOpen}-${isExpanded}`}

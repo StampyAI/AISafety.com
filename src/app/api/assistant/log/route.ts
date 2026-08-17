@@ -7,9 +7,14 @@ export const dynamic = 'force-dynamic'
 
 function isValidEvent(value: unknown): value is AssistantEvent {
   if (!value || typeof value !== 'object') return false
-  const v = value as { kind?: unknown }
+  const v = value as { kind?: unknown; value?: unknown; turnIndex?: unknown }
   if (v.kind === 'click' || v.kind === 'open' || v.kind === 'suggest')
     return true
+  if (v.kind === 'rating')
+    return (
+      (v.value === 'up' || v.value === 'down') &&
+      typeof v.turnIndex === 'number'
+    )
   return false
 }
 

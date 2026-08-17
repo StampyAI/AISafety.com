@@ -231,7 +231,7 @@ export const SECTIONS: readonly Section[] = [
         type: 'textarea',
         key: 'dietary',
         label: 'Do you have any allergies or dietary needs or preferences?',
-        hint: 'If so, please list the allergen and its severity. All food will be vegan. Write “none” if you have none.',
+        hint: 'If so, please list the allergen and its severity. All food will be vegan.',
         required: true,
       },
       {

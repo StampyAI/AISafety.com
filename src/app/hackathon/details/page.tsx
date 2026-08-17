@@ -40,7 +40,7 @@ export default function HackathonDetailsPage() {
             Sunday evening or Monday morning.
           </p>
           <p className="color-teal-300 padding-bottom-40px">
-            Please complete this form by <strong>21 August</strong>.
+            Please complete this form by <strong>24 August</strong>.
           </p>
 
           <DetailsForm />

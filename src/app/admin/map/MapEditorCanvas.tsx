@@ -69,8 +69,9 @@ interface Props {
 
 const LOGO_CLIP_ID = 'editor-logo-circle-clip'
 const RING_GAP = 3
-/** Selection ring: a vivid magenta over a white halo, so it reads on the
- *  teal land, the orange hills, dark water and white logos alike. */
+/** Selection ring: a vivid magenta that reads on the teal land, the orange
+ *  hills and dark water. No white halo – it looked like a second logo
+ *  circle. */
 const SELECTED_COLOR = '#ff2d95'
 
 type PinSel = d3.Selection<SVGGElement, EditorRecord, SVGGElement, unknown>
@@ -96,22 +97,13 @@ function drawGlyph(
     .attr('stroke-width', 2)
     .attr('stroke-dasharray', '6 4')
     .style('pointer-events', 'none')
-  const ring = g
-    .append('g')
+  g.append('circle')
     .attr('class', 'ring-selected')
-    .style('pointer-events', 'none')
-  ring
-    .append('circle')
-    .attr('r', m.iconSize / 2 + RING_GAP)
-    .attr('fill', 'none')
-    .attr('stroke', '#fff')
-    .attr('stroke-width', 7)
-  ring
-    .append('circle')
     .attr('r', m.iconSize / 2 + RING_GAP)
     .attr('fill', 'none')
     .attr('stroke', SELECTED_COLOR)
-    .attr('stroke-width', 3)
+    .attr('stroke-width', 3.5)
+    .style('pointer-events', 'none')
 
   const glyph = g.append('g').attr('class', 'glyph')
 

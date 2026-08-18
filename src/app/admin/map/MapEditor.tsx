@@ -43,8 +43,12 @@ interface QueuedMove {
   id: string
   x: number
   y: number
-  /** True for undo writes, which must not push another undo entry. */
-  isUndo: boolean
+  /** 'user' moves push an undo entry when confirmed (and clear redo);
+   *  'undo' moves hand their entry to the redo stack; 'redo' moves hand it
+   *  back to the undo stack. */
+  kind: 'user' | 'undo' | 'redo'
+  /** The history entry an undo/redo write is replaying. */
+  entry?: UndoEntry
   /** When it was (last) queued — sends wait SETTLE_MS after this so a burst
    *  of nudges becomes one write. */
   at: number
@@ -81,6 +85,7 @@ export default function MapEditor() {
     retry: QueuedMove | null
   } | null>(null)
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([])
+  const [redoStack, setRedoStack] = useState<UndoEntry[]>([])
   const [showDrafts, setShowDrafts] = useState(true)
   const [showFurniture, setShowFurniture] = useState(true)
   const [previewPublic, setPreviewPublic] = useState(false)
@@ -111,6 +116,8 @@ export default function MapEditor() {
   selectedRef.current = selectedId
   const undoRef = useRef<UndoEntry[]>([])
   undoRef.current = undoStack
+  const redoRef = useRef<UndoEntry[]>([])
+  redoRef.current = redoStack
   const lastLoadAt = useRef(0)
 
   // ── Loading ──────────────────────────────────────────────────────────────
@@ -277,13 +284,21 @@ export default function MapEditor() {
           record: { id: string; x: number; y: number }
         }
         const stored = data.record
-        if (!next.isUndo && expected.x !== null && expected.y !== null) {
-          pushUndo({
-            id: next.id,
-            from: { x: expected.x, y: expected.y },
-            to: { x: stored.x, y: stored.y },
-            at: Date.now(),
-          })
+        if (next.kind === 'user') {
+          if (expected.x !== null && expected.y !== null) {
+            pushUndo({
+              id: next.id,
+              from: { x: expected.x, y: expected.y },
+              to: { x: stored.x, y: stored.y },
+              at: Date.now(),
+            })
+          }
+        } else if (next.kind === 'undo' && next.entry) {
+          const entry = next.entry
+          setRedoStack(prev => [...prev.slice(-49), entry])
+        } else if (next.kind === 'redo' && next.entry) {
+          const entry = next.entry
+          setUndoStack(prev => [...prev.slice(-49), entry])
         }
         lastConfirmed.current.set(next.id, { x: stored.x, y: stored.y })
         if (!superseded()) setLocalPosition(next.id, stored.x, stored.y)
@@ -298,6 +313,14 @@ export default function MapEditor() {
       const back = lastConfirmed.current.get(next.id)
       if (!superseded() && back && back.x !== null && back.y !== null) {
         setLocalPosition(next.id, back.x, back.y)
+      }
+      // A failed undo/redo keeps its history entry where it came from.
+      if (next.kind === 'undo' && next.entry) {
+        const entry = next.entry
+        setUndoStack(prev => [...prev, entry])
+      } else if (next.kind === 'redo' && next.entry) {
+        const entry = next.entry
+        setRedoStack(prev => [...prev, entry])
       }
       setStatus({ kind: 'error', text: `Not saved: ${name}` })
       setErrorBanner({ text: message, retry: next })
@@ -323,26 +346,48 @@ export default function MapEditor() {
   )
 
   const moveRecord = useCallback(
-    (id: string, x: number, y: number, isUndo = false) => {
+    (
+      id: string,
+      x: number,
+      y: number,
+      history: { kind: QueuedMove['kind']; entry?: UndoEntry } = {
+        kind: 'user',
+      }
+    ) => {
       const c = clampGrid(roundGrid(x), roundGrid(y))
       setLocalPosition(id, c.x, c.y)
-      enqueue({ id, x: c.x, y: c.y, isUndo })
+      // A fresh move forks history: nothing to redo any more.
+      if (history.kind === 'user') setRedoStack([])
+      enqueue({ id, x: c.x, y: c.y, ...history })
     },
     [enqueue, setLocalPosition]
   )
 
-  const undo = useCallback(() => {
-    // The undo entry for a move only exists once Airtable confirms it, so
-    // undoing while a save is pending would revert the wrong thing.
+  /** History entries only exist once Airtable confirms a move, so replaying
+   *  one while a save is pending could revert the wrong thing. */
+  const historyBusy = useCallback(() => {
     if (inFlight.current || queue.current.length) {
       setStatus({ kind: 'saving', text: 'Finishing the current save first…' })
-      return
+      return true
     }
+    return false
+  }, [])
+
+  const undo = useCallback(() => {
+    if (historyBusy()) return
     const last = undoRef.current[undoRef.current.length - 1]
     if (!last) return
     setUndoStack(prev => prev.slice(0, -1))
-    moveRecord(last.id, last.from.x, last.from.y, true)
-  }, [moveRecord])
+    moveRecord(last.id, last.from.x, last.from.y, { kind: 'undo', entry: last })
+  }, [historyBusy, moveRecord])
+
+  const redo = useCallback(() => {
+    if (historyBusy()) return
+    const last = redoRef.current[redoRef.current.length - 1]
+    if (!last) return
+    setRedoStack(prev => prev.slice(0, -1))
+    moveRecord(last.id, last.to.x, last.to.y, { kind: 'redo', entry: last })
+  }, [historyBusy, moveRecord])
 
   // ── Canvas callbacks ─────────────────────────────────────────────────────
 
@@ -390,10 +435,23 @@ export default function MapEditor() {
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
           target.isContentEditable)
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !typing) {
-        e.preventDefault()
-        undo()
-        return
+      if ((e.metaKey || e.ctrlKey) && !typing) {
+        const k = e.key.toLowerCase()
+        if (k === 'z' && e.shiftKey) {
+          e.preventDefault()
+          redo()
+          return
+        }
+        if (k === 'z') {
+          e.preventDefault()
+          undo()
+          return
+        }
+        if (k === 'y') {
+          e.preventDefault()
+          redo()
+          return
+        }
       }
       if (e.key === 'Escape') {
         if (typing) return
@@ -425,7 +483,7 @@ export default function MapEditor() {
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [moveRecord, undo])
+  }, [moveRecord, undo, redo])
 
   // ── Derived ──────────────────────────────────────────────────────────────
 
@@ -498,6 +556,15 @@ export default function MapEditor() {
         >
           Undo{undoStack.length ? ` (${undoStack.length})` : ''}
         </button>
+        <button
+          type="button"
+          className={adminStyles.editorButton}
+          onClick={redo}
+          disabled={redoStack.length === 0 || saving}
+          title="Cmd/Ctrl+Shift+Z"
+        >
+          Redo{redoStack.length ? ` (${redoStack.length})` : ''}
+        </button>
         <label className={styles.toggle}>
           <input
             type="checkbox"
@@ -554,7 +621,7 @@ export default function MapEditor() {
                 onClick={() => {
                   const m = errorBanner.retry!
                   setErrorBanner(null)
-                  moveRecord(m.id, m.x, m.y, m.isUndo)
+                  moveRecord(m.id, m.x, m.y, { kind: m.kind, entry: m.entry })
                 }}
               >
                 Retry
@@ -624,7 +691,7 @@ export default function MapEditor() {
 
       <p className={`${adminStyles.sectionHint} ${styles.footnote}`}>
         Only x and y are written – publishing, hiding and Scale stay in
-        Airtable. Undo is per tab and cleared on reload. Desktop only.
+        Airtable. Undo/Redo are per tab and cleared on reload. Desktop only.
       </p>
     </div>
   )

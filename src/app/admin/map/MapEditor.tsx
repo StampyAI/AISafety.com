@@ -45,6 +45,11 @@ interface QueuedMove {
   y: number
   /** True for undo writes, which must not push another undo entry. */
   isUndo: boolean
+  /** When it was (last) queued — sends wait SETTLE_MS after this so a burst
+   *  of nudges becomes one write. */
+  at: number
+  /** Rate-limit retries so far. */
+  attempts: number
 }
 
 /** Consecutive nudges/drops of the same pin within this window collapse into
@@ -52,6 +57,13 @@ interface QueuedMove {
 const UNDO_MERGE_MS = 1500
 /** Re-read Airtable when the tab regains focus after this long away. */
 const REFRESH_ON_FOCUS_MS = 60_000
+/** Wait this long after the last move of a pin before writing it. Airtable
+ *  allows ~5 requests/s per base and each save is two; held arrow keys or
+ *  quick successive drops must not turn into a burst. */
+const SETTLE_MS = 400
+/** After a 429 Airtable refuses everything for ~30 s. Retry then. */
+const RATE_LIMIT_WAIT_MS = 31_000
+const RATE_LIMIT_MAX_ATTEMPTS = 3
 
 function fmt(n: number): string {
   return n.toFixed(1)
@@ -73,6 +85,8 @@ export default function MapEditor() {
   const [showFurniture, setShowFurniture] = useState(true)
   const [previewPublic, setPreviewPublic] = useState(false)
   const [dragging, setDragging] = useState(false)
+  // True while any save is queued or in flight (Undo waits for it).
+  const [saving, setSaving] = useState(false)
   const [panelTab, setPanelTab] = useState<PanelTab>('unplaced')
 
   const controlsRef = useRef<CanvasControls>({
@@ -85,6 +99,8 @@ export default function MapEditor() {
   const lastConfirmed = useRef<Map<string, Position>>(new Map())
   const queue = useRef<QueuedMove[]>([])
   const inFlight = useRef<QueuedMove | null>(null)
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const rateLimitedUntil = useRef(0)
   const recordsRef = useRef<EditorRecord[] | null>(null)
   recordsRef.current = records
   const draggingRef = useRef(false)
@@ -176,8 +192,31 @@ export default function MapEditor() {
   const processQueue = useCallback(async () => {
     if (inFlight.current) return
     const next = queue.current.shift()
-    if (!next) return
+    if (!next) {
+      setSaving(false)
+      return
+    }
+    setSaving(true)
+    // Let a burst of moves settle so we send one write, not one per keypress,
+    // and hold everything while Airtable's rate-limit lockout is running.
+    const wait = Math.max(
+      SETTLE_MS - (Date.now() - next.at),
+      rateLimitedUntil.current - Date.now()
+    )
+    if (wait > 0) {
+      queue.current.unshift(next)
+      if (!settleTimer.current) {
+        settleTimer.current = setTimeout(() => {
+          settleTimer.current = null
+          void processQueue()
+        }, wait)
+      }
+      return
+    }
     inFlight.current = next
+    // A newer move of the same pin waiting behind this one means the pin is
+    // already where the user wants it — don't drag it back to this result.
+    const superseded = () => queue.current.some(m => m.id === next.id)
     const expected = lastConfirmed.current.get(next.id) ?? { x: null, y: null }
     const name =
       recordsRef.current?.find(r => r.id === next.id)?.labelName ?? next.id
@@ -194,6 +233,9 @@ export default function MapEditor() {
       if (res.status === 409) {
         const data = (await res.json()) as { current: Position }
         lastConfirmed.current.set(next.id, data.current)
+        // Someone else moved it: show where it really is and drop any of our
+        // follow-up moves rather than silently overwriting theirs.
+        queue.current = queue.current.filter(m => m.id !== next.id)
         if (data.current.x !== null && data.current.y !== null) {
           setLocalPosition(next.id, data.current.x, data.current.y)
         }
@@ -202,6 +244,24 @@ export default function MapEditor() {
           text: `${name} was moved in Airtable since you loaded – shown at its current position (${
             data.current.x === null ? '–' : fmt(data.current.x)
           }, ${data.current.y === null ? '–' : fmt(data.current.y)}). Drag again if you still want to move it.`,
+        })
+      } else if (
+        res.status === 429 &&
+        next.attempts < RATE_LIMIT_MAX_ATTEMPTS
+      ) {
+        // Airtable rate limit: keep the move, wait out the lockout, retry.
+        // Nothing else is sent until then either (see the gate above).
+        if (!superseded()) {
+          queue.current.unshift({
+            ...next,
+            at: Date.now(),
+            attempts: next.attempts + 1,
+          })
+        }
+        rateLimitedUntil.current = Date.now() + RATE_LIMIT_WAIT_MS
+        setStatus({
+          kind: 'saving',
+          text: `Airtable is rate-limiting – ${name} will be saved automatically in about 30 seconds (attempt ${next.attempts + 1} of ${RATE_LIMIT_MAX_ATTEMPTS})…`,
         })
       } else if (!res.ok) {
         let message = `Save failed (${res.status})`
@@ -226,7 +286,7 @@ export default function MapEditor() {
           })
         }
         lastConfirmed.current.set(next.id, { x: stored.x, y: stored.y })
-        setLocalPosition(next.id, stored.x, stored.y)
+        if (!superseded()) setLocalPosition(next.id, stored.x, stored.y)
         setStatus({
           kind: 'ok',
           text: `Saved ${name} at (${fmt(stored.x)}, ${fmt(stored.y)}) · ${new Date().toLocaleTimeString()}`,
@@ -236,7 +296,7 @@ export default function MapEditor() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       const back = lastConfirmed.current.get(next.id)
-      if (back && back.x !== null && back.y !== null) {
+      if (!superseded() && back && back.x !== null && back.y !== null) {
         setLocalPosition(next.id, back.x, back.y)
       }
       setStatus({ kind: 'error', text: `Not saved: ${name}` })
@@ -244,14 +304,19 @@ export default function MapEditor() {
     } finally {
       inFlight.current = null
       if (queue.current.length) void processQueue()
+      else setSaving(false)
     }
   }, [pushUndo, setLocalPosition])
 
   const enqueue = useCallback(
-    (move: QueuedMove) => {
+    (move: Omit<QueuedMove, 'at' | 'attempts'>) => {
       // A newer move of the same pin replaces the one still waiting.
       queue.current = queue.current.filter(m => m.id !== move.id)
-      queue.current.push(move)
+      queue.current.push({ ...move, at: Date.now(), attempts: 0 })
+      if (settleTimer.current) {
+        clearTimeout(settleTimer.current)
+        settleTimer.current = null
+      }
       void processQueue()
     },
     [processQueue]
@@ -267,6 +332,12 @@ export default function MapEditor() {
   )
 
   const undo = useCallback(() => {
+    // The undo entry for a move only exists once Airtable confirms it, so
+    // undoing while a save is pending would revert the wrong thing.
+    if (inFlight.current || queue.current.length) {
+      setStatus({ kind: 'saving', text: 'Finishing the current save first…' })
+      return
+    }
     const last = undoRef.current[undoRef.current.length - 1]
     if (!last) return
     setUndoStack(prev => prev.slice(0, -1))
@@ -386,6 +457,12 @@ export default function MapEditor() {
 
   return (
     <div className={styles.page}>
+      <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
+        <strong>This edits the live site.</strong> Every move is saved to
+        Airtable straight away and appears on the public /map within a few
+        minutes. Please don&apos;t experiment here unless you mean it.
+      </div>
+
       <div className={adminStyles.pageHeading}>
         <h1 className={adminStyles.pageTitle}>Map editor</h1>
         <span className={adminStyles.pageMeta}>
@@ -416,7 +493,7 @@ export default function MapEditor() {
           type="button"
           className={adminStyles.editorButton}
           onClick={undo}
-          disabled={undoStack.length === 0}
+          disabled={undoStack.length === 0 || saving}
           title="Cmd/Ctrl+Z"
         >
           Undo{undoStack.length ? ` (${undoStack.length})` : ''}

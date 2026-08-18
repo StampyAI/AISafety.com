@@ -178,6 +178,7 @@ function rankIn(value: string | null | undefined, order: string[]): number {
 }
 
 function categoryIndices(category: string): number[] {
+  if (!category) return [CATEGORY_ORDER.length + 1]
   return category
     .split(',')
     .map(c => c.trim())

@@ -194,6 +194,7 @@ export default function MapEditorCanvas({
   const placeModeRef = useRef(placeModeId)
   placeModeRef.current = placeModeId
   const draggingRef = useRef(false)
+  const movedRef = useRef(false)
 
   // ── Static scene: built once ─────────────────────────────────────────────
   useEffect(() => {
@@ -349,12 +350,20 @@ export default function MapEditorCanvas({
       .clickDistance(3)
       .subject((_event, d) => ({ x: gridToPx(d.x!), y: gridToPx(d.y!) }))
       .on('start', function () {
+        movedRef.current = false
         draggingRef.current = true
-        d3.select(this).raise().classed('dragging', true)
+        d3.select(this).classed('dragging', true)
         cbRef.current.onDragStateChange(true)
-        if (hudRef.current) hudRef.current.style.display = 'block'
       })
       .on('drag', function (event) {
+        if (!movedRef.current) {
+          movedRef.current = true
+          // Lift the pin above its neighbours only once it actually moves.
+          // Moving the node in the DOM on mousedown would swallow the click
+          // that selects a pin.
+          d3.select(this).raise()
+          if (hudRef.current) hudRef.current.style.display = 'block'
+        }
         d3.select(this).attr('transform', `translate(${event.x}, ${event.y})`)
         if (hudRef.current) {
           const gx = roundGrid(pxToGrid(event.x))
@@ -372,7 +381,9 @@ export default function MapEditorCanvas({
         const rawX = roundGrid(pxToGrid(event.x))
         const rawY = roundGrid(pxToGrid(event.y))
         const { x, y } = clampGrid(rawX, rawY)
-        if (x !== d.x || y !== d.y) {
+        // A plain click (no movement) never writes, even if the stored value
+        // would round or clamp differently.
+        if (movedRef.current && (x !== d.x || y !== d.y)) {
           // Show it at the snapped/clamped spot straight away; the parent
           // will confirm or revert once Airtable answers.
           d3.select(this).attr(

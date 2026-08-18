@@ -28,6 +28,17 @@
   accent-color: var(--bright-teal-300);
 }
 
+.liveWarning {
+  border-color: #f5b942;
+  color: #f5b942;
+  font-size: 13px;
+}
+
+.liveWarning strong {
+  color: #f5b942;
+  font-weight: 600;
+}
+
 .statusStale {
   color: #f5b942;
 }

@@ -48,8 +48,14 @@ async function ensureAuth(): Promise<Response | null> {
 export async function GET() {
   const auth = await ensureAuth()
   if (auth) return auth
-  const records = await listMapRecordsLive()
-  return json({ fetchedAt: new Date().toISOString(), records })
+  try {
+    const records = await listMapRecordsLive()
+    return json({ fetchedAt: new Date().toISOString(), records })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`[map-editor] list failed: ${message}`)
+    return json({ error: message }, 502)
+  }
 }
 
 export async function PATCH(req: NextRequest) {
@@ -89,6 +95,9 @@ export async function PATCH(req: NextRequest) {
     // error (never swallowed); the details go to the server log too.
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[map-editor] move failed for ${move.id}: ${message}`)
-    return json({ error: message }, 502)
+    // Airtable's rate limit (5 req/s per base, then a ~30 s lockout) comes
+    // back as 429 so the editor can wait and retry rather than give up.
+    const rateLimited = /\b429\b/.test(message) && /RATE_LIMIT/.test(message)
+    return json({ error: message }, rateLimited ? 429 : 502)
   }
 }

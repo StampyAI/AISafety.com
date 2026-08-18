@@ -46,6 +46,14 @@ const PASSWORD_ROLES: PasswordRole[] = [
     analytics: true,
     mapEditor: false,
   },
+  // Melissa (site designer): the whole admin except the map editor, on her
+  // own password so it can be revoked without touching the volunteers'.
+  {
+    env: 'ADMIN_PASSWORD_MELISSA',
+    chatbot: true,
+    analytics: true,
+    mapEditor: false,
+  },
 ]
 
 /** Configured passwords whose role satisfies `grants`. Roles left unconfigured

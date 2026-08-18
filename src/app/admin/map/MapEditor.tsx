@@ -730,32 +730,6 @@ export default function MapEditor() {
               } unplaced · ${counts.drafts} incoming suggestions`
             : 'Loading…'}
         </span>
-        <button
-          type="button"
-          className={adminStyles.editorButton}
-          onClick={() => void load()}
-          disabled={dragging || !!inFlight.current}
-        >
-          Refresh
-        </button>
-        <button
-          type="button"
-          className={adminStyles.editorButton}
-          onClick={undo}
-          disabled={undoStack.length === 0 || saving}
-          title="Cmd/Ctrl+Z"
-        >
-          Undo{undoStack.length ? ` (${undoStack.length})` : ''}
-        </button>
-        <button
-          type="button"
-          className={adminStyles.editorButton}
-          onClick={redo}
-          disabled={redoStack.length === 0 || saving}
-          title="Cmd/Ctrl+Shift+Z"
-        >
-          Redo{redoStack.length ? ` (${redoStack.length})` : ''}
-        </button>
         <label className={styles.toggle}>
           <input
             type="checkbox"
@@ -763,7 +737,7 @@ export default function MapEditor() {
             onChange={e => setShowDrafts(e.target.checked)}
             disabled={previewPublic}
           />
-          Show incoming suggestions
+          Show incoming suggestions on map
         </label>
         <label className={styles.toggle}>
           <input
@@ -781,6 +755,34 @@ export default function MapEditor() {
           }`}
         >
           {status.text}
+        </span>
+        <span className={styles.toolbarActions}>
+          <button
+            type="button"
+            className={adminStyles.editorButton}
+            onClick={() => void load()}
+            disabled={dragging || !!inFlight.current}
+          >
+            Refresh
+          </button>
+          <button
+            type="button"
+            className={adminStyles.editorButton}
+            onClick={undo}
+            disabled={undoStack.length === 0 || saving}
+            title="Cmd/Ctrl+Z"
+          >
+            Undo{undoStack.length ? ` (${undoStack.length})` : ''}
+          </button>
+          <button
+            type="button"
+            className={adminStyles.editorButton}
+            onClick={redo}
+            disabled={redoStack.length === 0 || saving}
+            title="Cmd/Ctrl+Shift+Z"
+          >
+            Redo{redoStack.length ? ` (${redoStack.length})` : ''}
+          </button>
         </span>
       </div>
 

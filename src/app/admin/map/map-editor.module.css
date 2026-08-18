@@ -324,17 +324,13 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--white);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .rowMeta {
   font-size: 11px;
   color: var(--teal-400);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .badges {

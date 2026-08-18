@@ -684,7 +684,7 @@ export default function MapEditor() {
 
       <p className={`${adminStyles.sectionHint} ${styles.footnote}`}>
         Only x and y are written – publishing, hiding and Scale stay in
-        Airtable. Undo/Redo are per tab and cleared on reload. Desktop only.
+        Airtable.
       </p>
     </div>
   )

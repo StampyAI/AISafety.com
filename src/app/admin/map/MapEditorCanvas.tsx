@@ -14,6 +14,7 @@
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import MapControls from '@/components/MapControls'
+import { positionTooltip } from '@/lib/mapTooltip'
 import {
   AREA_LABELS,
   AREA_LABEL_STYLE,
@@ -186,6 +187,7 @@ export default function MapEditorCanvas({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hudRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
   const pinsLayerRef = useRef<SVGGElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   // Latest callbacks/state, read from inside d3 handlers without rebinding.
@@ -195,6 +197,13 @@ export default function MapEditorCanvas({
   placeModeRef.current = placeModeId
   const draggingRef = useRef(false)
   const movedRef = useRef(false)
+
+  const hideTooltip = () => {
+    const tt = tooltipRef.current
+    if (!tt) return
+    tt.style.visibility = 'hidden'
+    tt.style.opacity = '0'
+  }
 
   // ── Static scene: built once ─────────────────────────────────────────────
   useEffect(() => {
@@ -221,6 +230,7 @@ export default function MapEditorCanvas({
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent(ZOOM_EXTENT)
       .on('zoom', event => {
+        hideTooltip()
         svgGroup.attr(
           'transform',
           `translate(${event.transform.x + MAP_OFFSET_X}, ${
@@ -304,15 +314,19 @@ export default function MapEditorCanvas({
     const pinsLayer = svgGroup.append('g').attr('class', 'pins')
     pinsLayerRef.current = pinsLayer.node()
 
-    // Place mode: a plain click (no pan) on the map drops the tray record.
+    // A plain click on empty map (a pan suppresses the click): in place mode
+    // it drops the tray record, otherwise it deselects. Pins stop propagation.
     svg.on('click', event => {
-      if (!placeModeRef.current) return
-      const [px, py] = d3.pointer(event, pinsLayer.node())
-      const { x, y } = clampGrid(
-        roundGrid(pxToGrid(px)),
-        roundGrid(pxToGrid(py))
-      )
-      cbRef.current.onPlaceClick(x, y)
+      if (placeModeRef.current) {
+        const [px, py] = d3.pointer(event, pinsLayer.node())
+        const { x, y } = clampGrid(
+          roundGrid(pxToGrid(px)),
+          roundGrid(pxToGrid(py))
+        )
+        cbRef.current.onPlaceClick(x, y)
+        return
+      }
+      cbRef.current.onSelect(null)
     })
 
     controlsRef.current = {
@@ -363,6 +377,7 @@ export default function MapEditorCanvas({
           // that selects a pin.
           d3.select(this).raise()
           if (hudRef.current) hudRef.current.style.display = 'block'
+          hideTooltip()
         }
         d3.select(this).attr('transform', `translate(${event.x}, ${event.y})`)
         if (hudRef.current) {
@@ -415,6 +430,27 @@ export default function MapEditorCanvas({
         event.stopPropagation()
         cbRef.current.onSelect(d.id)
       })
+      // Same hover as /map: the tooltip shows Long name + description.
+      .on('mouseenter', function (event, d) {
+        if (draggingRef.current) return
+        const tt = tooltipRef.current
+        const container = containerRef.current
+        if (!tt || !container) return
+        tt.querySelector('strong')!.textContent = d.tooltipTitle
+        tt.querySelector('span')!.textContent =
+          d.description ?? '(no description yet)'
+        tt.style.visibility = 'visible'
+        tt.style.opacity = '1'
+        positionTooltip(event.clientX, event.clientY, tt, container)
+      })
+      .on('mousemove', function (event) {
+        if (draggingRef.current) return
+        const tt = tooltipRef.current
+        const container = containerRef.current
+        if (!tt || !container) return
+        positionTooltip(event.clientX, event.clientY, tt, container)
+      })
+      .on('mouseleave', hideTooltip)
     entered.each(function () {
       drawGlyph(d3.select<SVGGElement, EditorRecord>(this))
     })
@@ -475,6 +511,15 @@ export default function MapEditorCanvas({
         onReset={() => controlsRef.current.reset()}
       />
       <div ref={hudRef} className={styles.hud} style={{ display: 'none' }} />
+      {/* Tooltip — always in the DOM for measuring, toggled via ref */}
+      <div
+        ref={tooltipRef}
+        className={styles.tooltip}
+        style={{ visibility: 'hidden', opacity: 0 }}
+      >
+        <strong></strong>
+        <span></span>
+      </div>
     </>
   )
 }

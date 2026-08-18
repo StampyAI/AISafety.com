@@ -96,13 +96,21 @@
   cursor: grabbing;
 }
 
-/* Same hover as /map's .mapItem: the glyph grows 1.2× around the logo centre. */
+/* Same hover as /map's .mapItem: the glyph grows 1.2× around the logo centre.
+   Not while a pin is being dragged — the pin should follow the cursor at its
+   real size so it lands where it looks. */
 .canvas :global(g.pin .glyph) {
   transition: transform 0.3s;
 }
 
 .canvas :global(g.pin:hover .glyph) {
   transform: scale(1.2);
+}
+
+.canvas :global(g.pin.dragging .glyph),
+.canvas:global(.is-dragging) :global(g.pin:hover .glyph) {
+  transform: none;
+  transition: none;
 }
 
 /* Tooltip — mirrors /map's .map-tooltip */

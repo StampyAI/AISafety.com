@@ -378,6 +378,7 @@ export default function MapEditorCanvas({
           d3.select(this).raise()
           if (hudRef.current) hudRef.current.style.display = 'block'
           hideTooltip()
+          containerRef.current?.classList.add('is-dragging')
         }
         d3.select(this).attr('transform', `translate(${event.x}, ${event.y})`)
         if (hudRef.current) {
@@ -391,6 +392,7 @@ export default function MapEditorCanvas({
       .on('end', function (event, d) {
         draggingRef.current = false
         d3.select(this).classed('dragging', false)
+        containerRef.current?.classList.remove('is-dragging')
         if (hudRef.current) hudRef.current.style.display = 'none'
         cbRef.current.onDragStateChange(false)
         const rawX = roundGrid(pxToGrid(event.x))

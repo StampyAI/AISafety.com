@@ -709,7 +709,7 @@ export default function MapEditor() {
       <div className={`${adminStyles.pageHeading} ${styles.heading}`}>
         <h1 className={adminStyles.pageTitle}>Map editor</h1>
         <span className={adminStyles.pageMeta}>
-          Drag a logo to move it · click to select · only x, y and Scale are
+          Drag a listing to move it · click to select · only x, y and Scale are
           written
         </span>
       </div>

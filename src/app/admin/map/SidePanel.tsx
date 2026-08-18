@@ -204,8 +204,8 @@ export default function SidePanel({
           ref={searchRef}
           className={`${adminStyles.editorInput} ${styles.search}`}
           type="search"
-          placeholder="Find a logo (placed or unplaced)…"
-          aria-label="Find a logo"
+          placeholder="Find a listing (placed or unplaced)…"
+          aria-label="Find a listing"
           value={search}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => {
@@ -399,7 +399,7 @@ export default function SidePanel({
         <div className={styles.panelBody}>
           {!selected ? (
             <p className={adminStyles.sectionHint}>
-              Click a logo on the map to select it.
+              Click a listing on the map to select it.
             </p>
           ) : (
             <div className={styles.detail}>
@@ -501,8 +501,8 @@ export default function SidePanel({
                 </button>
               </div>
               <p className={adminStyles.sectionHint}>
-                Arrow keys nudge the selected logo by 0.1 (Shift: 1.0). Map is
-                0–{GRID_BOUNDS.x[1]} wide, 0–{GRID_BOUNDS.y[1]} tall.
+                Arrow keys nudge the selected listing by 0.1 (Shift: 1.0). Map
+                is 0–{GRID_BOUNDS.x[1]} wide, 0–{GRID_BOUNDS.y[1]} tall.
               </p>
               {(selected.x === null || selected.y === null) && (
                 <button

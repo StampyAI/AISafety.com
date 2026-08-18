@@ -323,12 +323,14 @@
 .rowTitle {
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.3;
   color: var(--white);
   overflow-wrap: anywhere;
 }
 
 .rowMeta {
   font-size: 11px;
+  line-height: 1.4;
   color: var(--teal-400);
   overflow-wrap: anywhere;
 }

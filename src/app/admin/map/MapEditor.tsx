@@ -727,7 +727,7 @@ export default function MapEditor() {
                 fetchedAt ? new Date(fetchedAt).toLocaleTimeString() : ''
               } · ${counts.total} records · ${counts.placed} placed · ${
                 counts.unplaced
-              } unplaced · ${counts.drafts} unpublished`
+              } unplaced · ${counts.drafts} incoming suggestions`
             : 'Loading…'}
         </span>
         <button
@@ -763,7 +763,7 @@ export default function MapEditor() {
             onChange={e => setShowDrafts(e.target.checked)}
             disabled={previewPublic}
           />
-          Show unpublished
+          Show incoming suggestions
         </label>
         <label className={styles.toggle}>
           <input

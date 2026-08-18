@@ -58,7 +58,7 @@ function Badges({ r }: { r: EditorRecord }) {
   return (
     <span className={styles.badges}>
       <span className={r.published ? styles.badgeLive : styles.badgeDraft}>
-        {r.published ? 'Published' : 'Unpublished'}
+        {r.published ? 'Published' : 'Incoming suggestion'}
       </span>
       {r.isMagic && <span className={styles.badgeWarn}>furniture</span>}
       {!r.mapLogo && <span className={styles.badgeWarn}>no map logo</span>}
@@ -283,7 +283,9 @@ export default function SidePanel({
                                   : styles.badgeDraft
                               }
                             >
-                              {r.published ? 'Published' : 'Unpublished'}
+                              {r.published
+                                ? 'Published'
+                                : 'Incoming suggestion'}
                             </span>
                           </span>
                         </span>

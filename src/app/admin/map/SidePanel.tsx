@@ -151,7 +151,7 @@ export default function SidePanel({
                   <span className={styles.rowMain}>
                     <span className={styles.rowTitle}>{r.title}</span>
                     <span className={styles.rowMeta}>
-                      {r.area ?? r.category ?? '—'}
+                      {r.category || '—'}
                       {r.scale ? ` · ${r.scale}` : ''}
                     </span>
                     <Badges r={r} />
@@ -195,7 +195,6 @@ export default function SidePanel({
                   <span className={styles.rowTitle}>{selected.title}</span>
                   <span className={styles.rowMeta}>
                     {selected.category || '—'}
-                    {selected.area ? ` → ${selected.area}` : ''}
                   </span>
                   <Badges r={selected} />
                 </span>

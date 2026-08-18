@@ -144,6 +144,8 @@ export default function MapEditor() {
   undoRef.current = undoStack
   const redoRef = useRef<UndoEntry[]>([])
   redoRef.current = redoStack
+  /** Undo/redo pressed while a save was pending; runs when the queue drains. */
+  const pendingHistory = useRef<'undo' | 'redo' | null>(null)
   const lastLoadAt = useRef(0)
   const splitRef = useRef<HTMLDivElement>(null)
 
@@ -336,7 +338,9 @@ export default function MapEditor() {
       if (res.status === 409) {
         // Someone else changed it in Airtable: show what is really there and
         // drop any of our follow-up writes rather than silently overwriting.
+        // A pending undo would now revert the wrong step, so drop it too.
         queue.current = queue.current.filter(m => !sameSlot(next, m))
+        pendingHistory.current = null
         if (change.field === 'position') {
           const data = (await res.json()) as { current: Position }
           lastConfirmed.current.set(next.id, data.current)
@@ -439,6 +443,9 @@ export default function MapEditor() {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      // The write didn't happen, so an undo pressed for it has nothing to
+      // undo – it must not fall through to the previous step.
+      pendingHistory.current = null
       // Put the record back to what Airtable last confirmed.
       if (!superseded()) {
         if (change.field === 'position') {
@@ -510,31 +517,54 @@ export default function MapEditor() {
     [applyChange]
   )
 
-  /** History entries only exist once Airtable confirms a move, so replaying
-   *  one while a save is pending could revert the wrong thing. */
-  const historyBusy = useCallback(() => {
+  /** History entries only exist once Airtable confirms a write, so replaying
+   *  one while a save is pending could revert the wrong thing. An undo/redo
+   *  pressed during a save is remembered and runs the moment the queue is
+   *  empty (see the effect below) – it is never just dropped. */
+  const historyBusy = useCallback((what: 'undo' | 'redo') => {
     if (inFlight.current || queue.current.length) {
-      setStatus({ kind: 'saving', text: 'Finishing the current save first…' })
+      pendingHistory.current = what
+      setStatus({
+        kind: 'saving',
+        text: `Finishing the current save, then ${what}ing…`,
+      })
       return true
     }
     return false
   }, [])
 
   const undo = useCallback(() => {
-    if (historyBusy()) return
+    if (historyBusy('undo')) return
     const last = undoRef.current[undoRef.current.length - 1]
-    if (!last) return
+    if (!last) {
+      setStatus({ kind: 'idle', text: 'Nothing to undo.' })
+      return
+    }
     setUndoStack(prev => prev.slice(0, -1))
     applyChange(last.id, last.from, { kind: 'undo', entry: last })
   }, [historyBusy, applyChange])
 
   const redo = useCallback(() => {
-    if (historyBusy()) return
+    if (historyBusy('redo')) return
     const last = redoRef.current[redoRef.current.length - 1]
-    if (!last) return
+    if (!last) {
+      setStatus({ kind: 'idle', text: 'Nothing to redo.' })
+      return
+    }
     setRedoStack(prev => prev.slice(0, -1))
     applyChange(last.id, last.to, { kind: 'redo', entry: last })
   }, [historyBusy, applyChange])
+
+  // Run the undo/redo that was pressed mid-save once the queue has drained
+  // and the history stacks have caught up (this runs after render, so the
+  // stack refs are current).
+  useEffect(() => {
+    if (saving || !pendingHistory.current) return
+    const what = pendingHistory.current
+    pendingHistory.current = null
+    if (what === 'undo') undo()
+    else redo()
+  }, [saving, undoStack, redoStack, undo, redo])
 
   // ── Canvas callbacks ─────────────────────────────────────────────────────
 
@@ -595,7 +625,9 @@ export default function MapEditor() {
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
           target.isContentEditable)
-      if ((e.metaKey || e.ctrlKey) && !typing) {
+      // Undo/redo always mean the map, even with the cursor in the search
+      // box or an x/y field – there is no text history worth keeping there.
+      if (e.metaKey || e.ctrlKey) {
         const k = e.key.toLowerCase()
         if (k === 'z' && e.shiftKey) {
           e.preventDefault()
@@ -674,18 +706,18 @@ export default function MapEditor() {
 
   return (
     <div className={styles.page}>
-      <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
-        <strong>This edits the live site.</strong> Every move is saved to
-        Airtable straight away and appears on the public /map within a few
-        minutes.
-      </div>
-
-      <div className={adminStyles.pageHeading}>
+      <div className={`${adminStyles.pageHeading} ${styles.heading}`}>
         <h1 className={adminStyles.pageTitle}>Map editor</h1>
         <span className={adminStyles.pageMeta}>
           Drag a logo to move it · click to select · saves to Airtable on drop ·{' '}
           /map updates within a few minutes
         </span>
+      </div>
+
+      <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
+        <strong>This edits the live site.</strong> Every move is saved to
+        Airtable straight away and appears on the public /map within a few
+        minutes.
       </div>
 
       <div className={`${adminStyles.editorToolbar} ${styles.toolbar}`}>

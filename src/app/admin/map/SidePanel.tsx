@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorRecord, ScaleName } from '@/lib/admin/map-editor-core'
 import {
   isScaleName,
@@ -116,14 +116,56 @@ export default function SidePanel({
     [records, search]
   )
   const searching = search.trim() !== ''
+  const shown = results.slice(0, MAX_RESULTS)
+  // Keyboard cursor in the results (↑/↓ move it, Enter opens it). Reset to
+  // the first row whenever the query changes.
+  const [cursor, setCursor] = useState(0)
+  const active = Math.min(cursor, Math.max(0, shown.length - 1))
+  const listRef = useRef<HTMLUListElement>(null)
+  useEffect(() => {
+    listRef.current
+      ?.querySelector('[data-active="true"]')
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [active, search])
 
+  // "/" anywhere on the page (except while typing in a field) jumps into the
+  // search box, like GitHub. The editor's own shortcuts ignore "/", so the
+  // two never fight.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.tagName === 'SELECT' ||
+          t.isContentEditable)
+      )
+        return
+      e.preventDefault()
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
+  const setQuery = (q: string) => {
+    setSearch(q)
+    setCursor(0)
+  }
+  // After a pick the search box lets go of focus so the editor's shortcuts
+  // (arrows, Escape, Cmd+Z) act on the map straight away.
   const pick = (id: string) => {
     onPick(id)
-    setSearch('')
+    setQuery('')
+    searchRef.current?.blur()
   }
   const placeFromSearch = (id: string) => {
     onPlace(id)
-    setSearch('')
+    setQuery('')
+    searchRef.current?.blur()
   }
 
   const shownTab = tab
@@ -165,19 +207,28 @@ export default function SidePanel({
           placeholder="Find a logo (placed or unplaced)…"
           aria-label="Find a logo"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => setQuery(e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter' && results[0]) {
+            if (e.key === 'ArrowDown') {
               e.preventDefault()
-              pick(results[0].id)
+              setCursor(Math.min(active + 1, shown.length - 1))
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              setCursor(Math.max(active - 1, 0))
+            } else if (e.key === 'Enter' && shown[active]) {
+              e.preventDefault()
+              pick(shown[active].id)
             } else if (e.key === 'Escape') {
               // First Escape clears; a second one leaves the box so the
               // editor's own Escape (deselect / reset view) takes over.
-              if (searching) setSearch('')
+              if (searching) setQuery('')
               else searchRef.current?.blur()
             }
           }}
         />
+        <kbd className={styles.searchKey} aria-hidden="true">
+          /
+        </kbd>
       </div>
 
       {searching && (
@@ -188,17 +239,18 @@ export default function SidePanel({
             <>
               <p className={adminStyles.sectionHint}>
                 {results.length === 1 ? '1 match' : `${results.length} matches`}{' '}
-                · Enter opens the first · Esc clears
+                · ↑↓ to move · Enter to open · Esc to clear
               </p>
-              <ul className={styles.list}>
-                {results.slice(0, MAX_RESULTS).map(r => {
+              <ul className={styles.list} ref={listRef}>
+                {shown.map((r, i) => {
                   const placed = r.x !== null && r.y !== null
                   return (
                     <li
                       key={r.id}
+                      data-active={i === active}
                       className={`${styles.row} ${styles.rowResult} ${
-                        selected?.id === r.id ? styles.rowSelected : ''
-                      }`}
+                        i === active ? styles.rowActive : ''
+                      } ${selected?.id === r.id ? styles.rowSelected : ''}`}
                     >
                       <button
                         type="button"

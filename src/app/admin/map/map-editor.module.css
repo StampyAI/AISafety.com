@@ -28,6 +28,12 @@
   accent-color: var(--bright-teal-300);
 }
 
+/* Heading sits first, then the live-site warning; the page's own 12px gap
+   spaces them (the shared heading margin would double it). */
+.heading {
+  margin-bottom: 0;
+}
+
 .liveWarning {
   border-color: #f5b942;
   color: #f5b942;
@@ -253,6 +259,7 @@
 
 /* Search sits above the tabs and covers every record, placed or not. */
 .searchBar {
+  position: relative;
   padding: 12px;
   border-bottom: 1px solid var(--teal-800);
   flex-shrink: 0;
@@ -261,39 +268,28 @@
 .search {
   width: 100%;
   height: 36px;
+  padding-right: 34px;
 }
 
-/* A search result: the logo + text is one big button (select / jump to it);
-   the trailing cell is the coordinates or a Place button. */
-.rowResult:hover {
-  border-color: var(--teal-600);
-}
-
-.rowSelected {
-  border-color: var(--bright-teal-300);
-}
-
-.resultPick {
-  grid-column: 1 / 3;
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  padding: 0;
-  background: none;
-  border: none;
-  text-align: left;
+/* "/" focuses the box; the key cap hint hides once you're typing. */
+.searchKey {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 1px 6px;
+  border: 1px solid var(--teal-700);
+  border-radius: 4px;
   font-family: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-.rowCoords {
   font-size: 11px;
   line-height: 1.4;
   color: var(--teal-400);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.search:focus ~ .searchKey,
+.search:not(:placeholder-shown) ~ .searchKey {
+  display: none;
 }
 
 .list {
@@ -324,6 +320,49 @@
 .rowLiveUnplaced {
   border-color: #ff8b8b;
   background-color: rgba(255, 139, 139, 0.06);
+}
+
+/* A search result: the logo + text is one big button (select / jump to it);
+   the trailing cell is the coordinates or a Place button. The keyboard
+   cursor (↑/↓) highlights one row and Enter opens it; hovering only
+   previews, it does not move the cursor. (These come after .row on purpose:
+   same specificity, later wins.) */
+.rowResult:hover {
+  border-color: var(--teal-500);
+}
+
+.rowActive,
+.rowActive:hover {
+  border-color: var(--bright-teal-300);
+  background-color: rgba(166, 218, 217, 0.12);
+}
+
+/* The record currently selected on the map. */
+.rowSelected .rowTitle {
+  color: var(--bright-teal-300);
+}
+
+.resultPick {
+  grid-column: 1 / 3;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.rowCoords {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--teal-400);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .missingNote {

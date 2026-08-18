@@ -69,6 +69,9 @@ interface Props {
 
 const LOGO_CLIP_ID = 'editor-logo-circle-clip'
 const RING_GAP = 3
+/** Selection ring: a vivid magenta over a white halo, so it reads on the
+ *  teal land, the orange hills, dark water and white logos alike. */
+const SELECTED_COLOR = '#ff2d95'
 
 type PinSel = d3.Selection<SVGGElement, EditorRecord, SVGGElement, unknown>
 
@@ -93,13 +96,22 @@ function drawGlyph(
     .attr('stroke-width', 2)
     .attr('stroke-dasharray', '6 4')
     .style('pointer-events', 'none')
-  g.append('circle')
+  const ring = g
+    .append('g')
     .attr('class', 'ring-selected')
+    .style('pointer-events', 'none')
+  ring
+    .append('circle')
     .attr('r', m.iconSize / 2 + RING_GAP)
     .attr('fill', 'none')
-    .attr('stroke', '#a6dad9')
+    .attr('stroke', '#fff')
+    .attr('stroke-width', 7)
+  ring
+    .append('circle')
+    .attr('r', m.iconSize / 2 + RING_GAP)
+    .attr('fill', 'none')
+    .attr('stroke', SELECTED_COLOR)
     .attr('stroke-width', 3)
-    .style('pointer-events', 'none')
 
   const glyph = g.append('g').attr('class', 'glyph')
 
@@ -522,7 +534,10 @@ export default function MapEditorCanvas({
         const area = this.getAttribute('data-area')
         d3.select(this)
           .select('rect')
-          .attr('stroke', !previewPublic && area === focus ? '#a6dad9' : null)
+          .attr(
+            'stroke',
+            !previewPublic && area === focus ? SELECTED_COLOR : null
+          )
           .attr('stroke-width', 3)
       })
   }, [records, selectedId, placeModeId, previewPublic])

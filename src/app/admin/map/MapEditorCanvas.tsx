@@ -23,6 +23,8 @@ import {
   MAP_OFFSET_X,
   MAP_OFFSET_Y,
   MAP_WIDTH,
+  PADDED_HEIGHT,
+  PADDED_WIDTH,
   PRESERVE_ASPECT_RATIO,
   TITLE,
   VIEWBOX,
@@ -40,7 +42,13 @@ export interface CanvasControls {
   zoomIn: () => void
   zoomOut: () => void
   reset: () => void
+  /** Pan (and zoom in to at least FOCUS_ZOOM) so this grid position is
+   *  centred in the visible canvas. */
+  focusOn: (x: number, y: number) => void
 }
+
+/** Zoom level a "Show on map" jump lands at (kept if already closer). */
+const FOCUS_ZOOM = 2
 
 interface Props {
   /** Records to draw (already filtered by the toolbar toggles). Records with
@@ -61,6 +69,10 @@ interface Props {
 
 const LOGO_CLIP_ID = 'editor-logo-circle-clip'
 const RING_GAP = 3
+/** Selection ring: a vivid magenta that reads on the teal land, the orange
+ *  hills and dark water. No white halo – it looked like a second logo
+ *  circle. */
+const SELECTED_COLOR = '#ff2d95'
 
 type PinSel = d3.Selection<SVGGElement, EditorRecord, SVGGElement, unknown>
 
@@ -89,8 +101,8 @@ function drawGlyph(
     .attr('class', 'ring-selected')
     .attr('r', m.iconSize / 2 + RING_GAP)
     .attr('fill', 'none')
-    .attr('stroke', '#a6dad9')
-    .attr('stroke-width', 3)
+    .attr('stroke', SELECTED_COLOR)
+    .attr('stroke-width', 3.5)
     .style('pointer-events', 'none')
 
   const glyph = g.append('g').attr('class', 'glyph')
@@ -339,6 +351,29 @@ export default function MapEditorCanvas({
       reset: () => {
         svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
       },
+      focusOn: (gx, gy) => {
+        const k = Math.max(d3.zoomTransform(svgNode).k, FOCUS_ZOOM)
+        // Centre of what is actually visible: the viewBox is fitted with
+        // xMidYMin meet, so it is horizontally centred but top-aligned – a
+        // canvas taller than the viewBox's aspect ratio shows extra map
+        // below it.
+        const rect = svgNode.getBoundingClientRect()
+        const fit = Math.min(
+          rect.width / PADDED_WIDTH,
+          rect.height / PADDED_HEIGHT
+        )
+        const cx = PADDED_WIDTH / 2
+        const cy = fit > 0 ? rect.height / fit / 2 : PADDED_HEIGHT / 2
+        // The zoom handler draws the scene at translate(t + MAP_OFFSET)
+        // scale(k), so a scene point p lands at t + MAP_OFFSET + k·p.
+        const t = d3.zoomIdentity
+          .translate(
+            cx - MAP_OFFSET_X - k * gridToPx(gx),
+            cy - MAP_OFFSET_Y - k * gridToPx(gy)
+          )
+          .scale(k)
+        svg.transition().duration(500).call(zoom.transform, t)
+      },
     }
 
     return () => {
@@ -491,7 +526,10 @@ export default function MapEditorCanvas({
         const area = this.getAttribute('data-area')
         d3.select(this)
           .select('rect')
-          .attr('stroke', !previewPublic && area === focus ? '#a6dad9' : null)
+          .attr(
+            'stroke',
+            !previewPublic && area === focus ? SELECTED_COLOR : null
+          )
           .attr('stroke-width', 3)
       })
   }, [records, selectedId, placeModeId, previewPublic])

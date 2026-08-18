@@ -4,11 +4,15 @@ import { describe, expect, it } from 'vitest'
 import {
   FIELD,
   buildPositionFields,
+  buildScaleFields,
   compareEditorRecords,
+  isScaleBody,
   rowToEditorRecord,
   samePosition,
+  SCALE_OPTIONS,
   sortEditorRecords,
   validateMoveBody,
+  validateScaleBody,
   ValidationError,
   type EditorRecord,
 } from './map-editor-core'
@@ -101,6 +105,76 @@ describe('buildPositionFields', () => {
     expect(Object.keys(fields).sort()).toEqual([FIELD.x, FIELD.y].sort())
     expect(fields[FIELD.x]).toBe(22.2)
     expect(fields[FIELD.y]).toBe(17.2)
+  })
+})
+
+// ─── Scale change bodies ───────────────────────────────────────────────────
+
+describe('isScaleBody', () => {
+  it('tells a Scale change from a move by the scale key', () => {
+    expect(isScaleBody({ id: ID, scale: 'Large' })).toBe(true)
+    expect(isScaleBody({ id: ID, x: 1, y: 2 })).toBe(false)
+    expect(isScaleBody(null)).toBe(false)
+    expect(isScaleBody([])).toBe(false)
+    expect(isScaleBody('scale')).toBe(false)
+  })
+})
+
+describe('validateScaleBody', () => {
+  it('accepts each Scale option, with or without expected', () => {
+    for (const s of SCALE_OPTIONS) {
+      expect(validateScaleBody({ id: ID, scale: s })).toEqual({
+        id: ID,
+        scale: s,
+      })
+    }
+    expect(
+      validateScaleBody({ id: ID, scale: 'Small', expected: 'Large' })
+    ).toEqual({ id: ID, scale: 'Small', expected: 'Large' })
+    expect(
+      validateScaleBody({ id: ID, scale: 'Small', expected: null })
+    ).toEqual({ id: ID, scale: 'Small', expected: null })
+  })
+  it.each([
+    [null, 'body must be a JSON object'],
+    [{ scale: 'Large' }, 'id must be an Airtable record id'],
+    [{ id: 'foo', scale: 'Large' }, 'id must be an Airtable record id'],
+    [{ id: ID, scale: 'Huge' }, 'scale must be one of Small, Medium, Large'],
+    [{ id: ID, scale: 'large' }, 'scale must be one of Small, Medium, Large'],
+    [{ id: ID, scale: null }, 'scale must be one of Small, Medium, Large'],
+    [{ id: ID, scale: '' }, 'scale must be one of Small, Medium, Large'],
+    // A Scale change can never carry a move, a publish flag or raw fields.
+    [{ id: ID, scale: 'Large', x: 1, y: 2 }, 'unexpected key: x'],
+    [{ id: ID, scale: 'Large', publish: true }, 'unexpected key: publish'],
+    [{ id: ID, scale: 'Large', fields: {} }, 'unexpected key: fields'],
+    [
+      { id: ID, scale: 'Large', [FIELD.hide]: true },
+      `unexpected key: ${FIELD.hide}`,
+    ],
+    [{ id: ID, scale: 'Large', typecast: true }, 'unexpected key: typecast'],
+    [
+      { id: ID, scale: 'Large', expected: { scale: 'Small' } },
+      'expected must be a string or null',
+    ],
+    [
+      { id: ID, scale: 'Large', expected: 1 },
+      'expected must be a string or null',
+    ],
+  ])('rejects %j', (body, message) => {
+    expect(() => validateScaleBody(body)).toThrow(ValidationError)
+    expect(() => validateScaleBody(body)).toThrow(message)
+  })
+})
+
+describe('buildScaleFields', () => {
+  it('writes exactly Scale by field id', () => {
+    const fields = buildScaleFields('Large')
+    expect(Object.keys(fields)).toEqual([FIELD.scale])
+    expect(fields[FIELD.scale]).toBe('Large')
+  })
+  it('refuses anything that is not a Scale option', () => {
+    // @ts-expect-error – guarding the runtime path too
+    expect(() => buildScaleFields('Huge')).toThrow(ValidationError)
   })
 })
 

@@ -18,7 +18,8 @@ import { GRID_DECIMALS, inGridBounds, roundGrid } from './map-geometry'
 export const MAP_TABLE_ID = 'tblvzbGL9q9dOO9Nc'
 
 /** Permanent field IDs (same values as src/lib/data/map.ts FIELD). Reads use
- *  returnFieldsByFieldId; the ONLY fields the editor ever writes are x and y. */
+ *  returnFieldsByFieldId; the ONLY fields the editor ever writes are x, y and
+ *  Scale (see buildPositionFields / buildScaleFields). */
 export const FIELD = {
   longName: 'fldqYJa5li27kVOUW', // Long name
   longNameForCards: 'fldPEouzOZbCIZr7p', // Long name for cards
@@ -297,13 +298,87 @@ export function validateMoveBody(body: unknown): MoveRequest {
   return out
 }
 
-/** The ONLY builder of an Airtable write body for the Map table. Exactly two
- *  keys, both by permanent field ID. */
+/** One of the two builders of an Airtable write body for the Map table (the
+ *  other is buildScaleFields). Exactly two keys, both by permanent field ID. */
 export function buildPositionFields(
   x: number,
   y: number
 ): Record<string, number> {
   return { [FIELD.x]: x, [FIELD.y]: y }
+}
+
+// ─── Scale (logo size) request validation ──────────────────────────────────
+
+/** The Scale single-select's options, exactly as named in Airtable. The
+ *  editor can only ever write one of these – never clear the field. */
+export const SCALE_OPTIONS = ['Small', 'Medium', 'Large'] as const
+export type ScaleName = (typeof SCALE_OPTIONS)[number]
+
+export function isScaleName(value: unknown): value is ScaleName {
+  return (
+    typeof value === 'string' &&
+    (SCALE_OPTIONS as readonly string[]).includes(value)
+  )
+}
+
+export interface ScaleRequest {
+  id: string
+  scale: ScaleName
+  /** The Scale the client last saw (null = not set); the server refuses the
+   *  write (409) if Airtable now holds something else. */
+  expected?: string | null
+}
+
+const ALLOWED_SCALE_KEYS = new Set(['id', 'scale', 'expected'])
+
+/** True when a PATCH body is asking for a Scale change rather than a move
+ *  (the two shapes share the endpoint; each is validated by its own
+ *  allow-list, so a body can never mix them). */
+export function isScaleBody(body: unknown): boolean {
+  return (
+    !!body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    'scale' in body
+  )
+}
+
+/** Parses and validates a Scale-change body. Rejects anything but
+ *  id/scale/expected and any scale that is not one of SCALE_OPTIONS. */
+export function validateScaleBody(body: unknown): ScaleRequest {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new ValidationError('body must be a JSON object')
+  }
+  const obj = body as Record<string, unknown>
+  for (const key of Object.keys(obj)) {
+    if (!ALLOWED_SCALE_KEYS.has(key)) {
+      throw new ValidationError(`unexpected key: ${key}`)
+    }
+  }
+  const id = obj.id
+  if (typeof id !== 'string' || !RECORD_ID_RE.test(id)) {
+    throw new ValidationError('id must be an Airtable record id')
+  }
+  if (!isScaleName(obj.scale)) {
+    throw new ValidationError(
+      `scale must be one of ${SCALE_OPTIONS.join(', ')}`
+    )
+  }
+  const out: ScaleRequest = { id, scale: obj.scale }
+  if (obj.expected !== undefined) {
+    if (obj.expected !== null && typeof obj.expected !== 'string') {
+      throw new ValidationError('expected must be a string or null')
+    }
+    out.expected = obj.expected
+  }
+  return out
+}
+
+/** The other write-body builder for the Map table: exactly one key, the
+ *  Scale field by permanent ID, with a validated option name. */
+export function buildScaleFields(scale: ScaleName): Record<string, string> {
+  if (!isScaleName(scale)) throw new ValidationError(`bad scale: ${scale}`)
+  return { [FIELD.scale]: scale }
 }
 
 /** True when two stored positions are the same at Airtable precision. */

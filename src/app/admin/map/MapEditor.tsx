@@ -591,57 +591,61 @@ export default function MapEditor() {
         </span>
       </div>
 
-      {placing && (
-        <div className={`${adminStyles.notice} ${styles.placeNotice}`}>
-          Click on the map to place <strong>{placing.title}</strong>
-          {placing.area ? ` (its region is ${placing.area})` : ''}. Press Esc to
-          cancel.
-        </div>
-      )}
-
-      {errorBanner && (
-        <div className={`${adminStyles.notice} ${styles.errorBanner}`}>
-          <span>{errorBanner.text}</span>
-          <span className={styles.errorActions}>
-            {errorBanner.retry && (
-              <button
-                type="button"
-                className={adminStyles.editorButtonPrimary}
-                onClick={() => {
-                  const m = errorBanner.retry!
-                  setErrorBanner(null)
-                  moveRecord(m.id, m.x, m.y, { kind: m.kind, entry: m.entry })
-                }}
-              >
-                Retry
-              </button>
-            )}
-            <button
-              type="button"
-              className={adminStyles.editorButton}
-              onClick={() => setErrorBanner(null)}
-            >
-              Dismiss
-            </button>
-          </span>
-        </div>
-      )}
-
-      {loadError && (
-        <div className={`${adminStyles.notice} ${styles.errorBanner}`}>
-          <span>{loadError}</span>
-          <button
-            type="button"
-            className={adminStyles.editorButtonPrimary}
-            onClick={() => void load()}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
       <div className={styles.split}>
         <div className={styles.canvasWrap}>
+          {/* Notices float over the map so they never push it around. */}
+          <div className={styles.overlays}>
+            {placing && (
+              <div className={`${adminStyles.notice} ${styles.placeNotice}`}>
+                Click on the map to place <strong>{placing.title}</strong>.
+                Press Esc to cancel.
+              </div>
+            )}
+
+            {errorBanner && (
+              <div className={`${adminStyles.notice} ${styles.errorBanner}`}>
+                <span>{errorBanner.text}</span>
+                <span className={styles.errorActions}>
+                  {errorBanner.retry && (
+                    <button
+                      type="button"
+                      className={adminStyles.editorButtonPrimary}
+                      onClick={() => {
+                        const m = errorBanner.retry!
+                        setErrorBanner(null)
+                        moveRecord(m.id, m.x, m.y, {
+                          kind: m.kind,
+                          entry: m.entry,
+                        })
+                      }}
+                    >
+                      Retry
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={adminStyles.editorButton}
+                    onClick={() => setErrorBanner(null)}
+                  >
+                    Dismiss
+                  </button>
+                </span>
+              </div>
+            )}
+
+            {loadError && (
+              <div className={`${adminStyles.notice} ${styles.errorBanner}`}>
+                <span>{loadError}</span>
+                <button
+                  type="button"
+                  className={adminStyles.editorButtonPrimary}
+                  onClick={() => void load()}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+          </div>
           {records ? (
             <MapEditorCanvas
               records={visible}

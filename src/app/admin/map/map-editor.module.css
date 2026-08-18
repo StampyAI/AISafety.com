@@ -75,6 +75,25 @@
   min-width: 0;
 }
 
+/* Place-mode and error notices sit on top of the map, clear of the zoom
+   controls on the right, and take no layout space. */
+.overlays {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 76px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.overlays > * {
+  pointer-events: auto;
+  box-shadow: 0 8px 20px rgba(0, 25, 27, 0.5);
+}
+
 .canvas {
   width: 100%;
   height: calc(100vh - 260px);

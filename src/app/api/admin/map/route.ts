@@ -5,6 +5,8 @@
                              published + unpublished, Hide? excluded)
   PATCH /api/admin/map     → body { id, x, y, expected? }
                              writes ONLY x and y on that record
+                          → body { id, scale, expected? }
+                             writes ONLY Scale (Small/Medium/Large)
 
   Owner-password sessions only (canEditMap). Never revalidates any cache or
   path: the public /map keeps refreshing on its own schedule.
@@ -13,14 +15,17 @@
 import { NextRequest } from 'next/server'
 import { canEditMap } from '@/lib/admin/auth'
 import {
-  getMapPosition,
+  getMapState,
   isMapEditorConfigured,
   listMapRecordsLive,
   updateMapPosition,
+  updateMapScale,
 } from '@/lib/admin/map-editor'
 import {
+  isScaleBody,
   samePosition,
   validateMoveBody,
+  validateScaleBody,
   ValidationError,
 } from '@/lib/admin/map-editor-core'
 
@@ -58,6 +63,17 @@ export async function GET() {
   }
 }
 
+/** Airtable read/write problems come back to the editor as a visible error
+ *  (never swallowed); the details go to the server log too. Airtable's rate
+ *  limit (5 req/s per base, then a ~30 s lockout) comes back as 429 so the
+ *  editor can wait and retry rather than give up. */
+function airtableFailure(id: string, what: string, err: unknown): Response {
+  const message = err instanceof Error ? err.message : String(err)
+  console.error(`[map-editor] ${what} failed for ${id}: ${message}`)
+  const rateLimited = /\b429\b/.test(message) && /RATE_LIMIT/.test(message)
+  return json({ error: message }, rateLimited ? 429 : 502)
+}
+
 export async function PATCH(req: NextRequest) {
   const auth = await ensureAuth()
   if (auth) return auth
@@ -69,6 +85,33 @@ export async function PATCH(req: NextRequest) {
     return json({ error: 'body must be JSON' }, 400)
   }
 
+  // ── Scale change ─────────────────────────────────────────────────────────
+  if (isScaleBody(body)) {
+    let change
+    try {
+      change = validateScaleBody(body)
+    } catch (err) {
+      if (err instanceof ValidationError)
+        return json({ error: err.message }, 400)
+      throw err
+    }
+    try {
+      const current = await getMapState(change.id)
+      if (current === null) return json({ error: 'record not found' }, 404)
+      if (change.expected !== undefined && current.scale !== change.expected) {
+        return json({ error: 'stale', current: { scale: current.scale } }, 409)
+      }
+      const stored = await updateMapScale(change.id, change.scale)
+      console.info(
+        `[map-editor] ${change.id}: Scale ${current.scale ?? '(unset)'} → ${stored.scale}`
+      )
+      return json({ record: { id: change.id, ...stored } })
+    } catch (err) {
+      return airtableFailure(change.id, 'scale change', err)
+    }
+  }
+
+  // ── Move ─────────────────────────────────────────────────────────────────
   let move
   try {
     move = validateMoveBody(body)
@@ -78,11 +121,14 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
-    const current = await getMapPosition(move.id)
+    const current = await getMapState(move.id)
     if (current === null) return json({ error: 'record not found' }, 404)
 
     if (move.expected && !samePosition(current, move.expected)) {
-      return json({ error: 'stale', current }, 409)
+      return json(
+        { error: 'stale', current: { x: current.x, y: current.y } },
+        409
+      )
     }
 
     const stored = await updateMapPosition(move.id, move.x, move.y)
@@ -91,13 +137,6 @@ export async function PATCH(req: NextRequest) {
     )
     return json({ record: { id: move.id, ...stored } })
   } catch (err) {
-    // Airtable read/write problems come back to the editor as a visible
-    // error (never swallowed); the details go to the server log too.
-    const message = err instanceof Error ? err.message : String(err)
-    console.error(`[map-editor] move failed for ${move.id}: ${message}`)
-    // Airtable's rate limit (5 req/s per base, then a ~30 s lockout) comes
-    // back as 429 so the editor can wait and retry rather than give up.
-    const rateLimited = /\b429\b/.test(message) && /RATE_LIMIT/.test(message)
-    return json({ error: message }, rateLimited ? 429 : 502)
+    return airtableFailure(move.id, 'move', err)
   }
 }

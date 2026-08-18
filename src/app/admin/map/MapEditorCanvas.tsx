@@ -23,6 +23,8 @@ import {
   MAP_OFFSET_X,
   MAP_OFFSET_Y,
   MAP_WIDTH,
+  PADDED_HEIGHT,
+  PADDED_WIDTH,
   PRESERVE_ASPECT_RATIO,
   TITLE,
   VIEWBOX,
@@ -40,7 +42,13 @@ export interface CanvasControls {
   zoomIn: () => void
   zoomOut: () => void
   reset: () => void
+  /** Pan (and zoom in to at least FOCUS_ZOOM) so this grid position is
+   *  centred in the visible canvas. */
+  focusOn: (x: number, y: number) => void
 }
+
+/** Zoom level a "Show on map" jump lands at (kept if already closer). */
+const FOCUS_ZOOM = 2
 
 interface Props {
   /** Records to draw (already filtered by the toolbar toggles). Records with
@@ -338,6 +346,29 @@ export default function MapEditorCanvas({
       },
       reset: () => {
         svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
+      },
+      focusOn: (gx, gy) => {
+        const k = Math.max(d3.zoomTransform(svgNode).k, FOCUS_ZOOM)
+        // Centre of what is actually visible: the viewBox is fitted with
+        // xMidYMin meet, so it is horizontally centred but top-aligned – a
+        // canvas taller than the viewBox's aspect ratio shows extra map
+        // below it.
+        const rect = svgNode.getBoundingClientRect()
+        const fit = Math.min(
+          rect.width / PADDED_WIDTH,
+          rect.height / PADDED_HEIGHT
+        )
+        const cx = PADDED_WIDTH / 2
+        const cy = fit > 0 ? rect.height / fit / 2 : PADDED_HEIGHT / 2
+        // The zoom handler draws the scene at translate(t + MAP_OFFSET)
+        // scale(k), so a scene point p lands at t + MAP_OFFSET + k·p.
+        const t = d3.zoomIdentity
+          .translate(
+            cx - MAP_OFFSET_X - k * gridToPx(gx),
+            cy - MAP_OFFSET_Y - k * gridToPx(gy)
+          )
+          .scale(k)
+        svg.transition().duration(500).call(zoom.transform, t)
       },
     }
 

@@ -63,7 +63,11 @@
   flex-shrink: 0;
 }
 
+/* Map + side panel. --editor-height is set by MapEditor from the space left
+   under the toolbar so the editor ends at the bottom of the window instead
+   of running past it; the fallback only shows before that first measure. */
 .split {
+  --editor-height: calc(100vh - 400px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
@@ -96,8 +100,8 @@
 
 .canvas {
   width: 100%;
-  height: calc(100vh - 260px);
-  min-height: 560px;
+  height: var(--editor-height);
+  min-height: 480px;
   position: relative;
   overflow: hidden;
   border-radius: 8px;
@@ -197,9 +201,8 @@
 .panel {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  height: calc(100vh - 260px);
-  min-height: 560px;
+  height: var(--editor-height);
+  min-height: 480px;
   background-color: var(--teal-850);
   border: 1px solid var(--teal-800);
   border-radius: 8px;
@@ -248,9 +251,49 @@
   flex-shrink: 0;
 }
 
+/* Search sits above the tabs and covers every record, placed or not. */
+.searchBar {
+  padding: 12px;
+  border-bottom: 1px solid var(--teal-800);
+  flex-shrink: 0;
+}
+
 .search {
   width: 100%;
   height: 36px;
+}
+
+/* A search result: the logo + text is one big button (select / jump to it);
+   the trailing cell is the coordinates or a Place button. */
+.rowResult:hover {
+  border-color: var(--teal-600);
+}
+
+.rowSelected {
+  border-color: var(--bright-teal-300);
+}
+
+.resultPick {
+  grid-column: 1 / 3;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.rowCoords {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--teal-400);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .list {
@@ -285,6 +328,7 @@
 
 .missingNote {
   font-size: 11px;
+  line-height: 1.4;
   color: #ff8b8b;
 }
 
@@ -395,6 +439,20 @@
 .dl dd {
   margin: 0;
   color: var(--white);
+}
+
+/* The Scale dropdown sits in the details grid: compact, aligned with the
+   text rows around it. */
+.dl dt,
+.dl dd {
+  display: flex;
+  align-items: center;
+}
+
+.scaleSelect {
+  height: 26px;
+  padding: 0 6px;
+  font-size: 12px;
 }
 
 .coords {

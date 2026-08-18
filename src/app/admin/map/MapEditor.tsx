@@ -8,8 +8,15 @@
 */
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { EditorRecord } from '@/lib/admin/map-editor-core'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import type { EditorRecord, ScaleName } from '@/lib/admin/map-editor-core'
 import { clampGrid, roundGrid } from '@/lib/admin/map-geometry'
 import type { CanvasControls } from './MapEditorCanvas'
 import SidePanel, { type PanelTab } from './SidePanel'
@@ -27,6 +34,12 @@ const MapEditorCanvas = dynamic(() => import('./MapEditorCanvas'), {
 
 type Position = { x: number | null; y: number | null }
 
+/** What one write changes on a record: where its pin is, or its Scale (logo
+ *  size). Each is saved, retried, undone and redone the same way. */
+type Change =
+  | { field: 'position'; x: number; y: number }
+  | { field: 'scale'; scale: ScaleName }
+
 interface Status {
   kind: 'idle' | 'saving' | 'ok' | 'stale' | 'error'
   text: string
@@ -34,15 +47,14 @@ interface Status {
 
 interface UndoEntry {
   id: string
-  from: { x: number; y: number }
-  to: { x: number; y: number }
+  from: Change
+  to: Change
   at: number
 }
 
 interface QueuedMove {
   id: string
-  x: number
-  y: number
+  change: Change
   /** 'user' moves push an undo entry when confirmed (and clear redo);
    *  'undo' moves hand their entry to the redo stack; 'redo' moves hand it
    *  back to the undo stack. */
@@ -54,6 +66,16 @@ interface QueuedMove {
   at: number
   /** Rate-limit retries so far. */
   attempts: number
+}
+
+/** A pending write of the same record AND the same field supersedes an
+ *  older one; a move and a Scale change of one record can both be queued. */
+function sameSlot(a: { id: string; change: Change }, b: QueuedMove): boolean {
+  return a.id === b.id && a.change.field === b.change.field
+}
+
+function describe(c: Change): string {
+  return c.field === 'position' ? `(${fmt(c.x)}, ${fmt(c.y)})` : c.scale
 }
 
 /** Consecutive nudges/drops of the same pin within this window collapse into
@@ -68,6 +90,9 @@ const SETTLE_MS = 400
 /** After a 429 Airtable refuses everything for ~30 s. Retry then. */
 const RATE_LIMIT_WAIT_MS = 31_000
 const RATE_LIMIT_MAX_ATTEMPTS = 3
+/** The map + panel never shrink below this, even on a short window (the
+ *  page scrolls instead). Matches min-height in map-editor.module.css. */
+const MIN_EDITOR_HEIGHT = 480
 
 function fmt(n: number): string {
   return n.toFixed(1)
@@ -97,10 +122,12 @@ export default function MapEditor() {
     zoomIn: () => {},
     zoomOut: () => {},
     reset: () => {},
+    focusOn: () => {},
   })
   // What Airtable last confirmed for each record — the `expected` value sent
   // with every write, and where a pin goes back to when a save fails.
   const lastConfirmed = useRef<Map<string, Position>>(new Map())
+  const lastConfirmedScale = useRef<Map<string, string | null>>(new Map())
   const queue = useRef<QueuedMove[]>([])
   const inFlight = useRef<QueuedMove | null>(null)
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -118,6 +145,37 @@ export default function MapEditor() {
   const redoRef = useRef<UndoEntry[]>([])
   redoRef.current = redoStack
   const lastLoadAt = useRef(0)
+  const splitRef = useRef<HTMLDivElement>(null)
+
+  // ── Fit to the window ────────────────────────────────────────────────────
+  // Size the map + panel to the space between the toolbar and the bottom of
+  // the window (minus the footnote and page padding), so nothing is cut off.
+  // Re-measured on resize and whenever anything above/below changes height
+  // (e.g. the toolbar status wrapping onto a second line).
+  useLayoutEffect(() => {
+    const el = splitRef.current
+    if (!el) return
+    const main = el.closest('main')
+    const apply = () => {
+      const split = el.getBoundingClientRect()
+      const mainBottom = main?.getBoundingClientRect().bottom ?? split.bottom
+      const below = mainBottom - split.bottom
+      const top = split.top + window.scrollY
+      const h = Math.floor(window.innerHeight - top - below)
+      el.style.setProperty(
+        '--editor-height',
+        `${Math.max(MIN_EDITOR_HEIGHT, h)}px`
+      )
+    }
+    apply()
+    window.addEventListener('resize', apply)
+    const ro = new ResizeObserver(apply)
+    if (main) ro.observe(main)
+    return () => {
+      window.removeEventListener('resize', apply)
+      ro.disconnect()
+    }
+  }, [])
 
   // ── Loading ──────────────────────────────────────────────────────────────
 
@@ -139,20 +197,33 @@ export default function MapEditor() {
       fetchedAt: string
       records: EditorRecord[]
     }
-    const busy = new Set<string>(queue.current.map(m => m.id))
-    if (inFlight.current) busy.add(inFlight.current.id)
+    // Records with a write still queued or in flight, per field.
+    const pending = [...queue.current]
+    if (inFlight.current) pending.push(inFlight.current)
+    const busyPos = new Set(
+      pending.filter(m => m.change.field === 'position').map(m => m.id)
+    )
+    const busyScale = new Set(
+      pending.filter(m => m.change.field === 'scale').map(m => m.id)
+    )
     setRecords(prev => {
-      // Keep the local position of anything still being saved.
+      // Keep the local position / Scale of anything still being saved.
       if (!prev) return data.records
       const local = new Map(prev.map(r => [r.id, r]))
-      return data.records.map(r =>
-        busy.has(r.id) && local.has(r.id)
-          ? { ...r, x: local.get(r.id)!.x, y: local.get(r.id)!.y }
-          : r
-      )
+      return data.records.map(r => {
+        const l = local.get(r.id)
+        if (!l) return r
+        return {
+          ...r,
+          ...(busyPos.has(r.id) ? { x: l.x, y: l.y } : {}),
+          ...(busyScale.has(r.id) ? { scale: l.scale } : {}),
+        }
+      })
     })
     for (const r of data.records) {
-      if (!busy.has(r.id)) lastConfirmed.current.set(r.id, { x: r.x, y: r.y })
+      if (!busyPos.has(r.id))
+        lastConfirmed.current.set(r.id, { x: r.x, y: r.y })
+      if (!busyScale.has(r.id)) lastConfirmedScale.current.set(r.id, r.scale)
     }
     setFetchedAt(data.fetchedAt)
     lastLoadAt.current = Date.now()
@@ -184,10 +255,29 @@ export default function MapEditor() {
     )
   }, [])
 
+  const setLocalScale = useCallback((id: string, scale: string | null) => {
+    setRecords(prev =>
+      prev ? prev.map(r => (r.id === id ? { ...r, scale } : r)) : prev
+    )
+  }, [])
+
+  const applyLocal = useCallback(
+    (id: string, change: Change) => {
+      if (change.field === 'position') setLocalPosition(id, change.x, change.y)
+      else setLocalScale(id, change.scale)
+    },
+    [setLocalPosition, setLocalScale]
+  )
+
   const pushUndo = useCallback((entry: UndoEntry) => {
     setUndoStack(prev => {
       const last = prev[prev.length - 1]
-      if (last && last.id === entry.id && entry.at - last.at < UNDO_MERGE_MS) {
+      if (
+        last &&
+        last.id === entry.id &&
+        last.to.field === entry.to.field &&
+        entry.at - last.at < UNDO_MERGE_MS
+      ) {
         // Merge a burst of nudges into one step, keeping the original origin.
         return [...prev.slice(0, -1), { ...entry, from: last.from }]
       }
@@ -220,37 +310,58 @@ export default function MapEditor() {
       return
     }
     inFlight.current = next
-    // A newer move of the same pin waiting behind this one means the pin is
-    // already where the user wants it — don't drag it back to this result.
-    const superseded = () => queue.current.some(m => m.id === next.id)
+    const change = next.change
+    // A newer write of the same field of the same record waiting behind this
+    // one means the record is already how the user wants it — don't drag it
+    // back to this result.
+    const superseded = () => queue.current.some(m => sameSlot(next, m))
     const expected = lastConfirmed.current.get(next.id) ?? { x: null, y: null }
+    const expectedScale = lastConfirmedScale.current.get(next.id) ?? null
     const name =
       recordsRef.current?.find(r => r.id === next.id)?.labelName ?? next.id
     setStatus({
       kind: 'saving',
-      text: `Saving ${name} → (${fmt(next.x)}, ${fmt(next.y)})…`,
+      text: `Saving ${name} → ${describe(change)}…`,
     })
     try {
+      const body =
+        change.field === 'position'
+          ? { id: next.id, x: change.x, y: change.y, expected }
+          : { id: next.id, scale: change.scale, expected: expectedScale }
       const res = await fetch('/api/admin/map', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: next.id, x: next.x, y: next.y, expected }),
+        body: JSON.stringify(body),
       })
       if (res.status === 409) {
-        const data = (await res.json()) as { current: Position }
-        lastConfirmed.current.set(next.id, data.current)
-        // Someone else moved it: show where it really is and drop any of our
-        // follow-up moves rather than silently overwriting theirs.
-        queue.current = queue.current.filter(m => m.id !== next.id)
-        if (data.current.x !== null && data.current.y !== null) {
-          setLocalPosition(next.id, data.current.x, data.current.y)
+        // Someone else changed it in Airtable: show what is really there and
+        // drop any of our follow-up writes rather than silently overwriting.
+        queue.current = queue.current.filter(m => !sameSlot(next, m))
+        if (change.field === 'position') {
+          const data = (await res.json()) as { current: Position }
+          lastConfirmed.current.set(next.id, data.current)
+          if (data.current.x !== null && data.current.y !== null) {
+            setLocalPosition(next.id, data.current.x, data.current.y)
+          }
+          setStatus({
+            kind: 'stale',
+            text: `${name} was moved in Airtable since you loaded – shown at its current position (${
+              data.current.x === null ? '–' : fmt(data.current.x)
+            }, ${data.current.y === null ? '–' : fmt(data.current.y)}). Drag again if you still want to move it.`,
+          })
+        } else {
+          const data = (await res.json()) as {
+            current: { scale: string | null }
+          }
+          lastConfirmedScale.current.set(next.id, data.current.scale)
+          setLocalScale(next.id, data.current.scale)
+          setStatus({
+            kind: 'stale',
+            text: `${name}'s Scale was changed in Airtable since you loaded – now showing ${
+              data.current.scale ?? 'not set'
+            }. Pick a size again if you still want to change it.`,
+          })
         }
-        setStatus({
-          kind: 'stale',
-          text: `${name} was moved in Airtable since you loaded – shown at its current position (${
-            data.current.x === null ? '–' : fmt(data.current.x)
-          }, ${data.current.y === null ? '–' : fmt(data.current.y)}). Drag again if you still want to move it.`,
-        })
       } else if (
         res.status === 429 &&
         next.attempts < RATE_LIMIT_MAX_ATTEMPTS
@@ -279,18 +390,36 @@ export default function MapEditor() {
         }
         throw new Error(message)
       } else {
-        const data = (await res.json()) as {
-          record: { id: string; x: number; y: number }
+        // What Airtable actually stored, as a Change; and what it held before
+        // (null when there was nothing to go back to – a first placement or an
+        // unset Scale – in which case the step is not undoable, same as /map's
+        // first placement today).
+        let stored: Change
+        let from: Change | null
+        if (change.field === 'position') {
+          const data = (await res.json()) as {
+            record: { id: string; x: number; y: number }
+          }
+          stored = { field: 'position', x: data.record.x, y: data.record.y }
+          from =
+            expected.x !== null && expected.y !== null
+              ? { field: 'position', x: expected.x, y: expected.y }
+              : null
+          lastConfirmed.current.set(next.id, { x: stored.x, y: stored.y })
+        } else {
+          const data = (await res.json()) as {
+            record: { id: string; scale: ScaleName }
+          }
+          stored = { field: 'scale', scale: data.record.scale }
+          from =
+            expectedScale !== null
+              ? { field: 'scale', scale: expectedScale as ScaleName }
+              : null
+          lastConfirmedScale.current.set(next.id, stored.scale)
         }
-        const stored = data.record
         if (next.kind === 'user') {
-          if (expected.x !== null && expected.y !== null) {
-            pushUndo({
-              id: next.id,
-              from: { x: expected.x, y: expected.y },
-              to: { x: stored.x, y: stored.y },
-              at: Date.now(),
-            })
+          if (from) {
+            pushUndo({ id: next.id, from, to: stored, at: Date.now() })
           }
         } else if (next.kind === 'undo' && next.entry) {
           const entry = next.entry
@@ -299,19 +428,27 @@ export default function MapEditor() {
           const entry = next.entry
           setUndoStack(prev => [...prev.slice(-49), entry])
         }
-        lastConfirmed.current.set(next.id, { x: stored.x, y: stored.y })
-        if (!superseded()) setLocalPosition(next.id, stored.x, stored.y)
+        if (!superseded()) applyLocal(next.id, stored)
         setStatus({
           kind: 'ok',
-          text: `Saved ${name} at (${fmt(stored.x)}, ${fmt(stored.y)}) · ${new Date().toLocaleTimeString()}`,
+          text: `Saved ${name} ${
+            stored.field === 'position' ? 'at' : 'as'
+          } ${describe(stored)} · ${new Date().toLocaleTimeString()}`,
         })
         setErrorBanner(null)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      const back = lastConfirmed.current.get(next.id)
-      if (!superseded() && back && back.x !== null && back.y !== null) {
-        setLocalPosition(next.id, back.x, back.y)
+      // Put the record back to what Airtable last confirmed.
+      if (!superseded()) {
+        if (change.field === 'position') {
+          const back = lastConfirmed.current.get(next.id)
+          if (back && back.x !== null && back.y !== null) {
+            setLocalPosition(next.id, back.x, back.y)
+          }
+        } else if (lastConfirmedScale.current.has(next.id)) {
+          setLocalScale(next.id, lastConfirmedScale.current.get(next.id)!)
+        }
       }
       // A failed undo/redo keeps its history entry where it came from.
       if (next.kind === 'undo' && next.entry) {
@@ -328,12 +465,13 @@ export default function MapEditor() {
       if (queue.current.length) void processQueue()
       else setSaving(false)
     }
-  }, [pushUndo, setLocalPosition])
+  }, [pushUndo, setLocalPosition, setLocalScale, applyLocal])
 
   const enqueue = useCallback(
     (move: Omit<QueuedMove, 'at' | 'attempts'>) => {
-      // A newer move of the same pin replaces the one still waiting.
-      queue.current = queue.current.filter(m => m.id !== move.id)
+      // A newer write of the same field of the same record replaces the one
+      // still waiting.
+      queue.current = queue.current.filter(m => !sameSlot(move, m))
       queue.current.push({ ...move, at: Date.now(), attempts: 0 })
       if (settleTimer.current) {
         clearTimeout(settleTimer.current)
@@ -344,22 +482,32 @@ export default function MapEditor() {
     [processQueue]
   )
 
-  const moveRecord = useCallback(
-    (
-      id: string,
-      x: number,
-      y: number,
-      history: { kind: QueuedMove['kind']; entry?: UndoEntry } = {
-        kind: 'user',
-      }
-    ) => {
-      const c = clampGrid(roundGrid(x), roundGrid(y))
-      setLocalPosition(id, c.x, c.y)
-      // A fresh move forks history: nothing to redo any more.
+  type History = { kind: QueuedMove['kind']; entry?: UndoEntry }
+
+  /** Show a change immediately and queue its save. */
+  const applyChange = useCallback(
+    (id: string, change: Change, history: History = { kind: 'user' }) => {
+      applyLocal(id, change)
+      // A fresh change forks history: nothing to redo any more.
       if (history.kind === 'user') setRedoStack([])
-      enqueue({ id, x: c.x, y: c.y, ...history })
+      enqueue({ id, change, ...history })
     },
-    [enqueue, setLocalPosition]
+    [enqueue, applyLocal]
+  )
+
+  const moveRecord = useCallback(
+    (id: string, x: number, y: number, history?: History) => {
+      const c = clampGrid(roundGrid(x), roundGrid(y))
+      applyChange(id, { field: 'position', x: c.x, y: c.y }, history)
+    },
+    [applyChange]
+  )
+
+  const setScale = useCallback(
+    (id: string, scale: ScaleName) => {
+      applyChange(id, { field: 'scale', scale })
+    },
+    [applyChange]
   )
 
   /** History entries only exist once Airtable confirms a move, so replaying
@@ -377,16 +525,16 @@ export default function MapEditor() {
     const last = undoRef.current[undoRef.current.length - 1]
     if (!last) return
     setUndoStack(prev => prev.slice(0, -1))
-    moveRecord(last.id, last.from.x, last.from.y, { kind: 'undo', entry: last })
-  }, [historyBusy, moveRecord])
+    applyChange(last.id, last.from, { kind: 'undo', entry: last })
+  }, [historyBusy, applyChange])
 
   const redo = useCallback(() => {
     if (historyBusy()) return
     const last = redoRef.current[redoRef.current.length - 1]
     if (!last) return
     setRedoStack(prev => prev.slice(0, -1))
-    moveRecord(last.id, last.to.x, last.to.y, { kind: 'redo', entry: last })
-  }, [historyBusy, moveRecord])
+    applyChange(last.id, last.to, { kind: 'redo', entry: last })
+  }, [historyBusy, applyChange])
 
   // ── Canvas callbacks ─────────────────────────────────────────────────────
 
@@ -409,6 +557,19 @@ export default function MapEditor() {
   const onSelect = useCallback((id: string | null) => {
     setSelectedId(id)
     if (id) setPanelTab('selected')
+  }, [])
+
+  // Picking a search result: select it and, if it is on the map, pan/zoom
+  // to it (switching drafts back on if that is what was hiding it).
+  const onPick = useCallback((id: string) => {
+    const rec = recordsRef.current?.find(r => r.id === id)
+    if (!rec) return
+    setSelectedId(id)
+    setPanelTab('selected')
+    if (rec.x !== null && rec.y !== null) {
+      if (!rec.published) setShowDrafts(true)
+      controlsRef.current.focusOn(rec.x, rec.y)
+    }
   }, [])
 
   const onPlaceClick = useCallback(
@@ -591,7 +752,7 @@ export default function MapEditor() {
         </span>
       </div>
 
-      <div className={styles.split}>
+      <div className={styles.split} ref={splitRef}>
         <div className={styles.canvasWrap}>
           {/* Notices float over the map so they never push it around. */}
           <div className={styles.overlays}>
@@ -613,7 +774,7 @@ export default function MapEditor() {
                       onClick={() => {
                         const m = errorBanner.retry!
                         setErrorBanner(null)
-                        moveRecord(m.id, m.x, m.y, {
+                        applyChange(m.id, m.change, {
                           kind: m.kind,
                           entry: m.entry,
                         })
@@ -677,13 +838,15 @@ export default function MapEditor() {
               setPlaceModeId(prev => (prev === id ? null : id))
               setSelectedId(id)
             }}
+            onPick={onPick}
             onSetPosition={(id, x, y) => moveRecord(id, x, y)}
+            onSetScale={setScale}
           />
         )}
       </div>
 
       <p className={`${adminStyles.sectionHint} ${styles.footnote}`}>
-        Only x and y are written – publishing, hiding and Scale stay in
+        Only x, y and Scale are written – publishing and hiding stay in
         Airtable.
       </p>
     </div>

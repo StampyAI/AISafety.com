@@ -25,7 +25,7 @@ function Badges({ r }: { r: EditorRecord }) {
   return (
     <span className={styles.badges}>
       <span className={r.published ? styles.badgeLive : styles.badgeDraft}>
-        {r.published ? 'Published' : 'Draft'}
+        {r.published ? 'Published' : 'Unpublished'}
       </span>
       {r.isMagic && <span className={styles.badgeWarn}>furniture</span>}
       {!r.mapLogo && <span className={styles.badgeWarn}>no map logo</span>}

@@ -522,10 +522,6 @@
   text-decoration: underline;
 }
 
-.footnote {
-  margin-top: 4px;
-}
-
 @media (max-width: 991px) {
   .split {
     grid-template-columns: 1fr;

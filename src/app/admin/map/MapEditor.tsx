@@ -151,7 +151,7 @@ export default function MapEditor() {
 
   // ── Fit to the window ────────────────────────────────────────────────────
   // Size the map + panel to the space between the toolbar and the bottom of
-  // the window (minus the footnote and page padding), so nothing is cut off.
+  // the window (minus the page padding), so nothing is cut off.
   // Re-measured on resize and whenever anything above/below changes height
   // (e.g. the toolbar status wrapping onto a second line).
   useLayoutEffect(() => {
@@ -710,7 +710,7 @@ export default function MapEditor() {
         <h1 className={adminStyles.pageTitle}>Map editor</h1>
         <span className={adminStyles.pageMeta}>
           Drag a logo to move it · click to select · saves to Airtable on drop ·{' '}
-          /map updates within a few minutes
+          /map updates within a few minutes · only x, y and Scale are written
         </span>
       </div>
 
@@ -876,10 +876,6 @@ export default function MapEditor() {
           />
         )}
       </div>
-
-      <p className={`${adminStyles.sectionHint} ${styles.footnote}`}>
-        Only x, y and Scale are written.
-      </p>
     </div>
   )
 }

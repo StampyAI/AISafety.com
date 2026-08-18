@@ -709,8 +709,8 @@ export default function MapEditor() {
       <div className={`${adminStyles.pageHeading} ${styles.heading}`}>
         <h1 className={adminStyles.pageTitle}>Map editor</h1>
         <span className={adminStyles.pageMeta}>
-          Drag a logo to move it · click to select · saves to Airtable on drop ·{' '}
-          /map updates within a few minutes · only x, y and Scale are written
+          Drag a logo to move it · click to select · only x, y and Scale are
+          written
         </span>
       </div>
 

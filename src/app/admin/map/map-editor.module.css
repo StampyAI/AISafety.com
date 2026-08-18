@@ -223,8 +223,15 @@
   min-height: 0;
 }
 
+/* The body scrolls; its children keep their natural size (a long list must
+   not squash the search box). */
+.panelBody > * {
+  flex-shrink: 0;
+}
+
 .search {
   width: 100%;
+  height: 36px;
 }
 
 .list {

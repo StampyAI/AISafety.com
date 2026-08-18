@@ -87,7 +87,6 @@ export default function MapEditor() {
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([])
   const [redoStack, setRedoStack] = useState<UndoEntry[]>([])
   const [showDrafts, setShowDrafts] = useState(true)
-  const [showFurniture, setShowFurniture] = useState(true)
   const [previewPublic, setPreviewPublic] = useState(false)
   const [dragging, setDragging] = useState(false)
   // True while any save is queued or in flight (Undo waits for it).
@@ -492,10 +491,9 @@ export default function MapEditor() {
     return records.filter(r => {
       if (previewPublic) return r.published
       if (!showDrafts && !r.published) return false
-      if (!showFurniture && r.isMagic) return false
       return true
     })
-  }, [records, showDrafts, showFurniture, previewPublic])
+  }, [records, showDrafts, previewPublic])
 
   const counts = useMemo(() => {
     const all = records ?? []
@@ -573,15 +571,6 @@ export default function MapEditor() {
             disabled={previewPublic}
           />
           Show drafts
-        </label>
-        <label className={styles.toggle}>
-          <input
-            type="checkbox"
-            checked={showFurniture}
-            onChange={e => setShowFurniture(e.target.checked)}
-            disabled={previewPublic}
-          />
-          Show furniture
         </label>
         <label className={styles.toggle}>
           <input

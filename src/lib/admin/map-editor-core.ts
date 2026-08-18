@@ -81,6 +81,8 @@ export interface EditorRecord {
   y: number | null
   published: boolean
   isMagic: boolean
+  /** When the record was created in Airtable (ISO), for tray ordering. */
+  createdTime: string | null
   /** Position in /map's stacking order (0 = drawn first / bottom-most). */
   order: number
 }
@@ -113,6 +115,7 @@ function attachmentUrl(value: unknown): string | null {
 
 export interface AirtableRowLike {
   id: string
+  createdTime?: string
   fields: Record<string, unknown>
 }
 
@@ -143,6 +146,7 @@ export function rowToEditorRecord(row: AirtableRowLike): EditorRecord {
     y: num(f[FIELD.y]),
     published: f[FIELD.publish] === true,
     isMagic: MAGIC_ROW_NAMES.includes(title),
+    createdTime: row.createdTime ?? null,
     order: 0,
   }
 }

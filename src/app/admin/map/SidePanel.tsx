@@ -62,13 +62,17 @@ export default function SidePanel({
 
   const unplaced = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return records
-      .filter(r => r.x === null || r.y === null)
-      .filter(r => !q || r.title.toLowerCase().includes(q))
-      .sort((a, b) => {
-        if (a.published !== b.published) return a.published ? 1 : -1
-        return a.title.localeCompare(b.title)
-      })
+    return (
+      records
+        .filter(r => r.x === null || r.y === null)
+        .filter(r => !q || r.title.toLowerCase().includes(q))
+        // Newest additions to Airtable first (same order as the Incoming
+        // suggestions view), then by name.
+        .sort((a, b) => {
+          const t = (b.createdTime ?? '').localeCompare(a.createdTime ?? '')
+          return t !== 0 ? t : a.title.localeCompare(b.title)
+        })
+    )
   }, [records, search])
 
   const shownTab = tab

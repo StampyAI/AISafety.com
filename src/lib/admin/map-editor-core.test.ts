@@ -187,6 +187,7 @@ function rec(over: Partial<EditorRecord>): EditorRecord {
     y: null,
     published: true,
     isMagic: false,
+    createdTime: null,
     order: 0,
     ...over,
   }

@@ -277,6 +277,17 @@
   border-color: var(--bright-teal-300);
 }
 
+/* Published records with no coordinates are invisible on /map — flag them. */
+.rowLiveUnplaced {
+  border-color: #ff8b8b;
+  background-color: rgba(255, 139, 139, 0.06);
+}
+
+.missingNote {
+  font-size: 11px;
+  color: #ff8b8b;
+}
+
 .rowLogo {
   width: 32px;
   height: 32px;

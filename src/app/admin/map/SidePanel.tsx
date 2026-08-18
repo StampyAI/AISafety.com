@@ -141,8 +141,8 @@ export default function SidePanel({
                 <li
                   key={r.id}
                   className={`${styles.row} ${
-                    placeModeId === r.id ? styles.rowPlacing : ''
-                  }`}
+                    r.published ? styles.rowLiveUnplaced : ''
+                  } ${placeModeId === r.id ? styles.rowPlacing : ''}`}
                 >
                   <span className={styles.rowLogo}>
                     {r.mapLogo ? (
@@ -158,6 +158,11 @@ export default function SidePanel({
                       {r.category || '—'}
                       {r.scale ? ` · ${r.scale}` : ''}
                     </span>
+                    {r.published && (
+                      <span className={styles.missingNote}>
+                        Published but not on the map yet
+                      </span>
+                    )}
                     <Badges r={r} />
                   </span>
                   <button

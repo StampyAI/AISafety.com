@@ -121,13 +121,14 @@ export default function DetailsForm() {
 
   if (done) {
     return (
-      <div className="padding-bottom-56px">
+      <div
+        className={`${base.thanks} border-plus-fill margin-bottom-56px padding-top-32px padding-bottom-32px padding-left-32px padding-right-32px`}
+      >
         <h3 className="padding-bottom-16px">Thanks!</h3>
         <p className="color-teal-300">
           {done === 'emailed'
-            ? 'We’ve emailed you a copy of your answers. If anything changes – especially your dates – just reply to that email.'
-            : 'If anything changes – especially your dates – just let Bryce know.'}{' '}
-          See you in Blackpool!
+            ? 'We’ve emailed you a copy of your answers. If anything changes, just reply to that email.'
+            : 'If anything changes, just let Bryce know.'}
         </p>
       </div>
     )

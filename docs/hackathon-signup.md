@@ -283,8 +283,8 @@ function handleDetails(details) {
 
   var body =
     'Hi,\n\n' +
-    'Thanks for sending us your details for the AISafety.com Hackathon 2026 ' +
-    '(17–20 September at CEEALAR in Blackpool). This is an automated email ' +
+    'Thanks for sending us your details for the AISafety.com Hackathon 2026. ' +
+    'This is an automated email ' +
     'confirming we received them – your answers are below.\n\n' +
     'If anything changes, just reply to this ' +
     'email. See you in Blackpool!\n\n' +
@@ -296,8 +296,8 @@ function handleDetails(details) {
   var htmlBody =
     '<p>Hi,</p>' +
     '<p>Thanks for sending us your details for the ' +
-    '<a href="https://aisafety.com/hackathon">AISafety.com Hackathon 2026</a> ' +
-    '(17–20 September at CEEALAR in Blackpool). This is an automated email ' +
+    '<a href="https://aisafety.com/hackathon">AISafety.com Hackathon 2026</a>. ' +
+    'This is an automated email ' +
     'confirming we received them – your answers are below.</p>' +
     '<p>If anything changes, just reply to this ' +
     'email. See you in Blackpool!</p>' +

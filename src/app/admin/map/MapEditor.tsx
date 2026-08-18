@@ -878,8 +878,7 @@ export default function MapEditor() {
       </div>
 
       <p className={`${adminStyles.sectionHint} ${styles.footnote}`}>
-        Only x, y and Scale are written – publishing and hiding stay in
-        Airtable.
+        Only x, y and Scale are written.
       </p>
     </div>
   )

@@ -69,18 +69,18 @@ function ensureConfig(table: string | undefined): asserts table is string {
   }
 }
 
-interface AirtableRow<F> {
+export interface AirtableRow<F> {
   id: string
   createdTime: string
   fields: F
 }
 
-interface AirtableListResponse<F> {
+export interface AirtableListResponse<F> {
   records: AirtableRow<F>[]
   offset?: string
 }
 
-async function airtableRequest(
+export async function airtableRequest(
   path: string,
   init: RequestInit = {}
 ): Promise<Response> {
@@ -95,7 +95,7 @@ async function airtableRequest(
   })
 }
 
-async function listAll<F>(
+export async function listAll<F>(
   table: string,
   params: URLSearchParams = new URLSearchParams()
 ): Promise<AirtableRow<F>[]> {

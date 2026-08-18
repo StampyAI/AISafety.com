@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { canViewAnalytics, canViewChatbot } from '@/lib/admin/auth'
+import { canEditMap, canViewAnalytics, canViewChatbot } from '@/lib/admin/auth'
 import AdminHeader from '../AdminHeader'
 import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
@@ -22,7 +22,7 @@ export default async function AnalyticsLayout({
   }
   // Analytics access is guaranteed here, so the Analytics tab is always present;
   // the chatbot tabs drop out for an analytics-only session.
-  const access = { chatbot, analytics: true }
+  const access = { chatbot, analytics: true, mapEditor: await canEditMap() }
   return (
     <>
       <AdminHeader tabs={adminTabs(access)} brandHref={adminHomeHref(access)} />

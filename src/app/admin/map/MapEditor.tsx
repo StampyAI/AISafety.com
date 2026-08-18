@@ -717,7 +717,7 @@ export default function MapEditor() {
       <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
         <strong>This edits the live site.</strong> Every move is saved to
         Airtable straight away and appears on the public /map within a few
-        minutes.
+        minutes. Use with caution.
       </div>
 
       <div className={`${adminStyles.editorToolbar} ${styles.toolbar}`}>

@@ -12,6 +12,9 @@ interface PasswordRole {
   chatbot: boolean
   /** May open the analytics dashboard. */
   analytics: boolean
+  /** May open the map editor and move logos on the Field map (writes x/y to
+   *  Airtable). Owner only for now. */
+  mapEditor: boolean
 }
 
 /** Every password that grants admin access, and the areas each one opens. Each
@@ -20,13 +23,29 @@ interface PasswordRole {
  *  immediately, while the others are untouched. */
 const PASSWORD_ROLES: PasswordRole[] = [
   // Primary owner password: the whole admin.
-  { env: 'ADMIN_PASSWORD', chatbot: true, analytics: true },
+  { env: 'ADMIN_PASSWORD', chatbot: true, analytics: true, mapEditor: true },
   // Partner reviewing chat logs: chat areas only, no analytics.
-  { env: 'ADMIN_PASSWORD_SUCCESSIF', chatbot: true, analytics: false },
-  // Site volunteers: the whole admin.
-  { env: 'ADMIN_PASSWORD_VOLUNTEER', chatbot: true, analytics: true },
+  {
+    env: 'ADMIN_PASSWORD_SUCCESSIF',
+    chatbot: true,
+    analytics: false,
+    mapEditor: false,
+  },
+  // Site volunteers: the whole admin except the map editor (it writes to the
+  // live Airtable base).
+  {
+    env: 'ADMIN_PASSWORD_VOLUNTEER',
+    chatbot: true,
+    analytics: true,
+    mapEditor: false,
+  },
   // Analytics-only volunteers: the dashboard, with the chat areas out of reach.
-  { env: 'ADMIN_PASSWORD_ANALYTICS', chatbot: false, analytics: true },
+  {
+    env: 'ADMIN_PASSWORD_ANALYTICS',
+    chatbot: false,
+    analytics: true,
+    mapEditor: false,
+  },
 ]
 
 /** Configured passwords whose role satisfies `grants`. Roles left unconfigured
@@ -77,6 +96,12 @@ export async function canViewChatbot(): Promise<boolean> {
  *  password is deliberately excluded — that partner reviews chat logs only. */
 export async function canViewAnalytics(): Promise<boolean> {
   return sessionHolds(passwordsWhere(role => role.analytics))
+}
+
+/** True when the session may open the map editor and move logos on the Field
+ *  map. Only the owner password — every save is a write to the live base. */
+export async function canEditMap(): Promise<boolean> {
+  return sessionHolds(passwordsWhere(role => role.mapEditor))
 }
 
 export async function setAdminCookie(password: string): Promise<void> {

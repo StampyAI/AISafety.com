@@ -6,7 +6,7 @@ export interface AdminNavTab {
   label: string
   /** Tabs are grouped in the header; a divider is drawn where the group changes
    *  (so the two chatbot tabs read as a pair, separate from Analytics). */
-  group: 'chatbot' | 'analytics'
+  group: 'chatbot' | 'analytics' | 'map'
 }
 
 export interface AdminAccess {
@@ -14,12 +14,18 @@ export interface AdminAccess {
   chatbot: boolean
   /** Session may reach /admin/analytics (every password but Successif). */
   analytics: boolean
+  /** Session may reach /admin/map (owner password only). */
+  mapEditor: boolean
 }
 
 /** Tabs shown in the admin header, limited to the areas this session can
  *  actually open — a tab the session would only be bounced out of is worse than
  *  no tab at all. */
-export function adminTabs({ chatbot, analytics }: AdminAccess): AdminNavTab[] {
+export function adminTabs({
+  chatbot,
+  analytics,
+  mapEditor,
+}: AdminAccess): AdminNavTab[] {
   return [
     ...(chatbot
       ? [
@@ -44,14 +50,28 @@ export function adminTabs({ chatbot, analytics }: AdminAccess): AdminNavTab[] {
           },
         ]
       : []),
+    ...(mapEditor
+      ? [
+          {
+            href: '/admin/map',
+            label: 'Map editor',
+            group: 'map' as const,
+          },
+        ]
+      : []),
   ]
 }
 
 /** Where a session should land when it has no particular destination: the
  *  first area it can open. Used for the header brand link and the post-login
  *  bounce so nobody is sent somewhere they'll be redirected out of. */
-export function adminHomeHref({ chatbot, analytics }: AdminAccess): string {
+export function adminHomeHref({
+  chatbot,
+  analytics,
+  mapEditor,
+}: AdminAccess): string {
   if (chatbot) return '/admin/chatbot/playground'
   if (analytics) return '/admin/analytics'
+  if (mapEditor) return '/admin/map'
   return '/admin/login'
 }

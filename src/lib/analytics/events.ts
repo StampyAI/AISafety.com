@@ -142,6 +142,20 @@ const MONTHS_KEY = 'aisafety:analytics:months'
 // place so a rolled-back deployment still finds its data.
 const LEGACY_EVENTS_KEY = 'aisafety:analytics:events'
 const MIGRATED_KEY = 'aisafety:analytics:legacy-migrated'
+// When each visitor was first seen: a hash of visitor id → epoch ms of the
+// earliest event we hold for that browser, any type. Written with every event
+// (HSETNX, so the first write sticks) and filled in for pre-existing visitors
+// by backfillFirstSeen(). It exists so the dashboard can tell returning
+// visitors from new ones without re-reading every stored month on every load —
+// one HMGET over the range's visitors instead. Grows by one ~50-byte entry per
+// new browser (bots included), i.e. a small fraction of the month lists.
+const FIRST_SEEN_KEY = 'aisafety:analytics:first-seen'
+// Marker set once backfillFirstSeen() has run; until then first-seen only
+// covers visitors seen since the feature deployed, and the dashboard says so.
+const FIRST_SEEN_BACKFILLED_KEY = 'aisafety:analytics:first-seen-backfilled'
+// Visitor ids per HMGET when looking up first-seen timestamps; a full
+// pipeline of these stays well under Upstash's response-size limits.
+const FIRST_SEEN_CHUNK = 1000
 // Backstop only — never reached by real traffic. Clicks and chatbot events ran
 // ~15k/month as of July 2026; page-view tracking (added 15 July 2026) is
 // estimated to lift organic volume to ~50–100k/month, so this is ~1.5–3×
@@ -258,7 +272,9 @@ export async function recordEvent(event: AnalyticsEvent): Promise<void> {
       const p = store.pipeline()
       p.lpush(MONTH_KEY_PREFIX + month, event) // upstash serializes to JSON
       p.zadd(MONTHS_KEY, { score: monthScore(month), member: month })
-      const [len] = (await p.exec()) as [number, unknown]
+      // First time we see this browser? Remember when. NX keeps the earliest.
+      if (event.vid) p.hsetnx(FIRST_SEEN_KEY, event.vid, Date.parse(event.ts))
+      const [len] = (await p.exec()) as [number, ...unknown[]]
       // Abuse backstop, applied only when actually over the cap. Trimming the
       // tail on every write would also destabilise readMonths' tail-anchored
       // slices, so the common case must stay pure-LPUSH. Never silent: real
@@ -380,6 +396,20 @@ export interface VisitsData {
   /** Browsing sessions: one visitor's page views separated by 30+ minutes of
    *  inactivity count as separate visits (the definition Matomo uses too). */
   visitCount: number
+  /** The range's visitors split by whether they've been here more than once.
+   *  Returning = had a visit before this period (any event we hold for the
+   *  browser predates the range) OR made two or more visits within it (sessions
+   *  of any activity, 30+ minutes apart); new = one visit so far, their first.
+   *  The two sum to `uniqueVisitors`; visitors with no id (private browsing)
+   *  can't have a history, so they count as new. Over "All time" nothing
+   *  predates the range, so returning is simply every visitor who came back at
+   *  least once. */
+  newVisitors: number
+  returningVisitors: number
+  /** Per page: the page's distinct visitors who are returning (by the
+   *  site-wide definition above — they've visited the SITE before, not
+   *  necessarily this page) against the page's distinct visitors. */
+  returningShareByPage: VisitorShare[]
 }
 
 export interface CorrelationRow {
@@ -553,6 +583,11 @@ export interface DashboardData {
    *  range) — lets the dashboard say how far back its data actually goes.
    *  Undefined when the store is empty or the oldest event can't be read. */
   oldestTs?: string
+  /** False until backfillFirstSeen() has run against the Redis store: before
+   *  that, visitors from before the feature deployed look new on their next
+   *  visit. Always true for the dev file store, which derives first-seen
+   *  from the whole file. */
+  firstSeenBackfilled: boolean
   /** Months whose event count has reached MONTH_CAP_WARN_RATIO of the backstop
    *  cap — the dashboard shows a warning so the cap can be raised before it
    *  trims anything. Checked across the whole store, not just the selected
@@ -612,7 +647,16 @@ const EMPTY: Omit<DashboardData, 'source'> = {
     destinations: [],
   },
   optOuts: { off: 0, on: 0 },
-  visits: { byPage: [], totalViews: 0, uniqueVisitors: 0, visitCount: 0 },
+  visits: {
+    byPage: [],
+    totalViews: 0,
+    uniqueVisitors: 0,
+    visitCount: 0,
+    newVisitors: 0,
+    returningVisitors: 0,
+    returningShareByPage: [],
+  },
+  firstSeenBackfilled: true,
   correlations: [],
   recent: [],
   nearCap: [],
@@ -791,8 +835,15 @@ function aggregate(
   { startMs, endMs }: DateRange,
   selectedPageReq?: string,
   unique = true,
-  sourceReq?: string
-): Omit<DashboardData, 'source' | 'error' | 'oldestTs' | 'nearCap'> {
+  sourceReq?: string,
+  /** Epoch ms each visitor was first seen (any event, whole store), for at
+   *  least every visitor with a page view in range. What makes "returning"
+   *  knowable without reading the months before the range. */
+  firstSeen: Map<string, number> = new Map()
+): Omit<
+  DashboardData,
+  'source' | 'error' | 'oldestTs' | 'nearCap' | 'firstSeenBackfilled'
+> {
   const inRange = all.filter(e => {
     const t = Date.parse(e.ts)
     if (Number.isNaN(t)) return false
@@ -1145,7 +1196,7 @@ function aggregate(
     chatbot: chatbotPanels(inRange, unique),
     search: searchPanels(inRange, unique),
     optOuts: optOutSplit(inRange),
-    visits: visitsData(inRange, unique),
+    visits: visitsData(inRange, unique, firstSeen, startMs, viewVidsByPage),
     correlations: correlations(inRange),
     // Newest-first already; page views and map hovers are left out so the
     // feed stays a log of deliberate actions rather than a firehose of visits
@@ -1181,8 +1232,42 @@ export const PAGE_NAME_BY_PATH: Record<string, string> = {
 }
 
 /** The visits panel: page views bucketed by page. */
-function visitsData(inRange: AnalyticsEvent[], unique: boolean): VisitsData {
+function visitsData(
+  inRange: AnalyticsEvent[],
+  unique: boolean,
+  firstSeen: Map<string, number>,
+  startMs: number | null,
+  viewVidsByPage: Map<string, Set<string>>
+): VisitsData {
   const views = inRange.filter(e => e.type === 'page_view')
+  const { byVid, anon } = visitsByVisitor(views)
+
+  // Returning = visited before this period, or came back within it. "Before"
+  // is the first-seen record predating the range start; with no start (All
+  // time) nothing can predate it, and only within-range returns count. A
+  // visitor with no first-seen record was never written to the store before
+  // their first event in range (or the backfill hasn't run), so they're new.
+  // Within-range visits are sessions of ANY activity, not just page views, so
+  // a visit from before page-view tracking (a June 2026 listing click) still
+  // counts as a visit over ranges that include it — consistent with "before",
+  // which any event type satisfies.
+  const sessions = visitsByVisitor(inRange).byVid
+  const returning = new Set<string>()
+  for (const vid of byVid.keys()) {
+    const seen = firstSeen.get(vid)
+    const before = startMs != null && seen != null && seen < startMs
+    if (before || (sessions.get(vid) ?? 1) >= 2) returning.add(vid)
+  }
+  const returningShareByPage: VisitorShare[] = [...viewVidsByPage.entries()]
+    .map(([name, vids]) => ({
+      name,
+      active: [...vids].filter(v => returning.has(v)).length,
+      visitors: vids.size,
+    }))
+    .sort((a, b) => b.visitors - a.visitors)
+
+  let visitCount = anon
+  for (const visits of byVid.values()) visitCount += visits
   return {
     byPage: tallyBy(
       views,
@@ -1191,39 +1276,49 @@ function visitsData(inRange: AnalyticsEvent[], unique: boolean): VisitsData {
     ),
     totalViews: views.length,
     uniqueVisitors: uniqueUsers(views),
-    visitCount: countVisits(views),
+    visitCount,
+    newVisitors: byVid.size - returning.size + anon,
+    returningVisitors: returning.size,
+    returningShareByPage,
   }
 }
 
 /** A returning visitor starts a new visit after this much inactivity. */
 const SESSION_GAP_MS = 30 * 60_000
 
-/** Browsing sessions among the page views: each visitor's views are grouped,
- *  and a gap of SESSION_GAP_MS or more starts a new visit. Views with no
- *  visitor id (private browsing) can't be grouped, so each counts as its own
- *  visit — same spirit as uniqueUsers. */
-function countVisits(views: AnalyticsEvent[]): number {
-  const byVid = new Map<string, number[]>()
-  let visits = 0
+/** Browsing sessions among the given events, per visitor: each visitor's
+ *  events are grouped, and a gap of SESSION_GAP_MS or more starts a new visit.
+ *  Events with no visitor id (private browsing) can't be grouped, so each
+ *  counts as its own visit (`anon`) — same spirit as uniqueUsers. Fed page
+ *  views for the Visits tile, and every event type for the new/returning
+ *  split. */
+function visitsByVisitor(views: AnalyticsEvent[]): {
+  byVid: Map<string, number>
+  anon: number
+} {
+  const timesByVid = new Map<string, number[]>()
+  let anon = 0
   for (const e of views) {
     if (!e.vid) {
-      visits++
+      anon++
       continue
     }
     const t = Date.parse(e.ts)
     if (Number.isNaN(t)) continue
-    const times = byVid.get(e.vid) ?? []
+    const times = timesByVid.get(e.vid) ?? []
     times.push(t)
-    byVid.set(e.vid, times)
+    timesByVid.set(e.vid, times)
   }
-  for (const times of byVid.values()) {
+  const byVid = new Map<string, number>()
+  for (const [vid, times] of timesByVid) {
     times.sort((a, b) => a - b)
-    visits++
+    let visits = 1
     for (let i = 1; i < times.length; i++) {
       if (times[i] - times[i - 1] >= SESSION_GAP_MS) visits++
     }
+    byVid.set(vid, visits)
   }
-  return visits
+  return { byVid, anon }
 }
 
 /** The interest an event expresses, for the correlations table: the page it
@@ -1503,6 +1598,90 @@ function nearCapMonths(
     .map(c => ({ ...c, cap: MONTH_CAP }))
 }
 
+/** Every stored month with its event count, oldest first. The lengths come as
+ *  one pipeline of integers — cheap, so callers can afford them for the whole
+ *  store (the near-cap warning and the backfill both need every month). */
+async function storedMonths(
+  db: Redis
+): Promise<{ month: string; len: number }[]> {
+  const months = (await db.zrange(MONTHS_KEY, 0, -1)) as string[]
+  if (months.length === 0) return []
+  const lenPipe = db.pipeline()
+  for (const m of months) lenPipe.llen(MONTH_KEY_PREFIX + m)
+  const lens = (await lenPipe.exec()) as number[]
+  return months.map((month, i) => ({ month, len: lens[i] }))
+}
+
+/** Distinct visitor ids among the page views in range — the visitors whose
+ *  first-seen timestamps the dashboard needs to split new from returning. */
+function viewVidsInRange(
+  all: AnalyticsEvent[],
+  { startMs, endMs }: DateRange
+): string[] {
+  const vids = new Set<string>()
+  for (const e of all) {
+    if (e.type !== 'page_view' || !e.vid) continue
+    const t = Date.parse(e.ts)
+    if (Number.isNaN(t)) continue
+    if (startMs != null && t < startMs) continue
+    if (endMs != null && t > endMs) continue
+    vids.add(e.vid)
+  }
+  return [...vids]
+}
+
+/** First-seen epoch ms for the given visitors, from the Redis hash. Looked up
+ *  FIRST_SEEN_CHUNK ids per HMGET, a handful of HMGETs per pipeline, pipelines
+ *  sequential — so a typical range is one round trip and no single response
+ *  outgrows Upstash's limits however many visitors a range has. Visitors with
+ *  no record are simply absent from the map. */
+async function readFirstSeen(
+  db: Redis,
+  vids: string[]
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  const PER_PIPELINE = 10 * FIRST_SEEN_CHUNK
+  for (let p0 = 0; p0 < vids.length; p0 += PER_PIPELINE) {
+    const pipe = db.pipeline()
+    for (
+      let i = p0;
+      i < Math.min(p0 + PER_PIPELINE, vids.length);
+      i += FIRST_SEEN_CHUNK
+    ) {
+      pipe.hmget<Record<string, number | null>>(
+        FIRST_SEEN_KEY,
+        ...vids.slice(i, i + FIRST_SEEN_CHUNK)
+      )
+    }
+    const results = (await pipe.exec()) as (Record<
+      string,
+      number | null
+    > | null)[]
+    for (const chunk of results) {
+      if (!chunk) continue // hmget returns null when every field is missing
+      for (const [vid, ms] of Object.entries(chunk)) {
+        if (typeof ms === 'number') out.set(vid, ms)
+      }
+    }
+  }
+  return out
+}
+
+/** First-seen epoch ms per visitor computed from the events themselves — the
+ *  dev store's answer (it holds everything in one file) and the backfill's
+ *  source of truth. */
+function earliestByVid(events: AnalyticsEvent[]): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const e of events) {
+    if (!e.vid) continue
+    const t = Date.parse(e.ts)
+    if (Number.isNaN(t)) continue
+    const cur = out.get(e.vid)
+    if (cur == null || t < cur) out.set(e.vid, t)
+  }
+  return out
+}
+
 export async function readDashboard(
   range: DateRange,
   page?: string,
@@ -1511,22 +1690,15 @@ export async function readDashboard(
 ): Promise<DashboardData> {
   if (store) {
     try {
-      // All stored months, oldest first. Every month's length is fetched (a
-      // pipeline of integers — cheap) so the near-cap warning covers the whole
-      // store; only the months the range touches have their events read. The
-      // oldest month also tells us how far back the data goes.
-      const months = (await store.zrange(MONTHS_KEY, 0, -1)) as string[]
-      let lens: number[] = []
-      if (months.length > 0) {
-        const lenPipe = store.pipeline()
-        for (const m of months) lenPipe.llen(MONTH_KEY_PREFIX + m)
-        lens = (await lenPipe.exec()) as number[]
-      }
-      const byMonth = months.map((month, i) => ({ month, len: lens[i] }))
+      // All stored months, oldest first, with lengths (so the near-cap warning
+      // covers the whole store); only the months the range touches have their
+      // events read. The oldest month also tells us how far back the data goes.
+      const byMonth = await storedMonths(store)
+      const months = byMonth.map(b => b.month)
       const wanted = monthsInRange(months, range)
         .map(m => byMonth.find(b => b.month === m)!)
         .reverse() // newest first
-      const [all, oldestEvent] = await Promise.all([
+      const [all, oldestEvent, backfilled] = await Promise.all([
         readMonths(store, wanted),
         months.length > 0
           ? (store.lindex(
@@ -1534,14 +1706,22 @@ export async function readDashboard(
               -1
             ) as Promise<AnalyticsEvent | null>)
           : null,
+        store.exists(FIRST_SEEN_BACKFILLED_KEY),
       ])
+      // Which of the range's visitors were around before it began. Skipped for
+      // an open-ended range: nothing can predate "All time".
+      const firstSeen =
+        range.startMs != null
+          ? await readFirstSeen(store, viewVidsInRange(all, range))
+          : new Map<string, number>()
       return {
         source: 'redis',
         oldestTs: oldestEvent?.ts,
         nearCap: nearCapMonths(
           byMonth.map(b => ({ month: b.month, count: b.len }))
         ),
-        ...aggregate(all, range, page, unique, sourceFilter),
+        firstSeenBackfilled: backfilled === 1,
+        ...aggregate(all, range, page, unique, sourceFilter, firstSeen),
       }
     } catch (err) {
       // Degrade gracefully — a Redis blip must not 500 the dashboard.
@@ -1565,8 +1745,63 @@ export async function readDashboard(
     nearCap: nearCapMonths(
       [...devMonthCounts.entries()].map(([month, count]) => ({ month, count }))
     ),
-    ...aggregate(all, range, page, unique, sourceFilter),
+    firstSeenBackfilled: true,
+    ...aggregate(all, range, page, unique, sourceFilter, earliestByVid(all)),
   }
+}
+
+export interface FirstSeenBackfillResult {
+  /** Distinct visitors found across every stored month. */
+  visitors: number
+  /** How many of them got a first-seen timestamp written — new to the hash,
+   *  or earlier than what the live write path had recorded. */
+  written: number
+  months: string[]
+}
+
+/** One-off fill of the first-seen hash from every stored month, so visitors
+ *  from before the hash existed are recognised as returning instead of
+ *  looking new on their next visit. Reads the whole store (the same cost as
+ *  an "All time" dashboard load), then writes each visitor's earliest
+ *  timestamp wherever the hash has none or a later one — the live HSETNX path
+ *  can only have seen events since the feature deployed. Idempotent: a second
+ *  run finds nothing earlier and writes nothing. Sets the backfilled marker
+ *  when done, which switches off the dashboard's "history incomplete" note.
+ *  Safe alongside live traffic: a visitor's first event landing mid-run is
+ *  either in the scan (and wins by being earliest) or newer than anything the
+ *  scan has for them. */
+export async function backfillFirstSeen(): Promise<FirstSeenBackfillResult> {
+  if (!store) {
+    throw new Error(
+      'backfillFirstSeen needs the Redis backend; the dev file store derives first-seen from the whole file'
+    )
+  }
+  const byMonth = await storedMonths(store)
+  const all = await readMonths(store, [...byMonth].reverse())
+  const earliest = earliestByVid(all)
+  const vids = [...earliest.keys()]
+  let written = 0
+  for (let i = 0; i < vids.length; i += FIRST_SEEN_CHUNK) {
+    const chunk = vids.slice(i, i + FIRST_SEEN_CHUNK)
+    const existing = await readFirstSeen(store, chunk)
+    const updates: Record<string, number> = {}
+    for (const vid of chunk) {
+      const t = earliest.get(vid)!
+      const cur = existing.get(vid)
+      if (cur == null || t < cur) updates[vid] = t
+    }
+    const n = Object.keys(updates).length
+    if (n > 0) {
+      await store.hset(FIRST_SEEN_KEY, updates)
+      written += n
+    }
+  }
+  await store.set(FIRST_SEEN_BACKFILLED_KEY, {
+    doneAt: new Date().toISOString(),
+    visitors: vids.length,
+    written,
+  })
+  return { visitors: vids.length, written, months: byMonth.map(b => b.month) }
 }
 
 export interface MigrationResult {

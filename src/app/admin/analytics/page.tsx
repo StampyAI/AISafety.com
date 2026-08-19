@@ -593,6 +593,7 @@ export default async function AnalyticsPage({
   const shareByLabel = (rows: VisitorShare[]) =>
     new Map(rows.map(r => [labelByPage.get(r.name) ?? r.name, r]))
   const clickShare = shareByLabel(data.clickShareByPage)
+  const returningShare = shareByLabel(data.visits.returningShareByPage)
   const contributeShare = shareByLabel(data.contributeShareByPage)
   const airtableShare = shareByLabel(data.airtableShareByPage)
   const newsletterShare = shareByLabel(data.newsletterShareByPage)
@@ -753,6 +754,21 @@ export default async function AnalyticsPage({
                   value={data.visits.uniqueVisitors.toLocaleString()}
                 />
                 <Stat
+                  label="New visitors"
+                  value={data.visits.newVisitors.toLocaleString()}
+                />
+                <Stat
+                  label="Returning visitors"
+                  value={data.visits.returningVisitors.toLocaleString()}
+                />
+                <Stat
+                  label="of visitors were returning"
+                  value={pct(
+                    data.visits.returningVisitors,
+                    data.visits.uniqueVisitors
+                  )}
+                />
+                <Stat
                   label="Visits"
                   value={data.visits.visitCount.toLocaleString()}
                 />
@@ -769,9 +785,16 @@ export default async function AnalyticsPage({
                 First-party numbers, so ad blockers can&apos;t strip them.
                 Visitors = distinct browsers; one visitor&apos;s pages more than
                 30 minutes apart count as separate visits. Recording since 15
-                July 2026. Opt-outs = browsers that switched analytics off on
-                the privacy page and haven&apos;t switched it back on (recording
-                since 16 July 2026)
+                July 2026. Returning = visitors who&apos;d been to the site
+                before this period (any activity back to 20 June 2026 counts) or
+                came back for another visit within it; new = their first visit,
+                no return yet. A visitor who clears their browser data or
+                switches devices looks new again.
+                {!data.firstSeenBackfilled &&
+                  ' Visitor history is still being backfilled, so returning counts are low for now.'}{' '}
+                Opt-outs = browsers that switched analytics off on the privacy
+                page and haven&apos;t switched it back on (recording since 16
+                July 2026)
                 {data.optOuts.on > 0 &&
                   ` – ${data.optOuts.on.toLocaleString()} more switched it back on`}
                 .
@@ -790,10 +813,20 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   countHead={unique ? 'Visitors' : 'Views'}
                   total={data.visits.byPage.reduce((s, r) => s + r.count, 0)}
+                  shareFor={name => returningShare.get(name)}
+                  shareHead="% returning"
+                  totalShare={{
+                    name: 'Total',
+                    active: data.visits.returningVisitors,
+                    visitors: data.visits.uniqueVisitors,
+                  }}
                 />
                 <p className={styles.caption}>
                   First-party page views — ad blockers can&apos;t strip these,
-                  unlike Matomo&apos;s. Recording since 15 July 2026.
+                  unlike Matomo&apos;s. Recording since 15 July 2026. %
+                  returning = the share of the page&apos;s visitors who are
+                  returning visitors to the site (as defined above) — which
+                  pages regulars come back to, and which ones newcomers land on.
                 </p>
               </Panel>
               <Panel title="Clicks by page">
@@ -1451,6 +1484,7 @@ function CountTable({
   rankFor,
   pageFor,
   shareFor,
+  shareHead = '% of visitors',
   total,
   totalShare,
 }: {
@@ -1473,6 +1507,9 @@ function CountTable({
    *  distinct visitors who did the thing at least once — always per-visitor,
    *  whichever count mode is on. Looked up by the row's displayed name. */
   shareFor?: (name: string) => VisitorShare | undefined
+  /** Heading for the `shareFor` column, when it measures something other than
+   *  "did the thing" — e.g. '% returning'. */
+  shareHead?: string
   /** When set, adds a % column (each row's share of this total) and a Total
    *  footer row. The total is the denominator, so for a sliced "top N" table it
    *  can exceed the sum of the visible rows. */
@@ -1499,7 +1536,7 @@ function CountTable({
     ...(shareFor
       ? [
           {
-            label: '% of visitors',
+            label: shareHead,
             className: styles.pctCol,
             sort: 'number' as const,
           },

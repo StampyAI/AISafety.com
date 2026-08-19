@@ -786,7 +786,8 @@ export default async function AnalyticsPage({
                 Visitors = distinct browsers; one visitor&apos;s pages more than
                 30 minutes apart count as separate visits. Recording since 15
                 July 2026. Returning = visitors who&apos;d been to the site
-                before this period (any activity back to 20 June 2026 counts) or
+                before this period (any recorded activity counts
+                {data.oldestTs && ` – back to ${formatDay(data.oldestTs)}`}) or
                 came back for another visit within it; new = their first visit,
                 no return yet. A visitor who clears their browser data or
                 switches devices looks new again.

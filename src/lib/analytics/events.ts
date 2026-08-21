@@ -257,6 +257,16 @@ export async function allowTrack(ip: string): Promise<boolean> {
   }
 }
 
+/** Month-registry and first-seen writes this server instance has already sent.
+ *  Both are idempotent (zadd with a fixed score / hsetnx), so these caches only
+ *  skip re-sending them with every event — half the write commands at steady
+ *  state. A fresh instance simply sends each once more; entries are added only
+ *  after the pipeline succeeds, so a failed write is retried by the next event.
+ *  The vid cache is cleared at a cap to keep instance memory flat. */
+const registeredMonths = new Set<string>()
+const firstSeenWritten = new Set<string>()
+const FIRST_SEEN_CACHE_CAP = 50_000
+
 /** Record one event. Never throws to the caller — a failed analytics write must
  *  not break the user's request (it is fired via after() from the route). */
 export async function recordEvent(event: AnalyticsEvent): Promise<void> {
@@ -269,12 +279,23 @@ export async function recordEvent(event: AnalyticsEvent): Promise<void> {
         )
         return
       }
+      const vid = event.vid
       const p = store.pipeline()
       p.lpush(MONTH_KEY_PREFIX + month, event) // upstash serializes to JSON
-      p.zadd(MONTHS_KEY, { score: monthScore(month), member: month })
+      const registerMonth = !registeredMonths.has(month)
+      if (registerMonth) {
+        p.zadd(MONTHS_KEY, { score: monthScore(month), member: month })
+      }
       // First time we see this browser? Remember when. NX keeps the earliest.
-      if (event.vid) p.hsetnx(FIRST_SEEN_KEY, event.vid, Date.parse(event.ts))
+      const writeFirstSeen = !!vid && !firstSeenWritten.has(vid)
+      if (writeFirstSeen) p.hsetnx(FIRST_SEEN_KEY, vid, Date.parse(event.ts))
       const [len] = (await p.exec()) as [number, ...unknown[]]
+      if (registerMonth) registeredMonths.add(month)
+      if (writeFirstSeen) {
+        if (firstSeenWritten.size >= FIRST_SEEN_CACHE_CAP)
+          firstSeenWritten.clear()
+        firstSeenWritten.add(vid)
+      }
       // Abuse backstop, applied only when actually over the cap. Trimming the
       // tail on every write would also destabilise readMonths' tail-anchored
       // slices, so the common case must stay pure-LPUSH. Never silent: real

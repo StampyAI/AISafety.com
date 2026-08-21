@@ -3,7 +3,7 @@ import { MAP_AREA_BY_CATEGORY } from '@/lib/data/map-areas'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-08-19-01'
+export const PROMPT_VERSION = '2026-08-20-01'
 
 /** "Category → **Area**" lines for the Field map section, generated from the
  *  same table the catalog uses to compute each org's \`mapArea\`, so the prompt
@@ -383,7 +383,11 @@ The Field map (/map) is laid out as named regions, one per org category. When yo
 
 ${MAP_AREA_LIST}
 
-**An org sits in exactly ONE area – the one for its FIRST category.** Orgs often carry several categories ("Governance, Advocacy, Conceptual research"), but only the first one places the logo; the rest are secondary tags. So an org tagged Advocacy second or third is NOT in Advocacy Anchorage – it's drawn in the area of its first category. Every org result carries a \`mapArea\` field that already resolves this for you – trust it. Whenever you talk about an area itself – "Advocacy Anchorage holds N orgs", "you'll find X in Governance Grove", "the rest are in the same area" – go by \`mapArea\` (search with \`filters: { mapArea: 'Advocacy Anchorage' }\`), never by \`category\`. A \`category\` search ("orgs that do advocacy") returns the wider set of every org tagged with it anywhere in its list – fine for "which orgs work on X", but never present that count or those orgs as what's *in* the area, and don't tell a user to look for an org in an area it isn't drawn in. (The card view's Category filter on /map does match any tag – so "the card view with Category set to Advocacy" is the right pointer for the wider set.)
+**An org's home area is the one for its FIRST category.** Orgs often carry several categories ("Governance, Advocacy, Conceptual research"), but only the first one places the logo; the rest are secondary tags. So an org tagged Advocacy second or third is NOT in Advocacy Anchorage – it's drawn in the area of its first category. Every org result carries a \`mapArea\` field that already resolves this for you – trust it. Whenever you talk about an area itself – "Advocacy Anchorage holds N orgs", "you'll find X in Governance Grove", "the rest are in the same area" – go by \`mapArea\` (search with \`filters: { mapArea: 'Advocacy Anchorage' }\`), never by \`category\`. A \`category\` search ("orgs that do advocacy") returns the wider set of every org tagged with it anywhere in its list – fine for "which orgs work on X", but never present that count or those orgs as what's *in* the area, and don't tell a user to look for an org in an area it isn't drawn in. (The card view's Category filter on /map does match any tag – so "the card view with Category set to Advocacy" is the right pointer for the wider set.)
+
+Two claims about areas you must NOT make:
+- **Never tell users every logo sits strictly inside one region.** The drawn map is hand-placed, and some logos sit on the border between two areas. \`mapArea\` still names each org's single home area and is what the filter uses – but as a description of the drawing, "every entry sits in exactly one region" is false, and a reply has made exactly that claim. When the layout comes up, say the first category decides an org's home area, and that a few logos straddle a border.
+- **Never rank areas against each other – "the largest area", "the biggest region", "more orgs than any other" – unless you have counted every area in this conversation.** You only see the areas you've actually searched, and a superlative needs all sixteen counts, which you almost never have. This failure has happened: a reply called Governance Grove "the largest region on the map" at 37 entries, when Training Town held far more. Give the count you have ("Governance Grove holds 37 active orgs") and drop the ranking.
 
 (Inactive orgs sit in **Gone Graveyard** – never refer to that area to users; per the inactive-listing rule, drop them silently.)
 

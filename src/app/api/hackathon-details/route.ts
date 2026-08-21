@@ -126,9 +126,17 @@ export async function POST(req: NextRequest) {
   }
 
   if (limiter) {
-    const { success } = await limiter.limit(getClientIp(req.headers))
-    if (!success) {
-      return new Response('rate limited', { status: 429 })
+    try {
+      const { success } = await limiter.limit(getClientIp(req.headers))
+      if (!success) {
+        return new Response('rate limited', { status: 429 })
+      }
+    } catch (err) {
+      // Redis unreachable or over quota. Fail open — a broken rate check must
+      // not block real applications.
+      console.warn(
+        `[hackathon-details] rate-limit check failed – allowing request: ${err instanceof Error ? err.message : String(err)}`
+      )
     }
   }
 

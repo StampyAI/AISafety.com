@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server'
 import { canViewChatbot } from '@/lib/admin/auth'
 import {
+  REVIEW_VALUES,
+  getConversation,
   isConversationsTableConfigured,
   listConversationsPage,
+  listLabelsInUse,
   updateConversation,
+  type ReviewValue,
 } from '@/lib/admin/airtable'
 import { getCatalog } from '@/lib/assistant/catalog'
 
@@ -42,6 +46,13 @@ export async function GET(req: NextRequest) {
   const auth = await ensureAuth()
   if (auth) return auth
   const url = new URL(req.url)
+
+  // The label vocabulary for the filter dropdown and the label picker —
+  // a lightweight sidecar request, separate from the heavy conversation list.
+  if (url.searchParams.get('labels') === '1') {
+    return Response.json({ labels: await listLabelsInUse() })
+  }
+
   const rawLimit = Number(url.searchParams.get('limit') ?? '200')
   const pageSize = Number.isFinite(rawLimit)
     ? Math.max(1, Math.min(Math.floor(rawLimit), 200))
@@ -49,11 +60,31 @@ export async function GET(req: NextRequest) {
   const offsetParam = url.searchParams.get('offset') || undefined
   const zeroOnly = url.searchParams.get('zeroOnly') === '1'
   const search = url.searchParams.get('search') || undefined
-  const { conversations, offset } = await listConversationsPage({
-    pageSize,
-    offset: offsetParam,
-    search,
-  })
+  const review = url.searchParams.get('rating') || undefined
+  const label = url.searchParams.get('label') || undefined
+  // A shared link names one conversation by record id — serve exactly that
+  // one (it may be far older than any page of the list).
+  const id = url.searchParams.get('id')
+  let conversations, offset
+  if (id) {
+    const single = await getConversation(id)
+    if (!single) {
+      return new Response(JSON.stringify({ error: 'conversation not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    conversations = [single]
+    offset = null
+  } else {
+    ;({ conversations, offset } = await listConversationsPage({
+      pageSize,
+      offset: offsetParam,
+      search,
+      review,
+      label,
+    }))
+  }
   // zeroMatches now lives inside Data; filter client-side here so the API
   // contract stays the same for the admin viewer.
   const filtered = zeroOnly
@@ -150,7 +181,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const auth = await ensureAuth()
   if (auth) return auth
-  let body: { id?: unknown; notes?: unknown; tags?: unknown }
+  let body: { id?: unknown; notes?: unknown; tags?: unknown; review?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -162,10 +193,22 @@ export async function PATCH(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
     })
   }
-  const patch: { notes?: string; tags?: string[] } = {}
+  const patch: {
+    notes?: string
+    tags?: string[]
+    review?: ReviewValue | null
+  } = {}
   if (typeof body.notes === 'string') patch.notes = body.notes
   if (Array.isArray(body.tags) && body.tags.every(t => typeof t === 'string')) {
-    patch.tags = body.tags as string[]
+    patch.tags = (body.tags as string[]).map(t => t.trim()).filter(Boolean)
+  }
+  // Only the three known verdicts may be written (null clears) — the update
+  // uses typecast for Tags, and this guard keeps it from ever inventing a
+  // fourth Review option.
+  if (body.review === null) {
+    patch.review = null
+  } else if (REVIEW_VALUES.includes(body.review as ReviewValue)) {
+    patch.review = body.review as ReviewValue
   }
   const updated = await updateConversation(body.id, patch)
   return Response.json({ conversation: updated })

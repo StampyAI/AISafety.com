@@ -167,6 +167,10 @@ interface TurnDelivery {
   seen?: number
 }
 
+/** The Review single select's options, as named in Airtable. */
+const REVIEW_VALUES = ['Good', 'Bad', 'Unsure'] as const
+type ReviewValue = (typeof REVIEW_VALUES)[number]
+
 interface Conversation {
   id: string
   createdAt: string
@@ -176,6 +180,9 @@ interface Conversation {
   promptVersion: string
   notes: string
   tags: string[]
+  /** Reviewer's verdict on the whole conversation ('' when not yet rated) —
+   *  distinct from `ratings`, the visitor's own thumbs on individual replies. */
+  review: ReviewValue | ''
   data: ConversationData | null
   clickedCitations: string[]
   /** Visitor's thumbs ratings of the bot's replies (turn index → 'up' |
@@ -442,6 +449,17 @@ export default function ConversationList() {
   // to the server, so we don't refetch on every keystroke.
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  // Reviewer filters, applied server-side: a Review verdict ('unrated' for
+  // conversations nobody has judged) and an exact label.
+  const [ratingFilter, setRatingFilter] = useState('')
+  const [labelFilter, setLabelFilter] = useState('')
+  // Labels known to the whole log (fetched once), so the filter dropdown and
+  // the per-conversation picker offer more than what this page happens to
+  // show. Merged with the loaded conversations' tags in `allLabels`.
+  const [baseLabels, setBaseLabels] = useState<string[]>([])
+  // The conversation a shared ?id= link points at. undefined = URL not read
+  // yet (loads hold off); null = no link, show the normal list.
+  const [linkedId, setLinkedId] = useState<string | null | undefined>(undefined)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   // Airtable cursor for the next, older batch — null once we've reached the
   // very first conversation. Drives the "Load more" button.
@@ -456,14 +474,27 @@ export default function ConversationList() {
 
   const PAGE_SIZE = 200
 
-  const load = async (zo: boolean, q: string) => {
+  const load = async (opts: {
+    zeroOnly: boolean
+    search: string
+    rating: string
+    label: string
+    /** Serve exactly this conversation (a shared link) instead of the list. */
+    id?: string
+  }) => {
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
-      params.set('limit', String(PAGE_SIZE))
-      if (zo) params.set('zeroOnly', '1')
-      if (q) params.set('search', q)
+      if (opts.id) {
+        params.set('id', opts.id)
+      } else {
+        params.set('limit', String(PAGE_SIZE))
+        if (opts.zeroOnly) params.set('zeroOnly', '1')
+        if (opts.search) params.set('search', opts.search)
+        if (opts.rating) params.set('rating', opts.rating)
+        if (opts.label) params.set('label', opts.label)
+      }
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -496,6 +527,8 @@ export default function ConversationList() {
       params.set('offset', offset)
       if (zeroOnly) params.set('zeroOnly', '1')
       if (search) params.set('search', search)
+      if (ratingFilter) params.set('rating', ratingFilter)
+      if (labelFilter) params.set('label', labelFilter)
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -529,9 +562,19 @@ export default function ConversationList() {
     return () => clearTimeout(t)
   }, [searchInput])
 
+  // Wait for the mount effect below to read any ?id= from the URL before the
+  // first fetch, so a shared link loads its one conversation directly rather
+  // than the whole list first.
   useEffect(() => {
-    void load(zeroOnly, search)
-  }, [zeroOnly, search])
+    if (linkedId === undefined) return
+    void load({
+      zeroOnly,
+      search,
+      rating: ratingFilter,
+      label: labelFilter,
+      id: linkedId ?? undefined,
+    })
+  }, [zeroOnly, search, ratingFilter, labelFilter, linkedId])
 
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -540,7 +583,36 @@ export default function ConversationList() {
       .find(p => p.type === 'timeZoneName')?.value
     setTzLabel([tz, abbr && `(${abbr})`].filter(Boolean).join(' '))
     setViewed(new Set(loadViewedIds()))
+    // A shared link opens the log at one conversation, already expanded.
+    const id = new URL(window.location.href).searchParams.get('id')
+    setLinkedId(id || null)
+    if (id) setExpandedId(id)
+    // The log-wide label vocabulary, for the filter dropdown and pickers.
+    void fetch('/api/admin/conversations?labels=1')
+      .then(res => (res.ok ? res.json() : { labels: [] }))
+      .then((data: { labels?: string[] }) => {
+        if (Array.isArray(data.labels)) setBaseLabels(data.labels)
+      })
+      .catch(err => console.warn('Could not load label list:', err))
   }, [])
+
+  /** Keep ?id= in the address bar matching the open conversation, so the URL
+   *  is always a shareable link to what's on screen. */
+  const syncUrl = (id: string | null) => {
+    const url = new URL(window.location.href)
+    if (id) url.searchParams.set('id', id)
+    else url.searchParams.delete('id')
+    window.history.replaceState(null, '', url)
+  }
+
+  // Every label offered by the pickers: the log-wide list plus anything on
+  // the conversations in front of us (which also catches labels added just
+  // now, without refetching).
+  const allLabels = useMemo(() => {
+    const set = new Set(baseLabels)
+    for (const c of conversations) for (const t of c.tags) set.add(t)
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [baseLabels, conversations])
 
   const markViewed = (id: string) => {
     if (viewed.has(id)) return
@@ -569,8 +641,35 @@ export default function ConversationList() {
           placeholder="Search conversations…"
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
-          title="Searches the whole log — user questions, bot replies, listings shown, page and notes"
+          title="Searches the whole log — user questions, bot replies, listings shown, page, notes and labels"
         />
+        <select
+          className={styles.convSelect}
+          value={ratingFilter}
+          onChange={e => setRatingFilter(e.target.value)}
+          title="Show only conversations with this review verdict"
+        >
+          <option value="">All ratings</option>
+          {REVIEW_VALUES.map(v => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+          <option value="unrated">Unrated</option>
+        </select>
+        <select
+          className={styles.convSelect}
+          value={labelFilter}
+          onChange={e => setLabelFilter(e.target.value)}
+          title="Show only conversations carrying this label"
+        >
+          <option value="">All labels</option>
+          {allLabels.map(l => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
         <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
             type="checkbox"
@@ -592,6 +691,22 @@ export default function ConversationList() {
         )}
       </div>
 
+      {linkedId && (
+        <div className={styles.convLinkedNote}>
+          Showing one linked conversation.{' '}
+          <button
+            type="button"
+            className={styles.convLinkedClear}
+            onClick={() => {
+              setLinkedId(null)
+              syncUrl(null)
+            }}
+          >
+            Show all conversations
+          </button>
+        </div>
+      )}
+
       <div className={styles.convList}>
         {conversations.map((c, i) => {
           const day = formatDay(c.createdAt)
@@ -606,9 +721,12 @@ export default function ConversationList() {
                 conv={c}
                 expanded={expandedId === c.id}
                 viewed={viewed.has(c.id)}
+                allLabels={allLabels}
                 onToggle={() => {
-                  if (expandedId !== c.id) markViewed(c.id)
-                  setExpandedId(expandedId === c.id ? null : c.id)
+                  const next = expandedId === c.id ? null : c.id
+                  if (next) markViewed(c.id)
+                  setExpandedId(next)
+                  syncUrl(next)
                 }}
                 onUpdate={handleUpdate}
               />
@@ -644,17 +762,21 @@ function ConversationRow({
   conv,
   expanded,
   viewed,
+  allLabels,
   onToggle,
   onUpdate,
 }: {
   conv: Conversation
   expanded: boolean
   viewed: boolean
+  allLabels: string[]
   onToggle: () => void
   onUpdate: (c: Conversation) => void
 }) {
   const [notes, setNotes] = useState(conv.notes)
   const [saveStatus, setSaveStatus] = useState('')
+  const [labelInput, setLabelInput] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
   const data = conv.data
   // Visitor messages actually stored in the (windowed) history — what the
   // transcript below can show.
@@ -765,7 +887,11 @@ function ConversationRow({
     return replies.some(hasSuggestButton)
   }, [data])
 
-  const persist = async (patch: { notes?: string }) => {
+  const persist = async (patch: {
+    notes?: string
+    tags?: string[]
+    review?: ReviewValue | null
+  }) => {
     setSaveStatus('saving…')
     try {
       const res = await fetch('/api/admin/conversations', {
@@ -783,6 +909,35 @@ function ConversationRow({
       setTimeout(() => setSaveStatus(''), 1500)
     } catch {
       setSaveStatus('save failed')
+    }
+  }
+
+  /** Attach a label, reusing an existing label's casing when the reviewer's
+   *  typing differs only there — so "scope" can't spawn a sibling of "Scope". */
+  const addLabel = (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return
+    const canonical =
+      allLabels.find(l => l.toLowerCase() === trimmed.toLowerCase()) ?? trimmed
+    setLabelInput('')
+    if (conv.tags.includes(canonical)) return
+    void persist({ tags: [...conv.tags, canonical] })
+  }
+
+  const removeLabel = (label: string) => {
+    void persist({ tags: conv.tags.filter(t => t !== label) })
+  }
+
+  const copyLink = async () => {
+    const url = `${window.location.origin}/admin/chatbot/log?id=${conv.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 1500)
+    } catch {
+      // Clipboard access can be blocked (e.g. a non-HTTPS origin) — fall back
+      // to showing the link for manual copying.
+      window.prompt('Copy this link:', url)
     }
   }
 
@@ -814,6 +969,14 @@ function ConversationRow({
             </span>
             {turnCount > 1 && <span>{turnCount} turns</span>}
             {geo && <span>{geo}</span>}
+            {conv.review && (
+              <span
+                className={`${styles.convRowReview} ${styles[`convRowReview${conv.review}`]}`}
+                title="Reviewer's verdict on this conversation"
+              >
+                {conv.review.toUpperCase()}
+              </span>
+            )}
             {data?.zeroMatches && !showedSuggest && (
               <span className={styles.convRowZero}>NO MATCH</span>
             )}
@@ -860,6 +1023,11 @@ function ConversationRow({
             )}
           </span>
           <span className={styles.convRowMeta}>
+            {conv.tags.map(t => (
+              <span key={t} className={styles.convRowTag} title="Label">
+                {t}
+              </span>
+            ))}
             {conv.promptVersion && (
               <span title="Prompt version">v{conv.promptVersion}</span>
             )}
@@ -1056,6 +1224,97 @@ function ConversationRow({
                 <div className={styles.convDetailValue}>{data.referrer}</div>
               </div>
             )}
+
+            <div className={styles.convDetailField}>
+              <div className={styles.convDetailLabel}>Rating</div>
+              <div className={styles.convAnnotRow}>
+                {REVIEW_VALUES.map(v => {
+                  const active = conv.review === v
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      className={[
+                        styles.convRateBtn,
+                        styles[`convRate${v}`],
+                        active ? styles.convRateActive : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      aria-pressed={active}
+                      title={
+                        active
+                          ? 'Click again to clear this verdict'
+                          : `Mark this conversation ${v.toLowerCase()}`
+                      }
+                      onClick={() =>
+                        void persist({ review: active ? null : v })
+                      }
+                    >
+                      {v}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  className={styles.convCopyLink}
+                  onClick={() => void copyLink()}
+                  title="Copy a direct link to this conversation — opening it still needs the admin password"
+                >
+                  {linkCopied ? 'Link copied ✓' : '🔗 Copy link'}
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.convDetailField}>
+              <div className={styles.convDetailLabel}>Labels</div>
+              <div className={styles.convAnnotRow}>
+                {conv.tags.map(t => (
+                  <span key={t} className={styles.convLabelChip}>
+                    {t}
+                    <button
+                      type="button"
+                      className={styles.convLabelRemove}
+                      onClick={() => removeLabel(t)}
+                      title={`Remove the "${t}" label`}
+                      aria-label={`Remove the ${t} label`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  className={styles.convLabelInput}
+                  list={`labels-${conv.id}`}
+                  value={labelInput}
+                  onChange={e => setLabelInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addLabel(labelInput)
+                    }
+                  }}
+                  placeholder="Add label…"
+                  title="Pick an existing label or type a new one and press Enter"
+                />
+                <datalist id={`labels-${conv.id}`}>
+                  {allLabels
+                    .filter(l => !conv.tags.includes(l))
+                    .map(l => (
+                      <option key={l} value={l} />
+                    ))}
+                </datalist>
+                {labelInput.trim() && (
+                  <button
+                    type="button"
+                    className={styles.editorButton}
+                    onClick={() => addLabel(labelInput)}
+                  >
+                    Add
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className={styles.convDetailField}>
               <div className={styles.convDetailLabel}>Notes</div>

@@ -15,7 +15,11 @@
     Latency ms      (number)            — latest turn's latency
     Prompt version  (single line text)  — latest, e.g. "2026-05-07-1"
     Notes           (long text)         — admin annotations
-    Tags            (multi-select)      — admin annotations
+    Tags            (multi-select)      — admin annotations; new options are
+                                          created on the fly (typecast) when a
+                                          reviewer labels a conversation
+    Review          (single select)     — reviewer's verdict on the whole
+                                          conversation: Good / Bad / Unsure
     Created at      (created time)      — auto, first-turn timestamp
     Data            (long text)         — JSON payload, see ConversationData
                                           below for shape
@@ -53,6 +57,7 @@ const FIELD = {
   promptVersion: 'fldZi6qb5G5bsdfFH', // Prompt version
   notes: 'fldpjWWpS9R0cFXRU', // Notes
   tags: 'fldAkUlONRN894SZN', // Tags
+  review: 'fldaQaobQ98Whc5pV', // Review
   data: 'fld9TbBixMYVOssja', // Data
   clicked: 'fld3PKIZx3Oo1oxkm', // Clicked
   ratings: 'fld0ZRhDFjpcHTJnm', // Ratings
@@ -236,6 +241,9 @@ export interface ConversationRow {
   promptVersion: string
   notes: string
   tags: string[]
+  /** Reviewer's verdict on the whole conversation ('' when not yet rated) —
+   *  distinct from `ratings`, the visitor's own thumbs on individual replies. */
+  review: ReviewValue | ''
   data: ConversationData | null
   /** Listing ids whose cards the visitor clicked during this conversation. */
   clickedCitations: string[]
@@ -250,6 +258,16 @@ export interface ConversationRow {
 
 export type MessageRatingValue = 'up' | 'down'
 export type MessageRatings = Record<string, MessageRatingValue>
+
+/** The Review single select's options, exactly as named in Airtable. */
+export const REVIEW_VALUES = ['Good', 'Bad', 'Unsure'] as const
+export type ReviewValue = (typeof REVIEW_VALUES)[number]
+
+function parseReview(value: unknown): ReviewValue | '' {
+  return REVIEW_VALUES.includes(value as ReviewValue)
+    ? (value as ReviewValue)
+    : ''
+}
 
 const EMPTY_DATA: ConversationData = {
   user: '',
@@ -365,6 +383,7 @@ function rowToConversation(
     tags: Array.isArray(tags)
       ? tags.filter((t): t is string => typeof t === 'string')
       : [],
+    review: parseReview(f[FIELD.review]),
     data: parseData(str(f[FIELD.data]) || undefined),
     clickedCitations: parseClicked(str(f[FIELD.clicked]) || undefined),
     ratings: parseRatings(str(f[FIELD.ratings]) || undefined),
@@ -378,7 +397,7 @@ function rowToConversation(
  *  than the whole — ever-growing — log on every load. */
 /** Airtable filterByFormula that matches rows whose content contains every word
  *  in `search` (case-insensitive, any order). Searches the conversation JSON
- *  plus the page and notes. Returns undefined for a blank search. */
+ *  plus the page, notes and labels. Returns undefined for a blank search. */
 function searchFormula(search: string | undefined): string | undefined {
   // Strip quotes/backslashes that would break the formula string, then split
   // into words so "fast grants" matches a chat containing both words anywhere.
@@ -387,9 +406,31 @@ function searchFormula(search: string | undefined): string | undefined {
     .split(/\s+/)
     .filter(Boolean)
   if (words.length === 0) return undefined
-  const haystack = `LOWER({${FIELD.data}} & " " & {${FIELD.page}} & " " & {${FIELD.notes}})`
+  const haystack = `LOWER({${FIELD.data}} & " " & {${FIELD.page}} & " " & {${FIELD.notes}} & " " & ARRAYJOIN({${FIELD.tags}}, " "))`
   const terms = words.map(w => `SEARCH(LOWER("${w}"), ${haystack})`)
   return terms.length === 1 ? terms[0] : `AND(${terms.join(', ')})`
+}
+
+/** filterByFormula terms for the reviewer filters: a Review verdict (or
+ *  'unrated' for conversations nobody has judged yet) and/or an exact label.
+ *  The label match joins the Tags list with a delimiter and looks for the
+ *  whole delimited label, so "scope" can't match a "scope-creep" tag. */
+function reviewFilterTerms(opts: {
+  review?: string
+  label?: string
+}): string[] {
+  const terms: string[] = []
+  if (opts.review === 'unrated') {
+    terms.push(`{${FIELD.review}} = ""`)
+  } else if (REVIEW_VALUES.includes(opts.review as ReviewValue)) {
+    terms.push(`{${FIELD.review}} = "${opts.review}"`)
+  }
+  const label = (opts.label ?? '').replace(/["\\|]/g, ' ').trim()
+  if (label) {
+    const joined = `"|" & LOWER(ARRAYJOIN({${FIELD.tags}}, "|")) & "|"`
+    terms.push(`FIND("|" & LOWER("${label}") & "|", ${joined}) > 0`)
+  }
+  return terms
 }
 
 export async function listConversationsPage(opts: {
@@ -398,10 +439,23 @@ export async function listConversationsPage(opts: {
   offset?: string
   /** Free-text filter across the conversation content (omit for all). */
   search?: string
+  /** Reviewer-verdict filter: 'Good' | 'Bad' | 'Unsure' | 'unrated'. */
+  review?: string
+  /** Only conversations carrying this exact label. */
+  label?: string
 }): Promise<{ conversations: ConversationRow[]; offset: string | null }> {
   ensureConfig(CONVERSATIONS_TABLE)
   const want = Math.max(1, opts.pageSize ?? 200)
-  const formula = searchFormula(opts.search)
+  const terms = [
+    ...(searchFormula(opts.search) ? [searchFormula(opts.search)!] : []),
+    ...reviewFilterTerms(opts),
+  ]
+  const formula =
+    terms.length === 0
+      ? undefined
+      : terms.length === 1
+        ? terms[0]
+        : `AND(${terms.join(', ')})`
   const out: AirtableRow<ConversationFields>[] = []
   // Airtable caps a single request at 100 records, so loop until we've
   // gathered `want` (or run out), carrying Airtable's offset between requests.
@@ -467,15 +521,24 @@ export async function listConversationsForStats(range: {
 
 export async function updateConversation(
   id: string,
-  patch: { notes?: string; tags?: string[] }
+  patch: { notes?: string; tags?: string[]; review?: ReviewValue | null }
 ): Promise<ConversationRow> {
   ensureConfig(CONVERSATIONS_TABLE)
   const fields: ConversationFields = {}
   if (patch.notes !== undefined) fields[FIELD.notes] = patch.notes
   if (patch.tags !== undefined) fields[FIELD.tags] = patch.tags
+  // null clears the verdict (the reviewer clicked their rating off again).
+  if (patch.review !== undefined) fields[FIELD.review] = patch.review
+  // typecast lets a label that isn't yet a Tags option create itself, so
+  // reviewers can define new labels on the go. The route validates Review
+  // against REVIEW_VALUES, so typecast can't invent verdict options.
   const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ fields, returnFieldsByFieldId: true }),
+    body: JSON.stringify({
+      fields,
+      returnFieldsByFieldId: true,
+      typecast: true,
+    }),
   })
   if (!res.ok) {
     throw new Error(`Airtable update failed: ${res.status} ${await res.text()}`)
@@ -483,6 +546,46 @@ export async function updateConversation(
   return rowToConversation(
     (await res.json()) as AirtableRow<ConversationFields>
   )
+}
+
+/** One conversation by record id — for the log's shareable links, which may
+ *  point at a conversation older than the page the viewer has loaded. Null
+ *  when the id doesn't exist (a deleted row, or a mangled link). */
+export async function getConversation(
+  id: string
+): Promise<ConversationRow | null> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  const params = new URLSearchParams()
+  params.set('returnFieldsByFieldId', 'true')
+  const res = await airtableRequest(
+    `${CONVERSATIONS_TABLE}/${encodeURIComponent(id)}?${params.toString()}`
+  )
+  if (res.status === 404) return null
+  if (!res.ok) {
+    throw new Error(`Airtable get failed: ${res.status} ${await res.text()}`)
+  }
+  return rowToConversation(
+    (await res.json()) as AirtableRow<ConversationFields>
+  )
+}
+
+/** Every label currently applied to at least one conversation, alphabetical.
+ *  Reads only the Tags column, so the scan stays light as the log grows. */
+export async function listLabelsInUse(): Promise<string[]> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  const params = new URLSearchParams()
+  params.set('returnFieldsByFieldId', 'true')
+  params.append('fields[]', FIELD.tags)
+  const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
+  const labels = new Set<string>()
+  for (const row of rows) {
+    const tags = row.fields[FIELD.tags]
+    if (!Array.isArray(tags)) continue
+    for (const t of tags) {
+      if (typeof t === 'string' && t.trim()) labels.add(t)
+    }
+  }
+  return [...labels].sort((a, b) => a.localeCompare(b))
 }
 
 async function findConversationBySession(

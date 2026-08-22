@@ -10,6 +10,7 @@ import TranscriptMessage, {
   type ListingInfo,
 } from './TranscriptMessage'
 import ExcludeBrowserToggle from './ExcludeBrowserToggle'
+import FilterDropdown from '@/components/FilterDropdown'
 import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 
 interface HistoryTurn {
@@ -449,14 +450,19 @@ export default function ConversationList() {
   // to the server, so we don't refetch on every keystroke.
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  // Reviewer filters, applied server-side: a Review verdict ('unrated' for
-  // conversations nobody has judged) and an exact label.
-  const [ratingFilter, setRatingFilter] = useState('')
-  const [labelFilter, setLabelFilter] = useState('')
-  // Labels known to the whole log (fetched once), so the filter dropdown and
-  // the per-conversation picker offer more than what this page happens to
-  // show. Merged with the loaded conversations' tags in `allLabels`.
-  const [baseLabels, setBaseLabels] = useState<string[]>([])
+  // Reviewer filters, applied server-side: Review verdicts ('Unrated' for
+  // conversations nobody has judged) and exact labels. Several picks within
+  // one pill broaden the match, like the site's filter pills.
+  const [ratingFilter, setRatingFilter] = useState<string[]>([])
+  const [labelFilter, setLabelFilter] = useState<string[]>([])
+  // Log-wide label and verdict counts (fetched once), so the filter pills
+  // and the per-conversation label picker cover more than what this page
+  // happens to show. Merged with the loaded conversations' tags in
+  // `allLabels`.
+  const [facets, setFacets] = useState<{
+    labels: Record<string, number>
+    ratings: Record<string, number>
+  }>({ labels: {}, ratings: {} })
   // The conversation a shared ?id= link points at. undefined = URL not read
   // yet (loads hold off); null = no link, show the normal list.
   const [linkedId, setLinkedId] = useState<string | null | undefined>(undefined)
@@ -477,8 +483,8 @@ export default function ConversationList() {
   const load = async (opts: {
     zeroOnly: boolean
     search: string
-    rating: string
-    label: string
+    rating: string[]
+    label: string[]
     /** Serve exactly this conversation (a shared link) instead of the list. */
     id?: string
   }) => {
@@ -492,8 +498,8 @@ export default function ConversationList() {
         params.set('limit', String(PAGE_SIZE))
         if (opts.zeroOnly) params.set('zeroOnly', '1')
         if (opts.search) params.set('search', opts.search)
-        if (opts.rating) params.set('rating', opts.rating)
-        if (opts.label) params.set('label', opts.label)
+        for (const r of opts.rating) params.append('rating', r)
+        for (const l of opts.label) params.append('label', l)
       }
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
@@ -527,8 +533,8 @@ export default function ConversationList() {
       params.set('offset', offset)
       if (zeroOnly) params.set('zeroOnly', '1')
       if (search) params.set('search', search)
-      if (ratingFilter) params.set('rating', ratingFilter)
-      if (labelFilter) params.set('label', labelFilter)
+      for (const r of ratingFilter) params.append('rating', r)
+      for (const l of labelFilter) params.append('label', l)
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -587,13 +593,18 @@ export default function ConversationList() {
     const id = new URL(window.location.href).searchParams.get('id')
     setLinkedId(id || null)
     if (id) setExpandedId(id)
-    // The log-wide label vocabulary, for the filter dropdown and pickers.
-    void fetch('/api/admin/conversations?labels=1')
-      .then(res => (res.ok ? res.json() : { labels: [] }))
-      .then((data: { labels?: string[] }) => {
-        if (Array.isArray(data.labels)) setBaseLabels(data.labels)
-      })
-      .catch(err => console.warn('Could not load label list:', err))
+    // Log-wide label/verdict counts, for the filter pills and pickers.
+    void fetch('/api/admin/conversations?facets=1')
+      .then(res => (res.ok ? res.json() : { labels: {}, ratings: {} }))
+      .then(
+        (data: {
+          labels?: Record<string, number>
+          ratings?: Record<string, number>
+        }) => {
+          setFacets({ labels: data.labels ?? {}, ratings: data.ratings ?? {} })
+        }
+      )
+      .catch(err => console.warn('Could not load filter counts:', err))
   }, [])
 
   /** Keep ?id= in the address bar matching the open conversation, so the URL
@@ -609,10 +620,19 @@ export default function ConversationList() {
   // the conversations in front of us (which also catches labels added just
   // now, without refetching).
   const allLabels = useMemo(() => {
-    const set = new Set(baseLabels)
+    const set = new Set(Object.keys(facets.labels))
     for (const c of conversations) for (const t of c.tags) set.add(t)
     return [...set].sort((a, b) => a.localeCompare(b))
-  }, [baseLabels, conversations])
+  }, [facets, conversations])
+
+  /** Site-style multi-select toggle: clicking a checked value unchecks it. */
+  const toggleFilter = (
+    value: string,
+    list: string[],
+    set: (next: string[]) => void
+  ) => {
+    set(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
+  }
 
   const markViewed = (id: string) => {
     if (viewed.has(id)) return
@@ -643,33 +663,22 @@ export default function ConversationList() {
           onChange={e => setSearchInput(e.target.value)}
           title="Searches the whole log — user questions, bot replies, listings shown, page, notes and labels"
         />
-        <select
-          className={styles.convSelect}
-          value={ratingFilter}
-          onChange={e => setRatingFilter(e.target.value)}
-          title="Show only conversations with this review verdict"
-        >
-          <option value="">All ratings</option>
-          {REVIEW_VALUES.map(v => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-          <option value="unrated">Unrated</option>
-        </select>
-        <select
-          className={styles.convSelect}
-          value={labelFilter}
-          onChange={e => setLabelFilter(e.target.value)}
-          title="Show only conversations carrying this label"
-        >
-          <option value="">All labels</option>
-          {allLabels.map(l => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
+        <FilterDropdown
+          title="Rating"
+          options={[...REVIEW_VALUES, 'Unrated']}
+          selected={ratingFilter}
+          counts={facets.ratings}
+          onToggle={v => toggleFilter(v, ratingFilter, setRatingFilter)}
+        />
+        {allLabels.length > 0 && (
+          <FilterDropdown
+            title="Label"
+            options={allLabels}
+            selected={labelFilter}
+            counts={facets.labels}
+            onToggle={v => toggleFilter(v, labelFilter, setLabelFilter)}
+          />
+        )}
         <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
             type="checkbox"
@@ -945,9 +954,13 @@ function ConversationRow({
     <div>
       <button
         type="button"
-        className={
-          viewed ? `${styles.convRow} ${styles.convRowViewed}` : styles.convRow
-        }
+        className={[
+          styles.convRow,
+          viewed ? styles.convRowViewed : '',
+          expanded ? styles.convRowExpanded : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         onClick={onToggle}
         aria-expanded={expanded}
       >

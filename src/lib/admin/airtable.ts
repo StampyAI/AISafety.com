@@ -411,25 +411,36 @@ function searchFormula(search: string | undefined): string | undefined {
   return terms.length === 1 ? terms[0] : `AND(${terms.join(', ')})`
 }
 
-/** filterByFormula terms for the reviewer filters: a Review verdict (or
- *  'unrated' for conversations nobody has judged yet) and/or an exact label.
- *  The label match joins the Tags list with a delimiter and looks for the
- *  whole delimited label, so "scope" can't match a "scope-creep" tag. */
+/** filterByFormula terms for the reviewer filters: Review verdicts (with
+ *  'Unrated' for conversations nobody has judged yet) and/or exact labels.
+ *  Several picks within one filter broaden the match (OR, like the site's
+ *  filter pills); the two filters combine as AND. The label match joins the
+ *  Tags list with a delimiter and looks for the whole delimited label, so
+ *  "scope" can't match a "scope-creep" tag. */
 function reviewFilterTerms(opts: {
-  review?: string
-  label?: string
+  review?: string[]
+  label?: string[]
 }): string[] {
   const terms: string[] = []
-  if (opts.review === 'unrated') {
-    terms.push(`{${FIELD.review}} = ""`)
-  } else if (REVIEW_VALUES.includes(opts.review as ReviewValue)) {
-    terms.push(`{${FIELD.review}} = "${opts.review}"`)
+  const reviewTerms: string[] = []
+  for (const r of opts.review ?? []) {
+    if (r.toLowerCase() === 'unrated') {
+      reviewTerms.push(`{${FIELD.review}} = ""`)
+    } else if (REVIEW_VALUES.includes(r as ReviewValue)) {
+      reviewTerms.push(`{${FIELD.review}} = "${r}"`)
+    }
   }
-  const label = (opts.label ?? '').replace(/["\\|]/g, ' ').trim()
-  if (label) {
+  if (reviewTerms.length === 1) terms.push(reviewTerms[0])
+  if (reviewTerms.length > 1) terms.push(`OR(${reviewTerms.join(', ')})`)
+  const labelTerms: string[] = []
+  for (const raw of opts.label ?? []) {
+    const label = raw.replace(/["\\|]/g, ' ').trim()
+    if (!label) continue
     const joined = `"|" & LOWER(ARRAYJOIN({${FIELD.tags}}, "|")) & "|"`
-    terms.push(`FIND("|" & LOWER("${label}") & "|", ${joined}) > 0`)
+    labelTerms.push(`FIND("|" & LOWER("${label}") & "|", ${joined}) > 0`)
   }
+  if (labelTerms.length === 1) terms.push(labelTerms[0])
+  if (labelTerms.length > 1) terms.push(`OR(${labelTerms.join(', ')})`)
   return terms
 }
 
@@ -439,10 +450,10 @@ export async function listConversationsPage(opts: {
   offset?: string
   /** Free-text filter across the conversation content (omit for all). */
   search?: string
-  /** Reviewer-verdict filter: 'Good' | 'Bad' | 'Unsure' | 'unrated'. */
-  review?: string
-  /** Only conversations carrying this exact label. */
-  label?: string
+  /** Reviewer-verdict filter: any of 'Good' | 'Bad' | 'Unsure' | 'Unrated'. */
+  review?: string[]
+  /** Only conversations carrying any of these exact labels. */
+  label?: string[]
 }): Promise<{ conversations: ConversationRow[]; offset: string | null }> {
   ensureConfig(CONVERSATIONS_TABLE)
   const want = Math.max(1, opts.pageSize ?? 200)
@@ -569,23 +580,40 @@ export async function getConversation(
   )
 }
 
-/** Every label currently applied to at least one conversation, alphabetical.
- *  Reads only the Tags column, so the scan stays light as the log grows. */
-export async function listLabelsInUse(): Promise<string[]> {
+/** How many conversations carry each label and each Review verdict (with
+ *  'Unrated' for rows nobody has judged), for the filter pills' counts and
+ *  the label pickers' vocabulary. Reads only the Tags and Review columns, so
+ *  the scan stays light as the log grows. */
+export async function listAnnotationFacets(): Promise<{
+  labels: Record<string, number>
+  ratings: Record<string, number>
+}> {
   ensureConfig(CONVERSATIONS_TABLE)
   const params = new URLSearchParams()
   params.set('returnFieldsByFieldId', 'true')
   params.append('fields[]', FIELD.tags)
+  params.append('fields[]', FIELD.review)
   const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
-  const labels = new Set<string>()
+  const labels: Record<string, number> = {}
+  const ratings: Record<string, number> = {
+    Good: 0,
+    Bad: 0,
+    Unsure: 0,
+    Unrated: 0,
+  }
   for (const row of rows) {
     const tags = row.fields[FIELD.tags]
-    if (!Array.isArray(tags)) continue
-    for (const t of tags) {
-      if (typeof t === 'string' && t.trim()) labels.add(t)
+    if (Array.isArray(tags)) {
+      for (const t of tags) {
+        if (typeof t === 'string' && t.trim()) {
+          labels[t] = (labels[t] ?? 0) + 1
+        }
+      }
     }
+    const review = parseReview(row.fields[FIELD.review])
+    ratings[review === '' ? 'Unrated' : review] += 1
   }
-  return [...labels].sort((a, b) => a.localeCompare(b))
+  return { labels, ratings }
 }
 
 async function findConversationBySession(

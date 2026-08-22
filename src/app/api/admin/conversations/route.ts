@@ -4,8 +4,8 @@ import {
   REVIEW_VALUES,
   getConversation,
   isConversationsTableConfigured,
+  listAnnotationFacets,
   listConversationsPage,
-  listLabelsInUse,
   updateConversation,
   type ReviewValue,
 } from '@/lib/admin/airtable'
@@ -47,10 +47,10 @@ export async function GET(req: NextRequest) {
   if (auth) return auth
   const url = new URL(req.url)
 
-  // The label vocabulary for the filter dropdown and the label picker —
-  // a lightweight sidecar request, separate from the heavy conversation list.
-  if (url.searchParams.get('labels') === '1') {
-    return Response.json({ labels: await listLabelsInUse() })
+  // Label/verdict counts for the filter pills and the label pickers — a
+  // lightweight sidecar request, separate from the heavy conversation list.
+  if (url.searchParams.get('facets') === '1') {
+    return Response.json(await listAnnotationFacets())
   }
 
   const rawLimit = Number(url.searchParams.get('limit') ?? '200')
@@ -60,8 +60,8 @@ export async function GET(req: NextRequest) {
   const offsetParam = url.searchParams.get('offset') || undefined
   const zeroOnly = url.searchParams.get('zeroOnly') === '1'
   const search = url.searchParams.get('search') || undefined
-  const review = url.searchParams.get('rating') || undefined
-  const label = url.searchParams.get('label') || undefined
+  const review = url.searchParams.getAll('rating')
+  const label = url.searchParams.getAll('label')
   // A shared link names one conversation by record id — serve exactly that
   // one (it may be far older than any page of the list).
   const id = url.searchParams.get('id')

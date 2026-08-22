@@ -702,6 +702,17 @@
   color: var(--teal-300);
 }
 
+/* While its detail is open, the row is the card's header (see .convDetail):
+   stretched to the panel's width, bottom corners squared. */
+.convRowExpanded {
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+}
+
+/* The row button and its detail panel read as ONE card while open: the row
+   squares off its bottom corners (convRowExpanded below), the detail squares
+   its top ones, and the 1px overlap merges their borders into a single
+   divider line between header and body. */
 .convDetail {
   display: flex;
   flex-direction: column;
@@ -709,8 +720,8 @@
   padding: 14px 16px;
   background-color: var(--teal-900);
   border: 1px solid var(--teal-800);
-  border-radius: 8px;
-  margin-top: -2px;
+  border-radius: 0 0 8px 8px;
+  margin-top: -1px;
 }
 
 .convDetailField {
@@ -1137,28 +1148,12 @@
 
 /* ─── Reviewer annotations: rating, labels, shareable links, filters ────── */
 
-.convSelect {
-  height: 32px;
-  padding: 0 8px;
-  background-color: var(--teal-900);
-  border: 1px solid var(--teal-800);
-  border-radius: 6px;
-  color: var(--white);
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  cursor: pointer;
-}
-
-.convSelect:focus {
-  border-color: var(--teal-500);
-}
-
 /* Banner shown when the page was opened through a ?id= link. */
 .convLinkedNote {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin: 14px 0 8px;
   padding: 8px 14px;
   background-color: var(--teal-850);
   border: 1px solid var(--teal-800);

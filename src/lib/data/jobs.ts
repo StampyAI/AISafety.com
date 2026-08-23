@@ -17,7 +17,7 @@ const FIELD = {
   org: 'fldG5yHF2GRnwXLcZ', // !Org
   orgLogo: 'fld0HYRj3o8ZPzIpB', // Org's logo
   skillSetText: 'fld7B5GTUR1kEj2wH', // Skill set text
-  locationFormatted: 'fldmUJTIPAi5YIv7P', // Location (formatted)
+  location: 'fldlVhQnyT9FuwXA2', // !Location (raw 80k format)
   minimumExperienceText: 'fldAskPW25nc6R4GZ', // !MinimumExperienceLevel (text)
   roleTypeText: 'fldCXYRLhvZbwf0Pp', // Role type text
   workLocation: 'fldffza4UJBfsjL3v', // Work location
@@ -36,11 +36,55 @@ export interface Job {
   logo: string | null
   skillSet: string
   location: string
+  locations: string[]
   minimumExperience: string
   roleType: string
   workLocation: string
   url: string
   datePublished: string | null
+}
+
+// The 80k !Location field packs every location into one string: locations
+// are comma-separated, a period separates place from country, and places
+// that themselves contain a comma are wrapped in double quotes, e.g.
+//   San Francisco Bay Area.USA, "New York, NY.USA", Remote.Global
+export function parseJobLocations(raw: string): string[] {
+  const tokens: string[] = []
+  let current = ''
+  let inQuotes = false
+  for (const char of raw) {
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      tokens.push(current)
+      current = ''
+    } else {
+      current += char
+    }
+  }
+  tokens.push(current)
+
+  const locations: string[] = []
+  for (const token of tokens) {
+    const trimmed = token.trim()
+    if (!trimmed) continue
+    const dot = trimmed.lastIndexOf('.')
+    if (dot === -1) {
+      locations.push(trimmed)
+      continue
+    }
+    // A leading period is 80k's legacy remote marker; drop it.
+    const place = trimmed.slice(0, dot).trim().replace(/^\.+/, '')
+    const country = trimmed.slice(dot + 1).trim()
+    if (!place) {
+      locations.push(country)
+    } else if (place === 'Remote') {
+      locations.push(`Remote (${country})`)
+    } else {
+      locations.push(`${place}, ${country}`)
+    }
+  }
+  return locations
 }
 
 export async function getJobs(): Promise<Job[]> {
@@ -62,6 +106,8 @@ export async function getJobs(): Promise<Job[]> {
     const logoRaw = f[FIELD.orgLogo]
     const logo = fieldString(logoRaw) ?? fieldAttachmentUrl(logoRaw)
 
+    const locations = parseJobLocations(fieldText(f[FIELD.location]))
+
     results.push({
       id: record.id,
       name,
@@ -69,7 +115,8 @@ export async function getJobs(): Promise<Job[]> {
       organization: fieldString(f[FIELD.org]) || '',
       logo,
       skillSet: fieldText(f[FIELD.skillSetText]),
-      location: fieldText(f[FIELD.locationFormatted]),
+      location: locations.join('; '),
+      locations,
       minimumExperience: fieldText(f[FIELD.minimumExperienceText]),
       roleType: fieldText(f[FIELD.roleTypeText]),
       workLocation: fieldText(f[FIELD.workLocation]),

@@ -14,6 +14,7 @@ interface FilterGroupProps {
   /** Analytics page name (e.g. 'Jobs'). When set, turning a value on records
    *  a filter_apply event under this page and the group's title. */
   trackingPage?: string
+  trackingTitle?: string
 }
 
 export default function FilterGroup({
@@ -24,6 +25,7 @@ export default function FilterGroup({
   onToggle,
   labels,
   trackingPage,
+  trackingTitle,
 }: FilterGroupProps) {
   return (
     <div className="padding-bottom-40px">
@@ -38,7 +40,7 @@ export default function FilterGroup({
               checked={selected.includes(option)}
               onChange={() => {
                 if (trackingPage && !selected.includes(option))
-                  trackFilterApply(trackingPage, title, option)
+                  trackFilterApply(trackingPage, trackingTitle ?? title, option)
                 onToggle(option)
               }}
               className="checkbox"

@@ -2,6 +2,7 @@
 
 import { AnchorHTMLAttributes, ReactNode } from 'react'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 
 interface TrackedLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   trackingPage: string
@@ -36,7 +37,7 @@ export default function TrackedLink({
 }: TrackedLinkProps) {
   return (
     <a
-      href={href}
+      href={withUtm(href, trackingPage)}
       onClick={e => {
         trackListingClick(
           trackingPage,

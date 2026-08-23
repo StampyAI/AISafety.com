@@ -8,6 +8,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Funder } from '@/lib/data/funding'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface FundingClientProps {
@@ -125,7 +126,7 @@ export default function FundingClient({ funders }: FundingClientProps) {
           {filteredFunders.map(funder => (
             <a
               key={funder.id}
-              href={funder.url}
+              href={withUtm(funder.url, 'Funding')}
               target="_blank"
               rel="noopener noreferrer"
               className="card"

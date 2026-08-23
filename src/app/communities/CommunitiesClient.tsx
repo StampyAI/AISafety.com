@@ -9,6 +9,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Community } from '@/lib/data/communities'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface CommunitiesClientProps {
@@ -236,7 +237,7 @@ export default function CommunitiesClient({
               return (
                 <Link
                   key={community.id}
-                  href={community.joinLink}
+                  href={withUtm(community.joinLink, 'Communities')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="card"

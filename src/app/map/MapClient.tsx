@@ -9,6 +9,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import RelativeDate from '@/components/RelativeDate'
 import SearchBar from '@/components/SearchBar'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 import styles from './page.module.css'
 
@@ -246,7 +247,7 @@ export default function MapClient({
               {filteredOrgs.map(org => (
                 <a
                   key={org.id}
-                  href={org.link}
+                  href={withUtm(org.link, 'Map')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="card"

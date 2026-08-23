@@ -8,6 +8,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { MediaChannel } from '@/lib/data/media-channels'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface MediaChannelsClientProps {
@@ -105,7 +106,7 @@ export default function MediaChannelsClient({
           {filteredChannels.map(channel => (
             <a
               key={channel.id}
-              href={channel.url}
+              href={withUtm(channel.url, 'Media channels')}
               target="_blank"
               rel="noopener noreferrer"
               className="card"

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { withUtm } from '@/lib/utm'
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCardLegacy'
@@ -89,7 +90,10 @@ export default async function CommunitiesPage() {
               Related resources
             </p>
             <Link
-              href="https://www.lesswrong.com/community"
+              href={withUtm(
+                'https://www.lesswrong.com/community',
+                'Communities'
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="block padding-bottom-40px hover-opacity-80"
@@ -104,7 +108,10 @@ export default async function CommunitiesPage() {
               </p>
             </Link>
             <Link
-              href="https://forum.effectivealtruism.org/groups"
+              href={withUtm(
+                'https://forum.effectivealtruism.org/groups',
+                'Communities'
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="block hover-opacity-80"

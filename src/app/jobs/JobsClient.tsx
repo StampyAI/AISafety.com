@@ -7,6 +7,7 @@ import FilterSidebar from '@/components/FilterSidebar'
 import SearchBar from '@/components/SearchBar'
 import { Job } from '@/lib/data/jobs'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 import { setPageContext } from '@/lib/assistant/page-context'
 
@@ -224,7 +225,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
           {filteredJobs.map(job => (
             <a
               key={job.id}
-              href={job.url}
+              href={withUtm(job.url, 'Jobs')}
               target="_blank"
               rel="noopener noreferrer"
               className="card"
@@ -357,7 +358,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             Source:
           </p>
           <a
-            href="https://jobs.80000hours.org/"
+            href={withUtm('https://jobs.80000hours.org/', 'Jobs')}
             target="_blank"
             rel="noopener noreferrer"
             className="color-light-teal"

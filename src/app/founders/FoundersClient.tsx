@@ -8,6 +8,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { FounderResource } from '@/lib/data/founders'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface FoundersClientProps {
@@ -99,7 +100,7 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
           {filteredResources.map(resource => (
             <a
               key={resource.id}
-              href={resource.website}
+              href={withUtm(resource.website, 'Founders')}
               target="_blank"
               rel="noopener noreferrer"
               className="card"

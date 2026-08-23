@@ -1,4 +1,5 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
+import { withUtm } from '@/lib/utm'
 import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCardLegacy'
 import MediaChannelsClient from './MediaChannelsClient'
@@ -62,7 +63,7 @@ export default async function MediaChannelsPage() {
             Related resource
           </p>
           <a
-            href="https://aisafety.info"
+            href={withUtm('https://aisafety.info', 'Media channels')}
             target="_blank"
             rel="noopener noreferrer"
             className="block hover-opacity-80"

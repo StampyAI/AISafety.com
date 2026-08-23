@@ -10,28 +10,34 @@ import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
 
 export const metadata = {
-  title: 'Analytics – AISafety.com',
+  title: 'Site preview – AISafety.com',
   robots: { index: false, follow: false },
 }
 
-export default async function AnalyticsLayout({
+export default async function PreviewAdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const chatbot = await canViewChatbot()
-  // A signed-in partner holding the Successif password is sent to the chat area
-  // they're allowed to use; everyone else to the login page.
-  if (!(await canViewAnalytics())) {
-    redirect(chatbot ? '/admin/chatbot/playground' : '/admin/login')
+  const analytics = await canViewAnalytics()
+  // Listing-editing roles only (owner, volunteers, Melissa). Anyone else who
+  // is signed in goes to the area they can use; signed-out sessions to login.
+  if (!(await canUsePreview())) {
+    redirect(
+      adminHomeHref({
+        chatbot,
+        analytics,
+        mapEditor: await canEditMap(),
+        preview: false,
+      })
+    )
   }
-  // Analytics access is guaranteed here, so the Analytics tab is always present;
-  // the chatbot tabs drop out for an analytics-only session.
   const access = {
     chatbot,
-    analytics: true,
+    analytics,
     mapEditor: await canEditMap(),
-    preview: await canUsePreview(),
+    preview: true,
   }
   return (
     <>

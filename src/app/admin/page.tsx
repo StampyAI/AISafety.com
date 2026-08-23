@@ -1,5 +1,10 @@
 import { redirect } from 'next/navigation'
-import { canEditMap, canViewAnalytics, canViewChatbot } from '@/lib/admin/auth'
+import {
+  canEditMap,
+  canUsePreview,
+  canViewAnalytics,
+  canViewChatbot,
+} from '@/lib/admin/auth'
 import { adminHomeHref } from './nav'
 
 // /admin is an index that bounces to the right place: the first area this
@@ -10,6 +15,7 @@ export default async function AdminIndexPage() {
       chatbot: await canViewChatbot(),
       analytics: await canViewAnalytics(),
       mapEditor: await canEditMap(),
+      preview: await canUsePreview(),
     })
   )
 }

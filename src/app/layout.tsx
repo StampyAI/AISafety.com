@@ -5,6 +5,7 @@ import { Suspense } from 'react'
 import './globals.css'
 import LayoutShell from '@/components/LayoutShell'
 import MatomoRouteTracker from '@/components/MatomoRouteTracker'
+import PreviewBanner from '@/components/PreviewBanner'
 import { fetchAllCounts } from '@/lib/data/counts'
 
 const inter = Inter({
@@ -83,6 +84,7 @@ export default async function RootLayout({
           <MatomoRouteTracker />
         </Suspense>
         <LayoutShell counts={counts}>{children}</LayoutShell>
+        <PreviewBanner />
       </body>
     </html>
   )

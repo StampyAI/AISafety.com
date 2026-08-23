@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import styles from './ListingCard.module.css'
 
 export interface ListingCardMeta {
@@ -68,7 +69,7 @@ export default function ListingCard({
 }: ListingCardProps) {
   return (
     <a
-      href={href}
+      href={withUtm(href, trackingPage)}
       target="_blank"
       rel="noopener noreferrer"
       className="card"

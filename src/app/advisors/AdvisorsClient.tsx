@@ -8,6 +8,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Advisor } from '@/lib/data/advisors'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface AdvisorsClientProps {
@@ -117,7 +118,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           {filteredAdvisors.map(advisor => (
             <a
               key={advisor.id}
-              href={advisor.url}
+              href={withUtm(advisor.url, 'Advisors')}
               target="_blank"
               rel="noopener noreferrer"
               className="card"

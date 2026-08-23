@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import MapControls from '@/components/MapControls'
 import { trackListingClick, trackListingHover } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { positionTooltip } from '@/lib/mapTooltip'
 import styles from './page.module.css'
 
@@ -288,7 +289,7 @@ export default function D3Map({ orgs }: D3MapProps) {
         .attr('class', 'mapItem')
       if (hasLink) {
         linkEl
-          .attr('xlink:href', org.link)
+          .attr('xlink:href', withUtm(org.link, 'Map'))
           .attr('target', '_blank')
           .attr('rel', 'noopener noreferrer')
           .style('cursor', 'pointer')
@@ -539,7 +540,7 @@ export default function D3Map({ orgs }: D3MapProps) {
             tt.getAttribute('data-area') || undefined
           )
         hideTooltip()
-        window.open(link, '_blank')
+        window.open(withUtm(link, 'Map'), '_blank')
       }
       e.stopPropagation()
     }

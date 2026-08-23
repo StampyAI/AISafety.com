@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import QRCode from 'qrcode'
+import { withUtm } from '@/lib/utm'
 import styles from './page.module.css'
 import { MapOrg } from '@/lib/data/map'
 
@@ -197,7 +198,7 @@ export default function D3PosterMap({ orgs }: D3PosterMapProps) {
 
       const linkEl = itemGroup
         .append('a')
-        .attr('xlink:href', org.link)
+        .attr('xlink:href', withUtm(org.link, 'Poster map'))
         .attr('target', '_blank')
 
       // White circle background

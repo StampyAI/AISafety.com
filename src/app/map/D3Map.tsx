@@ -82,6 +82,11 @@ export default function D3Map({ orgs }: D3MapProps) {
     zoomOut: () => {},
     reset: () => {},
   })
+  // The d3 pipeline below tears down and rebuilds whenever `orgs` changes
+  // identity — which preview mode's auto-refresh does on every data change
+  // and tab focus. Keeping the last zoom transform here lets the rebuild
+  // restore the viewport instead of jumping back to the zoomed-out default.
+  const savedTransformRef = useRef<d3.ZoomTransform | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || orgs.length === 0) return
@@ -164,12 +169,17 @@ export default function D3Map({ orgs }: D3MapProps) {
           'transform',
           `translate(${newX}, ${newY}) scale(${event.transform.k})`
         )
+        savedTransformRef.current = event.transform
       })
       .on('end', () => {
         isZooming = false
       })
 
     svg.call(zoom)
+
+    if (savedTransformRef.current) {
+      svg.call(zoom.transform, savedTransformRef.current)
+    }
 
     // Prevent wheel events over the map from zooming the whole page
     // (once D3's zoom hits its scaleExtent limit, the browser would

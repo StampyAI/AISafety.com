@@ -1,5 +1,4 @@
 import { isPreviewRequest } from '@/lib/preview'
-import { formatTimeAgo } from '@/lib/format-date'
 import EnterPreviewButton from './EnterPreviewButton'
 import ExitPreviewButton from './ExitPreviewButton'
 import PreviewAutoRefresh from './PreviewAutoRefresh'
@@ -17,12 +16,11 @@ export default async function PreviewBanner() {
   // BUILD_TIME (next.config.ts) is when the running deployment was built =
   // the newest data a normal visitor can be seeing. A large age here while
   // edits are pending means the rebuild pipeline is stalled.
-  const buildTime = process.env.BUILD_TIME
-  const rebuilt = buildTime ? formatTimeAgo(buildTime, new Date()) : null
+  const buildTime = process.env.BUILD_TIME ?? null
 
   return (
     <>
-      <ExitPreviewButton rebuilt={rebuilt} />
+      <ExitPreviewButton buildTime={buildTime} />
       <PreviewAutoRefresh />
     </>
   )

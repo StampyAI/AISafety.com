@@ -1,7 +1,8 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { formatTimeAgo } from '@/lib/format-date'
 import styles from './PreviewBanner.module.css'
 
 /** The preview-side switch pill: shows that this browser is in preview mode
@@ -9,14 +10,25 @@ import styles from './PreviewBanner.module.css'
  *  /admin/preview reports the mode itself, and the other admin screens
  *  aren't part of the site being previewed. */
 export default function ExitPreviewButton({
-  rebuilt,
+  buildTime,
 }: {
-  rebuilt: string | null
+  buildTime: string | null
 }) {
   const pathname = usePathname()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [refreshing, startTransition] = useTransition()
+  const [rebuilt, setRebuilt] = useState(() =>
+    buildTime ? formatTimeAgo(buildTime, new Date()) : null
+  )
+
+  useEffect(() => {
+    if (!buildTime) return
+    const tick = () => setRebuilt(formatTimeAgo(buildTime, new Date()))
+    tick()
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [buildTime])
 
   if (pathname.startsWith('/admin')) return null
 
@@ -54,7 +66,12 @@ export default function ExitPreviewButton({
         <>
           Preview
           {rebuilt && (
-            <span className={styles.buildNote}> · public built {rebuilt}</span>
+            // The age is recomputed on the client clock every 30 s, so the
+            // server-rendered text can be a minute behind at hydration.
+            <span className={styles.buildNote} suppressHydrationWarning>
+              {' '}
+              · public built {rebuilt}
+            </span>
           )}
         </>
       )}

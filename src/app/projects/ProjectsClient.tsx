@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Project } from '@/lib/data/projects'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 
 interface ProjectsClientProps {
   projects: Project[]
@@ -17,40 +18,42 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string[]>([])
 
-  const filteredProjects = useMemo(() => {
-    return projects.filter(project => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !project.name.toLowerCase().includes(query) &&
-          !project.description.toLowerCase().includes(query)
-        ) {
-          return false
-        }
-      }
+  const searchPass = useCallback(
+    (project: Project) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        project.name.toLowerCase().includes(query) ||
+        project.description.toLowerCase().includes(query)
+      )
+    },
+    [searchQuery]
+  )
 
-      if (selectedStatus.length > 0) {
-        if (!selectedStatus.includes(project.status)) return false
-      }
-
-      return true
-    })
-  }, [projects, searchQuery, selectedStatus])
-
-  const statusCounts = useMemo(() => {
-    return projects.reduce(
-      (counts, project) => {
-        for (const option of statusOptions) {
-          if (project.status === option) {
-            counts[option] = (counts[option] || 0) + 1
-            break
-          }
-        }
-        return counts
+  const groups = useMemo(
+    () => ({
+      status: {
+        selected: selectedStatus,
+        matches: (project: Project, value: string) => project.status === value,
       },
-      {} as Record<string, number>
-    )
-  }, [projects])
+    }),
+    [selectedStatus]
+  )
+
+  const filteredProjects = useMemo(
+    () => filterItems(projects, searchPass, groups),
+    [projects, searchPass, groups]
+  )
+
+  const statusCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(projects, searchPass, groups, 'status'),
+        statusOptions,
+        groups.status.matches
+      ),
+    [projects, searchPass, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 

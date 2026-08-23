@@ -30,55 +30,44 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(courses), [courses])
 
-  const filteredCourses = useMemo(() => {
-    return courses.filter(course => {
-      if (selectedCategories.length > 0) {
-        const courseCategories = course.category.split(',').map(c => c.trim())
-        if (!selectedCategories.some(cat => courseCategories.includes(cat))) {
-          return false
-        }
-      }
+  // Each dropdown's counts are faceted (same system as /events and
+  // /training): an option's number is how many courses would show if you
+  // picked it, i.e. it respects the OTHER dropdown but not the dropdown's
+  // own, so multi-selecting within one dropdown stays possible.
+  const { filteredCourses, categoryCounts, typeCounts } = useMemo(() => {
+    const facets = (value: string) => value.split(',').map(v => v.trim())
 
-      if (selectedTypes.length > 0) {
-        const courseTypes = course.courseType.split(',').map(t => t.trim())
-        if (!selectedTypes.some(t => courseTypes.includes(t))) {
-          return false
-        }
-      }
-
+    const matchesFilters = (course: Course, skip?: string) => {
+      if (
+        skip !== 'category' &&
+        selectedCategories.length > 0 &&
+        !facets(course.category).some(c => selectedCategories.includes(c))
+      )
+        return false
+      if (
+        skip !== 'type' &&
+        selectedTypes.length > 0 &&
+        !facets(course.courseType).some(t => selectedTypes.includes(t))
+      )
+        return false
       return true
-    })
+    }
+
+    const countBy = (skip: string, extract: (c: Course) => string[]) => {
+      const counts: Record<string, number> = {}
+      for (const course of courses) {
+        if (!matchesFilters(course, skip)) continue
+        for (const key of extract(course)) counts[key] = (counts[key] || 0) + 1
+      }
+      return counts
+    }
+
+    return {
+      filteredCourses: courses.filter(c => matchesFilters(c)),
+      categoryCounts: countBy('category', c => facets(c.category)),
+      typeCounts: countBy('type', c => facets(c.courseType)),
+    }
   }, [courses, selectedCategories, selectedTypes])
-
-  const categoryCounts = useMemo(() => {
-    return courses.reduce(
-      (counts, course) => {
-        const courseCategories = course.category.split(',').map(c => c.trim())
-        for (const category of categoryOptions) {
-          if (courseCategories.includes(category)) {
-            counts[category] = (counts[category] || 0) + 1
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [courses])
-
-  const typeCounts = useMemo(() => {
-    return courses.reduce(
-      (counts, course) => {
-        const courseTypes = course.courseType.split(',').map(t => t.trim())
-        for (const type of typeOptions) {
-          if (courseTypes.includes(type)) {
-            counts[type] = (counts[type] || 0) + 1
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [courses])
 
   // Preserve scroll position when toggling a filter re-renders the list.
   const savedScrollY = useRef<number | null>(null)

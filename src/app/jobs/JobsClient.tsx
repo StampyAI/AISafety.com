@@ -17,6 +17,7 @@ import { trackListingClick } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 import { setPageContext } from '@/lib/assistant/page-context'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 
 interface JobsClientProps {
   jobs: Job[]
@@ -207,161 +208,137 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     return options
   }, [jobs])
 
-  // One predicate drives both the visible list and the sidebar counts.
-  // Passing `skip` leaves one filter group out, so each group's counts
-  // reflect the search box and every OTHER group — "what would I get if
-  // I also ticked this".
-  const jobPasses = useCallback(
-    (job: Job, skip?: string): boolean => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !job.name.toLowerCase().includes(query) &&
-          !job.organization.toLowerCase().includes(query) &&
-          !job.location.toLowerCase().includes(query) &&
-          !job.description.toLowerCase().includes(query)
-        ) {
-          return false
-        }
-      }
-
-      if (skip !== 'skill' && selectedSkills.length > 0) {
-        const jobSkills = job.skillSet.split(',').map(s => s.trim())
-        if (!selectedSkills.some(s => jobSkills.includes(s))) return false
-      }
-
-      if (skip !== 'experience' && selectedExperience.length > 0) {
-        const jobExperience = job.minimumExperience
-          .split(',')
-          .map(e => e.trim())
-        if (!selectedExperience.some(e => jobExperience.includes(e))) {
-          return false
-        }
-      }
-
-      if (skip !== 'role' && selectedRoles.length > 0) {
-        const jobRoles = job.roleType.split(',').map(r => r.trim())
-        if (!selectedRoles.some(r => jobRoles.includes(r))) return false
-      }
-
-      if (skip !== 'workLocation' && selectedWorkLocation.length > 0) {
-        if (!selectedWorkLocation.includes(job.workLocation)) return false
-      }
-
-      if (skip !== 'country' && selectedCountries.length > 0) {
-        const named = new Set(countryOptions.filter(c => c !== 'Other'))
-        const hasMatch = selectedCountries.some(c =>
-          c === 'Other'
-            ? job.countries.some(jc => !named.has(jc))
-            : jobMatchesCountry(job, c)
-        )
-        if (!hasMatch) return false
-      }
-
-      if (skip !== 'degree' && selectedDegrees.length > 0) {
-        if (!selectedDegrees.includes(job.requiredDegree)) return false
-      }
-
-      return true
+  const searchPass = useCallback(
+    (job: Job) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        job.name.toLowerCase().includes(query) ||
+        job.organization.toLowerCase().includes(query) ||
+        job.location.toLowerCase().includes(query) ||
+        job.description.toLowerCase().includes(query)
+      )
     },
-    [
-      searchQuery,
-      selectedSkills,
-      selectedExperience,
-      selectedRoles,
-      selectedWorkLocation,
-      selectedCountries,
-      selectedDegrees,
-      countryOptions,
-    ]
+    [searchQuery]
   )
+
+  const groups = useMemo(() => {
+    const named = new Set(countryOptions.filter(c => c !== 'Other'))
+    return {
+      skill: {
+        selected: selectedSkills,
+        matches: (job: Job, value: string) =>
+          job.skillSet
+            .split(',')
+            .map(s => s.trim())
+            .includes(value),
+      },
+      experience: {
+        selected: selectedExperience,
+        matches: (job: Job, value: string) =>
+          job.minimumExperience
+            .split(',')
+            .map(e => e.trim())
+            .includes(value),
+      },
+      role: {
+        selected: selectedRoles,
+        matches: (job: Job, value: string) =>
+          job.roleType
+            .split(',')
+            .map(r => r.trim())
+            .includes(value),
+      },
+      workLocation: {
+        selected: selectedWorkLocation,
+        matches: (job: Job, value: string) => job.workLocation === value,
+      },
+      country: {
+        selected: selectedCountries,
+        matches: (job: Job, value: string) =>
+          value === 'Other'
+            ? job.countries.some(c => !named.has(c))
+            : jobMatchesCountry(job, value),
+      },
+      degree: {
+        selected: selectedDegrees,
+        matches: (job: Job, value: string) => job.requiredDegree === value,
+      },
+    }
+  }, [
+    selectedSkills,
+    selectedExperience,
+    selectedRoles,
+    selectedWorkLocation,
+    selectedCountries,
+    selectedDegrees,
+    countryOptions,
+  ])
 
   const filteredJobs = useMemo(
-    () => jobs.filter(job => jobPasses(job)),
-    [jobs, jobPasses]
+    () => filterItems(jobs, searchPass, groups),
+    [jobs, searchPass, groups]
   )
 
-  const skillCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const job of jobs) {
-      if (!jobPasses(job, 'skill')) continue
-      const skills = job.skillSet.split(',').map(s => s.trim())
-      for (const option of skillSetOptions) {
-        if (skills.includes(option)) counts[option] = (counts[option] || 0) + 1
-      }
-    }
-    return counts
-  }, [jobs, jobPasses])
+  const skillCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'skill'),
+        skillSetOptions,
+        groups.skill.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
-  const experienceCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const job of jobs) {
-      if (!jobPasses(job, 'experience')) continue
-      const jobExperience = job.minimumExperience.split(',').map(e => e.trim())
-      for (const option of experienceOptions) {
-        if (jobExperience.includes(option)) {
-          counts[option] = (counts[option] || 0) + 1
-        }
-      }
-    }
-    return counts
-  }, [jobs, jobPasses])
+  const experienceCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'experience'),
+        experienceOptions,
+        groups.experience.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
-  const roleCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const job of jobs) {
-      if (!jobPasses(job, 'role')) continue
-      const roles = job.roleType.split(',').map(r => r.trim())
-      for (const option of roleTypeOptions) {
-        if (roles.includes(option)) counts[option] = (counts[option] || 0) + 1
-      }
-    }
-    return counts
-  }, [jobs, jobPasses])
+  const roleCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'role'),
+        roleTypeOptions,
+        groups.role.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
-  const workLocationCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const job of jobs) {
-      if (!jobPasses(job, 'workLocation')) continue
-      for (const option of workLocationOptions) {
-        if (job.workLocation === option) {
-          counts[option] = (counts[option] || 0) + 1
-          break
-        }
-      }
-    }
-    return counts
-  }, [jobs, jobPasses])
+  const workLocationCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'workLocation'),
+        workLocationOptions,
+        groups.workLocation.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
-  const countryCounts = useMemo(() => {
-    const named = new Set(countryOptions.filter(c => c !== 'Other'))
-    const counts: Record<string, number> = {}
-    for (const job of jobs) {
-      if (!jobPasses(job, 'country')) continue
-      for (const option of countryOptions) {
-        const matches =
-          option === 'Other'
-            ? job.countries.some(c => !named.has(c))
-            : jobMatchesCountry(job, option)
-        if (matches) counts[option] = (counts[option] || 0) + 1
-      }
-    }
-    return counts
-  }, [jobs, jobPasses, countryOptions])
+  const countryCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'country'),
+        countryOptions,
+        groups.country.matches
+      ),
+    [jobs, searchPass, groups, countryOptions]
+  )
 
-  const degreeCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const job of jobs) {
-      if (!jobPasses(job, 'degree')) continue
-      for (const option of degreeOptions) {
-        if (job.requiredDegree === option) {
-          counts[option] = (counts[option] || 0) + 1
-          break
-        }
-      }
-    }
-    return counts
-  }, [jobs, jobPasses])
+  const degreeCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'degree'),
+        degreeOptions,
+        groups.degree.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
   const toggleFilter = (
     value: string,

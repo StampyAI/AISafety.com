@@ -272,7 +272,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                 Location
               </p>
               <p className="paragraph-small padding-bottom-16px">
-                {job.location}
+                {job.locations.map(loc => (
+                  <span key={loc} className="block">
+                    {loc}
+                  </span>
+                ))}
               </p>
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
                 Minimum experience

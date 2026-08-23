@@ -1,6 +1,7 @@
 import path from 'path'
 import { list, put } from '@vercel/blob'
 import { unstable_cache } from 'next/cache'
+import { isPreviewRequest } from '@/lib/preview'
 
 export interface AirtableRawRecord {
   id: string
@@ -460,7 +461,7 @@ async function fetchAirtableRecordsImpl(
 // version segment to force a fresh fetch on deploy after an Airtable schema
 // change (e.g. the self-study Category/Type -> Focus/Format rename), so cached
 // records under the old field shape can't be served to new code.
-export const fetchAirtableRecords = unstable_cache(
+const fetchAirtableRecordsCached = unstable_cache(
   fetchAirtableRecordsImpl,
   // v3: attachment URLs moved from local paths to Vercel Blob.
   ['airtable-records', 'v3'],
@@ -470,3 +471,16 @@ export const fetchAirtableRecords = unstable_cache(
   // bypass via rebuilds.
   { revalidate: 3600, tags: ['airtable-records'] }
 )
+
+// Preview-mode requests (see src/lib/preview.ts) skip the cache and read
+// Airtable live, so an admin sees their edit on the real page immediately.
+// Everyone else gets the cached entry above; Blob mirroring runs either way,
+// so preview pages carry the same permanent image URLs the live site serves.
+// (The explicit branch also documents intent: with Draft Mode enabled, Next
+// bypasses unstable_cache anyway — nothing in a preview request is cached.)
+export async function fetchAirtableRecords(
+  options: FetchOptions
+): Promise<AirtableRawRecord[]> {
+  if (await isPreviewRequest()) return fetchAirtableRecordsImpl(options)
+  return fetchAirtableRecordsCached(options)
+}

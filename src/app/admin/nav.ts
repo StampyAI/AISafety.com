@@ -6,7 +6,7 @@ export interface AdminNavTab {
   label: string
   /** Tabs are grouped in the header; a divider is drawn where the group changes
    *  (so the two chatbot tabs read as a pair, separate from Analytics). */
-  group: 'chatbot' | 'analytics' | 'map'
+  group: 'chatbot' | 'analytics' | 'map' | 'preview'
 }
 
 export interface AdminAccess {
@@ -16,6 +16,8 @@ export interface AdminAccess {
   analytics: boolean
   /** Session may reach /admin/map (owner password only). */
   mapEditor: boolean
+  /** Session may reach /admin/preview (every listing-editing role). */
+  preview: boolean
 }
 
 /** Tabs shown in the admin header, limited to the areas this session can
@@ -25,6 +27,7 @@ export function adminTabs({
   chatbot,
   analytics,
   mapEditor,
+  preview,
 }: AdminAccess): AdminNavTab[] {
   return [
     ...(chatbot
@@ -59,6 +62,15 @@ export function adminTabs({
           },
         ]
       : []),
+    ...(preview
+      ? [
+          {
+            href: '/admin/preview',
+            label: 'Site preview',
+            group: 'preview' as const,
+          },
+        ]
+      : []),
   ]
 }
 
@@ -69,9 +81,11 @@ export function adminHomeHref({
   chatbot,
   analytics,
   mapEditor,
+  preview,
 }: AdminAccess): string {
   if (chatbot) return '/admin/chatbot/playground'
   if (analytics) return '/admin/analytics'
   if (mapEditor) return '/admin/map'
+  if (preview) return '/admin/preview'
   return '/admin/login'
 }

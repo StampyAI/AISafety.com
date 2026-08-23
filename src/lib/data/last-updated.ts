@@ -1,6 +1,7 @@
 import { DONATION_GUIDE_LAST_UPDATED } from '@/lib/donation-guide-date'
 import { formatDate } from '@/lib/format-date'
 import { fetchAirtableWithRetry } from './airtable'
+import { isPreviewRequest } from '@/lib/preview'
 
 // All field references below use permanent field IDs (rename-proof); the
 // requests set returnFieldsByFieldId so responses are keyed the same way.
@@ -123,6 +124,22 @@ const configs: Record<string, ResourceConfig> = {
 
 export const validResources = Object.keys(configs)
 
+/** The table(s) whose records feed this resource's page, with the page's
+ *  publish filter where the config has one — the polling targets for preview
+ *  mode's auto-refresh (see /api/admin/preview/changed). Empty when the
+ *  page's content doesn't live in Airtable (/donation-guide). */
+export function resourceTables(
+  resource: string
+): Array<{ tableId: string; filter?: string }> {
+  const config = configs[resource]
+  if (!config) throw new Error(`Unknown resource: '${resource}'`)
+  if (config.type === 'constant') return []
+  if (config.type === 'record') return [{ tableId: config.tableId }]
+  if (config.type === 'multi')
+    return config.queries.map(q => ({ tableId: q.tableId, filter: q.filter }))
+  return [{ tableId: config.tableId, filter: config.filter }]
+}
+
 interface LastUpdatedResult {
   lastUpdated: string | null
   formattedDate: string | null
@@ -145,11 +162,17 @@ export async function fetchLastUpdated(
   // simply omit their "Updated X ago" line.
   if (!token || !baseId) return { lastUpdated: null, formattedDate: null }
 
+  // Preview mode skips the hourly fetch cache, so the "Updated X ago" line
+  // reflects the edit the admin just made (see src/lib/preview.ts).
+  const requestInit: RequestInit = (await isPreviewRequest())
+    ? { cache: 'no-store' }
+    : { next: { revalidate: 3600 } }
+
   if (config.type === 'record') {
     const response = await fetchAirtableWithRetry(
       `https://api.airtable.com/v0/${baseId}/${config.tableId}/${config.recordId}?returnFieldsByFieldId=true`,
       token,
-      { next: { revalidate: 3600 } }
+      requestInit
     )
     if (!response.ok)
       throw new Error(
@@ -174,7 +197,7 @@ export async function fetchLastUpdated(
   if (config.type === 'multi') {
     const results = await Promise.all(
       config.queries.map(query =>
-        fetchQueryLastUpdated(query, resource, token, baseId)
+        fetchQueryLastUpdated(query, resource, token, baseId, requestInit)
       )
     )
     const dated = results.filter(r => r.lastUpdated !== null)
@@ -182,14 +205,15 @@ export async function fetchLastUpdated(
     return dated.reduce((a, b) => (a.lastUpdated! >= b.lastUpdated! ? a : b))
   }
 
-  return fetchQueryLastUpdated(config, resource, token, baseId)
+  return fetchQueryLastUpdated(config, resource, token, baseId, requestInit)
 }
 
 async function fetchQueryLastUpdated(
   config: Omit<QueryConfig, 'type'>,
   resource: string,
   token: string,
-  baseId: string
+  baseId: string,
+  requestInit: RequestInit
 ): Promise<LastUpdatedResult> {
   const url = new URL(`https://api.airtable.com/v0/${baseId}/${config.tableId}`)
   if (config.viewId) url.searchParams.set('view', config.viewId)
@@ -200,9 +224,11 @@ async function fetchQueryLastUpdated(
   url.searchParams.set('fields[]', config.sortField)
   url.searchParams.set('returnFieldsByFieldId', 'true')
 
-  const response = await fetchAirtableWithRetry(url.toString(), token, {
-    next: { revalidate: 3600 },
-  })
+  const response = await fetchAirtableWithRetry(
+    url.toString(),
+    token,
+    requestInit
+  )
   if (!response.ok)
     throw new Error(
       `Airtable fetch failed for '${resource}': ${response.status} ${response.statusText}`

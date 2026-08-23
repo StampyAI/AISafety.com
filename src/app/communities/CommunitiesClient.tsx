@@ -1,6 +1,13 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
+import {
+  useState,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+  useCallback,
+} from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import FilterGroup from '@/components/FilterGroup'
@@ -8,6 +15,7 @@ import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Community } from '@/lib/data/communities'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 import { trackListingClick } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
@@ -45,80 +53,77 @@ export default function CommunitiesClient({
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(communities), [communities])
 
-  const filteredCommunities = useMemo(() => {
-    return communities.filter(community => {
-      // Text search
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        const matchesSearch =
-          community.name.toLowerCase().includes(query) ||
-          community.description.toLowerCase().includes(query) ||
-          (community.location &&
-            community.location.toLowerCase().includes(query))
-        if (!matchesSearch) return false
-      }
-
-      // Type filter
-      if (typeFilters.length > 0) {
-        const hasMatchingType = community.type.some(t =>
-          typeFilters.includes(t)
+  const searchPass = useCallback(
+    (community: Community) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        community.name.toLowerCase().includes(query) ||
+        community.description.toLowerCase().includes(query) ||
+        Boolean(
+          community.location && community.location.toLowerCase().includes(query)
         )
-        if (!hasMatchingType) return false
-      }
+      )
+    },
+    [searchQuery]
+  )
 
-      // Platform filter
-      if (platformFilters.length > 0) {
-        const hasMatchingPlatform = community.platform.some(p =>
-          platformFilters.includes(p)
-        )
-        if (!hasMatchingPlatform) return false
-      }
+  const groups = useMemo(
+    () => ({
+      type: {
+        selected: typeFilters,
+        matches: (community: Community, value: string) =>
+          community.type.includes(value),
+      },
+      platform: {
+        selected: platformFilters,
+        matches: (community: Community, value: string) =>
+          community.platform.includes(value),
+      },
+      activity: {
+        selected: activityFilters,
+        matches: (community: Community, value: string) =>
+          community.activityLevel === value,
+      },
+      focus: {
+        selected: focusFilters,
+        matches: (community: Community, value: string) =>
+          community.focus === value,
+      },
+    }),
+    [typeFilters, platformFilters, activityFilters, focusFilters]
+  )
 
-      // Activity level filter
-      if (activityFilters.length > 0) {
-        if (!activityFilters.includes(community.activityLevel)) return false
-      }
+  const filteredCommunities = useMemo(
+    () => filterItems(communities, searchPass, groups),
+    [communities, searchPass, groups]
+  )
 
-      // Focus filter
-      if (focusFilters.length > 0) {
-        if (!focusFilters.includes(community.focus)) return false
-      }
-
-      return true
-    })
-  }, [
-    communities,
-    searchQuery,
-    typeFilters,
-    platformFilters,
-    activityFilters,
-    focusFilters,
-  ])
-
-  const filterCounts = useMemo(() => {
-    const counts = {
-      type: {} as Record<string, number>,
-      platform: {} as Record<string, number>,
-      activity: {} as Record<string, number>,
-      focus: {} as Record<string, number>,
-    }
-    for (const community of communities) {
-      for (const t of community.type) {
-        counts.type[t] = (counts.type[t] || 0) + 1
-      }
-      for (const p of community.platform) {
-        counts.platform[p] = (counts.platform[p] || 0) + 1
-      }
-      if (community.activityLevel) {
-        counts.activity[community.activityLevel] =
-          (counts.activity[community.activityLevel] || 0) + 1
-      }
-      if (community.focus) {
-        counts.focus[community.focus] = (counts.focus[community.focus] || 0) + 1
-      }
-    }
-    return counts
-  }, [communities])
+  const filterCounts = useMemo(
+    () => ({
+      type: optionCounts(
+        filterItems(communities, searchPass, groups, 'type'),
+        typeOptions,
+        groups.type.matches
+      ),
+      platform: optionCounts(
+        filterItems(communities, searchPass, groups, 'platform'),
+        platformOptions,
+        groups.platform.matches
+      ),
+      activity: optionCounts(
+        filterItems(communities, searchPass, groups, 'activity'),
+        activityOptions,
+        groups.activity.matches
+      ),
+      focus: optionCounts(
+        filterItems(communities, searchPass, groups, 'focus'),
+        focusOptions,
+        groups.focus.matches
+      ),
+    }),
+    [communities, searchPass, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 

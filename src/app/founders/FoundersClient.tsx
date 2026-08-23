@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { FounderResource } from '@/lib/data/founders'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 import { trackListingClick } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
@@ -30,42 +31,46 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(resources), [resources])
 
-  const filteredResources = useMemo(() => {
-    return resources.filter(resource => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !resource.name.toLowerCase().includes(query) &&
-          !resource.description.toLowerCase().includes(query)
-        ) {
-          return false
-        }
-      }
+  const searchPass = useCallback(
+    (resource: FounderResource) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        resource.name.toLowerCase().includes(query) ||
+        resource.description.toLowerCase().includes(query)
+      )
+    },
+    [searchQuery]
+  )
 
-      if (selectedTypes.length > 0) {
-        const resourceTypes = resource.type.split(',').map(t => t.trim())
-        const hasMatch = selectedTypes.some(t => resourceTypes.includes(t))
-        if (!hasMatch) return false
-      }
-
-      return true
-    })
-  }, [resources, searchQuery, selectedTypes])
-
-  const typeCounts = useMemo(() => {
-    return resources.reduce(
-      (counts, resource) => {
-        const resourceTypes = resource.type.split(',').map(t => t.trim())
-        for (const option of typeOptions) {
-          if (resourceTypes.includes(option)) {
-            counts[option] = (counts[option] || 0) + 1
-          }
-        }
-        return counts
+  const groups = useMemo(
+    () => ({
+      type: {
+        selected: selectedTypes,
+        matches: (resource: FounderResource, value: string) =>
+          resource.type
+            .split(',')
+            .map(t => t.trim())
+            .includes(value),
       },
-      {} as Record<string, number>
-    )
-  }, [resources])
+    }),
+    [selectedTypes]
+  )
+
+  const filteredResources = useMemo(
+    () => filterItems(resources, searchPass, groups),
+    [resources, searchPass, groups]
+  )
+
+  const typeCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(resources, searchPass, groups, 'type'),
+        typeOptions,
+        groups.type.matches
+      ),
+    [resources, searchPass, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 

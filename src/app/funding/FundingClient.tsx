@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Funder } from '@/lib/data/funding'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 import { trackListingClick } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
@@ -28,66 +29,64 @@ export default function FundingClient({ funders }: FundingClientProps) {
   // tagged with the rank Bryce set — not its position within an active filter.
   const placements = useMemo(() => placementsById(funders), [funders])
 
-  const filteredFunders = useMemo(() => {
-    return funders.filter(funder => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !funder.name.toLowerCase().includes(query) &&
-          !funder.description.toLowerCase().includes(query)
-        ) {
-          return false
-        }
-      }
+  const searchPass = useCallback(
+    (funder: Funder) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        funder.name.toLowerCase().includes(query) ||
+        funder.description.toLowerCase().includes(query)
+      )
+    },
+    [searchQuery]
+  )
 
-      if (selectedAccepting.length > 0) {
-        // Airtable values are prefixed: "Yes – rolling basis", "Yes – closes …", or "No".
-        // Match on the prefix so the Yes/No filter catches all variants.
-        const accepting = funder.acceptingApplications || ''
-        const hasMatch = selectedAccepting.some(a => accepting.startsWith(a))
-        if (!hasMatch) return false
-      }
-
-      if (selectedTypes.length > 0) {
-        const funderTypes = (funder.type || '').split(',').map(t => t.trim())
-        const hasMatch = selectedTypes.some(t => funderTypes.includes(t))
-        if (!hasMatch) return false
-      }
-
-      return true
-    })
-  }, [funders, searchQuery, selectedAccepting, selectedTypes])
-
-  const acceptingCounts = useMemo(() => {
-    return funders.reduce(
-      (counts, funder) => {
-        const accepting = funder.acceptingApplications || ''
-        for (const option of acceptingOptions) {
-          if (accepting.startsWith(option)) {
-            counts[option] = (counts[option] || 0) + 1
-            break
-          }
-        }
-        return counts
+  const groups = useMemo(
+    () => ({
+      accepting: {
+        selected: selectedAccepting,
+        // Airtable values are prefixed: "Yes – rolling basis", "Yes –
+        // closes …", or "No". Match on the prefix so the Yes/No filter
+        // catches all variants.
+        matches: (funder: Funder, value: string) =>
+          (funder.acceptingApplications || '').startsWith(value),
       },
-      {} as Record<string, number>
-    )
-  }, [funders])
-
-  const typeCounts = useMemo(() => {
-    return funders.reduce(
-      (counts, funder) => {
-        const types = (funder.type || '').split(',').map(t => t.trim())
-        for (const option of typeOptions) {
-          if (types.includes(option)) {
-            counts[option] = (counts[option] || 0) + 1
-          }
-        }
-        return counts
+      type: {
+        selected: selectedTypes,
+        matches: (funder: Funder, value: string) =>
+          (funder.type || '')
+            .split(',')
+            .map(t => t.trim())
+            .includes(value),
       },
-      {} as Record<string, number>
-    )
-  }, [funders])
+    }),
+    [selectedAccepting, selectedTypes]
+  )
+
+  const filteredFunders = useMemo(
+    () => filterItems(funders, searchPass, groups),
+    [funders, searchPass, groups]
+  )
+
+  const acceptingCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(funders, searchPass, groups, 'accepting'),
+        acceptingOptions,
+        groups.accepting.matches
+      ),
+    [funders, searchPass, groups]
+  )
+
+  const typeCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(funders, searchPass, groups, 'type'),
+        typeOptions,
+        groups.type.matches
+      ),
+    [funders, searchPass, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { MediaChannel } from '@/lib/data/media-channels'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 import { trackListingClick } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
@@ -36,42 +37,46 @@ export default function MediaChannelsClient({
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(channels), [channels])
 
-  const filteredChannels = useMemo(() => {
-    return channels.filter(channel => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !channel.name.toLowerCase().includes(query) &&
-          !channel.description.toLowerCase().includes(query)
-        ) {
-          return false
-        }
-      }
+  const searchPass = useCallback(
+    (channel: MediaChannel) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        channel.name.toLowerCase().includes(query) ||
+        channel.description.toLowerCase().includes(query)
+      )
+    },
+    [searchQuery]
+  )
 
-      if (selectedTypes.length > 0) {
-        const channelTypes = channel.type.split(',').map(t => t.trim())
-        const hasMatch = selectedTypes.some(t => channelTypes.includes(t))
-        if (!hasMatch) return false
-      }
-
-      return true
-    })
-  }, [channels, searchQuery, selectedTypes])
-
-  const typeCounts = useMemo(() => {
-    return channels.reduce(
-      (counts, channel) => {
-        const channelTypes = channel.type.split(',').map(t => t.trim())
-        for (const option of typeOptions) {
-          if (channelTypes.includes(option)) {
-            counts[option] = (counts[option] || 0) + 1
-          }
-        }
-        return counts
+  const groups = useMemo(
+    () => ({
+      type: {
+        selected: selectedTypes,
+        matches: (channel: MediaChannel, value: string) =>
+          channel.type
+            .split(',')
+            .map(t => t.trim())
+            .includes(value),
       },
-      {} as Record<string, number>
-    )
-  }, [channels])
+    }),
+    [selectedTypes]
+  )
+
+  const filteredChannels = useMemo(
+    () => filterItems(channels, searchPass, groups),
+    [channels, searchPass, groups]
+  )
+
+  const typeCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(channels, searchPass, groups, 'type'),
+        typeOptions,
+        groups.type.matches
+      ),
+    [channels, searchPass, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 

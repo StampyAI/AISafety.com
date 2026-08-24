@@ -74,6 +74,58 @@ function textToolCallRedoMessage(): string {
 Your draft wrote tool calls as literal text (<invoke ...> markup) instead of invoking the tools. Text never executes a tool: no search ran, you have no results from it, and the visitor would have seen raw markup. Redo the turn from scratch: make the search_listings call(s) for real through the tool-use mechanism, wait for their results, and answer only from what they return. Format as always: any reasoning ends with [[/thinking]], then the visible answer, then follow-up chips. Do not apologize for or mention this correction — just deliver the corrected answer.`
 }
 
+/** First-person announcements of a search that only make sense as tool
+ *  intents ("Let me search for orgs…", "I'm going to look for…", "Let me run
+ *  several searches"). A finished reply containing one when NO tool ran this
+ *  turn narrated the search instead of making it — and any "findings" that
+ *  follow are invented. Seen in production on 22 August 2026: five
+ *  consecutive turns narrated searches with zero tool calls, one of them
+ *  fabricating results ("Two useful hits: EleutherAI and …"). Deliberately
+ *  tight — generic "let me" phrasing ("let me be precise", "let me know")
+ *  must never match, only search/look-up verbs. */
+export const NARRATED_SEARCH_RE =
+  /\b(?:let me|i(?:['’]ll| will|['’]m (?:going|about) to))\s+(?:now\s+|also\s+|quickly\s+|first\s+)?(?:search|look\s+(?:up|for|at\s+(?:which|what))|run\s+(?:a|an|some|several|the|two|three|more)?\s*search(?:es)?|check\s+(?:the\s+)?(?:catalog|listings|database))/i
+
+/** Corrective message injected when the model's finished reply narrates
+ *  searching without any tool having run this turn. */
+function narratedSearchRedoMessage(): string {
+  return `[AUTOMATED TOOL-CALL AUDIT — this is a server-side check, not the visitor. The visitor will not see your previous draft, so never reference it.]
+Your draft says it is searching ("let me search…", "I'm going to look for…") but no tool call was made this turn. Narrating a search never executes it: nothing ran, and any findings your draft describes are invented. Redo the turn from scratch: if the answer needs listings, call search_listings for real through the tool-use mechanism and answer only from what it returns; if it doesn't, answer directly without claiming to search. Format as always: any reasoning ends with [[/thinking]], then the visible answer, then follow-up chips. Do not apologize for or mention this correction — just deliver the corrected answer.`
+}
+
+/** Whether a finished, marker-less reply reads as the model's private
+ *  reasoning rather than an answer to the visitor: it opens by talking ABOUT
+ *  the visitor in the third person ("The user has shared…") or planning to
+ *  itself ("Let me…", "I need to…"), or leans on that self-talk repeatedly.
+ *  Used only as a tie-breaker for replies that never emitted [[/thinking]] —
+ *  a genuine short answer ("MATS Winter 2027 closes 6 September") matches
+ *  neither test, and a false positive costs one redo, not the answer. */
+export function looksLikeReasoningText(text: string): boolean {
+  const head = text.trimStart().slice(0, 200)
+  if (
+    /^(?:okay|so|hmm|right)?[,.\s]*(?:the (?:user|visitor)\b|let me\b|i (?:should|need to|want to|will)\b|i['’](?:ll|m going)\b|my (?:job|task) here\b)/i.test(
+      head
+    )
+  ) {
+    return true
+  }
+  const selfTalk = text.match(
+    /\b(?:the (?:user|visitor)(?:['’]s)?\s+(?:has|asks?|wants?|is|was|shared|needs?|said|question)|let me|i should|i need to)\b/gi
+  )
+  return (selfTalk?.length ?? 0) >= 2
+}
+
+/** Corrective message injected when a finished reply never emitted the
+ *  [[/thinking]] marker at all: with no marker and no tool calls, every
+ *  renderer's last-resort fallback shows the WHOLE text, so a reasoning dump
+ *  would reach the visitor verbatim. A real visitor got 11,000 characters of
+ *  private reasoning — "the user has shared their rejected proposal… that's
+ *  the most useful thing I can give him" — as their answer on 22 August 2026. */
+function missingMarkerRedoMessage(): string {
+  return `[AUTOMATED FORMAT AUDIT — this is a server-side check, not the visitor. The visitor will not see your previous draft, so never reference it.]
+Your draft never emitted the [[/thinking]] marker, and it reads as internal reasoning about the visitor rather than an answer to them — without the marker, that raw reasoning would be shown to the visitor word for word. Redo the turn: reason briefly if you need to, end the reasoning with [[/thinking]] on its own line, then write the complete final answer addressed directly to the visitor as "you", then follow-up chips. If your draft was cut off, write the full answer now. If the answer needs listings, call the tools for real first. Do not apologize for or mention this correction — just deliver the answer.`
+}
+
 /** Encodes a single SSE frame. */
 function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
@@ -202,15 +254,39 @@ export function validateMessages(messages: unknown): ChatMessage[] {
  *  the conversation LOG stores. The widget sends the whole conversation every
  *  turn, so long chats keep their earlier turns in the admin transcript even
  *  though the model only ever sees the last MAX_HISTORY. Always a superset of
- *  validateMessages() for the same input (both are tails of one list). */
-export function validateLogHistory(messages: unknown): ChatMessage[] {
-  return cleanMessages(messages).slice(-LOG_HISTORY)
+ *  validateMessages() for the same input (both are tails of one list).
+ *
+ *  `indices` carries each kept message's position in the RAW incoming array —
+ *  the widget's own message-list positions, which is the indexing its
+ *  delivery reports, thumbs ratings, and turn-scoped click keys use. The
+ *  cleaning below can drop messages mid-list (an errored turn's empty reply)
+ *  and the windowing/size-trim drops them from the front, so a stored
+ *  message's array position stops matching the widget's — the admin viewer
+ *  needs the original positions to attach those reports to the right reply. */
+export function validateLogHistoryWithIndices(messages: unknown): {
+  history: ChatMessage[]
+  indices: number[]
+} {
+  const { history, indices } = cleanMessagesIndexed(messages)
+  return {
+    history: history.slice(-LOG_HISTORY),
+    indices: indices.slice(-LOG_HISTORY),
+  }
 }
 
 function cleanMessages(messages: unknown): ChatMessage[] {
+  return cleanMessagesIndexed(messages).history
+}
+
+function cleanMessagesIndexed(messages: unknown): {
+  history: ChatMessage[]
+  indices: number[]
+} {
   if (!Array.isArray(messages)) throw new Error('messages must be an array')
   const out: ChatMessage[] = []
-  for (const m of messages) {
+  const indices: number[] = []
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i]
     if (!m || typeof m !== 'object') continue
     const msg = m as { role?: unknown; content?: unknown }
     if (msg.role !== 'user' && msg.role !== 'assistant') continue
@@ -222,12 +298,13 @@ function cleanMessages(messages: unknown): ChatMessage[] {
     // replies from the bot's memory and from the stored transcript.
     if (msg.content.length > (msg.role === 'user' ? 4000 : 12000)) continue
     out.push({ role: msg.role, content: msg.content })
+    indices.push(i)
   }
   if (out.length === 0) throw new Error('no valid messages')
   if (out[out.length - 1].role !== 'user') {
     throw new Error('last message must be from user')
   }
-  return out
+  return { history: out, indices }
 }
 
 /** Builds the Anthropic message list, prepending the context line to the
@@ -303,6 +380,11 @@ export async function runAssistantStream(
   let redoneSplitAnswer = false
   let redoneSuggestGate = false
   let redoneTextToolCall = false
+  let redoneNarratedSearch = false
+  let redoneMissingMarker = false
+  // Whether any tool actually executed this turn — the narrated-search audit
+  // below only fires when the model claimed to search without one running.
+  let ranTools = false
   // Where the final answer can begin at the earliest: the text length after
   // the last tool round (or redo). Text before this point is treated as
   // reasoning — it preceded a tool call — which lets us repair a reply whose
@@ -517,6 +599,17 @@ export async function runAssistantStream(
       }
 
       apiMessages.push({ role: 'assistant', content: blocks })
+      if (stopReason === 'max_tokens') {
+        // The generation was cut off mid-sentence at MAX_TOKENS. The loop
+        // treats it like a normal finish (there's no continuation mechanism),
+        // so record it where the admin's per-turn tool list will show it —
+        // otherwise a truncated reply is indistinguishable from a complete one
+        // when skimming conversations.
+        console.warn(
+          `[assistant] generation hit MAX_TOKENS (${MAX_TOKENS}) — the reply is cut off`
+        )
+        toolCalls.push({ name: 'reply_hit_token_limit', input: {}, ok: false })
+      }
       if (stopReason !== 'tool_use') {
         // The model considers its answer finished. The first way it can be
         // broken: the "answer" is one or more tool calls written as literal
@@ -556,6 +649,44 @@ export async function runAssistantStream(
           // own marker. The redo event lets the widget keep a draft the visitor
           // already read on screen — swapped for the rewrite once it streams —
           // instead of blanking to a loading indicator.
+          send('redo', {})
+          send('text', { delta: '\n[[/thinking]]\n' })
+          assistantText += '\n[[/thinking]]\n'
+          answerStartOffset = assistantText.length
+          continue
+        }
+        // The prose variant of the same failure: the reply ANNOUNCES searching
+        // ("Let me search for orgs…") but no tool ran this turn — the model
+        // narrated the search instead of calling it, so any findings it goes
+        // on to describe are invented. The tag-based check above can't see
+        // this (there's no markup), so match the announcement phrasing itself.
+        // Once per turn, with budget left for the real search plus the
+        // regenerated answer.
+        if (
+          !ranTools &&
+          !redoneNarratedSearch &&
+          !signal?.aborted &&
+          iter < MAX_TOOL_ITERATIONS - 2 &&
+          NARRATED_SEARCH_RE.test(assistantText.slice(answerStartOffset))
+        ) {
+          redoneNarratedSearch = true
+          console.warn(
+            '[assistant] narrated search — the finished reply announces searching but no tool ran this turn; sending the model back to call the tools for real'
+          )
+          // Surfaces in the admin log's tool list, so redone turns are visible
+          // when skimming conversations.
+          toolCalls.push({
+            name: 'redo_after_narrated_search',
+            input: {},
+            ok: true,
+          })
+          apiMessages.push({
+            role: 'user',
+            content: narratedSearchRedoMessage(),
+          })
+          // Same trick as the other redos: tell the widget a redo is starting,
+          // then close the discarded draft with a real marker so the boundary
+          // moves past it even if the rewrite forgets its own marker.
           send('redo', {})
           send('text', { delta: '\n[[/thinking]]\n' })
           assistantText += '\n[[/thinking]]\n'
@@ -700,6 +831,48 @@ export async function runAssistantStream(
           answerStartOffset = assistantText.length
           continue
         }
+        // Last catch-all: the reply finished with NO [[/thinking]] marker
+        // anywhere and no tool calls. Both renderers' last-resort fallback for
+        // that shape is "treat the whole text as the answer" (it normally
+        // means a short direct reply that skipped reasoning), so a reply
+        // that's actually a reasoning dump — or was cut off at the token
+        // limit before reaching its marker — would be shown to the visitor
+        // verbatim, private reasoning and all. Redo once when the text reads
+        // as self-talk or was truncated; a genuine short answer matches
+        // neither and passes through untouched.
+        if (
+          answerStartOffset === 0 &&
+          !redoneMissingMarker &&
+          !signal?.aborted &&
+          iter < MAX_TOOL_ITERATIONS - 2 &&
+          assistantText.trim() !== '' &&
+          !/\[\[\s*\/\s*thinking\s*\]\]/i.test(assistantText) &&
+          (stopReason === 'max_tokens' || looksLikeReasoningText(assistantText))
+        ) {
+          redoneMissingMarker = true
+          console.warn(
+            `[assistant] missing [[/thinking]] with no tool calls — the finished reply ${stopReason === 'max_tokens' ? 'hit the token limit mid-reasoning' : 'reads as raw reasoning'}; sending the model back to rewrite`
+          )
+          // Surfaces in the admin log's tool list, so redone turns are visible
+          // when skimming conversations.
+          toolCalls.push({
+            name: 'redo_after_missing_marker',
+            input: { truncated: stopReason === 'max_tokens' },
+            ok: true,
+          })
+          apiMessages.push({
+            role: 'user',
+            content: missingMarkerRedoMessage(),
+          })
+          // Same trick as the other redos: tell the widget a redo is starting,
+          // then close the discarded draft with a real marker so the boundary
+          // moves past it even if the rewrite forgets its own marker.
+          send('redo', {})
+          send('text', { delta: '\n[[/thinking]]\n' })
+          assistantText += '\n[[/thinking]]\n'
+          answerStartOffset = assistantText.length
+          continue
+        }
         break
       }
 
@@ -754,6 +927,7 @@ export async function runAssistantStream(
         })
       }
       apiMessages.push({ role: 'user', content: toolResults })
+      ranTools = true
       answerStartOffset = assistantText.length
     }
   } catch (err) {
@@ -787,7 +961,9 @@ export async function runAssistantStream(
     (redoneFabrication ? 2 : 0) +
     (redoneSplitAnswer ? 2 : 0) +
     (redoneSuggestGate ? 2 : 0) +
-    (redoneTextToolCall ? 2 : 0)
+    (redoneTextToolCall ? 2 : 0) +
+    (redoneNarratedSearch ? 2 : 0) +
+    (redoneMissingMarker ? 2 : 0)
   if (markerCount > expectedMarkers) {
     console.warn(
       `[assistant] re-emitted [[/thinking]] mid-answer (${markerCount} markers, expected ${expectedMarkers}) — earlier answer text was hidden from the visitor`

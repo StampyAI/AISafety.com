@@ -13,7 +13,7 @@ import {
   buildApiMessages,
   runAssistantStream,
   sseResponse,
-  validateLogHistory,
+  validateLogHistoryWithIndices,
   validateMessages,
   type AssistantRunResult,
 } from '@/lib/assistant/stream'
@@ -89,11 +89,17 @@ export async function POST(req: NextRequest) {
 
   // `messages` is the window the model sees; `logHistory` is the wider window
   // the conversation log stores (same cleaned list, longer tail).
+  // `logIndices` maps each stored message back to its position in the
+  // widget's own message list, so the admin can attach the widget's
+  // position-keyed reports (delivery, ratings, clicks) to the right reply
+  // even after windowing or cleaning drops messages.
   let messages: ChatMessage[]
   let logHistory: ChatMessage[]
+  let logIndices: number[]
   try {
     messages = validateMessages(body.messages)
-    logHistory = validateLogHistory(body.messages)
+    ;({ history: logHistory, indices: logIndices } =
+      validateLogHistoryWithIndices(body.messages))
   } catch (err) {
     return new Response(
       JSON.stringify({
@@ -198,6 +204,14 @@ export async function POST(req: NextRequest) {
           history: [
             ...logHistory,
             { role: 'assistant', content: assistantText },
+          ],
+          // The appended reply's widget-side position is the raw incoming
+          // message count — the widget POSTs its whole list and appends the
+          // reply bubble right after it, which is also the turnIndex its
+          // delivery/rating/click reports use for this reply.
+          historyIndices: [
+            ...logIndices,
+            Array.isArray(body.messages) ? body.messages.length : 0,
           ],
           toolCalls,
           response: assistantText,

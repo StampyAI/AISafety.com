@@ -133,6 +133,10 @@ interface ConversationData {
   user: string
   response: string
   history: HistoryTurn[]
+  /** Each history message's position in the VISITOR's message list — the
+   *  indexing the delivery/rating/click keys use. Aligned with `history`.
+   *  Absent on rows from before this was logged. */
+  historyIndices?: unknown[]
   tools: unknown[]
   /** Per-turn (aligned with tools): card ids that degraded to a "Browse X"
    *  link in the visitor's chat. Absent on rows from before this was logged. */
@@ -844,16 +848,41 @@ function ConversationRow({
     }
     return m
   }, [conv.ratings])
+  // Maps a stored-history index to the visitor's message-list position — the
+  // indexing the delivery reports, thumbs ratings, and turn-scoped click keys
+  // are keyed on. New rows store the mapping (historyIndices); the two
+  // indexings only agree while nothing was dropped from the stored history,
+  // so for legacy rows without it, keep the identity mapping only when it is
+  // provably safe (no turns trimmed, strict user/assistant alternation) and
+  // otherwise hide the position-keyed badges rather than pin them on the
+  // wrong replies — a trimmed conversation showed "stopped at 6s" on a reply
+  // the visitor never stopped. Null means "unknowable, show nothing".
+  const clientIndexOf = useMemo(() => {
+    const history = data?.history ?? []
+    const indices = data?.historyIndices
+    if (
+      Array.isArray(indices) &&
+      indices.length === history.length &&
+      indices.every(n => typeof n === 'number' && Number.isInteger(n))
+    ) {
+      return (i: number) => indices[i] as number
+    }
+    if (missingTurns > 0) return null
+    const alternating = history.every(
+      (m, i) => m.role === (i % 2 === 0 ? 'user' : 'assistant')
+    )
+    return alternating ? (i: number) => i : null
+  }, [data, missingTurns])
   // What the visitor's browser reported about the latest reply, and the badge
-  // (if any) it earns in the collapsed row. Turn indices are message-list
-  // positions, so the latest reply is the last stored message when it's the
-  // bot's (every logged turn appends one, even an empty abandoned/error one).
+  // (if any) it earns in the collapsed row. Delivery is keyed by the reply's
+  // position in the VISITOR's message list, so translate the stored index.
   const latestDelivery = useMemo(() => {
     const history = data?.history ?? []
     const last = history.length - 1
     if (last < 0 || history[last].role !== 'assistant') return undefined
-    return conv.delivery[String(last)]
-  }, [data, conv.delivery])
+    if (!clientIndexOf) return undefined
+    return conv.delivery[String(clientIndexOf(last))]
+  }, [data, conv.delivery, clientIndexOf])
   const latestBadge = useMemo(
     () => deliveryBadge(latestDelivery),
     [latestDelivery]
@@ -1115,6 +1144,15 @@ function ConversationRow({
                 )}
                 {data.history.length > 0 ? (
                   data.history.map((t, i) => {
+                    // This reply's position in the visitor's own message list
+                    // — what the rating/delivery/click keys point at.
+                    // Undefined when the mapping is unknowable (legacy row
+                    // with dropped messages): the badges are hidden rather
+                    // than misattributed.
+                    const clientIdx =
+                      t.role === 'assistant' && clientIndexOf
+                        ? clientIndexOf(i)
+                        : undefined
                     const reads =
                       t.role === 'assistant'
                         ? toolCallsForMessage(
@@ -1174,22 +1212,25 @@ function ConversationRow({
                                   </span>
                                 ) : null
                               })()}
-                            {t.role === 'assistant' && ratingByTurn.has(i) && (
-                              <span
-                                className={styles.convRating}
-                                title={
-                                  ratingByTurn.get(i) === 'up'
-                                    ? 'The visitor rated this reply thumbs up'
-                                    : 'The visitor rated this reply thumbs down'
-                                }
-                              >
-                                {ratingByTurn.get(i) === 'up' ? '👍' : '👎'}
-                              </span>
-                            )}
-                            {t.role === 'assistant' &&
+                            {clientIdx != null &&
+                              ratingByTurn.has(clientIdx) && (
+                                <span
+                                  className={styles.convRating}
+                                  title={
+                                    ratingByTurn.get(clientIdx) === 'up'
+                                      ? 'The visitor rated this reply thumbs up'
+                                      : 'The visitor rated this reply thumbs down'
+                                  }
+                                >
+                                  {ratingByTurn.get(clientIdx) === 'up'
+                                    ? '👍'
+                                    : '👎'}
+                                </span>
+                              )}
+                            {clientIdx != null &&
                               (() => {
                                 const note = describeDelivery(
-                                  conv.delivery[String(i)]
+                                  conv.delivery[String(clientIdx)]
                                 )
                                 return note ? (
                                   <span
@@ -1213,7 +1254,7 @@ function ConversationRow({
                           ) : (
                             <TranscriptMessage
                               text={t.content}
-                              turnIndex={i}
+                              turnIndex={clientIdx}
                               fallbackCardIds={fallbackCardsForMessage(
                                 data.history,
                                 data.fallbackCards,

@@ -152,6 +152,12 @@ export interface ConversationData {
    *  `pages`) are never windowed, so their length is the true turn count and
    *  they align with `history` from the END. */
   history: HistoryTurn[]
+  /** Each history message's position in the VISITOR's message list — the
+   *  indexing the widget's delivery/rating/click reports key on. Aligned
+   *  with `history` (windowing and trims shift both together). Absent on
+   *  rows written before this was tracked; for those, position-keyed badges
+   *  are only trustworthy while nothing was dropped from the history. */
+  historyIndices?: unknown[]
   tools: unknown[]
   /** One entry per logged turn (aligned with `tools`): card ids in that
    *  turn's reply that rendered as a generic "Browse X" fallback link (or
@@ -644,6 +650,7 @@ export async function upsertConversation(input: {
   user: string
   response: string
   history: HistoryTurn[]
+  historyIndices: number[]
   tools: unknown
   fallbackCards: string[]
   citations: string[]
@@ -671,6 +678,7 @@ export async function upsertConversation(input: {
     user: input.user,
     response: input.response,
     history: input.history,
+    historyIndices: input.historyIndices,
     tools: previous ? [...previous.tools, input.tools] : [input.tools],
     // Same per-turn alignment as tools. Older rows have no fallbackCards key;
     // starting the array now still aligns because the viewer matches turns
@@ -713,6 +721,8 @@ export async function upsertConversation(input: {
   let serialized = JSON.stringify(data)
   while (serialized.length > MAX_DATA_CHARS && data.history.length > 2) {
     data.history = data.history.slice(1)
+    // Keep the position map aligned with what remains.
+    data.historyIndices = data.historyIndices?.slice(1)
     serialized = JSON.stringify(data)
   }
 

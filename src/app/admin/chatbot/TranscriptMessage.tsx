@@ -119,9 +119,7 @@ function inlineCardLabel(
   listings: Record<string, ListingInfo>
 ): string {
   const m =
-    /^\[\[\s*(?:card|id)\s*:\s*([^\]|\n]+?)(?:\s*\|(.*?))?\s*\]\]$/i.exec(
-      token
-    )
+    /^\[\[\s*(?:card|id)\s*:\s*([^\]|\n]+?)(?:\s*\|(.*?))?\s*\]\]$/i.exec(token)
   if (!m) return ''
   const info = resolveListing(listings, m[1])
   if (info) return info.name
@@ -696,9 +694,10 @@ export default function TranscriptMessage({
   fallbackCardIds,
 }: {
   text: string
-  /** This message's index in the stored conversation history, so clicked-card
-   *  badges can be matched to the exact turn. Omitted for legacy rows with no
-   *  stored history. */
+  /** This reply's position in the VISITOR's message list (data.historyIndices
+   *  — the indexing the turn-scoped click keys use), so clicked-card badges
+   *  can be matched to the exact turn. Omitted when the mapping is unknown
+   *  (legacy rows without stored history, or with dropped messages). */
   turnIndex?: number
   /** Card ids in THIS turn that degraded to a "Browse X" link (or nothing) in
    *  the visitor's chat, from Data.fallbackCards. Undefined when the turn

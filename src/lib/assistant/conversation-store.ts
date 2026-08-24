@@ -17,6 +17,10 @@ export interface StoredTurn {
   utm: Record<string, string> | null
   user: string
   history: { role: 'user' | 'assistant'; content: string }[]
+  /** Each history message's position in the visitor's own message list —
+   *  the indexing the widget's delivery/rating/click reports use. Aligned
+   *  with `history`. */
+  historyIndices: number[]
   toolCalls: { name: string; input: unknown; ok: boolean }[]
   response: string
   /** Card ids in this turn's reply that rendered as a generic "Browse X"
@@ -61,6 +65,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
         user: turn.user,
         response: turn.response,
         history: turn.history,
+        historyIndices: turn.historyIndices,
         tools: turn.toolCalls,
         fallbackCards: turn.fallbackCards,
         citations: turn.citations,

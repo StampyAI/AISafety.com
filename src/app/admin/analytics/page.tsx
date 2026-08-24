@@ -715,6 +715,8 @@ export default async function AnalyticsPage({
             <ChatbotView
               funnel={data.funnel}
               opensByPage={data.chatbot.opensByPage}
+              openShareByPage={data.chatbot.openShareByPage}
+              siteOpenShare={data.chatbot.siteOpenShare}
               destinations={data.chatbot.destinations}
               conv={convStats}
               themes={themes}
@@ -1752,6 +1754,8 @@ function OverallListingsTable({
 function ChatbotView({
   funnel,
   opensByPage,
+  openShareByPage,
+  siteOpenShare,
   destinations,
   conv,
   themes,
@@ -1759,11 +1763,14 @@ function ChatbotView({
 }: {
   funnel: ChatbotFunnel
   opensByPage: Counted[]
+  openShareByPage: VisitorShare[]
+  siteOpenShare: VisitorShare
   destinations: ClickDestination[]
   conv: ConversationStats | null
   themes: ThemeSummary | null
   unique: boolean
 }) {
+  const openShare = new Map(openShareByPage.map(r => [r.name, r]))
   const usersHead = unique ? 'Users' : undefined
   const sum = (rows: Counted[]) => rows.reduce((s, r) => s + r.count, 0)
   // Card clicks store only a url (no link text) — those rows read better as a
@@ -1796,9 +1803,14 @@ function ChatbotView({
             labelHead="Page"
             countHead={usersHead ?? 'Opens'}
             total={sum(opensByPage)}
+            shareFor={name => openShare.get(name)}
+            totalShare={siteOpenShare}
           />
           <p className={styles.caption}>
-            The page visitors were on when they opened the chat panel.
+            The page visitors were on when they opened the chat panel. % of
+            visitors = the share of the page&apos;s visitors who opened it
+            (always per-visitor, whichever count mode is on); the Total row is
+            the share of all visitors site-wide.
           </p>
         </Panel>
         {conv?.available && (
@@ -1894,7 +1906,8 @@ function ChatbotView({
               />
               <p className={styles.caption}>
                 Auto-detected from the visitor&apos;s messages, so approximate —
-                conversations too short to call show as Unknown.
+                conversations too short to call show as Unknown. A conversation
+                that switches language counts under the non-English language.
               </p>
             </Panel>
           </div>
@@ -1962,6 +1975,7 @@ function SearchView({
     ...d,
     name: d.url && d.name === d.url ? prettyUrl(d.url) : d.name,
   }))
+  const openShare = new Map(search.openShareByPage.map(r => [r.name, r]))
   const destUrlByName = new Map(destRows.map(d => [d.name, d.url]))
   const pageBadges = searchPageBadges(index, destRows)
   return (
@@ -1996,9 +2010,14 @@ function SearchView({
             labelHead="Page"
             countHead={usersHead ?? 'Opens'}
             total={sum(search.opensByPage)}
+            shareFor={name => openShare.get(name)}
+            totalShare={search.siteOpenShare}
           />
           <p className={styles.caption}>
-            The page visitors were on when they opened search.
+            The page visitors were on when they opened search. % of visitors =
+            the share of the page&apos;s visitors who opened it (always
+            per-visitor, whichever count mode is on); the Total row is the share
+            of all visitors site-wide.
           </p>
         </Panel>
       </div>

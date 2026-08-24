@@ -303,19 +303,92 @@ const NEUTRAL_WORDS = new Set([
  *  real queries, because trigram detection (franc) misreads short English as
  *  its Latin-script neighbours. franc then only judges texts that don't look
  *  English, which is what it's good at. 'Unknown' when there's too little to
- *  call. */
+ *  call.
+ *
+ *  The word check judges each message on its own, not the conversation
+ *  joined: a conversation that starts in English and switches language would
+ *  otherwise read as English overall, because the joined text stays mostly
+ *  English words. When both English and non-English messages exist, the
+ *  non-English side names the conversation (the visitor's own language is
+ *  the informative one) — but only when it carries enough words
+ *  (FOREIGN_WORDS_MIN) for franc's verdict to be trustworthy. Below that,
+ *  everything is judged joined as one text, exactly as before per-message
+ *  checks existed — franc misreads short English tech-speak ("Full stack
+ *  engineer JavaScript angular Java" reads as Swedish), so a few odd words
+ *  must not outvote clear English. */
+const FOREIGN_WORDS_MIN = 12
+/** Non-Latin letters it takes for the non-Latin part of a conversation to be
+ *  judged on its own (fewer could be a stray symbol in a pasted formula). */
+const NON_LATIN_MIN = 20
+/** Pasted links say nothing about the writer's language. */
+const stripUrls = (text: string) => text.replace(/\bhttps?:\/\/\S+/gi, ' ')
 function detectLanguage(messages: string[]): string {
-  const typed = messages.filter(m => !CHIP_TEXTS.has(normalize(m)))
+  const typed = messages
+    .filter(m => !CHIP_TEXTS.has(normalize(m)))
+    .map(stripUrls)
   if (typed.length === 0) return messages.length > 0 ? 'English' : 'Unknown'
+
+  const scorableWords = (text: string) =>
+    (text.toLowerCase().match(/[\p{L}']+/gu) ?? []).filter(
+      w => !NEUTRAL_WORDS.has(w)
+    )
+  const looksEnglish = (scorable: string[]) => {
+    const hits = scorable.filter(w => ENGLISH_WORDS.has(w)).length
+    return hits / scorable.length >= 0.4
+  }
+
+  let sawEnglish = false
+  let sawWords = false
+  const foreign: string[] = []
+  let foreignWords = 0
+  for (const m of typed) {
+    const words = m.toLowerCase().match(/[\p{L}']+/gu) ?? []
+    if (words.length === 0) continue // numbers/punctuation say nothing
+    sawWords = true
+    const scorable = words.filter(w => !NEUTRAL_WORDS.has(w))
+    if (scorable.length === 0 || looksEnglish(scorable)) {
+      sawEnglish = true // all-neutral ("AI safety") counts as English
+      continue
+    }
+    foreign.push(m)
+    foreignWords += scorable.length
+  }
+  if (!sawWords) return 'Unknown'
+  if (foreign.length === 0) return 'English'
+
+  // A clear-English conversation with a substantial non-English part: the
+  // non-English part names it. franc still gets the messages joined, so
+  // short ones don't starve it.
+  if (!sawEnglish || foreignWords >= FOREIGN_WORDS_MIN) {
+    // The visitor's own script is decisive. Pasted English paper titles and
+    // similar Latin-script noise can outvote a non-Latin script in franc's
+    // trigram counts — but nobody writes Arabic (or Chinese, Russian, …) by
+    // accident, so when the non-English part holds real non-Latin text,
+    // judge just the messages written mostly in it.
+    const letters = (t: string) => (t.match(/\p{L}/gu) ?? []).length
+    const latin = (t: string) => (t.match(/\p{Script=Latin}/gu) ?? []).length
+    const nonLatinTotal = foreign.reduce(
+      (sum, m) => sum + letters(m) - latin(m),
+      0
+    )
+    const decisive =
+      nonLatinTotal >= NON_LATIN_MIN
+        ? foreign.filter(m => latin(m) < letters(m) / 2)
+        : foreign
+    const code = franc(decisive.join(' '), { only: DETECTABLE })
+    const name = LANGUAGE_NAMES[code]
+    // franc couldn't call it (or thinks it's English after all): fall back
+    // on the clear English evidence when there is some.
+    if (name == null || name === 'English')
+      return sawEnglish ? 'English' : (name ?? 'Unknown')
+    return name
+  }
+
+  // Too little non-English text to trust a verdict on it alone — judge
+  // everything joined, the way single-language conversations always were.
   const text = typed.join(' ').trim()
-  if (!text) return 'Unknown'
-
-  const words = text.toLowerCase().match(/[\p{L}']+/gu) ?? []
-  const scorable = words.filter(w => !NEUTRAL_WORDS.has(w))
-  if (words.length > 0 && scorable.length === 0) return 'English' // e.g. "AI safety"
-  const hits = scorable.filter(w => ENGLISH_WORDS.has(w)).length
-  if (hits / scorable.length >= 0.4) return 'English'
-
+  const scorable = scorableWords(text)
+  if (scorable.length === 0 || looksEnglish(scorable)) return 'English'
   const code = franc(text, { only: DETECTABLE })
   return LANGUAGE_NAMES[code] ?? 'Unknown'
 }

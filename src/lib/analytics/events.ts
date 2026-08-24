@@ -381,6 +381,13 @@ export interface ChatbotPanelData {
    *  Older opens carry no explicit page, so it's recovered from the beacon's
    *  referer; opens where neither is known fall into 'Unknown'. */
   opensByPage: Counted[]
+  /** "% of visitors" per page: distinct visitors who opened the chat there vs
+   *  the page's distinct page-view visitors — keyed by the same paths
+   *  opensByPage uses. */
+  openShareByPage: VisitorShare[]
+  /** The Total row's share: distinct visitors who opened the chat anywhere vs
+   *  distinct visitors site-wide. */
+  siteOpenShare: VisitorShare
   /** Listings and links visitors clicked inside chatbot replies, busiest
    *  first. */
   destinations: ClickDestination[]
@@ -397,6 +404,13 @@ export interface SearchPanelData {
   openMethods: Counted[]
   /** The pages visitors were on when they opened search (site page names). */
   opensByPage: Counted[]
+  /** "% of visitors" per page: distinct visitors who opened search there vs
+   *  the page's distinct page-view visitors — keyed by the same site page
+   *  names opensByPage uses. */
+  openShareByPage: VisitorShare[]
+  /** The Total row's share: distinct visitors who opened search anywhere vs
+   *  distinct visitors site-wide. */
+  siteOpenShare: VisitorShare
   /** What people search for, busiest first (lowercased so casings group). */
   topQueries: Counted[]
   /** Searches that returned nothing — what visitors looked for and the site
@@ -658,11 +672,18 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   topHovered: [],
   areaClicks: [],
   funnel: { opened: 0, typed: 0, clicked: 0 },
-  chatbot: { opensByPage: [], destinations: [] },
+  chatbot: {
+    opensByPage: [],
+    openShareByPage: [],
+    siteOpenShare: { name: 'Any page', active: 0, visitors: 0 },
+    destinations: [],
+  },
   search: {
     funnel: { opened: 0, searched: 0, clicked: 0 },
     openMethods: [],
     opensByPage: [],
+    openShareByPage: [],
+    siteOpenShare: { name: 'Any page', active: 0, visitors: 0 },
     topQueries: [],
     noResultQueries: [],
     destinations: [],
@@ -990,14 +1011,7 @@ function aggregate(
   // Deliberately ignores the unique/total mode — a share of visitors is only
   // meaningful per-visitor. Events without a visitor id (private browsing)
   // can't contribute.
-  const viewVidsByPage = new Map<string, Set<string>>()
-  for (const e of inRange) {
-    if (e.type !== 'page_view' || !e.page || !e.vid) continue
-    const name = PAGE_NAME_BY_PATH[e.page] ?? e.page
-    const set = viewVidsByPage.get(name) ?? new Set<string>()
-    set.add(e.vid)
-    viewVidsByPage.set(name, set)
-  }
+  const viewVidsByPage = pageViewVids(inRange, p => PAGE_NAME_BY_PATH[p] ?? p)
   const shareByPage = (hits: AnalyticsEvent[]): VisitorShare[] => {
     const vidsByPage = new Map<string, Set<string>>()
     for (const e of hits) {
@@ -1470,6 +1484,64 @@ function destinationRows(
   return [...byUrl.values()].sort((a, b) => b.count - a.count)
 }
 
+/** Distinct page_view visitor ids per page, under the given key — the
+ *  Overview tables' resource-page names, or the chatbot table's raw paths.
+ *  The "% of visitors" denominators. */
+function pageViewVids(
+  inRange: AnalyticsEvent[],
+  keyOf: (page: string) => string
+): Map<string, Set<string>> {
+  const byPage = new Map<string, Set<string>>()
+  for (const e of inRange) {
+    if (e.type !== 'page_view' || !e.page || !e.vid) continue
+    const key = keyOf(e.page)
+    const set = byPage.get(key) ?? new Set<string>()
+    set.add(e.vid)
+    byPage.set(key, set)
+  }
+  return byPage
+}
+
+/** "% of visitors" rows for a per-page table: distinct doing-vids per bucket
+ *  against the page's distinct page-view visitors. `keyOf` must bucket
+ *  exactly like the table the rows join; buckets with no matching page_view
+ *  entry (e.g. 'Unknown') get 0 visitors, which renders as a dash. */
+function shareRowsByPage(
+  hits: AnalyticsEvent[],
+  keyOf: (e: AnalyticsEvent) => string,
+  views: Map<string, Set<string>>
+): VisitorShare[] {
+  const vidsByKey = new Map<string, Set<string>>()
+  for (const e of hits) {
+    if (!e.vid) continue
+    const key = keyOf(e)
+    const set = vidsByKey.get(key) ?? new Set<string>()
+    set.add(e.vid)
+    vidsByKey.set(key, set)
+  }
+  return [...vidsByKey.entries()]
+    .map(([name, vids]) => ({
+      name,
+      active: vids.size,
+      visitors: views.get(name)?.size ?? 0,
+    }))
+    .sort((a, b) => b.active - a.active)
+}
+
+/** The Total row's "% of visitors": distinct visitors who did the thing on
+ *  any page vs distinct page-view visitors site-wide — both sides count a
+ *  visitor once however many pages they touched. */
+function siteShare(
+  hits: AnalyticsEvent[],
+  views: Map<string, Set<string>>
+): VisitorShare {
+  const active = new Set<string>()
+  for (const e of hits) if (e.vid) active.add(e.vid)
+  const site = new Set<string>()
+  for (const vids of views.values()) for (const v of vids) site.add(v)
+  return { name: 'Any page', active: active.size, visitors: site.size }
+}
+
 /** The Chatbot tab's event-derived panels. `unique` mirrors the dashboard's
  *  count mode: unique users per bucket, or every event. */
 function chatbotPanels(
@@ -1478,8 +1550,16 @@ function chatbotPanels(
 ): ChatbotPanelData {
   const opens = inRange.filter(e => e.type === 'chatbot_open')
   const clicks = inRange.filter(e => e.type === 'chatbot_click')
+  // opensByPage buckets by raw path, so the view denominators must too.
+  const views = pageViewVids(inRange, p => p)
   return {
     opensByPage: tallyBy(opens, e => chatbotPage(e) ?? 'Unknown', unique),
+    openShareByPage: shareRowsByPage(
+      opens,
+      e => chatbotPage(e) ?? 'Unknown',
+      views
+    ),
+    siteOpenShare: siteShare(opens, views),
     destinations: destinationRows(clicks, unique),
   }
 }
@@ -1503,6 +1583,10 @@ function searchPanels(
   const opens = inRange.filter(e => e.type === 'search_open')
   const queries = inRange.filter(e => e.type === 'search_query' && e.query)
   const clicks = inRange.filter(e => e.type === 'search_click')
+  // opensByPage buckets by site page name, so the view denominators must too.
+  const views = pageViewVids(inRange, p => PAGE_NAME_BY_PATH[p] ?? p)
+  const openPage = (e: AnalyticsEvent) =>
+    e.page ? (PAGE_NAME_BY_PATH[e.page] ?? e.page) : 'Unknown'
   return {
     funnel: {
       opened: uniqueUsers(opens),
@@ -1514,11 +1598,9 @@ function searchPanels(
       e => SEARCH_OPEN_LABEL[e.source ?? ''] ?? 'Unknown',
       unique
     ),
-    opensByPage: tallyBy(
-      opens,
-      e => (e.page ? (PAGE_NAME_BY_PATH[e.page] ?? e.page) : 'Unknown'),
-      unique
-    ),
+    opensByPage: tallyBy(opens, openPage, unique),
+    openShareByPage: shareRowsByPage(opens, openPage, views),
+    siteOpenShare: siteShare(opens, views),
     topQueries: tallyBy(queries, e => e.query!.toLowerCase(), unique),
     noResultQueries: tallyBy(
       queries.filter(e => e.results === 0),

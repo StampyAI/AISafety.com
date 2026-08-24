@@ -13,14 +13,25 @@ interface CommunitiesClientProps {
 }
 
 // Filter options based on Airtable data
-const typeOptions = ['Online', 'In person']
+const platformOptions = [
+  'Local',
+  'Discord',
+  'Facebook',
+  'Forum',
+  'Gather',
+  'Reddit',
+  'Slack',
+  'Telegram',
+  'WhatsApp',
+  'Other',
+]
 const activityOptions = ['Very active', 'Active', 'Semi-active', 'Inactive']
 const focusOptions = ['Main focus is AI safety', 'Partial focus on AI safety']
 
 export default function CommunitiesClient({
   communities,
 }: CommunitiesClientProps) {
-  const [typeFilters, setTypeFilters] = useState<string[]>([])
+  const [platformFilters, setPlatformFilters] = useState<string[]>([])
   const [activityFilters, setActivityFilters] = useState<string[]>([])
   const [focusFilters, setFocusFilters] = useState<string[]>([])
 
@@ -30,8 +41,9 @@ export default function CommunitiesClient({
 
   const filteredCommunities = useMemo(() => {
     return communities.filter(community => {
-      if (typeFilters.length > 0) {
-        if (!community.type.some(t => typeFilters.includes(t))) return false
+      if (platformFilters.length > 0) {
+        if (!community.platform.some(p => platformFilters.includes(p)))
+          return false
       }
       if (activityFilters.length > 0) {
         if (!activityFilters.includes(community.activityLevel)) return false
@@ -41,17 +53,17 @@ export default function CommunitiesClient({
       }
       return true
     })
-  }, [communities, typeFilters, activityFilters, focusFilters])
+  }, [communities, platformFilters, activityFilters, focusFilters])
 
   const filterCounts = useMemo(() => {
     const counts = {
-      type: {} as Record<string, number>,
+      platform: {} as Record<string, number>,
       activity: {} as Record<string, number>,
       focus: {} as Record<string, number>,
     }
     for (const community of communities) {
-      for (const t of community.type) {
-        counts.type[t] = (counts.type[t] || 0) + 1
+      for (const p of community.platform) {
+        counts.platform[p] = (counts.platform[p] || 0) + 1
       }
       if (community.activityLevel) {
         counts.activity[community.activityLevel] =
@@ -117,12 +129,12 @@ export default function CommunitiesClient({
       >
         <FilterDropdown
           trackingPage="Communities"
-          title="Location"
-          icon="/images/icons/pin.svg"
-          options={typeOptions}
-          selected={typeFilters}
-          counts={filterCounts.type}
-          onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
+          title="Platform"
+          icon="/images/icons/computer.svg"
+          options={platformOptions}
+          selected={platformFilters}
+          counts={filterCounts.platform}
+          onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
         />
         <FilterDropdown
           trackingPage="Communities"
@@ -155,23 +167,9 @@ export default function CommunitiesClient({
               logo={community.logo}
               meta={[
                 {
-                  icon: community.type.includes('In person')
-                    ? '/images/icons/pin.svg'
-                    : '/images/icons/computer.svg',
-                  value: [
-                    [...community.type]
-                      .sort((a, b) =>
-                        a === 'Online' ? -1 : b === 'Online' ? 1 : 0
-                      )
-                      .join(' & '),
-                    // In-person (incl. hybrids): show the physical location only.
-                    // Online-only: show the platform (the actual join info).
-                    community.type.includes('In person')
-                      ? community.location || ''
-                      : community.platformText || community.platform.join(', '),
-                  ]
-                    .filter(Boolean)
-                    .join(' · '),
+                  icon: '/images/icons/computer.svg',
+                  value:
+                    community.platformText || community.platform.join(', '),
                 },
                 ...(community.activityLevel
                   ? [

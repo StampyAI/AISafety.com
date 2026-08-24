@@ -69,21 +69,9 @@ export default async function CommunitiesPage() {
               logo={community.logo ?? undefined}
               meta={[
                 {
-                  icon: community.type.includes('In person')
-                    ? '/images/icons/pin.svg'
-                    : '/images/icons/computer.svg',
-                  value: [
-                    [...community.type]
-                      .sort((a, b) =>
-                        a === 'Online' ? -1 : b === 'Online' ? 1 : 0
-                      )
-                      .join(' & '),
-                    community.type.includes('In person')
-                      ? community.location || ''
-                      : community.platformText || community.platform.join(', '),
-                  ]
-                    .filter(Boolean)
-                    .join(' · '),
+                  icon: '/images/icons/computer.svg',
+                  value:
+                    community.platformText || community.platform.join(', '),
                 },
                 ...(community.activityLevel
                   ? [

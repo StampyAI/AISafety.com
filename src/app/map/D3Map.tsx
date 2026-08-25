@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import MapControls from '@/components/MapControls'
 import { trackListingClick, trackListingHover } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { positionTooltip } from '@/lib/mapTooltip'
 import styles from './page.module.css'
 
@@ -81,6 +82,11 @@ export default function D3Map({ orgs }: D3MapProps) {
     zoomOut: () => {},
     reset: () => {},
   })
+  // The d3 pipeline below tears down and rebuilds whenever `orgs` changes
+  // identity — which preview mode's auto-refresh does on every data change
+  // and tab focus. Keeping the last zoom transform here lets the rebuild
+  // restore the viewport instead of jumping back to the zoomed-out default.
+  const savedTransformRef = useRef<d3.ZoomTransform | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || orgs.length === 0) return
@@ -163,12 +169,17 @@ export default function D3Map({ orgs }: D3MapProps) {
           'transform',
           `translate(${newX}, ${newY}) scale(${event.transform.k})`
         )
+        savedTransformRef.current = event.transform
       })
       .on('end', () => {
         isZooming = false
       })
 
     svg.call(zoom)
+
+    if (savedTransformRef.current) {
+      svg.call(zoom.transform, savedTransformRef.current)
+    }
 
     // Prevent wheel events over the map from zooming the whole page
     // (once D3's zoom hits its scaleExtent limit, the browser would
@@ -288,7 +299,7 @@ export default function D3Map({ orgs }: D3MapProps) {
         .attr('class', 'mapItem')
       if (hasLink) {
         linkEl
-          .attr('xlink:href', org.link)
+          .attr('xlink:href', withUtm(org.link, 'Map'))
           .attr('target', '_blank')
           .attr('rel', 'noopener noreferrer')
           .style('cursor', 'pointer')
@@ -539,7 +550,7 @@ export default function D3Map({ orgs }: D3MapProps) {
             tt.getAttribute('data-area') || undefined
           )
         hideTooltip()
-        window.open(link, '_blank')
+        window.open(withUtm(link, 'Map'), '_blank')
       }
       e.stopPropagation()
     }

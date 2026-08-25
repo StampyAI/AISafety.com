@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server'
-import { isAdmin } from '@/lib/admin/auth'
+import { canViewChatbot } from '@/lib/admin/auth'
 import {
+  REVIEW_VALUES,
+  getConversation,
   isConversationsTableConfigured,
+  listAnnotationFacets,
   listConversationsPage,
   updateConversation,
+  type ReviewValue,
 } from '@/lib/admin/airtable'
 import { getCatalog } from '@/lib/assistant/catalog'
 
@@ -23,7 +27,7 @@ function collectCardIds(text: string, into: Set<string>): void {
 const REC_RE = /rec[A-Za-z0-9]+/
 
 async function ensureAuth(): Promise<Response | null> {
-  if (!(await isAdmin())) {
+  if (!(await canViewChatbot())) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
@@ -42,6 +46,13 @@ export async function GET(req: NextRequest) {
   const auth = await ensureAuth()
   if (auth) return auth
   const url = new URL(req.url)
+
+  // Label/verdict counts for the filter pills and the label pickers — a
+  // lightweight sidecar request, separate from the heavy conversation list.
+  if (url.searchParams.get('facets') === '1') {
+    return Response.json(await listAnnotationFacets())
+  }
+
   const rawLimit = Number(url.searchParams.get('limit') ?? '200')
   const pageSize = Number.isFinite(rawLimit)
     ? Math.max(1, Math.min(Math.floor(rawLimit), 200))
@@ -49,11 +60,31 @@ export async function GET(req: NextRequest) {
   const offsetParam = url.searchParams.get('offset') || undefined
   const zeroOnly = url.searchParams.get('zeroOnly') === '1'
   const search = url.searchParams.get('search') || undefined
-  const { conversations, offset } = await listConversationsPage({
-    pageSize,
-    offset: offsetParam,
-    search,
-  })
+  const review = url.searchParams.getAll('rating')
+  const label = url.searchParams.getAll('label')
+  // A shared link names one conversation by record id — serve exactly that
+  // one (it may be far older than any page of the list).
+  const id = url.searchParams.get('id')
+  let conversations, offset
+  if (id) {
+    const single = await getConversation(id)
+    if (!single) {
+      return new Response(JSON.stringify({ error: 'conversation not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    conversations = [single]
+    offset = null
+  } else {
+    ;({ conversations, offset } = await listConversationsPage({
+      pageSize,
+      offset: offsetParam,
+      search,
+      review,
+      label,
+    }))
+  }
   // zeroMatches now lives inside Data; filter client-side here so the API
   // contract stays the same for the admin viewer.
   const filtered = zeroOnly
@@ -73,15 +104,17 @@ export async function GET(req: NextRequest) {
     }
     for (const id of c.data.citations) referencedIds.add(id)
     for (const id of c.clickedCitations) referencedIds.add(id)
-    // Listing ids the bot read live webpages for, so the transcript's
-    // "visited …'s webpage" note can show the listing's name even when the
-    // read failed and the listing was never carded or cited.
+    // Listing ids the bot read live webpages or past-round history for, so
+    // the transcript's "visited …'s webpage" / "checked past rounds of …"
+    // notes can show the listing's name even when the call failed and the
+    // listing was never carded or cited.
     for (const turn of c.data.tools) {
       if (!Array.isArray(turn)) continue
       for (const t of turn) {
         const call = t as { name?: unknown; input?: { id?: unknown } }
         if (
-          call?.name === 'read_listing_page' &&
+          (call?.name === 'read_listing_page' ||
+            call?.name === 'get_program_history') &&
           typeof call.input?.id === 'string'
         ) {
           referencedIds.add(call.input.id)
@@ -148,7 +181,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const auth = await ensureAuth()
   if (auth) return auth
-  let body: { id?: unknown; notes?: unknown; tags?: unknown }
+  let body: { id?: unknown; notes?: unknown; tags?: unknown; review?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -160,10 +193,22 @@ export async function PATCH(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
     })
   }
-  const patch: { notes?: string; tags?: string[] } = {}
+  const patch: {
+    notes?: string
+    tags?: string[]
+    review?: ReviewValue | null
+  } = {}
   if (typeof body.notes === 'string') patch.notes = body.notes
   if (Array.isArray(body.tags) && body.tags.every(t => typeof t === 'string')) {
-    patch.tags = body.tags as string[]
+    patch.tags = (body.tags as string[]).map(t => t.trim()).filter(Boolean)
+  }
+  // Only the three known verdicts may be written (null clears) — the update
+  // uses typecast for Tags, and this guard keeps it from ever inventing a
+  // fourth Review option.
+  if (body.review === null) {
+    patch.review = null
+  } else if (REVIEW_VALUES.includes(body.review as ReviewValue)) {
+    patch.review = body.review as ReviewValue
   }
   const updated = await updateConversation(body.id, patch)
   return Response.json({ conversation: updated })

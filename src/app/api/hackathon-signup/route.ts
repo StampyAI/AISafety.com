@@ -77,9 +77,17 @@ export async function POST(req: NextRequest) {
   }
 
   if (limiter) {
-    const { success } = await limiter.limit(getClientIp(req.headers))
-    if (!success) {
-      return new Response('rate limited', { status: 429 })
+    try {
+      const { success } = await limiter.limit(getClientIp(req.headers))
+      if (!success) {
+        return new Response('rate limited', { status: 429 })
+      }
+    } catch (err) {
+      // Redis unreachable or over quota. Fail open — a broken rate check must
+      // not block real applications.
+      console.warn(
+        `[hackathon-signup] rate-limit check failed – allowing request: ${err instanceof Error ? err.message : String(err)}`
+      )
     }
   }
 
@@ -98,7 +106,7 @@ export async function POST(req: NextRequest) {
   // Await the write: the user needs to know their application was actually
   // stored before we show success. (Apps Script replies via a 302 fetch
   // follows.)
-  let result: { ok?: boolean }
+  let result: { ok?: boolean; emailed?: boolean; row?: number }
   try {
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
@@ -106,7 +114,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ ...application, secret: SECRET }),
       signal: AbortSignal.timeout(20_000),
     })
-    result = (await res.json()) as { ok?: boolean }
+    result = (await res.json()) as typeof result
   } catch (err) {
     console.error('[hackathon-signup] Apps Script call failed:', err)
     return new Response('application failed', { status: 502 })
@@ -117,6 +125,14 @@ export async function POST(req: NextRequest) {
       result
     )
     return new Response('application failed', { status: 502 })
+  }
+  if (result.emailed === false) {
+    // The row is stored; only the confirmation email failed (e.g. Gmail
+    // quota). Not worth failing the application over – it would just prompt
+    // a duplicate – but worth seeing in the logs.
+    console.warn(
+      `[hackathon-signup] stored as row ${result.row ?? '?'} of the applications tab, but the confirmation email failed`
+    )
   }
 
   return new Response(null, { status: 204 })

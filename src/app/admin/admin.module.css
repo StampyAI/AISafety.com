@@ -710,6 +710,17 @@
   color: var(--teal-300);
 }
 
+/* While its detail is open, the row is the card's header (see .convDetail):
+   stretched to the panel's width, bottom corners squared. */
+.convRowExpanded {
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+}
+
+/* The row button and its detail panel read as ONE card while open: the row
+   squares off its bottom corners (convRowExpanded below), the detail squares
+   its top ones, and the 1px overlap merges their borders into a single
+   divider line between header and body. */
 .convDetail {
   display: flex;
   flex-direction: column;
@@ -717,8 +728,8 @@
   padding: 14px 16px;
   background-color: var(--teal-900);
   border: 1px solid var(--teal-800);
-  border-radius: 8px;
-  margin-top: -2px;
+  border-radius: 0 0 8px 8px;
+  margin-top: -1px;
 }
 
 .convDetailField {
@@ -836,6 +847,26 @@
   color: var(--teal-500);
 }
 
+.convRating {
+  margin-left: 8px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+/* What the visitor's browser reported about a reply ("received in 33s",
+ * "left the page at 12s") — same muted inline style as the turn time; the
+ * warn variant marks replies that never reached anyone. */
+.convDelivery {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--teal-500);
+}
+
+.convDeliveryWarn {
+  color: #ffb87a;
+}
+
 .convTurnContent {
   font-size: 13px;
   color: var(--white);
@@ -844,8 +875,9 @@
   line-height: 1.5;
 }
 
-/* "Visited the web" note on a chatbot turn — one entry per live page read
- * (read_listing_page) the bot made while composing that reply. */
+/* "Visited the web" / "checked past rounds" note on a chatbot turn — one
+ * entry per live page read (read_listing_page) or round-history lookup
+ * (get_program_history) the bot made while composing that reply. */
 .convTurnVisited {
   display: flex;
   flex-wrap: wrap;
@@ -1120,6 +1152,175 @@
   font-size: 11px;
   color: var(--teal-400);
   cursor: default;
+}
+
+/* ─── Reviewer annotations: rating, labels, shareable links, filters ────── */
+
+/* Banner shown when the page was opened through a ?id= link. */
+.convLinkedNote {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 8px;
+  padding: 8px 14px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.convLinkedClear {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--bright-teal-300);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Reviewer-verdict badge in the collapsed row (colors match the row's other
+   badges: green = good, red = error-red, amber = warning-amber). */
+.convRowReview {
+  font-weight: 600;
+}
+
+.convRowReviewGood {
+  color: var(--bright-green);
+}
+
+.convRowReviewBad {
+  color: #ff8b8b;
+}
+
+.convRowReviewUnsure {
+  color: #ffb87a;
+}
+
+/* Label pill in the collapsed row, styled like the page pill beside it. */
+.convRowTag {
+  padding: 1px 7px;
+  background-color: var(--teal-800);
+  border-radius: 999px;
+  color: var(--teal-300);
+  font-size: 10px;
+}
+
+/* One horizontal row of annotation controls in the expanded detail. */
+.convAnnotRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.convRateBtn {
+  padding: 4px 14px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 999px;
+  color: var(--teal-300);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.convRateBtn:hover {
+  border-color: var(--teal-500);
+  color: var(--white);
+}
+
+.convRateGood.convRateActive {
+  background-color: rgba(122, 255, 178, 0.12);
+  border-color: var(--bright-green);
+  color: var(--bright-green);
+}
+
+.convRateBad.convRateActive {
+  background-color: rgba(255, 100, 100, 0.15);
+  border-color: #ff8b8b;
+  color: #ff8b8b;
+}
+
+.convRateUnsure.convRateActive {
+  background-color: rgba(255, 180, 100, 0.15);
+  border-color: #ffb87a;
+  color: #ffb87a;
+}
+
+.convCopyLink {
+  margin-left: auto;
+  padding: 4px 12px;
+  background-color: transparent;
+  border: 1px solid var(--teal-700);
+  border-radius: 6px;
+  color: var(--teal-300);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.convCopyLink:hover {
+  background-color: var(--teal-800);
+  color: var(--white);
+}
+
+.convLabelChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px 3px 10px;
+  background-color: var(--teal-800);
+  border: 1px solid var(--teal-700);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--white);
+}
+
+.convLabelRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  color: var(--teal-400);
+  font-size: 13px;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.convLabelRemove:hover {
+  background-color: var(--teal-700);
+  color: var(--white);
+}
+
+.convLabelInput {
+  height: 28px;
+  min-width: 150px;
+  padding: 0 10px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 999px;
+  color: var(--white);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.convLabelInput:focus {
+  border-color: var(--teal-500);
+}
+
+.convLabelInput::placeholder {
+  color: var(--teal-500);
 }
 
 /* ─── "Exclude this browser" control (in the conversation filter row) ──── */

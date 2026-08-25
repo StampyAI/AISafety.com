@@ -78,23 +78,3 @@ export function getOrigin(request: Request): string {
     (host.includes('localhost') || host.startsWith('127.') ? 'http' : 'https')
   return `${proto}://${host}`
 }
-
-const CACHE_PATH_PREFIX = '/images/airtable-cache/'
-
-// Locally-cached Airtable images are stored as site-relative paths
-// (/images/airtable-cache/...). Cross-origin API consumers need absolute URLs,
-// so rewrite those specific paths to absolute against the serving origin.
-// Returns a shallow copy when a rewrite happens; never mutates the (cached) input.
-export function absolutizeAssets<T extends Record<string, unknown>>(
-  record: T,
-  origin: string
-): T {
-  let copy: T | null = null
-  for (const [key, value] of Object.entries(record)) {
-    if (typeof value === 'string' && value.startsWith(CACHE_PATH_PREFIX)) {
-      if (!copy) copy = { ...record }
-      ;(copy as Record<string, unknown>)[key] = origin + value
-    }
-  }
-  return copy ?? record
-}

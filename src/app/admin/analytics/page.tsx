@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {
   readDashboard,
   sourceSlug,
+  PAGE_NAME_BY_PATH,
   type Counted,
   type DateRange,
   type ChatbotFunnel,
@@ -17,6 +18,7 @@ import {
 import {
   readConversationStats,
   type ConversationStats,
+  type RatedReply,
   type TopQuestion,
 } from '@/lib/analytics/conversations'
 import { readQuestionThemes, type ThemeSummary } from '@/lib/analytics/themes'
@@ -399,6 +401,9 @@ function labelFor(e: {
     return e.query ? `Searched for “${e.query}”` : 'Searched'
   if (e.type === 'filter_apply')
     return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
+  // A rating's label is the bare value ('up' | 'down'), so spell it out.
+  if (e.type === 'chatbot_rating')
+    return e.label === 'up' ? 'Rated a reply 👍' : 'Rated a reply 👎'
   // search_click carries the result's title as its label, like listing clicks.
   return e.label ?? EVENT_LABELS[e.type] ?? e.type
 }
@@ -588,6 +593,7 @@ export default async function AnalyticsPage({
   const shareByLabel = (rows: VisitorShare[]) =>
     new Map(rows.map(r => [labelByPage.get(r.name) ?? r.name, r]))
   const clickShare = shareByLabel(data.clickShareByPage)
+  const returningShare = shareByLabel(data.visits.returningShareByPage)
   const contributeShare = shareByLabel(data.contributeShareByPage)
   const airtableShare = shareByLabel(data.airtableShareByPage)
   const newsletterShare = shareByLabel(data.newsletterShareByPage)
@@ -628,12 +634,6 @@ export default async function AnalyticsPage({
       : label === 'Suggest a correction'
         ? '/images/pencil-small.svg'
         : '/images/star-small.svg'
-  // The filter-usage caption's denominator: the page's distinct visitors, only
-  // meaningful in unique mode (total mode's byPage rows count views).
-  const filterPageVisitors = unique
-    ? data.visits.byPage.find(p => p.name === data.selectedPage)?.count
-    : undefined
-
   // Site-wide leaderboards for the Overview tab. The listings total is every
   // page's clicks (same denominator as "Clicks by page"); the position total is
   // only the clicks that carry a slot. Resolve each row's page to its site label
@@ -715,6 +715,8 @@ export default async function AnalyticsPage({
             <ChatbotView
               funnel={data.funnel}
               opensByPage={data.chatbot.opensByPage}
+              openShareByPage={data.chatbot.openShareByPage}
+              siteOpenShare={data.chatbot.siteOpenShare}
               destinations={data.chatbot.destinations}
               conv={convStats}
               themes={themes}
@@ -754,6 +756,21 @@ export default async function AnalyticsPage({
                   value={data.visits.uniqueVisitors.toLocaleString()}
                 />
                 <Stat
+                  label="New visitors"
+                  value={data.visits.newVisitors.toLocaleString()}
+                />
+                <Stat
+                  label="Returning visitors"
+                  value={data.visits.returningVisitors.toLocaleString()}
+                />
+                <Stat
+                  label="of visitors were returning"
+                  value={pct(
+                    data.visits.returningVisitors,
+                    data.visits.uniqueVisitors
+                  )}
+                />
+                <Stat
                   label="Visits"
                   value={data.visits.visitCount.toLocaleString()}
                 />
@@ -770,9 +787,17 @@ export default async function AnalyticsPage({
                 First-party numbers, so ad blockers can&apos;t strip them.
                 Visitors = distinct browsers; one visitor&apos;s pages more than
                 30 minutes apart count as separate visits. Recording since 15
-                July 2026. Opt-outs = browsers that switched analytics off on
-                the privacy page and haven&apos;t switched it back on (recording
-                since 16 July 2026)
+                July 2026. Returning = visitors who&apos;d been to the site
+                before this period (any recorded activity counts
+                {data.oldestTs && ` – back to ${formatDay(data.oldestTs)}`}) or
+                came back for another visit within it; new = their first visit,
+                no return yet. A visitor who clears their browser data or
+                switches devices looks new again.
+                {!data.firstSeenBackfilled &&
+                  ' Visitor history is still being backfilled, so returning counts are low for now.'}{' '}
+                Opt-outs = browsers that switched analytics off on the privacy
+                page and haven&apos;t switched it back on (recording since 16
+                July 2026)
                 {data.optOuts.on > 0 &&
                   ` – ${data.optOuts.on.toLocaleString()} more switched it back on`}
                 .
@@ -791,10 +816,20 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   countHead={unique ? 'Visitors' : 'Views'}
                   total={data.visits.byPage.reduce((s, r) => s + r.count, 0)}
+                  shareFor={name => returningShare.get(name)}
+                  shareHead="% returning"
+                  totalShare={{
+                    name: 'Total',
+                    active: data.visits.returningVisitors,
+                    visitors: data.visits.uniqueVisitors,
+                  }}
                 />
                 <p className={styles.caption}>
                   First-party page views — ad blockers can&apos;t strip these,
-                  unlike Matomo&apos;s. Recording since 15 July 2026.
+                  unlike Matomo&apos;s. Recording since 15 July 2026. %
+                  returning = the share of the page&apos;s visitors who are
+                  returning visitors to the site (as defined above) — which
+                  pages regulars come back to, and which ones newcomers land on.
                 </p>
               </Panel>
               <Panel title="Clicks by page">
@@ -806,11 +841,13 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   total={totalClicks}
                   shareFor={name => clickShare.get(name)}
+                  totalShare={data.siteClickShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   % of visitors = the share of the page&apos;s visitors who
                   clicked at least one listing (always per-visitor, whichever
-                  count mode is on). Visitor counts began 15 July 2026.
+                  count mode is on); the Total row is the share of all visitors
+                  site-wide. Visitor counts began 15 July 2026.
                 </p>
               </Panel>
             </div>
@@ -843,12 +880,15 @@ export default async function AnalyticsPage({
                     rankFor={name => positionByName.get(name)}
                     shareFor={name => listingShare.get(name)}
                     total={listingTotal}
+                    totalShare={data.anyListingShare ?? undefined}
                   />
                   <p className={styles.caption}>
                     Slot = where each listing was clicked this period (F1/F2 =
                     featured cards). Blank for clicks logged before slot
                     tracking. % of visitors = the share of this page&apos;s
-                    visitors who clicked the listing.
+                    visitors who clicked the listing; the Total row is the share
+                    who clicked any listing at all (each visitor counted once,
+                    so it&apos;s less than the column&apos;s sum).
                   </p>
                 </Panel>
                 <Panel title="Clicks by position">
@@ -909,11 +949,14 @@ export default async function AnalyticsPage({
                         linkFor={name => hoverUrlByName.get(name)}
                         shareFor={name => hoverShare.get(name)}
                         total={hoverTotal}
+                        totalShare={data.anyHoverShare ?? undefined}
                       />
                       <p className={styles.caption}>
                         A hover is recorded when the cursor rests on a map
                         listing for half a second – or, on a phone, when a tap
-                        opens its tooltip.
+                        opens its tooltip. The Total row&apos;s % of visitors is
+                        the share who hovered any listing at all (each visitor
+                        counted once).
                       </p>
                     </Panel>
                   </div>
@@ -927,17 +970,16 @@ export default async function AnalyticsPage({
                       countHead="Uses"
                       shareFor={name => filterGroupShare.get(name)}
                       total={filterTotal}
+                      totalShare={data.anyFilterShare ?? undefined}
                     />
                     <p className={styles.caption}>
                       A use = a visitor turning a filter value on; switching a
                       value off isn&apos;t counted.{' '}
                       {data.filterUsers.toLocaleString()} visitor
                       {data.filterUsers === 1 ? '' : 's'} filtered this page
-                      this period
-                      {filterPageVisitors
-                        ? ` – ${pct1(data.filterUsers, filterPageVisitors)} of its visitors`
-                        : ''}
-                      . Recording since 29 July 2026.
+                      this period; the Total row&apos;s % of visitors is the
+                      share who used any filter at all (each visitor counted
+                      once). Recording since 29 July 2026.
                     </p>
                   </Panel>
                   <Panel title="Filter values">
@@ -947,6 +989,7 @@ export default async function AnalyticsPage({
                       countHead="Uses"
                       shareFor={name => filterValueShare.get(name)}
                       total={filterTotal}
+                      totalShare={data.anyFilterShare ?? undefined}
                     />
                   </Panel>
                 </div>
@@ -961,10 +1004,13 @@ export default async function AnalyticsPage({
                       logoFor={contributeIcon}
                       shareFor={name => contributeButtonShare.get(name)}
                       total={contributeTotal}
+                      totalShare={data.anyContributeShare ?? undefined}
                     />
                     <p className={styles.caption}>
-                      Clicks on this page&apos;s add and correction forms.
-                      Recording since 29 July 2026.
+                      Clicks on this page&apos;s add and correction forms; the
+                      Total row&apos;s % of visitors is the share who clicked
+                      any of them (each visitor counted once). Recording since
+                      29 July 2026.
                     </p>
                   </Panel>
                   <Panel title="View data in Airtable">
@@ -1082,12 +1128,14 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   total={contributeTotalByPage}
                   shareFor={name => contributeShare.get(name)}
+                  totalShare={data.siteContributeShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   Clicks on the &quot;Add a …&quot; and &quot;Suggest a
                   correction&quot; forms. % of visitors = the share of the
-                  page&apos;s visitors who clicked one. Open a page&apos;s tab
-                  for its per-button split. Recording since 29 July 2026.
+                  page&apos;s visitors who clicked one; the Total row is the
+                  share of all visitors site-wide. Open a page&apos;s tab for
+                  its per-button split. Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Airtable views by page">
@@ -1099,11 +1147,13 @@ export default async function AnalyticsPage({
                   labelHead="Page"
                   total={airtableTotalByPage}
                   shareFor={name => airtableShare.get(name)}
+                  totalShare={data.siteAirtableShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   Clicks on the &quot;View data in Airtable&quot; cards. % of
                   visitors = the share of the page&apos;s visitors who clicked
-                  one. Recording since 29 July 2026.
+                  one; the Total row is the share of all visitors site-wide.
+                  Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Newsletter signups by page">
@@ -1116,12 +1166,14 @@ export default async function AnalyticsPage({
                   countHead="Submits"
                   total={newsletterTotalByPage}
                   shareFor={name => newsletterShare.get(name)}
+                  totalShare={data.siteNewsletterShare ?? undefined}
                 />
                 <p className={styles.caption}>
                   Submits of the weekly-summary email box on /events and
                   /training – may not all be successful signups. % of visitors =
-                  the share of the page&apos;s visitors who submitted it.
-                  Recording since 29 July 2026.
+                  the share of the page&apos;s visitors who submitted it; the
+                  Total row divides by visitors to those two pages combined,
+                  since only they have the box. Recording since 29 July 2026.
                 </p>
               </Panel>
               <Panel title="Footer clicks">
@@ -1435,7 +1487,9 @@ function CountTable({
   rankFor,
   pageFor,
   shareFor,
+  shareHead = '% of visitors',
   total,
+  totalShare,
 }: {
   rows: Counted[]
   labelHead: string
@@ -1456,10 +1510,18 @@ function CountTable({
    *  distinct visitors who did the thing at least once — always per-visitor,
    *  whichever count mode is on. Looked up by the row's displayed name. */
   shareFor?: (name: string) => VisitorShare | undefined
+  /** Heading for the `shareFor` column, when it measures something other than
+   *  "did the thing" — e.g. '% returning'. */
+  shareHead?: string
   /** When set, adds a % column (each row's share of this total) and a Total
    *  footer row. The total is the denominator, so for a sliced "top N" table it
    *  can exceed the sum of the visible rows. */
   total?: number
+  /** The Total row's "% of visitors" cell: the share of visitors who did the
+   *  thing at least once, counted across the whole table. Computed from
+   *  distinct visitors, not by summing the rows — a visitor who did several
+   *  things counts once. Blank when unset. */
+  totalShare?: VisitorShare
 }) {
   if (allRows.length === 0) return <p className={styles.dim}>No data yet.</p>
   const rows = allRows.slice(0, MAX_TABLE_ROWS)
@@ -1477,7 +1539,7 @@ function CountTable({
     ...(shareFor
       ? [
           {
-            label: '% of visitors',
+            label: shareHead,
             className: styles.pctCol,
             sort: 'number' as const,
           },
@@ -1512,7 +1574,18 @@ function CountTable({
               {showPct && (
                 <td className={styles.pctCol}>{pct1(total, total)}</td>
               )}
-              {shareFor && <td className={styles.pctCol} />}
+              {shareFor && (
+                <td className={styles.pctCol}>
+                  {/* active 0 means the range's clicks predate visitor ids
+                      (or all came from private browsing) — that's unknown,
+                      not a true 0%, so it gets the same dash as the rows. */}
+                  {totalShare
+                    ? totalShare.active > 0
+                      ? shareCell(totalShare)
+                      : '—'
+                    : null}
+                </td>
+              )}
             </tr>
           ) : undefined
         }
@@ -1681,6 +1754,8 @@ function OverallListingsTable({
 function ChatbotView({
   funnel,
   opensByPage,
+  openShareByPage,
+  siteOpenShare,
   destinations,
   conv,
   themes,
@@ -1688,11 +1763,14 @@ function ChatbotView({
 }: {
   funnel: ChatbotFunnel
   opensByPage: Counted[]
+  openShareByPage: VisitorShare[]
+  siteOpenShare: VisitorShare
   destinations: ClickDestination[]
   conv: ConversationStats | null
   themes: ThemeSummary | null
   unique: boolean
 }) {
+  const openShare = new Map(openShareByPage.map(r => [r.name, r]))
   const usersHead = unique ? 'Users' : undefined
   const sum = (rows: Counted[]) => rows.reduce((s, r) => s + r.count, 0)
   // Card clicks store only a url (no link text) — those rows read better as a
@@ -1725,9 +1803,14 @@ function ChatbotView({
             labelHead="Page"
             countHead={usersHead ?? 'Opens'}
             total={sum(opensByPage)}
+            shareFor={name => openShare.get(name)}
+            totalShare={siteOpenShare}
           />
           <p className={styles.caption}>
-            The page visitors were on when they opened the chat panel.
+            The page visitors were on when they opened the chat panel. % of
+            visitors = the share of the page&apos;s visitors who opened it
+            (always per-visitor, whichever count mode is on); the Total row is
+            the share of all visitors site-wide.
           </p>
         </Panel>
         {conv?.available && (
@@ -1770,6 +1853,38 @@ function ChatbotView({
 
       {conv?.available && (
         <>
+          <Panel title="Reply ratings">
+            <div className={styles.funnel}>
+              <Stat
+                label="replies rated 👍"
+                value={conv.ratedUp.toLocaleString()}
+              />
+              <Stat
+                label="replies rated 👎"
+                value={conv.ratedDown.toLocaleString()}
+              />
+              <Stat
+                label="of rated replies got a thumbs up"
+                value={share(conv.thumbsUpShare)}
+              />
+              <Stat
+                label="of conversations included a rating"
+                value={share(conv.ratedConversationShare)}
+              />
+            </div>
+            <div className={styles.tileTable}>
+              <RatedRepliesTable rows={conv.ratedReplies} />
+            </div>
+            <p className={styles.caption}>
+              Thumbs ratings visitors gave the chatbot&apos;s replies, from the
+              conversation log, for conversations started in the selected date
+              range. Each reply counts once, under its latest rating (switching
+              thumbs overwrites). The table lists every rated reply, newest
+              first; a reply that has scrolled out of a long conversation&apos;s
+              stored transcript keeps its rating but not its text.
+            </p>
+          </Panel>
+
           <div className={styles.grid}>
             <Panel title="Conversation length">
               <CountTable
@@ -1791,7 +1906,8 @@ function ChatbotView({
               />
               <p className={styles.caption}>
                 Auto-detected from the visitor&apos;s messages, so approximate —
-                conversations too short to call show as Unknown.
+                conversations too short to call show as Unknown. A conversation
+                that switches language counts under the non-English language.
               </p>
             </Panel>
           </div>
@@ -1859,6 +1975,7 @@ function SearchView({
     ...d,
     name: d.url && d.name === d.url ? prettyUrl(d.url) : d.name,
   }))
+  const openShare = new Map(search.openShareByPage.map(r => [r.name, r]))
   const destUrlByName = new Map(destRows.map(d => [d.name, d.url]))
   const pageBadges = searchPageBadges(index, destRows)
   return (
@@ -1893,9 +2010,14 @@ function SearchView({
             labelHead="Page"
             countHead={usersHead ?? 'Opens'}
             total={sum(search.opensByPage)}
+            shareFor={name => openShare.get(name)}
+            totalShare={search.siteOpenShare}
           />
           <p className={styles.caption}>
-            The page visitors were on when they opened search.
+            The page visitors were on when they opened search. % of visitors =
+            the share of the page&apos;s visitors who opened it (always
+            per-visitor, whichever count mode is on); the Total row is the share
+            of all visitors site-wide.
           </p>
         </Panel>
       </div>
@@ -1998,6 +2120,67 @@ function QuestionsTable({
             </td>
             <td className={styles.numCol}>{r.count.toLocaleString()}</td>
             <td className={styles.pctCol}>{pct1(r.count, total)}</td>
+          </tr>
+        ))}
+      </SortableTable>
+      {allRows.length > rows.length && (
+        <TruncationNote shown={rows.length} of={allRows.length} />
+      )}
+    </>
+  )
+}
+
+/** Longest a question or reply snippet gets in the rated-replies table. */
+const SNIPPET_CHARS = 220
+
+function snippet(text: string): string {
+  return text.length > SNIPPET_CHARS
+    ? `${text.slice(0, SNIPPET_CHARS - 1).trimEnd()}…`
+    : text
+}
+
+/** Every rated reply in the range, newest first: when, which thumb, the
+ *  visitor's question with the reply beneath it, and the page the chat was
+ *  on. Sortable by time, rating and page. */
+function RatedRepliesTable({ rows: allRows }: { rows: RatedReply[] }) {
+  if (allRows.length === 0)
+    return <p className={styles.dim}>No ratings in this range yet.</p>
+  const rows = allRows.slice(0, MAX_TABLE_ROWS)
+  return (
+    <>
+      <SortableTable
+        columns={[
+          { label: 'Visitor asked → chatbot replied' },
+          { label: 'Rating', className: styles.numCol, sort: 'text' },
+          { label: 'Page', className: styles.numCol, sort: 'text' },
+          { label: 'When', className: styles.numCol, sort: 'text' },
+        ]}
+        values={rows.map(r => [null, r.rating, r.page, r.at])}
+      >
+        {rows.map((r, i) => (
+          <tr key={i}>
+            <td>
+              {r.question != null && r.reply != null ? (
+                <>
+                  <div>{snippet(r.question)}</div>
+                  <div className={styles.dim}>{snippet(r.reply)}</div>
+                </>
+              ) : (
+                <div className={styles.dim}>
+                  Reply text not in the stored transcript
+                </div>
+              )}
+            </td>
+            <td
+              className={styles.numCol}
+              title={r.rating === 'up' ? 'Thumbs up' : 'Thumbs down'}
+            >
+              {r.rating === 'up' ? '👍' : '👎'}
+            </td>
+            <td className={styles.numCol}>
+              {r.page ? (PAGE_NAME_BY_PATH[r.page] ?? r.page) : '—'}
+            </td>
+            <td className={styles.numCol}>{formatTime(r.at)}</td>
           </tr>
         ))}
       </SortableTable>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { withUtm } from '@/lib/utm'
 import type { ReactNode } from 'react'
 import styles from './page.module.css'
 
@@ -47,7 +48,7 @@ function Tab1Content() {
         <p>
           Donate to a fund, such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -57,7 +58,10 @@ function Tab1Content() {
           projects they think are most effective to fund. Alternatively, you can
           donate to a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -77,7 +81,7 @@ function Tab1Content() {
         <p className="padding-bottom-12px">
           Either donate to a fund, such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -88,7 +92,10 @@ function Tab1Content() {
           your network if you know someone whose opinion in this area you trust,
           or send money via a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -100,7 +107,7 @@ function Tab1Content() {
         <p>
           We recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -109,7 +116,7 @@ function Tab1Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -117,7 +124,10 @@ function Tab1Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -137,7 +147,7 @@ function Tab1Content() {
         </p>
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-white"
           >
@@ -154,7 +164,7 @@ function Tab1Content() {
           Consider engaging with researchers in the comments sections of their
           research posts on{' '}
           <Link
-            href="https://www.lesswrong.com/w/ai"
+            href={withUtm('https://www.lesswrong.com/w/ai', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -168,7 +178,10 @@ function Tab1Content() {
           in your network if you know someone whose opinions in this area you
           trust, or send money via a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -180,7 +193,7 @@ function Tab1Content() {
         <p className="padding-bottom-12px">
           We recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -189,7 +202,7 @@ function Tab1Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -197,7 +210,10 @@ function Tab1Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -208,7 +224,7 @@ function Tab1Content() {
         <p>
           Donating to a fund such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -228,7 +244,7 @@ function Tab1Content() {
         </p>
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-white"
           >
@@ -244,7 +260,10 @@ function Tab1Content() {
         <p className="padding-bottom-12px">
           Consider self-funding to try and{' '}
           <Link
-            href="https://aisafety.info/how-can-i-help"
+            href={withUtm(
+              'https://aisafety.info/how-can-i-help',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -259,7 +278,10 @@ function Tab1Content() {
           in your network if you know someone whose opinions in this area you
           trust, or send money via a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -271,7 +293,7 @@ function Tab1Content() {
         <p className="padding-bottom-12px">
           We recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -280,7 +302,7 @@ function Tab1Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -288,7 +310,10 @@ function Tab1Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -299,7 +324,7 @@ function Tab1Content() {
         <p>
           Donating to a fund such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -329,7 +354,7 @@ function Tab2Content() {
         <p>
           Donate to a fund, such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -350,7 +375,7 @@ function Tab2Content() {
         <p className="padding-bottom-12px">
           Either donate to a fund, such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -361,7 +386,10 @@ function Tab2Content() {
           your network if you know someone whose opinions in this area you
           trust, or send money via a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -373,7 +401,7 @@ function Tab2Content() {
         <p>
           We recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -382,7 +410,7 @@ function Tab2Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -390,7 +418,10 @@ function Tab2Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -410,7 +441,7 @@ function Tab2Content() {
         </p>
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-white"
           >
@@ -427,7 +458,7 @@ function Tab2Content() {
           Consider engaging with researchers in the comments sections of their
           research posts on{' '}
           <Link
-            href="https://www.lesswrong.com/w/ai"
+            href={withUtm('https://www.lesswrong.com/w/ai', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -441,7 +472,10 @@ function Tab2Content() {
           in your network if you know someone whose opinions in this area you
           trust, or send money via a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -453,7 +487,7 @@ function Tab2Content() {
         <p className="padding-bottom-12px">
           We recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -462,7 +496,7 @@ function Tab2Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -470,7 +504,10 @@ function Tab2Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -481,7 +518,7 @@ function Tab2Content() {
         <p>
           Donating to a fund such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -501,7 +538,7 @@ function Tab2Content() {
         </p>
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -517,7 +554,10 @@ function Tab2Content() {
         <p className="padding-bottom-12px">
           Consider self-funding to try and{' '}
           <Link
-            href="https://aisafety.info/how-can-i-help"
+            href={withUtm(
+              'https://aisafety.info/how-can-i-help',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-white"
           >
@@ -532,7 +572,10 @@ function Tab2Content() {
           in your network if you know someone whose opinions in this area you
           trust, or send money via a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -544,7 +587,7 @@ function Tab2Content() {
         <p className="padding-bottom-12px">
           We recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -553,7 +596,7 @@ function Tab2Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -561,7 +604,10 @@ function Tab2Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -572,7 +618,7 @@ function Tab2Content() {
         <p>
           Donating to a fund such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -599,7 +645,7 @@ function Tab3Content() {
         <p>
           Donate to a fund, such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -616,7 +662,7 @@ function Tab3Content() {
         <p className="padding-bottom-12px">
           Either donate to a fund, such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -627,7 +673,10 @@ function Tab3Content() {
           your network if you know someone whose opinions in this area you
           trust, or send money via a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -639,7 +688,7 @@ function Tab3Content() {
         <p>
           We recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -648,7 +697,7 @@ function Tab3Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -656,7 +705,10 @@ function Tab3Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -671,7 +723,7 @@ function Tab3Content() {
       <TimeSection time="Ongoing commitment">
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -688,7 +740,7 @@ function Tab3Content() {
           Consider engaging with researchers in the comments sections of their
           research posts on{' '}
           <Link
-            href="https://www.lesswrong.com/w/ai"
+            href={withUtm('https://www.lesswrong.com/w/ai', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -699,7 +751,7 @@ function Tab3Content() {
         <p>
           Donating to a fund such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -714,7 +766,7 @@ function Tab3Content() {
       <TimeSection time="Major focus" last>
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -735,7 +787,7 @@ function Tab3Content() {
         <p>
           Donating to a fund such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -764,7 +816,10 @@ function Tab4Content() {
           Either delegate to someone in your network who you think has a good
           understanding of the challenge (possibly by sponsoring them as an{' '}
           <Link
-            href="https://survivalandflourishing.fund/s-process.html"
+            href={withUtm(
+              'https://survivalandflourishing.fund/s-process.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -773,7 +828,7 @@ function Tab4Content() {
           , which will give them infrastructure and a menu of applications), or
           donate to a fund such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -789,7 +844,10 @@ function Tab4Content() {
         <p className="padding-bottom-12px">
           Some high impact ideas include sponsoring an{' '}
           <Link
-            href="https://survivalandflourishing.fund/s-process.html"
+            href={withUtm(
+              'https://survivalandflourishing.fund/s-process.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -798,7 +856,10 @@ function Tab4Content() {
           whose judgment you trust, which will give them infrastructure and a
           menu of applications, or donate to a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -809,7 +870,7 @@ function Tab4Content() {
         <p>
           Alternatively, either donate to a fund – such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -819,7 +880,7 @@ function Tab4Content() {
           of AI safety, or select individuals to donate to directly. We
           recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -828,7 +889,7 @@ function Tab4Content() {
           , which allows you to &quot;invest&quot; in projects you think will be
           impactful, or nominate regrantors to decide on your behalf.{' '}
           <Link
-            href="https://givewiki.org/"
+            href={withUtm('https://givewiki.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -836,7 +897,10 @@ function Tab4Content() {
           </Link>{' '}
           and the{' '}
           <Link
-            href="https://www.nonlinear.org/network.html"
+            href={withUtm(
+              'https://www.nonlinear.org/network.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -851,7 +915,7 @@ function Tab4Content() {
       <TimeSection time="Ongoing commitment">
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -868,7 +932,7 @@ function Tab4Content() {
           Consider engaging with researchers in the comments sections of their
           research posts on{' '}
           <Link
-            href="https://www.lesswrong.com/w/ai"
+            href={withUtm('https://www.lesswrong.com/w/ai', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -879,7 +943,7 @@ function Tab4Content() {
         <p>
           Alternatively, either donate to a fund – such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -889,7 +953,7 @@ function Tab4Content() {
           of AI safety, or select individuals to donate to directly. We
           recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -905,7 +969,7 @@ function Tab4Content() {
       <TimeSection time="Major focus" last>
         <p className="padding-bottom-12px">
           <Link
-            href="https://aisafety.info/"
+            href={withUtm('https://aisafety.info/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -928,7 +992,7 @@ function Tab4Content() {
           Consider engaging with researchers in the comments sections of their
           research posts on{' '}
           <Link
-            href="https://www.lesswrong.com/w/ai"
+            href={withUtm('https://www.lesswrong.com/w/ai', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -939,7 +1003,10 @@ function Tab4Content() {
         <p className="padding-bottom-12px">
           Some high impact ideas for donating include sponsoring an{' '}
           <Link
-            href="https://survivalandflourishing.fund/s-process.html"
+            href={withUtm(
+              'https://survivalandflourishing.fund/s-process.html',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -948,7 +1015,10 @@ function Tab4Content() {
           whose judgment you trust, which will give them infrastructure and a
           menu of applications, or donate to a{' '}
           <Link
-            href="https://www.givingwhatwecan.org/donor-lottery"
+            href={withUtm(
+              'https://www.givingwhatwecan.org/donor-lottery',
+              'Donation guide'
+            )}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -959,7 +1029,7 @@ function Tab4Content() {
         <p>
           Alternatively, either donate to a fund – such as the{' '}
           <Link
-            href="https://www.airiskfund.com/"
+            href={withUtm('https://www.airiskfund.com/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >
@@ -969,7 +1039,7 @@ function Tab4Content() {
           of AI safety, or select individuals to donate to directly. We
           recommend exploring{' '}
           <Link
-            href="https://manifund.org/"
+            href={withUtm('https://manifund.org/', 'Donation guide')}
             target="_blank"
             className="display-inline color-teal"
           >

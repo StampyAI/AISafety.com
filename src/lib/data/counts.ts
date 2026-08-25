@@ -1,4 +1,5 @@
 import { fetchAirtableRecords } from './airtable'
+import { isPreviewRequest } from '@/lib/preview'
 import { getAdvisors } from './advisors'
 import { getCommunities } from './communities'
 import { getEvents } from './events'
@@ -65,6 +66,18 @@ const resources = [
   },
 ]
 
+// Preview-mode requests can't be served from any Next.js data cache (Draft
+// Mode disables caching for the whole request), so without this memo every
+// preview page view would redo all sixteen serialized Airtable reads below —
+// seconds of waiting for nav badges the admin isn't checking. Held in process
+// memory (one server bundle in production, so it is shared across pages) and
+// never consulted outside preview mode, where the normal caches apply.
+let previewCountsMemo: {
+  at: number
+  counts: Partial<Record<string, number>>
+} | null = null
+const PREVIEW_COUNTS_TTL_MS = 10 * 60_000
+
 // Serialized to avoid hitting Airtable's 5 req/sec rate limit.
 // Called at build time (static generation) so latency doesn't matter.
 export async function fetchAllCounts(): Promise<
@@ -92,6 +105,15 @@ export async function fetchAllCounts(): Promise<
     }
   }
 
+  const preview = await isPreviewRequest()
+  if (
+    preview &&
+    previewCountsMemo &&
+    Date.now() - previewCountsMemo.at < PREVIEW_COUNTS_TTL_MS
+  ) {
+    return previewCountsMemo.counts
+  }
+
   const counts: Partial<Record<string, number>> = {}
   for (const r of resources) {
     const raw = await fetchAirtableRecords({
@@ -111,5 +133,8 @@ export async function fetchAllCounts(): Promise<
   counts['/training'] =
     (await getTrainingPrograms()).length + (await getRecurringPrograms()).length
 
+  if (preview) {
+    previewCountsMemo = { at: Date.now(), counts }
+  }
   return counts
 }

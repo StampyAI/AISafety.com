@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Advisor } from '@/lib/data/advisors'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface AdvisorsClientProps {
@@ -26,59 +28,56 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(advisors), [advisors])
 
-  const filteredAdvisors = useMemo(() => {
-    return advisors.filter(advisor => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !advisor.name.toLowerCase().includes(query) &&
-          !advisor.description.toLowerCase().includes(query)
-        ) {
-          return false
-        }
-      }
+  const searchPass = useCallback(
+    (advisor: Advisor) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        advisor.name.toLowerCase().includes(query) ||
+        advisor.description.toLowerCase().includes(query)
+      )
+    },
+    [searchQuery]
+  )
 
-      if (selectedFocus.length > 0) {
-        if (!selectedFocus.includes(advisor.focus)) return false
-      }
-
-      if (selectedStatus.length > 0) {
-        if (!selectedStatus.includes(advisor.status)) return false
-      }
-
-      return true
-    })
-  }, [advisors, searchQuery, selectedFocus, selectedStatus])
-
-  const focusCounts = useMemo(() => {
-    return advisors.reduce(
-      (counts, advisor) => {
-        for (const option of focusOptions) {
-          if (advisor.focus === option) {
-            counts[option] = (counts[option] || 0) + 1
-            break
-          }
-        }
-        return counts
+  const groups = useMemo(
+    () => ({
+      focus: {
+        selected: selectedFocus,
+        matches: (advisor: Advisor, value: string) => advisor.focus === value,
       },
-      {} as Record<string, number>
-    )
-  }, [advisors])
-
-  const statusCounts = useMemo(() => {
-    return advisors.reduce(
-      (counts, advisor) => {
-        for (const option of statusOptions) {
-          if (advisor.status === option) {
-            counts[option] = (counts[option] || 0) + 1
-            break
-          }
-        }
-        return counts
+      status: {
+        selected: selectedStatus,
+        matches: (advisor: Advisor, value: string) => advisor.status === value,
       },
-      {} as Record<string, number>
-    )
-  }, [advisors])
+    }),
+    [selectedFocus, selectedStatus]
+  )
+
+  const filteredAdvisors = useMemo(
+    () => filterItems(advisors, searchPass, groups),
+    [advisors, searchPass, groups]
+  )
+
+  const focusCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(advisors, searchPass, groups, 'focus'),
+        focusOptions,
+        groups.focus.matches
+      ),
+    [advisors, searchPass, groups]
+  )
+
+  const statusCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(advisors, searchPass, groups, 'status'),
+        statusOptions,
+        groups.status.matches
+      ),
+    [advisors, searchPass, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 
@@ -117,7 +116,7 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           {filteredAdvisors.map(advisor => (
             <a
               key={advisor.id}
-              href={advisor.url}
+              href={withUtm(advisor.url, 'Advisors')}
               target="_blank"
               rel="noopener noreferrer"
               className="card"

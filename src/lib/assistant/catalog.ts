@@ -7,6 +7,7 @@ import { getFounderResources } from '@/lib/data/founders'
 import { getProjects } from '@/lib/data/projects'
 import { getMediaChannels } from '@/lib/data/media-channels'
 import { getMapData } from '@/lib/data/map'
+import { mapAreaFor } from '@/lib/data/map-areas'
 import { getEvents } from '@/lib/data/events'
 import { getTrainingPrograms, getRecurringPrograms } from '@/lib/data/training'
 import { selectFeatured } from '@/lib/featured'
@@ -253,6 +254,7 @@ export async function buildCatalog(): Promise<Catalog> {
       type: 'project',
       name: p.name,
       description: clamp(p.description, 280),
+      details: p.descriptionLong?.trim() || undefined,
       url: p.email ? `mailto:${p.email}` : '#',
       pageUrl: '/projects',
       dateAdded: p.dateAdded ?? undefined,
@@ -297,6 +299,10 @@ export async function buildCatalog(): Promise<Catalog> {
       lastModified: o.lastModified ?? undefined,
       meta: compact({
         category: o.category,
+        // Named region the org's logo sits in on /map — decided by its FIRST
+        // category only. Lets the model answer "what's in Advocacy Anchorage"
+        // without mistaking every org tagged Advocacy for one drawn there.
+        mapArea: mapAreaFor(o.category),
         status: o.status,
         scale: o.scale,
         // Acronym/short name (e.g. "AED", "MIRI") so users can search the org
@@ -306,7 +312,9 @@ export async function buildCatalog(): Promise<Catalog> {
     })
   }
 
-  const featuredEventIds = displayedIds(selectFeatured(events))
+  const featuredEventIds = displayedIds(
+    selectFeatured(events, e => e.applicationStatus === 'Open')
+  )
   const featuredTrainingIds = displayedIds(
     selectFeatured(trainingPrograms, p => p.applicationStatus === 'Open')
   )
@@ -335,7 +343,6 @@ export async function buildCatalog(): Promise<Catalog> {
         applicationsClose: e.applicationsClose,
         deadlineType: e.deadlineType,
         notYetOpen: e.notYetOpen ? 'Yes' : null,
-        featuredTagline: e.featuredTagline,
       }),
       featured: featuredEventIds.has(e.id),
     })
@@ -350,7 +357,6 @@ export async function buildCatalog(): Promise<Catalog> {
       type: 'training',
       name: t.name,
       description: clamp(t.description, 280),
-      organization: t.host || undefined,
       logo: t.logo ?? deriveFaviconFromUrl(t.url),
       url: t.url,
       pageUrl: '/training',
@@ -360,7 +366,6 @@ export async function buildCatalog(): Promise<Catalog> {
         type: t.type.join(', '),
         mode: t.mode,
         location: t.location,
-        host: t.host,
         focus: t.focus.join(', '),
         entryBar: t.entryBar,
         timeCommitment: t.timeCommitment,
@@ -371,7 +376,6 @@ export async function buildCatalog(): Promise<Catalog> {
         endDate: t.endDate,
         applicationsClose: t.applicationsClose,
         notYetOpen: t.notYetOpen ? 'Yes' : null,
-        featuredTagline: t.featuredTagline,
       }),
       featured: featuredTrainingIds.has(t.id),
     })
@@ -401,7 +405,6 @@ export async function buildCatalog(): Promise<Catalog> {
         stipend: r.stipend,
         typicalLength: r.typicalLength,
         length: r.lengthBucket,
-        featuredTagline: r.featuredTagline,
       }),
       featured: featuredRecurringIds.has(r.id),
     })

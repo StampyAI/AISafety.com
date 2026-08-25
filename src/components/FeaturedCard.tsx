@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Icon from './Icon'
+import CardLogo from './CardLogo'
 import TrackedLink from './TrackedLink'
 import styles from './FeaturedCard.module.css'
 
@@ -115,18 +116,7 @@ export default function FeaturedCard({
           titleMeta && titleMeta.length > 0 ? 'items-start' : 'items-center'
         }`}
       >
-        {logo && (
-          <div className="featured-img">
-            <Image
-              src={logo}
-              alt={`${name} logo`}
-              width={64}
-              height={64}
-              className="card-image"
-              unoptimized
-            />
-          </div>
-        )}
+        {logo && <CardLogo src={logo} alt={`${name} logo`} />}
         <div>
           <h3>{name}</h3>
           {titleMeta && titleMeta.length > 0 && (

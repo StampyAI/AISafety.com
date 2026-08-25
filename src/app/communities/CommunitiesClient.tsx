@@ -6,6 +6,8 @@ import FilterDropdown from '@/components/FilterDropdown'
 import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Community } from '@/lib/data/communities'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface CommunitiesClientProps {
@@ -28,6 +30,9 @@ const platformOptions = [
 const activityOptions = ['Very active', 'Active', 'Semi-active', 'Inactive']
 const focusOptions = ['Main focus is AI safety', 'Partial focus on AI safety']
 
+// No search box on this page, so every community passes the base filter.
+const allPass = () => true
+
 export default function CommunitiesClient({
   communities,
 }: CommunitiesClientProps) {
@@ -39,42 +44,55 @@ export default function CommunitiesClient({
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(communities), [communities])
 
-  const filteredCommunities = useMemo(() => {
-    return communities.filter(community => {
-      if (platformFilters.length > 0) {
-        if (!community.platform.some(p => platformFilters.includes(p)))
-          return false
-      }
-      if (activityFilters.length > 0) {
-        if (!activityFilters.includes(community.activityLevel)) return false
-      }
-      if (focusFilters.length > 0) {
-        if (!focusFilters.includes(community.focus)) return false
-      }
-      return true
-    })
-  }, [communities, platformFilters, activityFilters, focusFilters])
+  // Live counts (the shared filter-counts idiom): each dropdown's numbers are
+  // computed over the communities passing every OTHER group, so a count
+  // answers "what would I get if I also ticked this?".
+  const groups = useMemo(
+    () => ({
+      platform: {
+        selected: platformFilters,
+        matches: (community: Community, value: string) =>
+          community.platform.includes(value),
+      },
+      activity: {
+        selected: activityFilters,
+        matches: (community: Community, value: string) =>
+          community.activityLevel === value,
+      },
+      focus: {
+        selected: focusFilters,
+        matches: (community: Community, value: string) =>
+          community.focus === value,
+      },
+    }),
+    [platformFilters, activityFilters, focusFilters]
+  )
 
-  const filterCounts = useMemo(() => {
-    const counts = {
-      platform: {} as Record<string, number>,
-      activity: {} as Record<string, number>,
-      focus: {} as Record<string, number>,
-    }
-    for (const community of communities) {
-      for (const p of community.platform) {
-        counts.platform[p] = (counts.platform[p] || 0) + 1
-      }
-      if (community.activityLevel) {
-        counts.activity[community.activityLevel] =
-          (counts.activity[community.activityLevel] || 0) + 1
-      }
-      if (community.focus) {
-        counts.focus[community.focus] = (counts.focus[community.focus] || 0) + 1
-      }
-    }
-    return counts
-  }, [communities])
+  const filteredCommunities = useMemo(
+    () => filterItems(communities, allPass, groups),
+    [communities, groups]
+  )
+
+  const filterCounts = useMemo(
+    () => ({
+      platform: optionCounts(
+        filterItems(communities, allPass, groups, 'platform'),
+        platformOptions,
+        groups.platform.matches
+      ),
+      activity: optionCounts(
+        filterItems(communities, allPass, groups, 'activity'),
+        activityOptions,
+        groups.activity.matches
+      ),
+      focus: optionCounts(
+        filterItems(communities, allPass, groups, 'focus'),
+        focusOptions,
+        groups.focus.matches
+      ),
+    }),
+    [communities, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 
@@ -207,7 +225,7 @@ export default function CommunitiesClient({
               Related resources
             </p>
             <a
-              href="https://www.lesswrong.com/community"
+              href={withUtm('https://www.lesswrong.com/community', 'Communities')}
               target="_blank"
               rel="noopener noreferrer"
               className="block padding-bottom-40px hover-opacity-80"
@@ -222,7 +240,10 @@ export default function CommunitiesClient({
               </p>
             </a>
             <a
-              href="https://forum.effectivealtruism.org/groups"
+              href={withUtm(
+                'https://forum.effectivealtruism.org/groups',
+                'Communities'
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="block hover-opacity-80"

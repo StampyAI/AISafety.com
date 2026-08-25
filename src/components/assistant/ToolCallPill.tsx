@@ -9,12 +9,14 @@ const TOOL_LABELS: Record<string, string> = {
   search_listings: 'Searched',
   get_listing: 'Opened',
   read_listing_page: 'Read website',
+  get_program_history: 'Checked past rounds',
 }
 
 const TOOL_RUNNING_LABELS: Record<string, string> = {
   search_listings: 'Searching',
   get_listing: 'Fetching',
   read_listing_page: 'Reading website',
+  get_program_history: 'Checking past rounds',
 }
 
 function ToolIcon({ name }: { name: string }) {
@@ -26,6 +28,16 @@ function ToolIcon({ name }: { name: string }) {
   }
   if (name === 'read_listing_page') {
     return <Icon src="/images/icons/globe.svg" size={16} />
+  }
+  if (name === 'get_program_history') {
+    // Clock turning back — "past rounds".
+    return (
+      <svg {...common}>
+        <path d="M3 12a9 9 0 1 0 3-6.7" />
+        <polyline points="3 3 3 8 8 8" />
+        <polyline points="12 7 12 12 15.5 14" />
+      </svg>
+    )
   }
   return null
 }
@@ -50,6 +62,11 @@ function describeInput(name: string, input: Record<string, unknown>): string {
     const id = typeof input.id === 'string' ? input.id : ''
     return id
   }
+  if (name === 'get_program_history') {
+    const query = typeof input.query === 'string' ? input.query : ''
+    const id = typeof input.id === 'string' ? input.id : ''
+    return query ? `"${query}"` : id
+  }
   return ''
 }
 
@@ -71,6 +88,9 @@ function formatInputDetails(
     if (input.limit) out.push(`limit: ${String(input.limit)}`)
   } else if (name === 'get_listing' || name === 'read_listing_page') {
     if (input.id) out.push(`id: ${String(input.id)}`)
+  } else if (name === 'get_program_history') {
+    if (input.id) out.push(`id: ${String(input.id)}`)
+    if (input.query) out.push(`query: "${String(input.query)}"`)
   } else {
     for (const [k, v] of Object.entries(input)) {
       out.push(`${k}: ${JSON.stringify(v)}`)

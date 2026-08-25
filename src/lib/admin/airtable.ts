@@ -4,19 +4,37 @@
   ─── assistant_conversations ───
   ID env var: ADMIN_CONVERSATIONS_TABLE_ID
   One row per CONVERSATION (keyed by Session). Each turn updates the row
-  in place: refresh the latest fields, extend Data.history, accumulate
-  Data.tools/citations.
+  in place: refresh the latest fields, replace Data.history with the
+  latest turn's window (the widget resends the whole conversation each
+  turn; the route windows it to the last 50 messages before logging),
+  accumulate Data.tools/citations.
 
   Fields:
     Session         (single line text)  — natural key
-    Page            (single line text)  — page of the latest turn
+    Page            (single line text)  — page the conversation started on
     Latency ms      (number)            — latest turn's latency
     Prompt version  (single line text)  — latest, e.g. "2026-05-07-1"
     Notes           (long text)         — admin annotations
-    Tags            (multi-select)      — admin annotations
+    Tags            (multi-select)      — admin annotations; new options are
+                                          created on the fly (typecast) when a
+                                          reviewer labels a conversation
+    Review          (single select)     — reviewer's verdict on the whole
+                                          conversation: Good / Bad / Unsure
     Created at      (created time)      — auto, first-turn timestamp
     Data            (long text)         — JSON payload, see ConversationData
                                           below for shape
+    Clicked         (long text)         — JSON array of click keys, written
+                                          out-of-band by the click logger
+    Ratings         (long text)         — JSON map of turn index → 'up'/'down',
+                                          written out-of-band by the rating
+                                          logger
+    Delivery        (long text)         — JSON map of turn index → what the
+                                          visitor's browser reported about
+                                          the reply (received / stopped /
+                                          left the page mid-answer, panel
+                                          closed, tab hidden, seen later); see
+                                          TurnDelivery. Written out-of-band by
+                                          the delivery logger
 
   Prompt drafts are NOT persisted to Airtable. They live in browser
   localStorage in the admin editor. Production prompts ship via code.
@@ -25,6 +43,9 @@
 const TOKEN = process.env.AIRTABLE_TOKEN
 const BASE = process.env.AIRTABLE_BASE_ID
 const CONVERSATIONS_TABLE = process.env.ADMIN_CONVERSATIONS_TABLE_ID
+// Ceiling for the serialized Data JSON, under Airtable's 100,000-character
+// long-text limit with margin. See upsertConversation.
+const MAX_DATA_CHARS = 90_000
 
 // Permanent Airtable field IDs for the conversations table. All reads set
 // returnFieldsByFieldId and all writes key fields by ID, so renaming a
@@ -36,8 +57,11 @@ const FIELD = {
   promptVersion: 'fldZi6qb5G5bsdfFH', // Prompt version
   notes: 'fldpjWWpS9R0cFXRU', // Notes
   tags: 'fldAkUlONRN894SZN', // Tags
+  review: 'fldaQaobQ98Whc5pV', // Review
   data: 'fld9TbBixMYVOssja', // Data
   clicked: 'fld3PKIZx3Oo1oxkm', // Clicked
+  ratings: 'fld0ZRhDFjpcHTJnm', // Ratings
+  delivery: 'fld2HdrWqxHN7BSTH', // Delivery
   createdAt: 'fldterZrwZHKm2taI', // Created at
 } as const
 
@@ -50,18 +74,18 @@ function ensureConfig(table: string | undefined): asserts table is string {
   }
 }
 
-interface AirtableRow<F> {
+export interface AirtableRow<F> {
   id: string
   createdTime: string
   fields: F
 }
 
-interface AirtableListResponse<F> {
+export interface AirtableListResponse<F> {
   records: AirtableRow<F>[]
   offset?: string
 }
 
-async function airtableRequest(
+export async function airtableRequest(
   path: string,
   init: RequestInit = {}
 ): Promise<Response> {
@@ -76,7 +100,7 @@ async function airtableRequest(
   })
 }
 
-async function listAll<F>(
+export async function listAll<F>(
   table: string,
   params: URLSearchParams = new URLSearchParams()
 ): Promise<AirtableRow<F>[]> {
@@ -121,7 +145,19 @@ export interface StoredCitation {
 export interface ConversationData {
   user: string
   response: string
+  /** The conversation as of the latest turn, WINDOWED: the last 50 messages
+   *  (25 exchanges; rows written before 17 Aug 2026 kept only the model's
+   *  14-message window), then trimmed further if the row would overflow
+   *  Airtable's long-text limit. Per-turn arrays (`tools`, `turnTimes`,
+   *  `pages`) are never windowed, so their length is the true turn count and
+   *  they align with `history` from the END. */
   history: HistoryTurn[]
+  /** Each history message's position in the VISITOR's message list — the
+   *  indexing the widget's delivery/rating/click reports key on. Aligned
+   *  with `history` (windowing and trims shift both together). Absent on
+   *  rows written before this was tracked; for those, position-keyed badges
+   *  are only trustworthy while nothing was dropped from the history. */
+  historyIndices?: unknown[]
   tools: unknown[]
   /** One entry per logged turn (aligned with `tools`): card ids in that
    *  turn's reply that rendered as a generic "Browse X" fallback link (or
@@ -145,11 +181,56 @@ export interface ConversationData {
   utm: Record<string, string> | null
   pageState: Record<string, unknown> | null
   zeroMatches: boolean
-  /** Set when the latest turn produced no usable reply: 'abandoned' (visitor
-   *  left before/without an answer) or 'error' (generation failed). Absent on
-   *  normal turns. */
+  /** Set when the latest turn didn't complete: 'abandoned' (the visitor's
+   *  connection dropped — tab closed or Stop pressed — before generation
+   *  finished; `response` holds whatever had streamed by then, possibly
+   *  nothing) or 'error' (generation failed). Absent on normal turns. */
   status?: 'abandoned' | 'error'
 }
+
+/** What the visitor's browser reported about one reply — the signals the
+ *  server can't see. Every duration is milliseconds from the moment the
+ *  visitor sent their message. Exactly one of received/stopped/error/left is
+ *  expected per turn (the outcome); the rest are context around it. Absent
+ *  entirely on turns from before this was tracked, on browsers the owner
+ *  excluded from logging, and when the report never reached us (e.g. the tab
+ *  was closed and the browser dropped the final request). */
+export interface TurnDelivery {
+  /** The stream finished in the visitor's browser — the whole reply arrived. */
+  received?: number
+  /** The visitor pressed Stop (or cleared the chat) mid-reply. */
+  stopped?: number
+  /** The browser hit an error mid-reply (network drop, malformed frame). */
+  error?: number
+  /** The page was unloaded (tab closed, full navigation) mid-reply. */
+  left?: number
+  /** The chat panel was closed while the reply was still streaming (first
+   *  time it happened during this turn). */
+  panelClosed?: number
+  /** The tab went to the background while the reply was still streaming
+   *  (first time). */
+  tabHidden?: number
+  /** Whether the chat panel was open at the moment of the outcome. */
+  panelOpen?: boolean
+  /** Whether the tab was visible at the moment of the outcome. */
+  tabVisible?: boolean
+  /** A reply that arrived with the panel closed or the tab hidden was later
+   *  brought into view (panel reopened / tab refocused). Absent means it
+   *  hadn't been, as of the last report. */
+  seen?: number
+}
+export type DeliveryByTurn = Record<string, TurnDelivery>
+
+const DELIVERY_NUMBER_KEYS = [
+  'received',
+  'stopped',
+  'error',
+  'left',
+  'panelClosed',
+  'tabHidden',
+  'seen',
+] as const
+const DELIVERY_BOOLEAN_KEYS = ['panelOpen', 'tabVisible'] as const
 
 /** Raw record fields, keyed by permanent field ID (see FIELD above). The
  *  Clicked field holds a JSON array of listing ids whose cards the visitor
@@ -166,9 +247,32 @@ export interface ConversationRow {
   promptVersion: string
   notes: string
   tags: string[]
+  /** Reviewer's verdict on the whole conversation ('' when not yet rated) —
+   *  distinct from `ratings`, the visitor's own thumbs on individual replies. */
+  review: ReviewValue | ''
   data: ConversationData | null
   /** Listing ids whose cards the visitor clicked during this conversation. */
   clickedCitations: string[]
+  /** Visitor's thumbs ratings of the bot's replies, keyed by the reply's index
+   *  in the message list ('up' | 'down'). Empty when nothing was rated. */
+  ratings: MessageRatings
+  /** What the visitor's browser reported about each reply (did it arrive, was
+   *  the panel open, did they leave mid-answer…), keyed by the reply's index
+   *  in the message list. Empty when nothing was reported. */
+  delivery: DeliveryByTurn
+}
+
+export type MessageRatingValue = 'up' | 'down'
+export type MessageRatings = Record<string, MessageRatingValue>
+
+/** The Review single select's options, exactly as named in Airtable. */
+export const REVIEW_VALUES = ['Good', 'Bad', 'Unsure'] as const
+export type ReviewValue = (typeof REVIEW_VALUES)[number]
+
+function parseReview(value: unknown): ReviewValue | '' {
+  return REVIEW_VALUES.includes(value as ReviewValue)
+    ? (value as ReviewValue)
+    : ''
 }
 
 const EMPTY_DATA: ConversationData = {
@@ -216,6 +320,54 @@ function parseClicked(raw: string | undefined): string[] {
   }
 }
 
+/** The Ratings field holds a JSON object of turn index → 'up' | 'down'.
+ *  Anything malformed (or any entry that isn't a valid rating) is dropped. */
+function parseRatings(raw: string | undefined): MessageRatings {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+    const out: MessageRatings = {}
+    for (const [turn, value] of Object.entries(parsed)) {
+      if (value === 'up' || value === 'down') out[turn] = value
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+/** The Delivery field holds a JSON object of turn index → TurnDelivery. Each
+ *  entry is rebuilt from only the known keys with the right types, so a
+ *  malformed value can't leak odd shapes into the viewer. */
+function parseDelivery(raw: string | undefined): DeliveryByTurn {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {}
+    }
+    const out: DeliveryByTurn = {}
+    for (const [turn, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+      const v = value as Record<string, unknown>
+      const entry: TurnDelivery = {}
+      for (const key of DELIVERY_NUMBER_KEYS) {
+        if (typeof v[key] === 'number') entry[key] = v[key]
+      }
+      for (const key of DELIVERY_BOOLEAN_KEYS) {
+        if (typeof v[key] === 'boolean') entry[key] = v[key]
+      }
+      if (Object.keys(entry).length > 0) out[turn] = entry
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
 function str(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -237,8 +389,11 @@ function rowToConversation(
     tags: Array.isArray(tags)
       ? tags.filter((t): t is string => typeof t === 'string')
       : [],
+    review: parseReview(f[FIELD.review]),
     data: parseData(str(f[FIELD.data]) || undefined),
     clickedCitations: parseClicked(str(f[FIELD.clicked]) || undefined),
+    ratings: parseRatings(str(f[FIELD.ratings]) || undefined),
+    delivery: parseDelivery(str(f[FIELD.delivery]) || undefined),
   }
 }
 
@@ -248,7 +403,7 @@ function rowToConversation(
  *  than the whole — ever-growing — log on every load. */
 /** Airtable filterByFormula that matches rows whose content contains every word
  *  in `search` (case-insensitive, any order). Searches the conversation JSON
- *  plus the page and notes. Returns undefined for a blank search. */
+ *  plus the page, notes and labels. Returns undefined for a blank search. */
 function searchFormula(search: string | undefined): string | undefined {
   // Strip quotes/backslashes that would break the formula string, then split
   // into words so "fast grants" matches a chat containing both words anywhere.
@@ -257,9 +412,42 @@ function searchFormula(search: string | undefined): string | undefined {
     .split(/\s+/)
     .filter(Boolean)
   if (words.length === 0) return undefined
-  const haystack = `LOWER({${FIELD.data}} & " " & {${FIELD.page}} & " " & {${FIELD.notes}})`
+  const haystack = `LOWER({${FIELD.data}} & " " & {${FIELD.page}} & " " & {${FIELD.notes}} & " " & ARRAYJOIN({${FIELD.tags}}, " "))`
   const terms = words.map(w => `SEARCH(LOWER("${w}"), ${haystack})`)
   return terms.length === 1 ? terms[0] : `AND(${terms.join(', ')})`
+}
+
+/** filterByFormula terms for the reviewer filters: Review verdicts (with
+ *  'Unrated' for conversations nobody has judged yet) and/or exact labels.
+ *  Several picks within one filter broaden the match (OR, like the site's
+ *  filter pills); the two filters combine as AND. The label match joins the
+ *  Tags list with a delimiter and looks for the whole delimited label, so
+ *  "scope" can't match a "scope-creep" tag. */
+function reviewFilterTerms(opts: {
+  review?: string[]
+  label?: string[]
+}): string[] {
+  const terms: string[] = []
+  const reviewTerms: string[] = []
+  for (const r of opts.review ?? []) {
+    if (r.toLowerCase() === 'unrated') {
+      reviewTerms.push(`{${FIELD.review}} = ""`)
+    } else if (REVIEW_VALUES.includes(r as ReviewValue)) {
+      reviewTerms.push(`{${FIELD.review}} = "${r}"`)
+    }
+  }
+  if (reviewTerms.length === 1) terms.push(reviewTerms[0])
+  if (reviewTerms.length > 1) terms.push(`OR(${reviewTerms.join(', ')})`)
+  const labelTerms: string[] = []
+  for (const raw of opts.label ?? []) {
+    const label = raw.replace(/["\\|]/g, ' ').trim()
+    if (!label) continue
+    const joined = `"|" & LOWER(ARRAYJOIN({${FIELD.tags}}, "|")) & "|"`
+    labelTerms.push(`FIND("|" & LOWER("${label}") & "|", ${joined}) > 0`)
+  }
+  if (labelTerms.length === 1) terms.push(labelTerms[0])
+  if (labelTerms.length > 1) terms.push(`OR(${labelTerms.join(', ')})`)
+  return terms
 }
 
 export async function listConversationsPage(opts: {
@@ -268,10 +456,23 @@ export async function listConversationsPage(opts: {
   offset?: string
   /** Free-text filter across the conversation content (omit for all). */
   search?: string
+  /** Reviewer-verdict filter: any of 'Good' | 'Bad' | 'Unsure' | 'Unrated'. */
+  review?: string[]
+  /** Only conversations carrying any of these exact labels. */
+  label?: string[]
 }): Promise<{ conversations: ConversationRow[]; offset: string | null }> {
   ensureConfig(CONVERSATIONS_TABLE)
   const want = Math.max(1, opts.pageSize ?? 200)
-  const formula = searchFormula(opts.search)
+  const terms = [
+    ...(searchFormula(opts.search) ? [searchFormula(opts.search)!] : []),
+    ...reviewFilterTerms(opts),
+  ]
+  const formula =
+    terms.length === 0
+      ? undefined
+      : terms.length === 1
+        ? terms[0]
+        : `AND(${terms.join(', ')})`
   const out: AirtableRow<ConversationFields>[] = []
   // Airtable caps a single request at 100 records, so loop until we've
   // gathered `want` (or run out), carrying Airtable's offset between requests.
@@ -302,8 +503,8 @@ export async function listConversationsPage(opts: {
 
 /** Every conversation created inside the given window (epoch-ms bounds, either
  *  side open), fetched with only the fields the analytics dashboard's chatbot
- *  panels read — Data (the transcript) and Clicked — so the payload stays as
- *  small as the ever-growing log allows. */
+ *  panels read — Data (the transcript), Clicked and Ratings — so the payload
+ *  stays as small as the ever-growing log allows. */
 export async function listConversationsForStats(range: {
   startMs: number | null
   endMs: number | null
@@ -330,21 +531,31 @@ export async function listConversationsForStats(range: {
   params.set('returnFieldsByFieldId', 'true')
   params.append('fields[]', FIELD.data)
   params.append('fields[]', FIELD.clicked)
+  params.append('fields[]', FIELD.ratings)
   const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
   return rows.map(rowToConversation)
 }
 
 export async function updateConversation(
   id: string,
-  patch: { notes?: string; tags?: string[] }
+  patch: { notes?: string; tags?: string[]; review?: ReviewValue | null }
 ): Promise<ConversationRow> {
   ensureConfig(CONVERSATIONS_TABLE)
   const fields: ConversationFields = {}
   if (patch.notes !== undefined) fields[FIELD.notes] = patch.notes
   if (patch.tags !== undefined) fields[FIELD.tags] = patch.tags
+  // null clears the verdict (the reviewer clicked their rating off again).
+  if (patch.review !== undefined) fields[FIELD.review] = patch.review
+  // typecast lets a label that isn't yet a Tags option create itself, so
+  // reviewers can define new labels on the go. The route validates Review
+  // against REVIEW_VALUES, so typecast can't invent verdict options.
   const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ fields, returnFieldsByFieldId: true }),
+    body: JSON.stringify({
+      fields,
+      returnFieldsByFieldId: true,
+      typecast: true,
+    }),
   })
   if (!res.ok) {
     throw new Error(`Airtable update failed: ${res.status} ${await res.text()}`)
@@ -352,6 +563,63 @@ export async function updateConversation(
   return rowToConversation(
     (await res.json()) as AirtableRow<ConversationFields>
   )
+}
+
+/** One conversation by record id — for the log's shareable links, which may
+ *  point at a conversation older than the page the viewer has loaded. Null
+ *  when the id doesn't exist (a deleted row, or a mangled link). */
+export async function getConversation(
+  id: string
+): Promise<ConversationRow | null> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  const params = new URLSearchParams()
+  params.set('returnFieldsByFieldId', 'true')
+  const res = await airtableRequest(
+    `${CONVERSATIONS_TABLE}/${encodeURIComponent(id)}?${params.toString()}`
+  )
+  if (res.status === 404) return null
+  if (!res.ok) {
+    throw new Error(`Airtable get failed: ${res.status} ${await res.text()}`)
+  }
+  return rowToConversation(
+    (await res.json()) as AirtableRow<ConversationFields>
+  )
+}
+
+/** How many conversations carry each label and each Review verdict (with
+ *  'Unrated' for rows nobody has judged), for the filter pills' counts and
+ *  the label pickers' vocabulary. Reads only the Tags and Review columns, so
+ *  the scan stays light as the log grows. */
+export async function listAnnotationFacets(): Promise<{
+  labels: Record<string, number>
+  ratings: Record<string, number>
+}> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  const params = new URLSearchParams()
+  params.set('returnFieldsByFieldId', 'true')
+  params.append('fields[]', FIELD.tags)
+  params.append('fields[]', FIELD.review)
+  const rows = await listAll<ConversationFields>(CONVERSATIONS_TABLE, params)
+  const labels: Record<string, number> = {}
+  const ratings: Record<string, number> = {
+    Good: 0,
+    Bad: 0,
+    Unsure: 0,
+    Unrated: 0,
+  }
+  for (const row of rows) {
+    const tags = row.fields[FIELD.tags]
+    if (Array.isArray(tags)) {
+      for (const t of tags) {
+        if (typeof t === 'string' && t.trim()) {
+          labels[t] = (labels[t] ?? 0) + 1
+        }
+      }
+    }
+    const review = parseReview(row.fields[FIELD.review])
+    ratings[review === '' ? 'Unrated' : review] += 1
+  }
+  return { labels, ratings }
 }
 
 async function findConversationBySession(
@@ -382,6 +650,7 @@ export async function upsertConversation(input: {
   user: string
   response: string
   history: HistoryTurn[]
+  historyIndices: number[]
   tools: unknown
   fallbackCards: string[]
   citations: string[]
@@ -409,6 +678,7 @@ export async function upsertConversation(input: {
     user: input.user,
     response: input.response,
     history: input.history,
+    historyIndices: input.historyIndices,
     tools: previous ? [...previous.tools, input.tools] : [input.tools],
     // Same per-turn alignment as tools. Older rows have no fallbackCards key;
     // starting the array now still aligns because the viewer matches turns
@@ -441,6 +711,21 @@ export async function upsertConversation(input: {
     ...(input.status ? { status: input.status } : {}),
   }
 
+  // Airtable rejects long-text values over 100,000 characters, and a rejected
+  // write loses the whole turn. The route already windows history to 50
+  // messages, which fits comfortably at typical message sizes; this is the
+  // backstop for the rare chat of very long replies. Drop the oldest messages
+  // until the serialized row fits — the transcript viewer already handles a
+  // window that opens mid-exchange, and the per-turn arrays keep the true
+  // turn count.
+  let serialized = JSON.stringify(data)
+  while (serialized.length > MAX_DATA_CHARS && data.history.length > 2) {
+    data.history = data.history.slice(1)
+    // Keep the position map aligned with what remains.
+    data.historyIndices = data.historyIndices?.slice(1)
+    serialized = JSON.stringify(data)
+  }
+
   const fields: ConversationFields = {
     [FIELD.session]: input.session ?? '',
     // The page where the conversation STARTED — written on create, never
@@ -451,7 +736,7 @@ export async function upsertConversation(input: {
     ...(existing ? {} : { [FIELD.page]: input.page }),
     [FIELD.latencyMs]: input.latencyMs,
     [FIELD.promptVersion]: input.promptVersion,
-    [FIELD.data]: JSON.stringify(data),
+    [FIELD.data]: serialized,
   }
 
   const res = existing
@@ -498,6 +783,97 @@ export async function recordCitationClick(
   if (!res.ok) {
     throw new Error(
       `Airtable click update failed: ${res.status} ${await res.text()}`
+    )
+  }
+}
+
+/** Records the visitor's thumbs rating of one bot reply. Reads-modifies-writes
+ *  only the Ratings field (disjoint from the turn upsert's fields and from
+ *  Clicked, so none of the three writers can clobber another). A switched
+ *  thumb overwrites the earlier value for that turn; re-sending the same value
+ *  is a no-op. Like clicks, a rating that arrives before the conversation row
+ *  exists is dropped rather than creating a dataless row. */
+export async function recordMessageRating(
+  session: string,
+  turnIndex: number,
+  value: MessageRatingValue
+): Promise<void> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  const existing = await findConversationBySession(session)
+  if (!existing) return
+  const current = parseRatings(str(existing.fields[FIELD.ratings]) || undefined)
+  const key = String(turnIndex)
+  if (current[key] === value) return
+  const next: MessageRatings = { ...current, [key]: value }
+  const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      fields: { [FIELD.ratings]: JSON.stringify(next) },
+    }),
+  })
+  if (!res.ok) {
+    throw new Error(
+      `Airtable rating update failed: ${res.status} ${await res.text()}`
+    )
+  }
+}
+
+// How long to wait for a conversation's row to appear before giving up on a
+// delivery report (see recordTurnDelivery).
+const DELIVERY_ROW_WAIT_ATTEMPTS = 4
+const DELIVERY_ROW_WAIT_MS = 1500
+
+/** Records what the visitor's browser reported about one reply. Merges the
+ *  patch into that turn's entry, so the outcome ('received' with the panel
+ *  state) and a later 'seen' land in the same object. Reads-modifies-writes
+ *  only the Delivery field — its own column, like Clicked and Ratings, so
+ *  none of the out-of-band writers can clobber the turn upsert or each other.
+ *
+ *  Unlike clicks and ratings, the main report ('received') fires the instant
+ *  the stream ends in the browser — the same moment the server's own turn
+ *  write starts (in after(), once the stream closes). On a conversation's
+ *  FIRST turn the row usually doesn't exist yet when the report arrives, so
+ *  rather than dropping it we wait briefly for the row. Still missing after
+ *  that (the turn write failed, or the browser is excluded from logging)
+ *  → warn and drop, never create a dataless row. */
+export async function recordTurnDelivery(
+  session: string,
+  turnIndex: number,
+  patch: Partial<TurnDelivery>
+): Promise<void> {
+  ensureConfig(CONVERSATIONS_TABLE)
+  let existing = await findConversationBySession(session)
+  for (
+    let attempt = 0;
+    !existing && attempt < DELIVERY_ROW_WAIT_ATTEMPTS;
+    attempt++
+  ) {
+    await new Promise(resolve => setTimeout(resolve, DELIVERY_ROW_WAIT_MS))
+    existing = await findConversationBySession(session)
+  }
+  if (!existing) {
+    console.warn(
+      `[assistant] delivery report dropped — no conversation row for session ${session} after ${(DELIVERY_ROW_WAIT_ATTEMPTS * DELIVERY_ROW_WAIT_MS) / 1000}s`
+    )
+    return
+  }
+  const current = parseDelivery(
+    str(existing.fields[FIELD.delivery]) || undefined
+  )
+  const key = String(turnIndex)
+  const next: DeliveryByTurn = {
+    ...current,
+    [key]: { ...current[key], ...patch },
+  }
+  const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      fields: { [FIELD.delivery]: JSON.stringify(next) },
+    }),
+  })
+  if (!res.ok) {
+    throw new Error(
+      `Airtable delivery update failed: ${res.status} ${await res.text()}`
     )
   }
 }

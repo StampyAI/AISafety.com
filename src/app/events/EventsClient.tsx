@@ -340,16 +340,16 @@ function CitySearch({
   )
 }
 
-// Keeps the historical URLs: "In person" writes ?view=in-person (so old
-// shared links keep working) and "Online" keeps the bare URL, exactly as
-// when online was the default. The online set therefore has no URL of its
-// own — a bare link always opens the in-person default. replaceState (not
-// push) so toggling never stacks history entries; history.state is passed
-// through untouched because Next.js keeps its routing internals there.
+// "Online" writes ?view=online so the online set has a shareable URL;
+// "In person" is the default and keeps the bare URL. Old ?view=in-person
+// links still resolve to the in-person set via applyViewParam's fallback.
+// replaceState (not push) so toggling never stacks history entries;
+// history.state is passed through untouched because Next.js keeps its
+// routing internals there.
 function syncViewParam(next: Mode) {
   const url = new URL(window.location.href)
-  if (next === 'online') url.searchParams.delete('view')
-  else url.searchParams.set('view', next)
+  if (next === 'online') url.searchParams.set('view', next)
+  else url.searchParams.delete('view')
   window.history.replaceState(window.history.state, '', url)
 }
 
@@ -377,14 +377,13 @@ export default function EventsClient({ events }: EventsClientProps) {
 
   const toggleAnchorRef = useRef<HTMLDivElement>(null)
 
-  // URL -> state, fed by ViewParamSync below. A bare URL keeps the current
-  // set: switching to Online clears the param, so null can mean "online,
-  // just toggled" as well as "fresh load" (where state already holds the
-  // in-person default). Unknown values fall through to the default; a deep
-  // link doesn't auto-scroll the way a click does. Landing on online drops
-  // the city filter, mirroring switchMode.
+  // URL -> state, fed by ViewParamSync below. Only ?view=online selects the
+  // online set; anything else — the bare URL (the default, also what
+  // switching back to In person leaves behind), legacy ?view=in-person
+  // links, unknown values — resolves to in person. A deep link doesn't
+  // auto-scroll the way a click does. Landing on online drops the city
+  // filter, mirroring switchMode.
   const applyViewParam = useCallback((view: string | null) => {
-    if (view === null) return
     const next: Mode = view === 'online' ? 'online' : 'in-person'
     if (next === 'online') setSelectedCities([])
     setMode(next)
@@ -409,7 +408,21 @@ export default function EventsClient({ events }: EventsClientProps) {
     [events, mode]
   )
 
-  const featuredEvents = useMemo(() => selectFeatured(modeEvents), [modeEvents])
+  // Events whose applications/registrations closed (competitions can run for
+  // months after their deadline) are passed over when an open backup is
+  // queued behind them, matching /training. Hybrid events are featured under
+  // Online only — in the In person view they appear in the grid but never in
+  // the featured row.
+  const featuredEvents = useMemo(
+    () =>
+      selectFeatured(
+        mode === 'online'
+          ? modeEvents
+          : modeEvents.filter(e => e.mode !== 'Hybrid'),
+        e => e.applicationStatus === 'Open'
+      ),
+    [modeEvents, mode]
+  )
 
   // Each event's slot in the full (unfiltered) order of the active mode, so a
   // click is tagged with the rank the visitor saw — not its position within an
@@ -538,14 +551,14 @@ export default function EventsClient({ events }: EventsClientProps) {
           ariaLabel="Event format"
           tabs={[
             {
-              value: 'online',
-              icon: '/images/icons/computer.svg',
-              label: 'Online',
-            },
-            {
               value: 'in-person',
               icon: '/images/icons/pin.svg',
               label: 'In person',
+            },
+            {
+              value: 'online',
+              icon: '/images/icons/computer.svg',
+              label: 'Online',
             },
           ]}
         />

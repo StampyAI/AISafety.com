@@ -44,7 +44,18 @@ export async function checkAssistantRateLimit(
     return { ok: true }
   }
 
-  const dayResult = await dailyLimit.limit(ip)
+  let dayResult
+  try {
+    dayResult = await dailyLimit.limit(ip)
+  } catch (err) {
+    // Redis unreachable or over its request quota (e.g. the Upstash monthly
+    // command cap). Fail open like allowTrack does — losing the rate check
+    // must not take the whole assistant down with it.
+    console.warn(
+      `[rate-limit] Redis check failed – allowing request: ${err instanceof Error ? err.message : String(err)}`
+    )
+    return { ok: true }
+  }
   if (!dayResult.success) {
     return {
       ok: false,

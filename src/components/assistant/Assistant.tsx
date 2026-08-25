@@ -7,7 +7,10 @@ import { getPageContext } from '@/lib/assistant/page-context'
 import { suggestFormUrl } from '@/lib/assistant/constants'
 import { trackEvent, isTrackingOptedOut } from '@/lib/analytics'
 import type { CitationRef } from '@/lib/assistant/types'
-import ChatBody, { type ChatBodyHandle } from './ChatBody'
+import ChatBody, {
+  type ChatBodyHandle,
+  type TurnLifecycleEvent,
+} from './ChatBody'
 import Icon from '@/components/Icon'
 import styles from './Assistant.module.css'
 
@@ -45,6 +48,23 @@ interface GeoFallback {
   city?: string
   region?: string
   country?: string
+}
+
+/** A reply currently streaming in, plus what's happened to its surroundings
+ *  since the visitor hit send. */
+interface LiveTurn {
+  turnIndex: number
+  sentAt: number
+  /** ms after send that the panel was first closed, if it was. */
+  panelClosedAtMs?: number
+  /** ms after send that the tab first went to the background, if it did. */
+  tabHiddenAtMs?: number
+}
+
+function tabIsVisible(): boolean {
+  return typeof document === 'undefined'
+    ? true
+    : document.visibilityState === 'visible'
 }
 
 const GEO_CACHE_KEY = 'aisafety-assistant-geo-v1'
@@ -205,10 +225,138 @@ export default function Assistant() {
     [currentPage, fireLog]
   )
 
+  const handleRate = useCallback(
+    (value: 'up' | 'down', turnIndex: number) => {
+      void fireLog({
+        kind: 'rating',
+        value,
+        turnIndex,
+        currentPage,
+        sessionId: getSessionId(),
+      })
+      trackEvent('chatbot_rating', { label: value, page: currentPage })
+    },
+    [currentPage, fireLog]
+  )
+
   const handleClear = useCallback(() => {
     chatRef.current?.clear()
     setHasMessages(false)
   }, [])
+
+  // ── Delivery reporting ──────────────────────────────────────────────────
+  // The server knows when it finished generating a reply; only the browser
+  // knows whether anyone was there for it. So the browser reports back, per
+  // turn: the stream finishing here ('received', with whether the panel was
+  // open and the tab visible at that moment), the visitor pressing Stop, the
+  // page being unloaded mid-reply ('left'), and — if the reply arrived out of
+  // view — the moment it was brought back into view ('seen'). Along the way
+  // we note the first time the panel was closed or the tab hidden while the
+  // reply was still streaming. All of it lands on the conversation row's
+  // Delivery field for the admin log.
+  const isOpenRef = useRef(isOpen)
+  const liveTurnRef = useRef<LiveTurn | null>(null)
+  // A reply that arrived while the panel was closed or the tab hidden, not
+  // yet brought into view.
+  const unseenRef = useRef<{ turnIndex: number; sentAt: number } | null>(null)
+
+  const reportDelivery = useCallback(
+    (
+      outcome: 'received' | 'stopped' | 'error' | 'left',
+      live: LiveTurn,
+      ms: number
+    ) => {
+      void fireLog({
+        kind: 'delivery',
+        outcome,
+        turnIndex: live.turnIndex,
+        ms,
+        panelOpen: isOpenRef.current,
+        tabVisible: tabIsVisible(),
+        panelClosedAtMs: live.panelClosedAtMs,
+        tabHiddenAtMs: live.tabHiddenAtMs,
+        currentPage,
+        sessionId: getSessionId(),
+      })
+    },
+    [currentPage, fireLog]
+  )
+
+  // If an out-of-view reply is now in view (panel open AND tab visible),
+  // report it seen. Called whenever either of those flips back on.
+  const reportSeenIfVisible = useCallback(() => {
+    const unseen = unseenRef.current
+    if (!unseen || !isOpenRef.current || !tabIsVisible()) return
+    unseenRef.current = null
+    void fireLog({
+      kind: 'delivery',
+      outcome: 'seen',
+      turnIndex: unseen.turnIndex,
+      ms: Date.now() - unseen.sentAt,
+      currentPage,
+      sessionId: getSessionId(),
+    })
+  }, [currentPage, fireLog])
+
+  const handleTurnLifecycle = useCallback(
+    (e: TurnLifecycleEvent) => {
+      if (e.phase === 'start') {
+        liveTurnRef.current = { turnIndex: e.turnIndex, sentAt: Date.now() }
+        // Sending a new message means the panel is open and in use — any
+        // earlier out-of-view reply has been superseded.
+        unseenRef.current = null
+        return
+      }
+      const live = liveTurnRef.current
+      if (!live || live.turnIndex !== e.turnIndex) return
+      liveTurnRef.current = null
+      reportDelivery(e.phase, live, e.ms)
+      if (e.phase === 'received' && (!isOpenRef.current || !tabIsVisible())) {
+        unseenRef.current = { turnIndex: live.turnIndex, sentAt: live.sentAt }
+      }
+    },
+    [reportDelivery]
+  )
+
+  // Panel open/closed: note a close mid-reply; a reopen may bring an
+  // out-of-view reply into view. Watching the state (rather than each close
+  // path) covers the X button, the pill, Escape and the scrim alike.
+  useEffect(() => {
+    isOpenRef.current = isOpen
+    const live = liveTurnRef.current
+    if (!isOpen && live && live.panelClosedAtMs == null) {
+      live.panelClosedAtMs = Date.now() - live.sentAt
+    }
+    if (isOpen) reportSeenIfVisible()
+  }, [isOpen, reportSeenIfVisible])
+
+  // Tab hidden/visible, and the page going away mid-reply. `pagehide` is the
+  // last reliable moment to get a request out as a tab closes; fireLog's
+  // keepalive lets the browser finish sending it after the page is gone.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (tabIsVisible()) {
+        reportSeenIfVisible()
+        return
+      }
+      const live = liveTurnRef.current
+      if (live && live.tabHiddenAtMs == null) {
+        live.tabHiddenAtMs = Date.now() - live.sentAt
+      }
+    }
+    const onPageHide = () => {
+      const live = liveTurnRef.current
+      if (!live) return
+      liveTurnRef.current = null
+      reportDelivery('left', live, Date.now() - live.sentAt)
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onPageHide)
+    }
+  }, [reportDelivery, reportSeenIfVisible])
 
   const buildBodyExtras = useCallback(async () => {
     const pageCtx = getPageContext()
@@ -341,7 +489,9 @@ export default function Assistant() {
           onSuggest={handleSuggest}
           onCitationClick={handleCitationClick}
           onLinkClick={handleLinkClick}
+          onRate={handleRate}
           onUserSend={handleUserSend}
+          onTurnLifecycle={handleTurnLifecycle}
           onHasMessagesChange={setHasMessages}
           resizeKey={`${isOpen}-${isExpanded}`}
         />

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest } from 'next/server'
-import { isAdmin } from '@/lib/admin/auth'
+import { canViewChatbot } from '@/lib/admin/auth'
 import { getCatalog } from '@/lib/assistant/catalog'
 import {
   PAGES_BLOCK,
@@ -22,7 +22,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  if (!(await isAdmin())) {
+  if (!(await canViewChatbot())) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },

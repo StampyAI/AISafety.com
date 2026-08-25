@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
-import { fetchAirtableWithRetry } from '@/lib/data/airtable'
+import { hasChangesSince } from '@/lib/data/changed-since'
 
 // Force dynamic - this endpoint must run fresh on every cron invocation
 export const dynamic = 'force-dynamic'
@@ -78,40 +78,6 @@ let lastRateLimitedAt = 0
 const POST_TRIGGER_COOLDOWN_MS = 10 * 60 * 1000
 // After a 429, back off entirely so we stop adding to Vercel's rate-limit count.
 const RATE_LIMIT_COOLDOWN_MS = 15 * 60 * 1000
-
-// Uses LAST_MODIFIED_TIME() (a formula function) rather than any table's
-// "Last modified" field. The field may be configured as date-only, which
-// collapses intra-day edits to midnight UTC and hides same-day changes from
-// a later-that-day build. LAST_MODIFIED_TIME() always returns a full
-// timestamp regardless of how the field is displayed.
-async function hasChangesSince(
-  baseId: string,
-  token: string,
-  tableId: string,
-  since: Date,
-  filter?: string
-): Promise<boolean> {
-  const sinceIso = since.toISOString()
-  const timeCheck = `IS_AFTER(LAST_MODIFIED_TIME(), DATETIME_PARSE("${sinceIso}"))`
-  const formula = filter ? `AND(${filter}, ${timeCheck})` : timeCheck
-
-  const url = new URL(`https://api.airtable.com/v0/${baseId}/${tableId}`)
-  url.searchParams.set('filterByFormula', formula)
-  url.searchParams.set('maxRecords', '1')
-
-  const response = await fetchAirtableWithRetry(url.toString(), token, {
-    cache: 'no-store',
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      `Airtable fetch failed for ${tableId}: ${response.status} ${response.statusText}`
-    )
-  }
-
-  const data = await response.json()
-  return (data.records?.length ?? 0) > 0
-}
 
 export async function GET(request: Request) {
   // Vercel cron jobs include this auth header automatically

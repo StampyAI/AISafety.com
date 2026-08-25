@@ -5,11 +5,12 @@
 
 import { franc } from 'franc-min'
 import { PAGES, DEFAULT_CHIPS } from '@/lib/assistant/pages'
-import { extractChips } from '@/lib/assistant/tokens'
+import { extractChips, stripChipTokens } from '@/lib/assistant/tokens'
 import {
   isConversationsTableConfigured,
   listConversationsForStats,
   type ConversationRow,
+  type HistoryTurn,
 } from '@/lib/admin/airtable'
 import type { Counted, DateRange } from './events'
 
@@ -20,6 +21,22 @@ export interface TopQuestion {
   count: number
   /** True when it matches one of the chatbot's suggested-question chips. */
   suggested: boolean
+}
+
+/** One thumbs-rated bot reply, for the dashboard's rated-replies table. */
+export interface RatedReply {
+  /** When the visitor sent the message this reply answered (ISO). Falls back
+   *  to the conversation's creation time for rows without per-turn times. */
+  at: string
+  rating: 'up' | 'down'
+  /** The visitor's message the reply answered, or null when that turn has
+   *  fallen out of the stored (windowed) history. */
+  question: string | null
+  /** The reply itself as plain text (card/chip markers stripped), or null
+   *  when it's fallen out of the stored history. */
+  reply: string | null
+  /** Page the chat was open on for that turn ('/funding', …), when stored. */
+  page: string | null
 }
 
 export interface ConversationStats {
@@ -43,6 +60,18 @@ export interface ConversationStats {
   /** Share (0–1) of conversations where the visitor clicked a listing card or
    *  link out of a reply, or null with no data. */
   clickedShare: number | null
+  /** Bot replies the visitor rated thumbs up / thumbs down (each reply counts
+   *  once, under its final rating — a switched thumb overwrites). */
+  ratedUp: number
+  ratedDown: number
+  /** Share (0–1) of rated replies that got a thumbs up, or null when nothing
+   *  in the range was rated. */
+  thumbsUpShare: number | null
+  /** Share (0–1) of conversations where the visitor rated at least one reply,
+   *  or null with no data. */
+  ratedConversationShare: number | null
+  /** Every rated reply in the range, newest first. */
+  ratedReplies: RatedReply[]
   /** Conversations bucketed by how many messages the visitor sent. */
   lengthBuckets: Counted[]
   /** Conversations bucketed by auto-detected language, busiest first. */
@@ -58,6 +87,11 @@ const EMPTY_STATS: ConversationStats = {
   suggestedShare: null,
   followUpMessageShare: null,
   clickedShare: null,
+  ratedUp: 0,
+  ratedDown: 0,
+  thumbsUpShare: null,
+  ratedConversationShare: null,
+  ratedReplies: [],
   lengthBuckets: [],
   languages: [],
   topQuestions: [],
@@ -103,6 +137,79 @@ function conversationLength(row: ConversationRow): number {
     return d.turnTimes.length
   if (Array.isArray(d.tools) && d.tools.length > 0) return d.tools.length
   return userMessages(row).length
+}
+
+/** `[[card:ID|note]]` and `[[suggest:type]]` markers in a reply — dropped for
+ *  the plain-text snippet. */
+const CARD_OR_SUGGEST_TOKEN = /\[\[\s*(?:card|suggest)\s*:[^\]\n]*\]\]/gi
+/** End of the model's reasoning; the answer is what follows the LAST one
+ *  (same rule as the transcript viewer and the live renderer). */
+const THINKING_DONE = /\[\[\s*\/\s*thinking\s*\]\]/gi
+
+/** A stored reply as the readable answer: reasoning before the final
+ *  thinking marker dropped, card/suggest/chip markers removed, whitespace
+ *  collapsed. */
+function replyText(raw: string): string {
+  let answer = raw
+  let last: RegExpExecArray | null = null
+  THINKING_DONE.lastIndex = 0
+  for (let m = THINKING_DONE.exec(raw); m; m = THINKING_DONE.exec(raw)) {
+    last = m
+  }
+  if (last) answer = raw.slice(last.index + last[0].length)
+  return stripChipTokens(answer.replace(CARD_OR_SUGGEST_TOKEN, ''))
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** The per-turn entry (turn time, page) behind the message at history index
+ *  `msgIdx`. The per-turn arrays hold one entry per logged turn since the
+ *  conversation began while the history is a sliding window, so the two are
+ *  aligned from the END: the window's last user message belongs to the last
+ *  entry, and so on backwards. Same rule the Conversation Log viewer uses. */
+function turnEntryFor(
+  history: HistoryTurn[],
+  entries: unknown[],
+  msgIdx: number
+): unknown {
+  const totalUsers = history.filter(t => t.role === 'user').length
+  const usersUpToHere = history
+    .slice(0, msgIdx)
+    .filter(t => t.role === 'user').length
+  return entries[entries.length - 1 - (totalUsers - usersUpToHere)]
+}
+
+/** The rated replies on one conversation row. The rating's turn index is the
+ *  reply's position in the message list, which matches the stored history
+ *  unless the conversation outgrew the history window (or an errored turn
+ *  left the two out of step) — then the reply text can't be recovered and
+ *  the entry keeps only its rating and time. */
+function ratedRepliesOf(row: ConversationRow): RatedReply[] {
+  const out: RatedReply[] = []
+  const d = row.data
+  for (const [key, rating] of Object.entries(row.ratings)) {
+    const idx = Number(key)
+    if (!Number.isInteger(idx) || idx < 0) continue
+    const reply = d?.history[idx]
+    const question = idx > 0 ? d?.history[idx - 1] : undefined
+    const aligned = reply?.role === 'assistant' && question?.role === 'user'
+    // Look the turn up by the user message that started it (index idx - 1;
+    // the slice bound idx includes it), so the time/page belong to this reply.
+    const at = aligned
+      ? turnEntryFor(d!.history, d!.turnTimes ?? [], idx)
+      : undefined
+    const page = aligned
+      ? turnEntryFor(d!.history, d!.pages ?? [], idx)
+      : undefined
+    out.push({
+      at: typeof at === 'string' ? at : row.createdAt,
+      rating,
+      question: aligned ? question!.content : null,
+      reply: aligned ? replyText(reply!.content) : null,
+      page: typeof page === 'string' ? page : null,
+    })
+  }
+  return out
 }
 
 /** ISO 639-3 codes franc may return here, mapped to display names. Detection
@@ -196,19 +303,92 @@ const NEUTRAL_WORDS = new Set([
  *  real queries, because trigram detection (franc) misreads short English as
  *  its Latin-script neighbours. franc then only judges texts that don't look
  *  English, which is what it's good at. 'Unknown' when there's too little to
- *  call. */
+ *  call.
+ *
+ *  The word check judges each message on its own, not the conversation
+ *  joined: a conversation that starts in English and switches language would
+ *  otherwise read as English overall, because the joined text stays mostly
+ *  English words. When both English and non-English messages exist, the
+ *  non-English side names the conversation (the visitor's own language is
+ *  the informative one) — but only when it carries enough words
+ *  (FOREIGN_WORDS_MIN) for franc's verdict to be trustworthy. Below that,
+ *  everything is judged joined as one text, exactly as before per-message
+ *  checks existed — franc misreads short English tech-speak ("Full stack
+ *  engineer JavaScript angular Java" reads as Swedish), so a few odd words
+ *  must not outvote clear English. */
+const FOREIGN_WORDS_MIN = 12
+/** Non-Latin letters it takes for the non-Latin part of a conversation to be
+ *  judged on its own (fewer could be a stray symbol in a pasted formula). */
+const NON_LATIN_MIN = 20
+/** Pasted links say nothing about the writer's language. */
+const stripUrls = (text: string) => text.replace(/\bhttps?:\/\/\S+/gi, ' ')
 function detectLanguage(messages: string[]): string {
-  const typed = messages.filter(m => !CHIP_TEXTS.has(normalize(m)))
+  const typed = messages
+    .filter(m => !CHIP_TEXTS.has(normalize(m)))
+    .map(stripUrls)
   if (typed.length === 0) return messages.length > 0 ? 'English' : 'Unknown'
+
+  const scorableWords = (text: string) =>
+    (text.toLowerCase().match(/[\p{L}']+/gu) ?? []).filter(
+      w => !NEUTRAL_WORDS.has(w)
+    )
+  const looksEnglish = (scorable: string[]) => {
+    const hits = scorable.filter(w => ENGLISH_WORDS.has(w)).length
+    return hits / scorable.length >= 0.4
+  }
+
+  let sawEnglish = false
+  let sawWords = false
+  const foreign: string[] = []
+  let foreignWords = 0
+  for (const m of typed) {
+    const words = m.toLowerCase().match(/[\p{L}']+/gu) ?? []
+    if (words.length === 0) continue // numbers/punctuation say nothing
+    sawWords = true
+    const scorable = words.filter(w => !NEUTRAL_WORDS.has(w))
+    if (scorable.length === 0 || looksEnglish(scorable)) {
+      sawEnglish = true // all-neutral ("AI safety") counts as English
+      continue
+    }
+    foreign.push(m)
+    foreignWords += scorable.length
+  }
+  if (!sawWords) return 'Unknown'
+  if (foreign.length === 0) return 'English'
+
+  // A clear-English conversation with a substantial non-English part: the
+  // non-English part names it. franc still gets the messages joined, so
+  // short ones don't starve it.
+  if (!sawEnglish || foreignWords >= FOREIGN_WORDS_MIN) {
+    // The visitor's own script is decisive. Pasted English paper titles and
+    // similar Latin-script noise can outvote a non-Latin script in franc's
+    // trigram counts — but nobody writes Arabic (or Chinese, Russian, …) by
+    // accident, so when the non-English part holds real non-Latin text,
+    // judge just the messages written mostly in it.
+    const letters = (t: string) => (t.match(/\p{L}/gu) ?? []).length
+    const latin = (t: string) => (t.match(/\p{Script=Latin}/gu) ?? []).length
+    const nonLatinTotal = foreign.reduce(
+      (sum, m) => sum + letters(m) - latin(m),
+      0
+    )
+    const decisive =
+      nonLatinTotal >= NON_LATIN_MIN
+        ? foreign.filter(m => latin(m) < letters(m) / 2)
+        : foreign
+    const code = franc(decisive.join(' '), { only: DETECTABLE })
+    const name = LANGUAGE_NAMES[code]
+    // franc couldn't call it (or thinks it's English after all): fall back
+    // on the clear English evidence when there is some.
+    if (name == null || name === 'English')
+      return sawEnglish ? 'English' : (name ?? 'Unknown')
+    return name
+  }
+
+  // Too little non-English text to trust a verdict on it alone — judge
+  // everything joined, the way single-language conversations always were.
   const text = typed.join(' ').trim()
-  if (!text) return 'Unknown'
-
-  const words = text.toLowerCase().match(/[\p{L}']+/gu) ?? []
-  const scorable = words.filter(w => !NEUTRAL_WORDS.has(w))
-  if (words.length > 0 && scorable.length === 0) return 'English' // e.g. "AI safety"
-  const hits = scorable.filter(w => ENGLISH_WORDS.has(w)).length
-  if (hits / scorable.length >= 0.4) return 'English'
-
+  const scorable = scorableWords(text)
+  if (scorable.length === 0 || looksEnglish(scorable)) return 'English'
   const code = franc(text, { only: DETECTABLE })
   return LANGUAGE_NAMES[code] ?? 'Unknown'
 }
@@ -309,6 +489,10 @@ export async function readConversationStats(
   let clicked = 0
   let totalMessages = 0
   let pillMessages = 0
+  let ratedUp = 0
+  let ratedDown = 0
+  let ratedConversations = 0
+  const ratedReplies: RatedReply[] = []
 
   for (const row of rows) {
     const messages = userMessages(row)
@@ -318,6 +502,13 @@ export async function readConversationStats(
       languages.push(detectLanguage(messages))
     }
     if (row.clickedCitations.length > 0) clicked += 1
+    const rated = ratedRepliesOf(row)
+    if (rated.length > 0) ratedConversations += 1
+    for (const r of rated) {
+      if (r.rating === 'up') ratedUp += 1
+      else ratedDown += 1
+      ratedReplies.push(r)
+    }
     const pills = countFollowUpMessages(row)
     totalMessages += pills.messages
     pillMessages += pills.followUps
@@ -350,6 +541,14 @@ export async function readConversationStats(
     followUpMessageShare:
       totalMessages > 0 ? pillMessages / totalMessages : null,
     clickedShare: rows.length > 0 ? clicked / rows.length : null,
+    ratedUp,
+    ratedDown,
+    thumbsUpShare:
+      ratedUp + ratedDown > 0 ? ratedUp / (ratedUp + ratedDown) : null,
+    ratedConversationShare:
+      rows.length > 0 ? ratedConversations / rows.length : null,
+    // ISO timestamps compare chronologically as strings.
+    ratedReplies: ratedReplies.sort((a, b) => (a.at < b.at ? 1 : -1)),
     // Buckets in display order (1 → 11+), only the non-empty ones.
     lengthBuckets: LENGTH_BUCKETS.map(b => ({
       name: b.label,

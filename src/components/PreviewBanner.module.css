@@ -1,0 +1,66 @@
+/* The floating switch pills, fixed bottom middle so they overlay the page
+   without shifting any layout (fidelity with the public pages is the whole
+   point of preview mode), clear of the scroll-to-top arrow (bottom-left) and
+   the chatbot (bottom-right). Both states are one compact button. */
+.pill {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(8, 27, 38, 0.85);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.pill:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Preview side: pink accents mark the mode; click returns to public. */
+.exit {
+  composes: pill;
+  border: 1px solid rgba(255, 45, 149, 0.6);
+  color: #fff;
+}
+
+.exit:hover:not(:disabled) {
+  /* Pink tint layered over the dark base — replacing the base color here
+     would make the pill see-through on hover. */
+  background:
+    linear-gradient(rgba(255, 45, 149, 0.15), rgba(255, 45, 149, 0.15)),
+    rgba(8, 27, 38, 0.85);
+}
+
+.buildNote {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff2d95;
+}
+
+/* Public side: quiet — it sits on the real site all day for signed-in
+   editors, so it must not compete with page content. */
+.enter {
+  composes: pill;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.enter:hover:not(:disabled) {
+  border-color: rgba(255, 45, 149, 0.6);
+  color: #fff;
+}

@@ -1,0 +1,78 @@
+.stateOn {
+  color: #ff2d95;
+}
+
+.stateOff {
+  color: var(--teal-400);
+}
+
+.previewNote {
+  color: #ff2d95;
+  font-weight: 400;
+}
+
+.toggleWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggleError {
+  font-size: 12px;
+  color: #ff6b6b;
+}
+
+.buttonOn,
+.buttonOff {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.buttonOn {
+  border: 1px solid #ff2d95;
+  background: rgba(255, 45, 149, 0.12);
+  color: #fff;
+}
+
+.buttonOn:hover:not(:disabled) {
+  background: rgba(255, 45, 149, 0.25);
+}
+
+.buttonOff {
+  border: 1px solid var(--teal-700);
+  background: var(--teal-900);
+  color: #fff;
+}
+
+.buttonOff:hover:not(:disabled) {
+  background: var(--teal-800);
+}
+
+.buttonOn:disabled,
+.buttonOff:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pageLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pageLink {
+  padding: 6px 12px;
+  border: 1px solid var(--teal-800);
+  border-radius: 999px;
+  background: var(--teal-900);
+  font-size: 13px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.pageLink:hover {
+  border-color: var(--teal-600);
+}

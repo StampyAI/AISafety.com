@@ -8,6 +8,7 @@ import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
 import { positionTooltip } from '@/lib/mapTooltip'
 import { trackListingClick, trackListingHover } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 
 interface CommunitiesMapProps {
   communities: Community[]
@@ -403,7 +404,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
               undefined,
               'map'
             )
-            openInNewTab(link)
+            openInNewTab(withUtm(link, 'Communities'))
           }
           return
         }
@@ -465,7 +466,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
                 undefined,
                 'map'
               )
-            openInNewTab(lnk)
+            openInNewTab(withUtm(lnk, 'Communities'))
           }
           e.stopPropagation()
         }

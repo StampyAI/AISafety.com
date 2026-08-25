@@ -29,9 +29,11 @@ export default function ThinkingBlock({
 }: Props) {
   const [open, setOpen] = useState(false)
   const searchCount = toolCalls.length
-  // "Searched N times" would miscount page reads as searches, so a turn with
-  // any read_listing_page call gets a neutral verb instead.
-  const hasPageRead = toolCalls.some(tc => tc.name === 'read_listing_page')
+  // "Searched N times" would miscount page reads and round-history lookups
+  // as searches, so a turn with any such call gets a neutral verb instead.
+  const hasPageRead = toolCalls.some(
+    tc => tc.name === 'read_listing_page' || tc.name === 'get_program_history'
+  )
   const label =
     searchCount === 0
       ? 'Thought it through'
@@ -66,7 +68,7 @@ export default function ThinkingBlock({
       {open && (
         <div className={styles.thinkBody}>
           {events.map((ev, i) => {
-            if (ev.kind === 'thinking_done') return null
+            if (ev.kind === 'thinking_done' || ev.kind === 'redo') return null
             if (ev.kind === 'text') {
               const stripped = stripChipTokens(ev.text)
               if (!stripped.trim()) return null

@@ -158,6 +158,21 @@ src/app/
         └── events/route.ts
 ```
 
+## Admin map editor
+
+`/admin/map` (owner password only, `mapEditor` capability in
+`src/lib/admin/auth.ts`) lets the owner drag logos on the Field map and writes
+the record's `x`/`y` to Airtable via `/api/admin/map` (GET live records,
+PATCH one move). It is deliberately a **copy** of the public map's rendering,
+not a shared component: `src/lib/admin/map-geometry.ts` mirrors the constants
+in `src/app/map/D3Map.tsx` and `map-geometry.test.ts` fails if they drift.
+The editor reads Airtable directly with `cache: 'no-store'` (unpublished rows
+included, `Hide?` rows excluded) – never through `fetchAirtableRecords` /
+`unstable_cache` – and never revalidates anything, so `/map`'s data path,
+cache and bundle are untouched. The only Airtable fields it can write are `x`
+and `y` (`buildPositionFields` in `map-editor-core.ts`; any other key in the
+request body is rejected). Publish?/Hide?/Scale stay in Airtable.
+
 ## Deployment
 
 - **Platform**: Vercel (recommended for Next.js)
@@ -177,10 +192,10 @@ As more pages are built, consider extracting:
 
 ### Testing
 
-Currently no tests. When adding:
-
-- Use Vitest or Jest for unit tests
-- Playwright for E2E (especially the D3 map)
+Unit tests run with Vitest (`npm test`, files `src/**/*.test.ts`, node
+environment, `@` alias resolves to `src`). Pure modules only – nothing that
+imports Next, d3 or the DOM. E2E is still manual (Playwright headless against a
+local server, especially for the D3 map).
 
 ### Performance
 

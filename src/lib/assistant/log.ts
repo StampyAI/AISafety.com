@@ -1,7 +1,10 @@
 import {
   isConversationsTableConfigured,
   recordCitationClick,
+  recordMessageRating,
+  recordTurnDelivery,
 } from '@/lib/admin/airtable'
+import type { TurnDelivery } from '@/lib/admin/airtable'
 
 export interface AssistantTurnEvent {
   kind: 'turn'
@@ -55,11 +58,62 @@ export interface AssistantSuggestEvent {
   sessionId?: string | null
 }
 
+export interface AssistantRatingEvent {
+  kind: 'rating'
+  /** Thumbs up or down on an assistant reply. */
+  value: 'up' | 'down'
+  /** Which assistant turn was rated (its index in the stored conversation
+   *  history), so the rating can be pinned to the exact turn. */
+  turnIndex: number
+  currentPage: string
+  /** Conversation this rating belongs to, so it can be recorded on the row. */
+  sessionId?: string | null
+}
+
+export const DELIVERY_OUTCOMES = [
+  'received',
+  'stopped',
+  'error',
+  'left',
+  'seen',
+] as const
+export type DeliveryOutcome = (typeof DELIVERY_OUTCOMES)[number]
+
+/** What happened to a reply on the visitor's side — the half of the story
+ *  the server can't see. Sent by the public chatbot: once when the turn ends
+ *  in the browser ('received' — the stream finished; 'stopped' — they pressed
+ *  Stop; 'error' — the browser hit an error; 'left' — the page was unloaded
+ *  mid-reply, sent as the tab closes), and again with 'seen' if a reply that
+ *  arrived out of view (panel closed / tab hidden) is later brought back into
+ *  view. Persisted per turn on the conversation row so the admin log can show
+ *  whether anyone was there for the answer. */
+export interface AssistantDeliveryEvent {
+  kind: 'delivery'
+  outcome: DeliveryOutcome
+  /** Which assistant turn (its index in the stored conversation history). */
+  turnIndex: number
+  /** Milliseconds from the visitor sending their message to this outcome. */
+  ms: number
+  /** Whether the chat panel was open at the moment of the outcome. */
+  panelOpen?: boolean
+  /** Whether the tab was visible at the moment of the outcome. */
+  tabVisible?: boolean
+  /** ms from send to the panel being closed mid-reply, if it was. */
+  panelClosedAtMs?: number
+  /** ms from send to the tab going to the background mid-reply, if it did. */
+  tabHiddenAtMs?: number
+  currentPage: string
+  /** Conversation this report belongs to, so it can be recorded on the row. */
+  sessionId?: string | null
+}
+
 export type AssistantEvent =
   | AssistantTurnEvent
   | AssistantClickEvent
   | AssistantOpenEvent
   | AssistantSuggestEvent
+  | AssistantRatingEvent
+  | AssistantDeliveryEvent
 
 export async function logAssistantEvent(event: AssistantEvent): Promise<void> {
   const line = JSON.stringify({
@@ -99,6 +153,57 @@ export async function logAssistantEvent(event: AssistantEvent): Promise<void> {
     } catch (err) {
       console.warn(
         `[assistant] click persist failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+    }
+  }
+
+  // Persist the thumbs rating onto the conversation row's own Ratings field
+  // (never Clicked or Data — each writer owns one field so out-of-band writes
+  // can't clobber each other). Keyed by turn index like clicks, so the admin
+  // transcript can badge the exact reply that was rated.
+  if (
+    event.kind === 'rating' &&
+    event.sessionId &&
+    isConversationsTableConfigured()
+  ) {
+    try {
+      await recordMessageRating(event.sessionId, event.turnIndex, event.value)
+    } catch (err) {
+      console.warn(
+        `[assistant] rating persist failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+    }
+  }
+
+  // Persist the browser's delivery report onto the row's own Delivery field,
+  // keyed by turn like clicks and ratings. The outcome and its timing go in
+  // under the outcome's name; the context (panel/tab state, when the panel was
+  // closed or the tab hidden mid-reply) rides along on the same entry, and a
+  // later 'seen' merges into it.
+  if (
+    event.kind === 'delivery' &&
+    event.sessionId &&
+    isConversationsTableConfigured()
+  ) {
+    const patch: Partial<TurnDelivery> = { [event.outcome]: event.ms }
+    if (event.outcome !== 'seen') {
+      if (typeof event.panelOpen === 'boolean')
+        patch.panelOpen = event.panelOpen
+      if (typeof event.tabVisible === 'boolean') {
+        patch.tabVisible = event.tabVisible
+      }
+      if (typeof event.panelClosedAtMs === 'number') {
+        patch.panelClosed = event.panelClosedAtMs
+      }
+      if (typeof event.tabHiddenAtMs === 'number') {
+        patch.tabHidden = event.tabHiddenAtMs
+      }
+    }
+    try {
+      await recordTurnDelivery(event.sessionId, event.turnIndex, patch)
+    } catch (err) {
+      console.warn(
+        `[assistant] delivery persist failed: ${err instanceof Error ? err.message : String(err)}`
       )
     }
   }

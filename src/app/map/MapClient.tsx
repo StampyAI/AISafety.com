@@ -3,14 +3,16 @@
 import dynamic from 'next/dynamic'
 import Icon from '@/components/Icon'
 import Image from 'next/image'
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import RelativeDate from '@/components/RelativeDate'
 import SearchBar from '@/components/SearchBar'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 import styles from './page.module.css'
 
 const D3Map = dynamic(() => import('./D3Map'), {
@@ -125,65 +127,72 @@ export default function MapClient({
     requestAnimationFrame(step)
   }
 
-  const filteredOrgs = useMemo(() => {
-    return orgs.filter(org => {
+  // Magic-map decorations are never listed; search applies on top.
+  const basePass = useCallback(
+    (org: MapOrg) => {
       if (org.isMagic) return false
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        org.title.toLowerCase().includes(query) ||
+        org.description.toLowerCase().includes(query)
+      )
+    },
+    [searchQuery]
+  )
 
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !org.title.toLowerCase().includes(query) &&
-          !org.description.toLowerCase().includes(query)
-        ) {
-          return false
-        }
-      }
+  const groups = useMemo(
+    () => ({
+      category: {
+        selected: selectedCategories,
+        matches: (org: MapOrg, value: string) =>
+          org.category
+            .split(',')
+            .map(c => c.trim())
+            .includes(value),
+      },
+      status: {
+        selected: [
+          ...(showActive ? ['Active'] : []),
+          ...(showInactive ? ['No longer active'] : []),
+        ],
+        matches: (org: MapOrg, value: string) =>
+          value === 'Active'
+            ? org.status === 'Active'
+            : org.status !== 'Active',
+      },
+    }),
+    [selectedCategories, showActive, showInactive]
+  )
 
-      if (selectedCategories.length > 0) {
-        const orgCategories = org.category.split(',').map(c => c.trim())
-        const hasMatchingCategory = selectedCategories.some(cat =>
-          orgCategories.includes(cat)
-        )
-        if (!hasMatchingCategory) return false
-      }
-
-      if (showActive || showInactive) {
-        const isActive = org.status === 'Active'
-        if (isActive && !showActive) return false
-        if (!isActive && !showInactive) return false
-      }
-
-      return true
-    })
-  }, [orgs, searchQuery, selectedCategories, showActive, showInactive])
+  const filteredOrgs = useMemo(
+    () => filterItems(orgs, basePass, groups),
+    [orgs, basePass, groups]
+  )
 
   const mapOrgs = useMemo(() => {
     return orgs.filter(org => org.x !== null && org.y !== null)
   }, [orgs])
 
-  const categoryCounts = useMemo(() => {
-    return orgs.reduce(
-      (counts, org) => {
-        if (org.isMagic) return counts
-        const orgCategories = org.category.split(',').map(c => c.trim())
-        for (const category of categories) {
-          if (orgCategories.includes(category)) {
-            counts[category] = (counts[category] || 0) + 1
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [orgs])
+  const categoryCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(orgs, basePass, groups, 'category'),
+        categories,
+        groups.category.matches
+      ),
+    [orgs, basePass, groups]
+  )
 
-  const activeCount = useMemo(() => {
-    return orgs.filter(org => !org.isMagic && org.status === 'Active').length
-  }, [orgs])
-
-  const inactiveCount = useMemo(() => {
-    return orgs.filter(org => !org.isMagic && org.status !== 'Active').length
-  }, [orgs])
+  const statusCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(orgs, basePass, groups, 'status'),
+        ['Active', 'No longer active'],
+        groups.status.matches
+      ),
+    [orgs, basePass, groups]
+  )
 
   const savedScrollY = useRef<number | null>(null)
 
@@ -250,7 +259,7 @@ export default function MapClient({
               {filteredOrgs.map(org => (
                 <a
                   key={org.id}
-                  href={org.link}
+                  href={withUtm(org.link, 'Map')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="card"
@@ -320,10 +329,7 @@ export default function MapClient({
                   ...(showActive ? ['Active'] : []),
                   ...(showInactive ? ['No longer active'] : []),
                 ]}
-                counts={{
-                  Active: activeCount,
-                  'No longer active': inactiveCount,
-                }}
+                counts={statusCounts}
                 onToggle={status => {
                   savedScrollY.current = window.scrollY
                   if (status === 'Active') setShowActive(!showActive)

@@ -57,7 +57,7 @@ export default function Footer() {
               <FooterLink
                 href="/hackathon"
                 section="Help us out"
-                label="Join the hackathon"
+                label="Hackathon 2026"
               />
             </div>
           </div>

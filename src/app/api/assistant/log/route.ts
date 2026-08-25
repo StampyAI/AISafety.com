@@ -1,15 +1,32 @@
 import { NextRequest, after } from 'next/server'
-import { logAssistantEvent } from '@/lib/assistant/log'
-import type { AssistantEvent } from '@/lib/assistant/log'
+import { DELIVERY_OUTCOMES, logAssistantEvent } from '@/lib/assistant/log'
+import type { AssistantEvent, DeliveryOutcome } from '@/lib/assistant/log'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 function isValidEvent(value: unknown): value is AssistantEvent {
   if (!value || typeof value !== 'object') return false
-  const v = value as { kind?: unknown }
+  const v = value as {
+    kind?: unknown
+    value?: unknown
+    turnIndex?: unknown
+    outcome?: unknown
+    ms?: unknown
+  }
   if (v.kind === 'click' || v.kind === 'open' || v.kind === 'suggest')
     return true
+  if (v.kind === 'rating')
+    return (
+      (v.value === 'up' || v.value === 'down') &&
+      typeof v.turnIndex === 'number'
+    )
+  if (v.kind === 'delivery')
+    return (
+      DELIVERY_OUTCOMES.includes(v.outcome as DeliveryOutcome) &&
+      typeof v.turnIndex === 'number' &&
+      typeof v.ms === 'number'
+    )
   return false
 }
 

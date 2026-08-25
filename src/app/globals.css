@@ -1045,6 +1045,18 @@ label {
   color: var(--teal-600);
 }
 
+/* Native <select> arrows sit flush against the edge and ignore padding, so
+   draw our own (same chevron as the filter pills). The 16px image has 4px of
+   internal margin, so `right 12px` puts the visible chevron 16px from the
+   edge – matching the text's left padding. */
+select.text-field {
+  appearance: none;
+  padding-right: 48px;
+  background-image: url('/images/chevron-down.svg');
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
 .checkbox {
   appearance: none;
   width: 24px;

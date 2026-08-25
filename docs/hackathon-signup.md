@@ -1,64 +1,318 @@
-# Hackathon application pipeline
+# Hackathon form pipelines
 
-The `/hackathon` page hosts the event info and an application form. Applications
-flow:
+Two forms share one pipeline: the public application form on `/hackathon`, and
+the unlisted attendee-details form on `/hackathon/details` that accepted
+applicants get by email.
 
 ```
-ApplicationForm.tsx  →  POST /api/hackathon-signup  →  Google Apps Script web app
-                                                        ├─ appends a row to the private
-                                                        │  "AISafety.com Hackathon 2026
-                                                        │  Applications" Google Sheet
-                                                        └─ emails the applicant a
-                                                           confirmation
+/hackathon        ApplicationForm.tsx  →  POST /api/hackathon-signup   ─┐
+                                                                         ├─→  Google Apps Script web app
+/hackathon/details DetailsForm.tsx     →  POST /api/hackathon-details  ─┘      ├─ appends a row to the private
+                                                                                │  "AISafety.com Hackathon 2026
+                                                                                │  Applications" Google Sheet
+                                                                                │  (applications → first tab;
+                                                                                │   details → "Attendee details" tab)
+                                                                                └─ emails the person a confirmation
 ```
 
-Applications deliberately do NOT go to Airtable: they include personal data
-(emergency contacts, medical and dietary needs) that must stay out of the
-shared base, and the team reviews them in a private Google Sheet instead.
+Neither form goes to Airtable: they include personal data (emergency
+contacts, allergies and dietary needs) that must stay out of the shared base, and
+the team reviews them in a private Google Sheet instead.
+
+## The details form (`/hackathon/details`)
+
+Unlisted on purpose – not in the sitemap, search index, footer, `llms.txt`, or
+the assistant's page list, and served with `noindex`. Bryce emails the link to
+accepted applicants.
+
+`src/app/hackathon/details/questions.ts` is the single source of truth for what
+it asks: the form renders from it and the API route validates against it. The
+API route turns each answer into a `[label, value]` pair, and the Apps Script
+maps those into Sheet columns **by label**, adding a column whenever a new label
+appears – so editing, adding, or reordering questions only touches
+`questions.ts`; the script and Sheet adapt on their own. (Rewording a question
+starts a new column; rename the old header in the Sheet to match if you want
+the history in one place.)
 
 ## Environment variables
 
 - `HACKATHON_SCRIPT_URL` – the Apps Script web app's `/exec` URL.
-- `HACKATHON_FORM_SECRET` – shared secret; the API route includes it in each
+- `HACKATHON_FORM_SECRET` – shared secret; the API routes include it in each
   POST and the script rejects requests without it (the `/exec` URL is
   technically public).
 
-When either is unset, dev builds log the application and pretend success (so
-the form can be tested locally); production returns a 500.
+Both routes read the same two variables. When either is unset, dev builds log
+the submission and pretend success (so the forms can be tested locally);
+production returns a 500.
+
+Both are stored as _Sensitive_ in Vercel, so `vercel env pull` writes the
+literal placeholder `[SENSITIVE]` for them – don't copy that into the Apps
+Script. The only readable copy of the secret is the `SHARED_SECRET` line in
+the Apps Script editor; when pasting a new script version, keep that line.
 
 ## Abuse protection
 
 - Honeypot field (`website`) – filled → request is dropped with a fake success.
-- Per-IP rate limit, 5/hour, via the existing Upstash Redis (protects the
-  Gmail quota behind confirmation emails, ~100 sends/day).
-- Every field is length-capped server-side.
+- Per-IP rate limit, 5/hour per form, via the existing Upstash Redis (protects
+  the Gmail quota behind confirmation emails, ~100 sends/day).
+- Every field is length-capped and, where it has fixed options, checked
+  against them server-side.
 
 ## The Apps Script
 
 Lives in the applications Sheet: Extensions → Apps Script, deployed as a web
 app ("Execute as: Me", "Who has access: Anyone"), owned by Bryce's Google
 account. Redeploy after edits via Deploy → Manage deployments → edit → new
-version — this keeps the same `/exec` URL.
+version — this keeps the same `/exec` URL. A redeploy publishes the last
+_saved_ editor code, so paste + Cmd+S first. When pasting the block below,
+keep the editor's existing `var SHARED_SECRET = '…'` line – the copy here has
+the secret redacted, and deploying the placeholder makes the script answer
+`unauthorized` to both forms. Redeploy _before_ emailing the details-form link;
+the new script is backward-compatible with the application form.
 
-Sheet columns, in order: Timestamp, Name, Email, Skills & experience,
-Anything else, Personal links.
+Requests carry `form: 'details'` for the details form; anything else is treated
+as an application. The details branch replies `{ ok: true, form: 'details' }`
+and `/api/hackathon-details` insists on that echo, so a script version that
+predates the details form (which would just append an empty row to the
+applications tab) is reported as a failure rather than a silent success.
 
-The confirmation email echoes the applicant's answers back to them. It is sent
-with both `htmlBody` (what Gmail shows — flows naturally at any window width)
-and a plain-text `body` fallback (hard-wrapped at ~76 chars by the mail
-pipeline, which is why htmlBody exists).
+Both tabs are written **by header name**, so columns can be reordered or
+extra review columns added in the Sheet without breaking anything (a label
+with no matching header gets a new column at the end). Applications go to the
+_first_ tab (keep it first) under Name, Email, Skills & experience, Anything
+else, Personal links, plus Timestamp; details go to the "Attendee details"
+tab under one column per question label. The script creates that tab (and a
+Timestamp column) if missing.
+Every non-empty answer is stored with a leading apostrophe – the Sheets "keep
+as text" prefix, invisible in the cell – so phone numbers keep their leading
+`+`/`0` and nobody can plant a formula in the sheet through a form field.
+
+Confirmation emails echo the person's answers back to them. They're sent with
+both `htmlBody` (what Gmail shows — flows naturally at any window width) and a
+plain-text `body` fallback (hard-wrapped at ~76 chars by the mail pipeline,
+which is why htmlBody exists). If sending fails (e.g. Gmail quota) the row is
+already stored, so the script still reports success but with `emailed: false`
+(plus the Sheet `row` it wrote), which both API routes log as a warning rather
+than failing the submission (a failure would just prompt a duplicate row).
 
 Current code (secret redacted; the real one is in the deployed script and in
 the env vars):
 
 ```javascript
 var SHARED_SECRET = '<HACKATHON_FORM_SECRET>'
+var DETAILS_SHEET = 'Attendee details'
 
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+/** Sheets parses written values like typed input: "=…" becomes a formula,
+ *  "+447700900123" or "07700900123" become numbers (losing the + / 0). A
+ *  leading apostrophe is the Sheets "keep as text" prefix – not shown in the
+ *  cell – so every non-empty answer is stored exactly as typed. */
+function asText(v) {
+  v = v == null ? '' : String(v)
+  return v ? "'" + v : v
+}
+
+/** Plain-text + HTML renderings of [question, answer] pairs, for the emails.
+ *  Empty answers are skipped. */
+function renderAnswers(answers) {
+  var filled = answers.filter(function (a) {
+    return a[1]
+  })
+  return {
+    text: filled
+      .map(function (a) {
+        return a[0] + ':\n' + a[1]
+      })
+      .join('\n\n'),
+    html: filled
+      .map(function (a) {
+        return (
+          '<p><strong>' +
+          escapeHtml(a[0]) +
+          '</strong><br>' +
+          escapeHtml(a[1]).replace(/\n/g, '<br>') +
+          '</p>'
+        )
+      })
+      .join(''),
+  }
+}
+
+/** Send the confirmation; a failure (e.g. Gmail quota) is reported back to
+ *  the caller rather than thrown, because by now the row is stored and a
+ *  reported failure would only prompt a duplicate submission. */
+function trySend(mail) {
+  try {
+    MailApp.sendEmail(mail)
+    return true
+  } catch (err) {
+    console.error('confirmation email failed: ' + err)
+    return false
+  }
+}
+
+/** Append one row to `sheet`, placing each [label, value] under the column
+ *  whose header matches the label (plus a Timestamp column) and adding a
+ *  column for any label not seen before. Header = whatever row 1 holds, so
+ *  columns can be reordered or extra ones added in the Sheet without
+ *  breaking anything. Returns the row number written. */
+function appendByLabel(sheet, answers) {
+  var lastCol = sheet.getLastColumn()
+  var headers = lastCol
+    ? sheet
+        .getRange(1, 1, 1, lastCol)
+        .getValues()[0]
+        .map(function (h) {
+          return String(h)
+        })
+    : []
+  var known = headers.length
+  if (headers.indexOf('Timestamp') === -1) headers.push('Timestamp')
+  answers.forEach(function (a) {
+    if (headers.indexOf(a[0]) === -1) headers.push(a[0])
+  })
+  if (headers.length > known) {
+    // New headers are written in one go, after growing the tab if needed
+    // (a fresh tab has 26 columns).
+    if (headers.length > sheet.getMaxColumns()) {
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        headers.length - sheet.getMaxColumns()
+      )
+    }
+    sheet
+      .getRange(1, known + 1, 1, headers.length - known)
+      .setValues([headers.slice(known)])
+    if (known === 0) sheet.setFrozenRows(1)
+  }
+
+  var row = headers.map(function () {
+    return ''
+  })
+  row[headers.indexOf('Timestamp')] = new Date()
+  answers.forEach(function (a) {
+    row[headers.indexOf(a[0])] = asText(a[1])
+  })
+  sheet.appendRow(row)
+  return sheet.getLastRow()
+}
+
+/** Application form (/hackathon): first tab, columns matched by header name
+ *  (Name, Email, Skills & experience, Anything else, Personal links). */
+function handleApplication(data) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
+  var row = appendByLabel(sheet, [
+    ['Name', data.name],
+    ['Email', data.email],
+    ['Skills & experience', data.skills],
+    ['Anything else', data.anythingElse],
+    ['Personal links', data.links],
+  ])
+  if (!data.email) return { emailed: true, row: row }
+
+  var answers = renderAnswers([
+    ['Name', data.name],
+    ['Email', data.email],
+    [
+      'What skills or experience could you bring to this hackathon?',
+      data.skills,
+    ],
+    ['Personal links', data.links],
+    ["Anything else you'd like us to know?", data.anythingElse],
+  ])
+
+  var body =
+    'Hi,\n\n' +
+    'Thanks for applying to the AISafety.com Hackathon 2026 ' +
+    '(https://aisafety.com/hackathon)! This is an automated email ' +
+    'confirming your application submission.\n\n' +
+    'Below are the answers you gave. Since applications have officially ' +
+    "closed, we can't promise a decision, but we'll be in touch if we're " +
+    'able to offer you a place. In the meantime, feel free to reply to this ' +
+    'email with any questions or message Bryce on the AISafety.com Discord ' +
+    'server (https://discord.gg/WQG8FAGqun) at @bryceerobertson.\n\n' +
+    'Best,\n' +
+    'Automated Bryce\n\n\n' +
+    'YOUR FORM ANSWERS\n\n' +
+    answers.text
+
+  var htmlBody =
+    '<p>Hi,</p>' +
+    '<p>Thanks for applying to the ' +
+    '<a href="https://aisafety.com/hackathon">AISafety.com Hackathon 2026</a>! ' +
+    'This is an automated email confirming your application submission.</p>' +
+    '<p>Below are the answers you gave. Since applications have officially ' +
+    "closed, we can't promise a decision, but we'll be in touch if we're " +
+    'able to offer you a place. In the meantime, feel free to reply to this ' +
+    'email with any questions or message Bryce on the ' +
+    '<a href="https://discord.gg/WQG8FAGqun">AISafety.com Discord server</a> ' +
+    'at @bryceerobertson.</p>' +
+    '<p>Best,<br>Automated Bryce</p>' +
+    '<br>' +
+    '<p><strong>Your form answers</strong></p>' +
+    answers.html
+
+  var emailed = trySend({
+    to: data.email,
+    subject: 'AISafety.com Hackathon 2026 - application received',
+    body: body,
+    htmlBody: htmlBody,
+  })
+  return { emailed: emailed, row: row }
+}
+
+/** Attendee-details form (/hackathon/details): answers arrive as
+ *  [label, value] pairs and go into the DETAILS_SHEET tab by label. */
+function handleDetails(details) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet()
+  var sheet = ss.getSheetByName(DETAILS_SHEET) || ss.insertSheet(DETAILS_SHEET)
+  var answers = (details.answers || []).map(function (a) {
+    return [String(a[0]), a[1] == null ? '' : String(a[1])]
+  })
+  var rowNumber = appendByLabel(sheet, answers)
+
+  if (!details.email) return { emailed: true, row: rowNumber }
+
+  var rendered = renderAnswers(answers)
+
+  var body =
+    'Hi,\n\n' +
+    'Thanks for sending us your details for the AISafety.com Hackathon 2026. ' +
+    'This is an automated email ' +
+    'confirming we received them – your answers are below.\n\n' +
+    'If anything changes, just reply to this ' +
+    'email. See you in Blackpool!\n\n' +
+    'Best,\n' +
+    'Automated Bryce\n\n\n' +
+    'YOUR ANSWERS\n\n' +
+    rendered.text
+
+  var htmlBody =
+    '<p>Hi,</p>' +
+    '<p>Thanks for sending us your details for the ' +
+    '<a href="https://aisafety.com/hackathon">AISafety.com Hackathon 2026</a>. ' +
+    'This is an automated email ' +
+    'confirming we received them – your answers are below.</p>' +
+    '<p>If anything changes, just reply to this ' +
+    'email. See you in Blackpool!</p>' +
+    '<p>Best,<br>Automated Bryce</p>' +
+    '<br>' +
+    '<p><strong>Your answers</strong></p>' +
+    rendered.html
+
+  var emailed = trySend({
+    to: details.email,
+    subject: 'AISafety.com Hackathon 2026 - your details',
+    body: body,
+    htmlBody: htmlBody,
+  })
+  return { emailed: emailed, row: rowNumber }
 }
 
 function doPost(e) {
@@ -75,84 +329,25 @@ function doPost(e) {
       )
     }
 
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0]
-    sheet.appendRow([
-      new Date(),
-      data.name || '',
-      data.email || '',
-      data.skills || '',
-      data.anythingElse || '',
-      data.links || '',
-    ])
-
-    if (data.email) {
-      // Question/answer pairs in form order; empty optional answers are skipped.
-      var answers = [
-        ['Name', data.name],
-        ['Email', data.email],
-        [
-          'What skills or experience could you bring to this hackathon?',
-          data.skills,
-        ],
-        ['Personal links', data.links],
-        ["Anything else you'd like us to know?", data.anythingElse],
-      ].filter(function (a) {
-        return a[1]
-      })
-
-      var body =
-        'Hi,\n\n' +
-        'Thanks for applying to the AISafety.com Hackathon 2026 ' +
-        '(https://aisafety.com/hackathon)! This is an automated email ' +
-        'confirming your application submission.\n\n' +
-        "Below are the answers you gave. We'll let you know the result of " +
-        'your application by 21 August at the latest. In the meantime, feel ' +
-        'free to reply to this email with any questions or message Bryce on ' +
-        'the AISafety.com Discord server (https://discord.gg/WQG8FAGqun) at ' +
-        '@bryceerobertson.\n\n' +
-        'Best,\n' +
-        'Automated Bryce\n\n\n' +
-        'YOUR FORM ANSWERS\n\n' +
-        answers
-          .map(function (a) {
-            return a[0] + ':\n' + a[1]
-          })
-          .join('\n\n')
-
-      var htmlBody =
-        '<p>Hi,</p>' +
-        '<p>Thanks for applying to the ' +
-        '<a href="https://aisafety.com/hackathon">AISafety.com Hackathon 2026</a>! ' +
-        'This is an automated email confirming your application submission.</p>' +
-        "<p>Below are the answers you gave. We'll let you know the result of " +
-        'your application by 21 August at the latest. In the meantime, feel ' +
-        'free to reply to this email with any questions or message Bryce on ' +
-        'the <a href="https://discord.gg/WQG8FAGqun">AISafety.com Discord ' +
-        'server</a> at @bryceerobertson.</p>' +
-        '<p>Best,<br>Automated Bryce</p>' +
-        '<br>' +
-        '<p><strong>Your form answers</strong></p>' +
-        answers
-          .map(function (a) {
-            return (
-              '<p><strong>' +
-              escapeHtml(a[0]) +
-              '</strong><br>' +
-              escapeHtml(a[1]).replace(/\n/g, '<br>') +
-              '</p>'
-            )
-          })
-          .join('')
-
-      MailApp.sendEmail({
-        to: data.email,
-        subject: 'AISafety.com Hackathon 2026 - application received',
-        body: body,
-        htmlBody: htmlBody,
-      })
+    // Both branches reply with whether the confirmation email went out and
+    // the Sheet row that was written, so the API routes can log a mail
+    // failure against a row without putting the person's email in the logs.
+    if (data.form === 'details') {
+      var d = handleDetails(data.details || {})
+      return out.setContent(
+        JSON.stringify({
+          ok: true,
+          form: 'details',
+          emailed: d.emailed,
+          row: d.row,
+        })
+      )
     }
 
-    return out.setContent(JSON.stringify({ ok: true }))
+    var a = handleApplication(data)
+    return out.setContent(
+      JSON.stringify({ ok: true, emailed: a.emailed, row: a.row })
+    )
   } catch (err) {
     return out.setContent(JSON.stringify({ ok: false, error: String(err) }))
   }

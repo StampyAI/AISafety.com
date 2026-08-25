@@ -10,6 +10,7 @@ import TranscriptMessage, {
   type ListingInfo,
 } from './TranscriptMessage'
 import ExcludeBrowserToggle from './ExcludeBrowserToggle'
+import FilterDropdown from '@/components/FilterDropdown'
 import { chipsFor, greetingFor } from '@/lib/assistant/pages'
 
 interface HistoryTurn {
@@ -19,7 +20,7 @@ interface HistoryTurn {
 
 interface LoggedToolCall {
   name: string
-  input?: { id?: string }
+  input?: { id?: string; query?: string }
   ok?: boolean
 }
 
@@ -85,8 +86,10 @@ function fallbackCardsForMessage(
   return set
 }
 
-/** Web visits (live page reads) the bot made while composing a reply — shown
- *  in the transcript so it's clear when an answer drew on a listing's page. */
+/** Lookups beyond the catalog that the bot made while composing a reply —
+ *  live page reads and past-round history checks — shown in the transcript
+ *  so it's clear when an answer drew on a listing's page or on rounds the
+ *  site no longer displays. */
 function VisitedPages({ reads }: { reads: LoggedToolCall[] }) {
   const listings = useContext(ListingInfoContext)
   if (reads.length === 0) return null
@@ -95,6 +98,17 @@ function VisitedPages({ reads }: { reads: LoggedToolCall[] }) {
       {reads.map((r, i) => {
         const id = r.input?.id ?? ''
         const info = resolveListing(listings, id)
+        if (r.name === 'get_program_history') {
+          const query = typeof r.input?.query === 'string' ? r.input.query : ''
+          const subject = info?.name ?? (query ? `"${query}"` : id)
+          return (
+            <span key={i}>
+              {r.ok ? '🕘 checked past rounds of ' : '🕘 tried past rounds of '}
+              {subject}
+              {r.ok ? '' : ' – lookup failed'}
+            </span>
+          )
+        }
         const name = info?.name ?? id
         const url = info?.url
         return (
@@ -119,6 +133,10 @@ interface ConversationData {
   user: string
   response: string
   history: HistoryTurn[]
+  /** Each history message's position in the VISITOR's message list — the
+   *  indexing the delivery/rating/click keys use. Aligned with `history`.
+   *  Absent on rows from before this was logged. */
+  historyIndices?: unknown[]
   tools: unknown[]
   /** Per-turn (aligned with tools): card ids that degraded to a "Browse X"
    *  link in the visitor's chat. Absent on rows from before this was logged. */
@@ -140,6 +158,24 @@ interface ConversationData {
   status?: 'abandoned' | 'error'
 }
 
+/** What the visitor's browser reported about one reply (see TurnDelivery in
+ *  lib/admin/airtable.ts). All durations are ms from the visitor's send. */
+interface TurnDelivery {
+  received?: number
+  stopped?: number
+  error?: number
+  left?: number
+  panelClosed?: number
+  tabHidden?: number
+  panelOpen?: boolean
+  tabVisible?: boolean
+  seen?: number
+}
+
+/** The Review single select's options, as named in Airtable. */
+const REVIEW_VALUES = ['Good', 'Bad', 'Unsure'] as const
+type ReviewValue = (typeof REVIEW_VALUES)[number]
+
 interface Conversation {
   id: string
   createdAt: string
@@ -149,8 +185,17 @@ interface Conversation {
   promptVersion: string
   notes: string
   tags: string[]
+  /** Reviewer's verdict on the whole conversation ('' when not yet rated) —
+   *  distinct from `ratings`, the visitor's own thumbs on individual replies. */
+  review: ReviewValue | ''
   data: ConversationData | null
   clickedCitations: string[]
+  /** Visitor's thumbs ratings of the bot's replies (turn index → 'up' |
+   *  'down'), from the row's Ratings field. */
+  ratings: Record<string, 'up' | 'down'>
+  /** What the visitor's browser reported about each reply (turn index →
+   *  TurnDelivery), from the row's Delivery field. */
+  delivery: Record<string, TurnDelivery>
 }
 
 /** "United States" for an ISO-3166 alpha-2 code, US English spelling. */
@@ -212,6 +257,139 @@ function formatTime(iso: string): string {
 
 function formatLatency(ms: number): string {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
+/** "8s", "1m 12s" — a time-since-send for the delivery notes, coarser than
+ *  formatLatency because these mark moments a person did something. */
+function formatElapsed(ms: number): string {
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  return `${m}m ${s - m * 60}s`
+}
+
+/** The visitor-side story of one reply, for the transcript and row badge:
+ *  a short label, whether it deserves attention (`warn`), and a longer
+ *  tooltip. Undefined when the browser reported nothing for the turn (older
+ *  rows, excluded browsers, or a report that never arrived). */
+function describeDelivery(
+  d: TurnDelivery | undefined
+): { label: string; warn: boolean; title: string } | undefined {
+  if (!d) return undefined
+  if (d.left != null) {
+    return {
+      label: `left the page at ${formatElapsed(d.left)}`,
+      warn: true,
+      title:
+        'The visitor closed the tab or navigated away while the reply was still streaming — they did not get the whole answer',
+    }
+  }
+  if (d.stopped != null) {
+    return {
+      label: `stopped at ${formatElapsed(d.stopped)}`,
+      warn: false,
+      title: 'The visitor pressed Stop (or cleared the chat) mid-reply',
+    }
+  }
+  if (d.error != null) {
+    return {
+      label: `failed in the browser at ${formatElapsed(d.error)}`,
+      warn: true,
+      title:
+        "The visitor's browser hit an error before the reply finished (network drop, or the server sent an error) — they saw an error message",
+    }
+  }
+  if (d.received != null) {
+    const base = `received in ${formatElapsed(d.received)}`
+    // Out of view when it arrived?
+    const outOfView =
+      d.panelOpen === false
+        ? 'panel closed'
+        : d.tabVisible === false
+          ? 'tab in background'
+          : undefined
+    if (!outOfView) {
+      const detail =
+        d.panelClosed != null
+          ? ` (panel closed at ${formatElapsed(d.panelClosed)}, reopened before it finished)`
+          : d.tabHidden != null
+            ? ` (tab hidden at ${formatElapsed(d.tabHidden)}, back before it finished)`
+            : ''
+      return {
+        label: base + detail,
+        warn: false,
+        title:
+          'The whole reply arrived in the visitor’s browser with the chat panel open and the tab visible — measured from when they sent the message',
+      }
+    }
+    const when =
+      outOfView === 'panel closed'
+        ? d.panelClosed
+        : (d.tabHidden ?? d.panelClosed)
+    const whenNote = when != null ? ` at ${formatElapsed(when)}` : ''
+    if (d.seen != null) {
+      return {
+        label: `${base} · ${outOfView}${whenNote} · seen at ${formatElapsed(d.seen)}`,
+        warn: false,
+        title: `The reply arrived while the ${outOfView === 'panel closed' ? 'chat panel was closed' : 'tab was in the background'}; the visitor came back to it ${formatElapsed(d.seen)} after sending`,
+      }
+    }
+    return {
+      label: `${base} · ${outOfView}${whenNote} · not seen`,
+      warn: true,
+      title: `The reply arrived while the ${outOfView === 'panel closed' ? 'chat panel was closed' : 'tab was in the background'}, and the visitor had not come back to it as of their last report`,
+    }
+  }
+  if (d.seen != null) {
+    // A 'seen' without its outcome — the outcome report was lost. Say what
+    // we know rather than nothing.
+    return {
+      label: `seen at ${formatElapsed(d.seen)}`,
+      warn: false,
+      title:
+        'The visitor brought this reply into view (the browser’s earlier report on how it arrived did not reach us)',
+    }
+  }
+  return undefined
+}
+
+/** Row-header badge for the latest turn: only the cases worth flagging when
+ *  skimming (the transcript carries the full note per reply). */
+function deliveryBadge(
+  d: TurnDelivery | undefined
+): { text: string; title: string } | undefined {
+  if (!d) return undefined
+  if (d.left != null) {
+    return {
+      text: 'LEFT MID-REPLY',
+      title:
+        'The visitor closed the tab or navigated away while the reply was still streaming',
+    }
+  }
+  if (d.stopped != null) {
+    return { text: 'STOPPED', title: 'The visitor pressed Stop mid-reply' }
+  }
+  if (d.error != null) {
+    return {
+      text: 'NOT DELIVERED',
+      title:
+        "The visitor's browser hit an error before the reply finished — they saw an error message",
+    }
+  }
+  if (
+    d.received != null &&
+    (d.panelOpen === false || d.tabVisible === false) &&
+    d.seen == null
+  ) {
+    return {
+      text: 'UNSEEN',
+      title:
+        d.panelOpen === false
+          ? 'The reply arrived after the visitor closed the chat panel, and they had not reopened it as of their last report'
+          : 'The reply arrived while the tab was in the background, and the visitor had not come back to it as of their last report',
+    }
+  }
+  return undefined
 }
 
 /** When the user message at history index msgIdx was sent, e.g. "14:03" — or
@@ -276,6 +454,22 @@ export default function ConversationList() {
   // to the server, so we don't refetch on every keystroke.
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  // Reviewer filters, applied server-side: Review verdicts ('Unrated' for
+  // conversations nobody has judged) and exact labels. Several picks within
+  // one pill broaden the match, like the site's filter pills.
+  const [ratingFilter, setRatingFilter] = useState<string[]>([])
+  const [labelFilter, setLabelFilter] = useState<string[]>([])
+  // Log-wide label and verdict counts (fetched once), so the filter pills
+  // and the per-conversation label picker cover more than what this page
+  // happens to show. Merged with the loaded conversations' tags in
+  // `allLabels`.
+  const [facets, setFacets] = useState<{
+    labels: Record<string, number>
+    ratings: Record<string, number>
+  }>({ labels: {}, ratings: {} })
+  // The conversation a shared ?id= link points at. undefined = URL not read
+  // yet (loads hold off); null = no link, show the normal list.
+  const [linkedId, setLinkedId] = useState<string | null | undefined>(undefined)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   // Airtable cursor for the next, older batch — null once we've reached the
   // very first conversation. Drives the "Load more" button.
@@ -290,14 +484,27 @@ export default function ConversationList() {
 
   const PAGE_SIZE = 200
 
-  const load = async (zo: boolean, q: string) => {
+  const load = async (opts: {
+    zeroOnly: boolean
+    search: string
+    rating: string[]
+    label: string[]
+    /** Serve exactly this conversation (a shared link) instead of the list. */
+    id?: string
+  }) => {
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
-      params.set('limit', String(PAGE_SIZE))
-      if (zo) params.set('zeroOnly', '1')
-      if (q) params.set('search', q)
+      if (opts.id) {
+        params.set('id', opts.id)
+      } else {
+        params.set('limit', String(PAGE_SIZE))
+        if (opts.zeroOnly) params.set('zeroOnly', '1')
+        if (opts.search) params.set('search', opts.search)
+        for (const r of opts.rating) params.append('rating', r)
+        for (const l of opts.label) params.append('label', l)
+      }
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -330,6 +537,8 @@ export default function ConversationList() {
       params.set('offset', offset)
       if (zeroOnly) params.set('zeroOnly', '1')
       if (search) params.set('search', search)
+      for (const r of ratingFilter) params.append('rating', r)
+      for (const l of labelFilter) params.append('label', l)
       const res = await fetch(`/api/admin/conversations?${params}`)
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -363,9 +572,19 @@ export default function ConversationList() {
     return () => clearTimeout(t)
   }, [searchInput])
 
+  // Wait for the mount effect below to read any ?id= from the URL before the
+  // first fetch, so a shared link loads its one conversation directly rather
+  // than the whole list first.
   useEffect(() => {
-    void load(zeroOnly, search)
-  }, [zeroOnly, search])
+    if (linkedId === undefined) return
+    void load({
+      zeroOnly,
+      search,
+      rating: ratingFilter,
+      label: labelFilter,
+      id: linkedId ?? undefined,
+    })
+  }, [zeroOnly, search, ratingFilter, labelFilter, linkedId])
 
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -374,7 +593,50 @@ export default function ConversationList() {
       .find(p => p.type === 'timeZoneName')?.value
     setTzLabel([tz, abbr && `(${abbr})`].filter(Boolean).join(' '))
     setViewed(new Set(loadViewedIds()))
+    // A shared link opens the log at one conversation, already expanded.
+    const id = new URL(window.location.href).searchParams.get('id')
+    setLinkedId(id || null)
+    if (id) setExpandedId(id)
+    // Log-wide label/verdict counts, for the filter pills and pickers.
+    void fetch('/api/admin/conversations?facets=1')
+      .then(res => (res.ok ? res.json() : { labels: {}, ratings: {} }))
+      .then(
+        (data: {
+          labels?: Record<string, number>
+          ratings?: Record<string, number>
+        }) => {
+          setFacets({ labels: data.labels ?? {}, ratings: data.ratings ?? {} })
+        }
+      )
+      .catch(err => console.warn('Could not load filter counts:', err))
   }, [])
+
+  /** Keep ?id= in the address bar matching the open conversation, so the URL
+   *  is always a shareable link to what's on screen. */
+  const syncUrl = (id: string | null) => {
+    const url = new URL(window.location.href)
+    if (id) url.searchParams.set('id', id)
+    else url.searchParams.delete('id')
+    window.history.replaceState(null, '', url)
+  }
+
+  // Every label offered by the pickers: the log-wide list plus anything on
+  // the conversations in front of us (which also catches labels added just
+  // now, without refetching).
+  const allLabels = useMemo(() => {
+    const set = new Set(Object.keys(facets.labels))
+    for (const c of conversations) for (const t of c.tags) set.add(t)
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [facets, conversations])
+
+  /** Site-style multi-select toggle: clicking a checked value unchecks it. */
+  const toggleFilter = (
+    value: string,
+    list: string[],
+    set: (next: string[]) => void
+  ) => {
+    set(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
+  }
 
   const markViewed = (id: string) => {
     if (viewed.has(id)) return
@@ -403,8 +665,24 @@ export default function ConversationList() {
           placeholder="Search conversations…"
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
-          title="Searches the whole log — user questions, bot replies, listings shown, page and notes"
+          title="Searches the whole log — user questions, bot replies, listings shown, page, notes and labels"
         />
+        <FilterDropdown
+          title="Rating"
+          options={[...REVIEW_VALUES, 'Unrated']}
+          selected={ratingFilter}
+          counts={facets.ratings}
+          onToggle={v => toggleFilter(v, ratingFilter, setRatingFilter)}
+        />
+        {allLabels.length > 0 && (
+          <FilterDropdown
+            title="Label"
+            options={allLabels}
+            selected={labelFilter}
+            counts={facets.labels}
+            onToggle={v => toggleFilter(v, labelFilter, setLabelFilter)}
+          />
+        )}
         <label title="Show only conversations where the chatbot searched the directory and found nothing — useful for spotting gaps in the listings">
           <input
             type="checkbox"
@@ -426,6 +704,22 @@ export default function ConversationList() {
         )}
       </div>
 
+      {linkedId && (
+        <div className={styles.convLinkedNote}>
+          Showing one linked conversation.{' '}
+          <button
+            type="button"
+            className={styles.convLinkedClear}
+            onClick={() => {
+              setLinkedId(null)
+              syncUrl(null)
+            }}
+          >
+            Show all conversations
+          </button>
+        </div>
+      )}
+
       <div className={styles.convList}>
         {conversations.map((c, i) => {
           const day = formatDay(c.createdAt)
@@ -440,9 +734,12 @@ export default function ConversationList() {
                 conv={c}
                 expanded={expandedId === c.id}
                 viewed={viewed.has(c.id)}
+                allLabels={allLabels}
                 onToggle={() => {
-                  if (expandedId !== c.id) markViewed(c.id)
-                  setExpandedId(expandedId === c.id ? null : c.id)
+                  const next = expandedId === c.id ? null : c.id
+                  if (next) markViewed(c.id)
+                  setExpandedId(next)
+                  syncUrl(next)
                 }}
                 onUpdate={handleUpdate}
               />
@@ -478,23 +775,39 @@ function ConversationRow({
   conv,
   expanded,
   viewed,
+  allLabels,
   onToggle,
   onUpdate,
 }: {
   conv: Conversation
   expanded: boolean
   viewed: boolean
+  allLabels: string[]
   onToggle: () => void
   onUpdate: (c: Conversation) => void
 }) {
   const [notes, setNotes] = useState(conv.notes)
   const [saveStatus, setSaveStatus] = useState('')
+  const [labelInput, setLabelInput] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
   const data = conv.data
-  const turnCount = data?.history.filter(t => t.role === 'user').length ?? 0
+  // Visitor messages actually stored in the (windowed) history — what the
+  // transcript below can show.
+  const storedTurns = data?.history.filter(t => t.role === 'user').length ?? 0
+  // True length of the conversation: the per-turn arrays get one entry per
+  // logged turn and are never windowed, unlike history. turnTimes is the
+  // newest of them; tools counts too when it has the per-turn shape (one
+  // array per turn). Rows predating both fall back to the stored history.
+  const loggedTurns =
+    data?.turnTimes?.length ||
+    (data?.tools?.every(t => Array.isArray(t)) ? data.tools.length : 0)
+  const turnCount = loggedTurns > 0 ? loggedTurns : storedTurns
+  const missingTurns = Math.max(0, turnCount - storedTurns)
   const geo = data ? geoString(data.geo) : ''
   // Collapsed row previews the visitor's OPENING message (how they first
-  // arrived), not the most recent turn. Fall back to the latest-turn field
-  // for old rows that have no stored history.
+  // arrived), not the most recent turn — or the oldest still stored, when a
+  // long chat has outgrown the history window. Fall back to the latest-turn
+  // field for old rows that have no stored history.
   const firstUser =
     data?.history.find(t => t.role === 'user')?.content ?? data?.user ?? ''
   // Cards and links the visitor clicked. New clicks are stored turn-scoped as
@@ -523,6 +836,73 @@ function ConversationRow({
     }
     return s
   }, [conv.clickedCitations])
+  // Thumbs ratings the visitor left, by turn index (same indexing as the
+  // `<turnIndex>:…` click keys above, so the badge lands on the exact reply).
+  const ratingByTurn = useMemo(() => {
+    const m = new Map<number, 'up' | 'down'>()
+    for (const [turn, value] of Object.entries(conv.ratings)) {
+      const n = Number(turn)
+      if (Number.isInteger(n) && (value === 'up' || value === 'down')) {
+        m.set(n, value)
+      }
+    }
+    return m
+  }, [conv.ratings])
+  // Maps a stored-history index to the visitor's message-list position — the
+  // indexing the delivery reports, thumbs ratings, and turn-scoped click keys
+  // are keyed on. New rows store the mapping (historyIndices); the two
+  // indexings only agree while nothing was dropped from the stored history,
+  // so for legacy rows without it, keep the identity mapping only when it is
+  // provably safe (no turns trimmed, strict user/assistant alternation) and
+  // otherwise hide the position-keyed badges rather than pin them on the
+  // wrong replies — a trimmed conversation showed "stopped at 6s" on a reply
+  // the visitor never stopped. Null means "unknowable, show nothing".
+  const clientIndexOf = useMemo(() => {
+    const history = data?.history ?? []
+    const indices = data?.historyIndices
+    if (
+      Array.isArray(indices) &&
+      indices.length === history.length &&
+      indices.every(n => typeof n === 'number' && Number.isInteger(n))
+    ) {
+      return (i: number) => indices[i] as number
+    }
+    if (missingTurns > 0) return null
+    const alternating = history.every(
+      (m, i) => m.role === (i % 2 === 0 ? 'user' : 'assistant')
+    )
+    return alternating ? (i: number) => i : null
+  }, [data, missingTurns])
+  // What the visitor's browser reported about the latest reply, and the badge
+  // (if any) it earns in the collapsed row. Delivery is keyed by the reply's
+  // position in the VISITOR's message list, so translate the stored index.
+  const latestDelivery = useMemo(() => {
+    const history = data?.history ?? []
+    const last = history.length - 1
+    if (last < 0 || history[last].role !== 'assistant') return undefined
+    if (!clientIndexOf) return undefined
+    return conv.delivery[String(clientIndexOf(last))]
+  }, [data, conv.delivery, clientIndexOf])
+  const latestBadge = useMemo(
+    () => deliveryBadge(latestDelivery),
+    [latestDelivery]
+  )
+  // An abandoned turn now keeps whatever had streamed before the connection
+  // dropped. Distinguish "nothing the visitor could read" from "cut off
+  // part-way through the answer", and let the browser's own report name the
+  // cause when it has one (Stop pressed / left). Visible text is what follows
+  // the last [[/thinking]] marker; with no marker yet, a turn that had made
+  // tool calls was still in its reasoning preamble (which the widget hides
+  // behind the tool activity), so nothing readable had shown.
+  const abandonedHadText = useMemo(() => {
+    if (data?.status !== 'abandoned') return false
+    const parts = data.response.split(/\[\[\s*\/\s*thinking\s*\]\]/i)
+    if (parts.length === 1) {
+      const lastTools = data.tools[data.tools.length - 1]
+      if (Array.isArray(lastTools) && lastTools.length > 0) return false
+    }
+    return (parts.pop() ?? '').trim().length > 0
+  }, [data])
   // Where the visitor ended up if they navigated mid-conversation. conv.page
   // is the page the chat STARTED on (per-turn pages live in data.pages), so a
   // differing last entry means the conversation moved — surface the hop in
@@ -545,7 +925,11 @@ function ConversationRow({
     return replies.some(hasSuggestButton)
   }, [data])
 
-  const persist = async (patch: { notes?: string }) => {
+  const persist = async (patch: {
+    notes?: string
+    tags?: string[]
+    review?: ReviewValue | null
+  }) => {
     setSaveStatus('saving…')
     try {
       const res = await fetch('/api/admin/conversations', {
@@ -566,13 +950,46 @@ function ConversationRow({
     }
   }
 
+  /** Attach a label, reusing an existing label's casing when the reviewer's
+   *  typing differs only there — so "scope" can't spawn a sibling of "Scope". */
+  const addLabel = (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return
+    const canonical =
+      allLabels.find(l => l.toLowerCase() === trimmed.toLowerCase()) ?? trimmed
+    setLabelInput('')
+    if (conv.tags.includes(canonical)) return
+    void persist({ tags: [...conv.tags, canonical] })
+  }
+
+  const removeLabel = (label: string) => {
+    void persist({ tags: conv.tags.filter(t => t !== label) })
+  }
+
+  const copyLink = async () => {
+    const url = `${window.location.origin}/admin/chatbot/log?id=${conv.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 1500)
+    } catch {
+      // Clipboard access can be blocked (e.g. a non-HTTPS origin) — fall back
+      // to showing the link for manual copying.
+      window.prompt('Copy this link:', url)
+    }
+  }
+
   return (
     <div>
       <button
         type="button"
-        className={
-          viewed ? `${styles.convRow} ${styles.convRowViewed}` : styles.convRow
-        }
+        className={[
+          styles.convRow,
+          viewed ? styles.convRowViewed : '',
+          expanded ? styles.convRowExpanded : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         onClick={onToggle}
         aria-expanded={expanded}
       >
@@ -594,17 +1011,42 @@ function ConversationRow({
             </span>
             {turnCount > 1 && <span>{turnCount} turns</span>}
             {geo && <span>{geo}</span>}
+            {conv.review && (
+              <span
+                className={`${styles.convRowReview} ${styles[`convRowReview${conv.review}`]}`}
+                title="Reviewer's verdict on this conversation"
+              >
+                {conv.review.toUpperCase()}
+              </span>
+            )}
             {data?.zeroMatches && !showedSuggest && (
               <span className={styles.convRowZero}>NO MATCH</span>
             )}
-            {data?.status === 'abandoned' && (
-              <span
-                className={styles.convRowAbandoned}
-                title="The user left before (or without) an answer streamed — only their question was logged"
-              >
-                NO REPLY
-              </span>
-            )}
+            {data?.status === 'abandoned' &&
+              (latestBadge &&
+              (latestBadge.text === 'STOPPED' ||
+                latestBadge.text === 'LEFT MID-REPLY') ? (
+                <span
+                  className={styles.convRowAbandoned}
+                  title={latestBadge.title}
+                >
+                  {latestBadge.text}
+                </span>
+              ) : abandonedHadText ? (
+                <span
+                  className={styles.convRowAbandoned}
+                  title="The visitor's connection dropped while the reply was streaming — the part they had received is logged"
+                >
+                  CUT OFF
+                </span>
+              ) : (
+                <span
+                  className={styles.convRowAbandoned}
+                  title="The visitor left before (or without) an answer streamed — only their question was logged"
+                >
+                  NO REPLY
+                </span>
+              ))}
             {data?.status === 'error' && (
               <span
                 className={styles.convRowError}
@@ -613,8 +1055,21 @@ function ConversationRow({
                 ERROR
               </span>
             )}
+            {!data?.status && latestBadge && (
+              <span
+                className={styles.convRowAbandoned}
+                title={latestBadge.title}
+              >
+                {latestBadge.text}
+              </span>
+            )}
           </span>
           <span className={styles.convRowMeta}>
+            {conv.tags.map(t => (
+              <span key={t} className={styles.convRowTag} title="Label">
+                {t}
+              </span>
+            ))}
             {conv.promptVersion && (
               <span title="Prompt version">v{conv.promptVersion}</span>
             )}
@@ -673,15 +1128,42 @@ function ConversationRow({
                     )
                   })}
                 </div>
+                {/* The stored history is a window (the last 50 messages; 14
+                    on rows logged before 17 Aug 2026), so a long chat's
+                    opening turns are gone from the transcript even though
+                    the per-turn arrays still count them. Say so, rather than
+                    letting the visible start read as the real one. */}
+                {missingTurns > 0 && data.history.length > 0 && (
+                  <div
+                    className={styles.convNavDivider}
+                    title="The log keeps only the most recent messages of a conversation; earlier turns were not stored"
+                  >
+                    {missingTurns} earlier turn{missingTurns === 1 ? '' : 's'}{' '}
+                    not stored
+                  </div>
+                )}
                 {data.history.length > 0 ? (
                   data.history.map((t, i) => {
+                    // This reply's position in the visitor's own message list
+                    // — what the rating/delivery/click keys point at.
+                    // Undefined when the mapping is unknowable (legacy row
+                    // with dropped messages): the badges are hidden rather
+                    // than misattributed.
+                    const clientIdx =
+                      t.role === 'assistant' && clientIndexOf
+                        ? clientIndexOf(i)
+                        : undefined
                     const reads =
                       t.role === 'assistant'
                         ? toolCallsForMessage(
                             data.history,
                             data.tools ?? [],
                             i
-                          ).filter(c => c.name === 'read_listing_page')
+                          ).filter(
+                            c =>
+                              c.name === 'read_listing_page' ||
+                              c.name === 'get_program_history'
+                          )
                         : []
                     // The visitor moved to a different page before sending
                     // this message — mark it so the transcript reads in the
@@ -730,6 +1212,39 @@ function ConversationRow({
                                   </span>
                                 ) : null
                               })()}
+                            {clientIdx != null &&
+                              ratingByTurn.has(clientIdx) && (
+                                <span
+                                  className={styles.convRating}
+                                  title={
+                                    ratingByTurn.get(clientIdx) === 'up'
+                                      ? 'The visitor rated this reply thumbs up'
+                                      : 'The visitor rated this reply thumbs down'
+                                  }
+                                >
+                                  {ratingByTurn.get(clientIdx) === 'up'
+                                    ? '👍'
+                                    : '👎'}
+                                </span>
+                              )}
+                            {clientIdx != null &&
+                              (() => {
+                                const note = describeDelivery(
+                                  conv.delivery[String(clientIdx)]
+                                )
+                                return note ? (
+                                  <span
+                                    className={
+                                      note.warn
+                                        ? `${styles.convDelivery} ${styles.convDeliveryWarn}`
+                                        : styles.convDelivery
+                                    }
+                                    title={note.title}
+                                  >
+                                    {note.label}
+                                  </span>
+                                ) : null
+                              })()}
                           </div>
                           <VisitedPages reads={reads} />
                           {t.role === 'user' ? (
@@ -739,7 +1254,7 @@ function ConversationRow({
                           ) : (
                             <TranscriptMessage
                               text={t.content}
-                              turnIndex={i}
+                              turnIndex={clientIdx}
                               fallbackCardIds={fallbackCardsForMessage(
                                 data.history,
                                 data.fallbackCards,
@@ -763,6 +1278,97 @@ function ConversationRow({
                 <div className={styles.convDetailValue}>{data.referrer}</div>
               </div>
             )}
+
+            <div className={styles.convDetailField}>
+              <div className={styles.convDetailLabel}>Rating</div>
+              <div className={styles.convAnnotRow}>
+                {REVIEW_VALUES.map(v => {
+                  const active = conv.review === v
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      className={[
+                        styles.convRateBtn,
+                        styles[`convRate${v}`],
+                        active ? styles.convRateActive : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      aria-pressed={active}
+                      title={
+                        active
+                          ? 'Click again to clear this verdict'
+                          : `Mark this conversation ${v.toLowerCase()}`
+                      }
+                      onClick={() =>
+                        void persist({ review: active ? null : v })
+                      }
+                    >
+                      {v}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  className={styles.convCopyLink}
+                  onClick={() => void copyLink()}
+                  title="Copy a direct link to this conversation — opening it still needs the admin password"
+                >
+                  {linkCopied ? 'Link copied ✓' : '🔗 Copy link'}
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.convDetailField}>
+              <div className={styles.convDetailLabel}>Labels</div>
+              <div className={styles.convAnnotRow}>
+                {conv.tags.map(t => (
+                  <span key={t} className={styles.convLabelChip}>
+                    {t}
+                    <button
+                      type="button"
+                      className={styles.convLabelRemove}
+                      onClick={() => removeLabel(t)}
+                      title={`Remove the "${t}" label`}
+                      aria-label={`Remove the ${t} label`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  className={styles.convLabelInput}
+                  list={`labels-${conv.id}`}
+                  value={labelInput}
+                  onChange={e => setLabelInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addLabel(labelInput)
+                    }
+                  }}
+                  placeholder="Add label…"
+                  title="Pick an existing label or type a new one and press Enter"
+                />
+                <datalist id={`labels-${conv.id}`}>
+                  {allLabels
+                    .filter(l => !conv.tags.includes(l))
+                    .map(l => (
+                      <option key={l} value={l} />
+                    ))}
+                </datalist>
+                {labelInput.trim() && (
+                  <button
+                    type="button"
+                    className={styles.editorButton}
+                    onClick={() => addLabel(labelInput)}
+                  >
+                    Add
+                  </button>
+                )}
+              </div>
+            </div>
 
             <div className={styles.convDetailField}>
               <div className={styles.convDetailLabel}>Notes</div>

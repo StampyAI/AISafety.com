@@ -73,8 +73,9 @@ export default function ApplicationForm() {
       <div className="padding-bottom-56px">
         <h3 className="padding-bottom-16px">Thanks!</h3>
         <p className="color-teal-300">
-          We&apos;ve emailed you a confirmation. Application results will be
-          announced by 21 August.
+          We&apos;ve emailed you a confirmation. Since applications have
+          officially closed, we can&apos;t promise a decision, but we&apos;ll be
+          in touch if we&apos;re able to offer you a place.
         </p>
       </div>
     )
@@ -85,6 +86,12 @@ export default function ApplicationForm() {
       className={`${styles.fields} padding-bottom-56px`}
       onSubmit={handleSubmit}
     >
+      {/* Applications closed 14 August 2026; the form stays up for late
+          applications from very strong candidates. */}
+      <h3 className={`${styles.full} padding-bottom-8px`}>
+        Applications have closed
+      </h3>
+
       <div className={`${styles.field} ${styles.full}`}>
         <label className="paragraph-small color-teal-300" htmlFor="name">
           Name

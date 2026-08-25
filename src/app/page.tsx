@@ -182,7 +182,7 @@ export default async function Home() {
             opportunities, and connect.
           </p>
           <TrackedLink
-            href="https://join.slack.com/t/ai-alignment/shared_invite/zt-3zncuyguu-fO8vQTa6d7jEFomFZ9qZXA"
+            href="https://join.slack.com/t/ai-alignment/shared_invite/zt-46igeclhz-5mzaevYc__pKUIGX6Fe4lQ"
             target="_blank"
             rel="noopener noreferrer"
             className="button-secondary"
@@ -240,11 +240,11 @@ export default async function Home() {
             </div>
             <p className="padding-bottom-24px">
               Learn key concepts and research perspectives in AI safety, split
-              into two tracks.
+              into two main tracks.
             </p>
             <div className="block">
               <TrackedLink
-                href="https://bluedot.org/"
+                href="https://bluedot.org/courses"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="button-secondary"

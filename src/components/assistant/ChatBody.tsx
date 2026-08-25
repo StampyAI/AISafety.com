@@ -94,6 +94,76 @@ function appendTextDelta(
   return next
 }
 
+/** The answer window that was actually ON SCREEN when the redo at `redoIdx`
+ *  fired, or null when the visitor was looking at the loading dots. Walks the
+ *  redo chain from the start: the window before the first redo was displayed
+ *  live; once a draft freezes it stays frozen through any later redos (their
+ *  preceding windows streamed hidden behind it and were never seen); and when
+ *  nothing was frozen, a rewrite was only on screen once its own
+ *  thinking_done — the second one after that redo — had text following it. */
+function frozenDraftAt(
+  events: MessageEvent[],
+  redoIdx: number
+): MessageEvent[] | null {
+  let prevRedo = -1
+  let shown: MessageEvent[] | null = null
+  for (let i = 0; i <= redoIdx && i < events.length; i++) {
+    if (events[i].kind !== 'redo') continue
+    if (shown === null) shown = liveWindowBefore(events, i, prevRedo)
+    prevRedo = i
+  }
+  return shown
+}
+
+/** The window the visitor was watching live inside (prevRedo, r): bounded
+ *  below by the last thinking_done/tool before r. Before any redo, text is
+ *  visible once some [[/thinking]] marker has arrived; after a redo (with
+ *  nothing frozen), only once the rewrite's OWN marker — the second
+ *  thinking_done after the redo — has been passed. Null when that window was
+ *  never displayed or holds no text. */
+function liveWindowBefore(
+  events: MessageEvent[],
+  r: number,
+  prevRedo: number
+): MessageEvent[] | null {
+  let prevBoundary = -1
+  let sawThinkingDone = false
+  for (let b = r - 1; b > prevRedo; b--) {
+    const kind = events[b].kind
+    if (kind === 'thinking_done' || kind === 'tool') {
+      if (prevBoundary === -1) prevBoundary = b
+      if (kind === 'thinking_done') {
+        sawThinkingDone = true
+        break
+      }
+    }
+  }
+  if (prevBoundary === -1) return null
+  if (prevRedo === -1) {
+    // Pre-redo: visible once any marker arrived at or before the boundary.
+    if (!sawThinkingDone) {
+      let anyMarker = false
+      for (let b = prevBoundary - 1; b >= 0; b--) {
+        if (events[b].kind === 'thinking_done') {
+          anyMarker = true
+          break
+        }
+      }
+      if (!anyMarker) return null
+    }
+  } else {
+    // After a redo with nothing frozen: the dots stayed up until the
+    // rewrite's own marker (its second thinking_done) arrived.
+    let markers = 0
+    for (let b = prevRedo + 1; b <= prevBoundary; b++) {
+      if (events[b].kind === 'thinking_done') markers++
+    }
+    if (markers < 2) return null
+  }
+  const w = events.slice(prevBoundary + 1, r)
+  return w.some(e => e.kind === 'text' && e.text.trim()) ? w : null
+}
+
 function appendDeltaToLastText(
   events: MessageEvent[],
   delta: string
@@ -118,12 +188,25 @@ export interface UIMessage {
   followUpChips: string[]
   isStreaming: boolean
   error?: string
+  /** Visitor's thumbs rating of this assistant reply, if any. Kept in the
+   *  session-persisted message so it survives a reload within the tab. */
+  rating?: 'up' | 'down'
 }
 
 export interface ChatBodyHandle {
   clear: () => void
   /** Focus the composer input so the user can start typing immediately. */
   focusInput: () => void
+}
+
+/** How one reply's request went, from the browser's point of view. See the
+ *  `onTurnLifecycle` prop. */
+export interface TurnLifecycleEvent {
+  phase: 'start' | 'received' | 'stopped' | 'error'
+  /** The reply's index in the message list. */
+  turnIndex: number
+  /** Milliseconds since the message was sent (0 for 'start'). */
+  ms: number
 }
 
 interface AssistantMessageViewProps {
@@ -193,6 +276,8 @@ function AssistantMessageView({
           />
         )
       }
+      // Boundary/redo marker events render nothing themselves.
+      if (ev.kind !== 'tool') return null
       const call = message.toolCalls.find(tc => tc.id === ev.toolCallId)
       if (!call) return null
       return <ToolCallPill key={`${keyPrefix}-${i}`} call={call} />
@@ -201,10 +286,73 @@ function AssistantMessageView({
   // While streaming, show a loading indicator until the bot finishes its
   // reasoning and emits [[/thinking]]. After the boundary, stream only the
   // user-facing answer. The reasoning/tool trail is never shown.
+  // Index of the last redo event — the server sent the model back to rewrite
+  // a broken draft (fabricated cards, unearned suggest form, …).
+  let lastRedo = -1
+  for (let i = message.events.length - 1; i >= 0; i--) {
+    if (message.events[i].kind === 'redo') {
+      lastRedo = i
+      break
+    }
+  }
+
   if (hasBoundary) {
-    const post = message.events.slice(boundary + 1)
+    // The visible window never extends into a redo event: everything after it
+    // is the rewrite's reasoning, not answer text.
+    let end = message.events.length
+    for (let i = boundary + 1; i < message.events.length; i++) {
+      if (message.events[i].kind === 'redo') {
+        end = i
+        break
+      }
+    }
+    let post = message.events.slice(boundary + 1, end)
+    let frozenDraft = false
+    if (lastRedo !== -1) {
+      // A redo rewrote (or is rewriting) the reply. Rewrites are
+      // near-verbatim, so if a retracted draft was on screen, hold it there
+      // for the rest of the stream and settle into the rewrite in one step at
+      // the end — far less jarring than visibly deleting a long answer and
+      // re-typing it. If the visitor only ever saw the loading dots, stream
+      // the rewrite live instead, but only once its own [[/thinking]] has
+      // arrived (at most one boundary, the synthetic draft-closer, precedes
+      // it after the redo) — text before that is rewrite reasoning, never
+      // answer. The same rules apply when the stream ended mid-rewrite
+      // (Stop, token limit, reload): show the draft rather than leaking the
+      // rewrite's reasoning or blanking the bubble.
+      const draft = frozenDraftAt(message.events, lastRedo)
+      let markersAfterRedo = 0
+      for (let i = lastRedo + 1; i < message.events.length; i++) {
+        if (message.events[i].kind === 'thinking_done') markersAfterRedo++
+      }
+      const rewriteVisible =
+        markersAfterRedo >= 2 &&
+        post.some(e => e.kind === 'text' && e.text.trim())
+      if (message.isStreaming) {
+        if (draft) {
+          post = draft
+          frozenDraft = true
+        } else if (!rewriteVisible) {
+          post = []
+        }
+      } else if (!rewriteVisible && draft) {
+        post = draft
+        frozenDraft = true
+      }
+      // Not streaming, no draft, rewrite's marker never arrived: leave post
+      // as-is — a completed rewrite that forgot its own marker is still the
+      // real answer.
+    }
     if (post.length > 0) {
-      return <>{renderInline(post, 'post', message.isStreaming)}</>
+      return (
+        <>
+          {renderInline(
+            post,
+            frozenDraft ? 'draft' : 'post',
+            message.isStreaming
+          )}
+        </>
+      )
     }
     if (message.isStreaming) {
       return (
@@ -261,10 +409,22 @@ interface Props {
    *  index in the stored history), so the admin can badge the one link the
    *  visitor clicked instead of every copy of that href across the chat. */
   onLinkClick?: (href: string, label: string, turnIndex?: number) => void
+  /** Fires when the visitor thumbs-rates an assistant reply. `turnIndex` is
+   *  the reply's position in the message list (matching its index in the
+   *  stored history), so the rating can be pinned to the exact turn. */
+  onRate?: (value: 'up' | 'down', turnIndex: number) => void
   /** Fires when the user sends a message (typed or via a chip), excluding
    *  retries — lets the public chatbot count engagement while the admin
    *  playground (which doesn't pass this) stays out of the numbers. */
   onUserSend?: () => void
+  /** Fires once when a reply's request goes out ('start') and once when it
+   *  ends: 'received' (the stream finished and an answer showed), 'stopped'
+   *  (the visitor pressed Stop / cleared the chat), or 'error' (the request
+   *  failed, the server sent an error, or the reply came back blank).
+   *  `turnIndex` is the reply's position in the message list (matching its
+   *  index in the stored history); `ms` is measured from the send. Lets the
+   *  public chatbot report whether the visitor actually got the answer. */
+  onTurnLifecycle?: (event: TurnLifecycleEvent) => void
   /** Fires whenever the message count transitions between 0 and >0, so the
    *  parent can show/hide a clear button without polling. */
   onHasMessagesChange?: (hasMessages: boolean) => void
@@ -287,7 +447,9 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
     onSuggest,
     onCitationClick,
     onLinkClick,
+    onRate,
     onUserSend,
+    onTurnLifecycle,
     onHasMessagesChange,
     closeOnEscape,
     onCloseEscape,
@@ -306,6 +468,11 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
   useEffect(() => {
     onUserSendRef.current = onUserSend
   }, [onUserSend])
+  // Same for onTurnLifecycle.
+  const onTurnLifecycleRef = useRef(onTurnLifecycle)
+  useEffect(() => {
+    onTurnLifecycleRef.current = onTurnLifecycle
+  }, [onTurnLifecycle])
 
   // Hydrate from session storage (when key provided)
   useEffect(() => {
@@ -449,6 +616,15 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
       const controller = new AbortController()
       abortRef.current = controller
 
+      // Delivery reporting: the reply's index is where asstMsg sits in the
+      // list, which is also its index in the history the server stores.
+      // Timed from here so `ms` is the visitor's real wait, including the
+      // context lookups before the request goes out.
+      const turnIndex = baseHistory.length
+      const sentAt = Date.now()
+      onTurnLifecycleRef.current?.({ phase: 'start', turnIndex, ms: 0 })
+      let outcome: TurnLifecycleEvent['phase'] = 'error'
+
       try {
         const extras =
           typeof bodyExtras === 'function'
@@ -490,6 +666,8 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
         // is reasoning. Used below to repair a reply whose [[/thinking]]
         // marker never arrived.
         let lastToolTextOffset = 0
+        // The server reported a generation failure mid-stream.
+        let sawServerError = false
 
         while (true) {
           const { done, value } = await reader.read()
@@ -578,7 +756,16 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                   }
                 })
               )
+            } else if (eventType === 'redo') {
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === asstId
+                    ? { ...m, events: [...m.events, { kind: 'redo' }] }
+                    : m
+                )
+              )
             } else if (eventType === 'error') {
+              sawServerError = true
               setMessages(prev =>
                 prev.map(m =>
                   m.id === asstId
@@ -639,8 +826,10 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
               : m
           )
         )
+        if (answer.trim() !== '' && !sawServerError) outcome = 'received'
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
+          outcome = 'stopped'
           setMessages(prev =>
             prev.map(m => (m.id === asstId ? { ...m, isStreaming: false } : m))
           )
@@ -660,6 +849,11 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
       } finally {
         setIsWaiting(false)
         abortRef.current = null
+        onTurnLifecycleRef.current?.({
+          phase: outcome,
+          turnIndex,
+          ms: Date.now() - sentAt,
+        })
       }
     },
     [bodyExtras, endpoint, isWaiting, messages]
@@ -693,6 +887,22 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
       setMessages(messages.slice(0, idx))
     },
     [messages]
+  )
+
+  // Record the visitor's thumbs rating of an assistant reply. Re-clicking the
+  // already-chosen thumb is a no-op; switching thumbs overwrites. The turn's
+  // position in the list (matching the stored history index) is handed up so
+  // the rating can be pinned to the exact turn.
+  const handleRate = useCallback(
+    (msgId: string, value: 'up' | 'down') => {
+      const idx = messages.findIndex(m => m.id === msgId)
+      if (idx === -1 || messages[idx].rating === value) return
+      setMessages(prev =>
+        prev.map(m => (m.id === msgId ? { ...m, rating: value } : m))
+      )
+      onRate?.(value, idx)
+    },
+    [messages, onRate]
   )
 
   // Union of every listing cited across the whole conversation. Cards resolve
@@ -783,6 +993,50 @@ const ChatBody = forwardRef<ChatBodyHandle, Props>(function ChatBody(
                         {chip}
                       </button>
                     ))}
+                  </div>
+                )}
+                {!m.isStreaming && !m.error && m.content.trim() && (
+                  <div className={styles.feedbackRow}>
+                    <button
+                      type="button"
+                      className={`${styles.feedbackButton} ${styles.feedbackButtonUp}${m.rating === 'up' ? ` ${styles.feedbackButtonActive}` : ''}`}
+                      onClick={() => handleRate(m.id, 'up')}
+                      aria-label="Good response"
+                      aria-pressed={m.rating === 'up'}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z" />
+                        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.feedbackButton} ${styles.feedbackButtonDown}${m.rating === 'down' ? ` ${styles.feedbackButtonActive}` : ''}`}
+                      onClick={() => handleRate(m.id, 'down')}
+                      aria-label="Bad response"
+                      aria-pressed={m.rating === 'down'}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z" />
+                        <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
+                      </svg>
+                    </button>
                   </div>
                 )}
                 {m.error && (

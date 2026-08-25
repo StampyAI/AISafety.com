@@ -1,14 +1,23 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
+import {
+  useState,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+  useCallback,
+} from 'react'
 import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import SearchBar from '@/components/SearchBar'
 import { Job } from '@/lib/data/jobs'
 import { trackListingClick } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 import { setPageContext } from '@/lib/assistant/page-context'
+import { filterItems, optionCounts } from '@/lib/filter-counts'
 
 interface JobsClientProps {
   jobs: Job[]
@@ -46,127 +55,290 @@ const roleTypeOptions = [
 
 const workLocationOptions = ['Remote', 'On-site']
 
+// 80k sometimes lists a region instead of a country ("Europe", "Various,
+// Europe", "Remote (Europe)"). Those roles are available from any country
+// in the region, so they match every member country in the filter. Only
+// "Europe" appears in the data today; the other regions are listed so the
+// same behavior kicks in automatically if 80k ever uses them.
+const REGION_MEMBERS: Record<string, Set<string>> = {
+  Europe: new Set([
+    'UK',
+    'Ireland',
+    'France',
+    'Germany',
+    'Netherlands',
+    'Belgium',
+    'Luxembourg',
+    'Switzerland',
+    'Austria',
+    'Denmark',
+    'Norway',
+    'Sweden',
+    'Finland',
+    'Iceland',
+    'Spain',
+    'Portugal',
+    'Italy',
+    'Greece',
+    'Poland',
+    'Czechia',
+    'Czech Republic',
+    'Slovakia',
+    'Hungary',
+    'Romania',
+    'Bulgaria',
+    'Croatia',
+    'Serbia',
+    'Slovenia',
+    'Estonia',
+    'Latvia',
+    'Lithuania',
+    'Ukraine',
+  ]),
+  Asia: new Set([
+    'China',
+    'India',
+    'Japan',
+    'Singapore',
+    'South Korea',
+    'Taiwan',
+    'Hong Kong',
+    'Indonesia',
+    'Malaysia',
+    'Thailand',
+    'Vietnam',
+    'Philippines',
+    'Israel',
+    'United Arab Emirates',
+    'UAE',
+    'Saudi Arabia',
+    'Turkey',
+  ]),
+  'Middle East': new Set([
+    'Israel',
+    'United Arab Emirates',
+    'UAE',
+    'Saudi Arabia',
+    'Qatar',
+    'Turkey',
+    'Jordan',
+    'Egypt',
+  ]),
+  'North America': new Set(['USA', 'Canada', 'Mexico']),
+  'Latin America': new Set([
+    'Mexico',
+    'Brazil',
+    'Argentina',
+    'Chile',
+    'Colombia',
+    'Peru',
+    'Uruguay',
+    'Costa Rica',
+  ]),
+  'South America': new Set([
+    'Brazil',
+    'Argentina',
+    'Chile',
+    'Colombia',
+    'Peru',
+    'Uruguay',
+  ]),
+  Africa: new Set([
+    'South Africa',
+    'Nigeria',
+    'Kenya',
+    'Ghana',
+    'Egypt',
+    'Morocco',
+    'Rwanda',
+    'Uganda',
+  ]),
+  Oceania: new Set(['Australia', 'New Zealand']),
+}
+
+const REGION_NAMES = Object.keys(REGION_MEMBERS)
+
+const jobMatchesCountry = (job: Job, country: string) =>
+  job.countries.includes(country) ||
+  REGION_NAMES.some(
+    region =>
+      REGION_MEMBERS[region].has(country) && job.countries.includes(region)
+  )
+
+const degreeOptions = [
+  'Undergraduate degree or less',
+  "Master's degree",
+  'Doctoral degree',
+]
+
 export default function JobsClient({ jobs }: JobsClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [selectedExperience, setSelectedExperience] = useState<string[]>([])
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<string[]>([])
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([])
+  const [selectedDegrees, setSelectedDegrees] = useState<string[]>([])
   const savedScrollY = useRef<number | null>(null)
 
   // Each job's slot in the full page order, stamped onto a click so the
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(jobs), [jobs])
 
-  const filteredJobs = useMemo(() => {
-    return jobs.filter(job => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        if (
-          !job.name.toLowerCase().includes(query) &&
-          !job.organization.toLowerCase().includes(query) &&
-          !job.location.toLowerCase().includes(query)
-        ) {
-          return false
-        }
+  // Countries come from the data itself; only those with a meaningful
+  // number of jobs get a checkbox, ordered by overall job count (the
+  // order stays put while filtering). "Other" collects jobs in the
+  // remaining countries.
+  const countryOptions = useMemo(() => {
+    const raw: Record<string, number> = {}
+    for (const job of jobs) {
+      for (const country of job.countries) {
+        raw[country] = (raw[country] || 0) + 1
       }
+    }
+    const options = Object.keys(raw).filter(
+      c => !(c in REGION_MEMBERS) && raw[c] >= 5
+    )
+    const totals: Record<string, number> = {}
+    for (const option of options) {
+      totals[option] = jobs.filter(job => jobMatchesCountry(job, option)).length
+    }
+    options.sort((a, b) => totals[b] - totals[a])
+    options.push('Other')
+    return options
+  }, [jobs])
 
-      if (selectedSkills.length > 0) {
-        const jobSkills = job.skillSet.split(',').map(s => s.trim())
-        const hasMatch = selectedSkills.some(s => jobSkills.includes(s))
-        if (!hasMatch) return false
-      }
+  const searchPass = useCallback(
+    (job: Job) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        job.name.toLowerCase().includes(query) ||
+        job.organization.toLowerCase().includes(query) ||
+        job.location.toLowerCase().includes(query) ||
+        job.description.toLowerCase().includes(query)
+      )
+    },
+    [searchQuery]
+  )
 
-      if (selectedExperience.length > 0) {
-        const jobExperience = job.minimumExperience
-          .split(',')
-          .map(e => e.trim())
-        const hasMatch = selectedExperience.some(e => jobExperience.includes(e))
-        if (!hasMatch) return false
-      }
-
-      if (selectedRoles.length > 0) {
-        const jobRoles = job.roleType.split(',').map(r => r.trim())
-        const hasMatch = selectedRoles.some(r => jobRoles.includes(r))
-        if (!hasMatch) return false
-      }
-
-      if (selectedWorkLocation.length > 0) {
-        if (!selectedWorkLocation.includes(job.workLocation)) return false
-      }
-
-      return true
-    })
+  const groups = useMemo(() => {
+    const named = new Set(countryOptions.filter(c => c !== 'Other'))
+    return {
+      skill: {
+        selected: selectedSkills,
+        matches: (job: Job, value: string) =>
+          job.skillSet
+            .split(',')
+            .map(s => s.trim())
+            .includes(value),
+      },
+      experience: {
+        selected: selectedExperience,
+        matches: (job: Job, value: string) =>
+          job.minimumExperience
+            .split(',')
+            .map(e => e.trim())
+            .includes(value),
+      },
+      role: {
+        selected: selectedRoles,
+        matches: (job: Job, value: string) =>
+          job.roleType
+            .split(',')
+            .map(r => r.trim())
+            .includes(value),
+      },
+      workLocation: {
+        selected: selectedWorkLocation,
+        matches: (job: Job, value: string) => job.workLocation === value,
+      },
+      country: {
+        selected: selectedCountries,
+        matches: (job: Job, value: string) =>
+          value === 'Other'
+            ? job.countries.some(c => !named.has(c))
+            : jobMatchesCountry(job, value),
+      },
+      degree: {
+        selected: selectedDegrees,
+        matches: (job: Job, value: string) => job.requiredDegree === value,
+      },
+    }
   }, [
-    jobs,
-    searchQuery,
     selectedSkills,
     selectedExperience,
     selectedRoles,
     selectedWorkLocation,
+    selectedCountries,
+    selectedDegrees,
+    countryOptions,
   ])
 
-  const skillCounts = useMemo(() => {
-    return jobs.reduce(
-      (counts, job) => {
-        const skills = job.skillSet.split(',').map(s => s.trim())
-        for (const option of skillSetOptions) {
-          if (skills.includes(option)) {
-            counts[option] = (counts[option] || 0) + 1
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [jobs])
+  const filteredJobs = useMemo(
+    () => filterItems(jobs, searchPass, groups),
+    [jobs, searchPass, groups]
+  )
 
-  const experienceCounts = useMemo(() => {
-    return jobs.reduce(
-      (counts, job) => {
-        const jobExperience = job.minimumExperience
-          .split(',')
-          .map(e => e.trim())
-        for (const option of experienceOptions) {
-          if (jobExperience.includes(option)) {
-            counts[option] = (counts[option] || 0) + 1
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [jobs])
+  const skillCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'skill'),
+        skillSetOptions,
+        groups.skill.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
-  const roleCounts = useMemo(() => {
-    return jobs.reduce(
-      (counts, job) => {
-        const roles = job.roleType.split(',').map(r => r.trim())
-        for (const option of roleTypeOptions) {
-          if (roles.includes(option)) {
-            counts[option] = (counts[option] || 0) + 1
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [jobs])
+  const experienceCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'experience'),
+        experienceOptions,
+        groups.experience.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
-  const workLocationCounts = useMemo(() => {
-    return jobs.reduce(
-      (counts, job) => {
-        for (const option of workLocationOptions) {
-          if (job.workLocation === option) {
-            counts[option] = (counts[option] || 0) + 1
-            break
-          }
-        }
-        return counts
-      },
-      {} as Record<string, number>
-    )
-  }, [jobs])
+  const roleCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'role'),
+        roleTypeOptions,
+        groups.role.matches
+      ),
+    [jobs, searchPass, groups]
+  )
+
+  const workLocationCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'workLocation'),
+        workLocationOptions,
+        groups.workLocation.matches
+      ),
+    [jobs, searchPass, groups]
+  )
+
+  const countryCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'country'),
+        countryOptions,
+        groups.country.matches
+      ),
+    [jobs, searchPass, groups, countryOptions]
+  )
+
+  const degreeCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, searchPass, groups, 'degree'),
+        degreeOptions,
+        groups.degree.matches
+      ),
+    [jobs, searchPass, groups]
+  )
 
   const toggleFilter = (
     value: string,
@@ -195,6 +367,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     if (selectedExperience.length) state.experience = selectedExperience
     if (selectedRoles.length) state.roleTypes = selectedRoles
     if (selectedWorkLocation.length) state.workLocation = selectedWorkLocation
+    if (selectedCountries.length) state.countries = selectedCountries
+    if (selectedDegrees.length) state.requiredDegree = selectedDegrees
     if (searchQuery) state.search = searchQuery
     setPageContext({
       page: '/jobs',
@@ -206,6 +380,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     selectedExperience,
     selectedRoles,
     selectedWorkLocation,
+    selectedCountries,
+    selectedDegrees,
     searchQuery,
   ])
 
@@ -216,7 +392,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
           <SearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search jobs by title, organization, or location"
+            placeholder="Search jobs by title, organization, location, or description"
           />
         </div>
 
@@ -224,7 +400,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
           {filteredJobs.map(job => (
             <a
               key={job.id}
-              href={job.url}
+              href={withUtm(job.url, 'Jobs')}
               target="_blank"
               rel="noopener noreferrer"
               className="card"
@@ -262,6 +438,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                   </p>
                 </div>
               </div>
+              {job.summary && (
+                <p className="paragraph-small padding-bottom-16px">
+                  {job.summary}
+                </p>
+              )}
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
                 Skill set
               </p>
@@ -272,7 +453,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                 Location
               </p>
               <p className="paragraph-small padding-bottom-16px">
-                {job.location}
+                {job.locations.map(loc => (
+                  <span key={loc} className="block">
+                    {loc}
+                  </span>
+                ))}
               </p>
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
                 Minimum experience
@@ -280,6 +465,26 @@ export default function JobsClient({ jobs }: JobsClientProps) {
               <p className="paragraph-small padding-bottom-16px">
                 {job.minimumExperience}
               </p>
+              {job.requiredDegree && (
+                <>
+                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
+                    Required degree
+                  </p>
+                  <p className="paragraph-small padding-bottom-16px">
+                    {job.requiredDegree}
+                  </p>
+                </>
+              )}
+              {job.salary && (
+                <>
+                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
+                    Salary
+                  </p>
+                  <p className="paragraph-small padding-bottom-16px">
+                    {job.salary}
+                  </p>
+                </>
+              )}
               <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
                 Role type
               </p>
@@ -296,7 +501,11 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                     Posted:{' '}
                     {(() => {
                       const d = new Date(job.datePublished + 'T00:00:00')
-                      return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+                      return d.toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
                     })()}
                   </span>
                 </div>
@@ -331,6 +540,14 @@ export default function JobsClient({ jobs }: JobsClientProps) {
           />
           <FilterGroup
             trackingPage="Jobs"
+            title="Required degree"
+            options={degreeOptions}
+            selected={selectedDegrees}
+            counts={degreeCounts}
+            onToggle={v => toggleFilter(v, selectedDegrees, setSelectedDegrees)}
+          />
+          <FilterGroup
+            trackingPage="Jobs"
             title="Role type"
             options={roleTypeOptions}
             selected={selectedRoles}
@@ -339,7 +556,18 @@ export default function JobsClient({ jobs }: JobsClientProps) {
           />
           <FilterGroup
             trackingPage="Jobs"
-            title="Work location"
+            title="Location"
+            options={countryOptions}
+            selected={selectedCountries}
+            counts={countryCounts}
+            onToggle={v =>
+              toggleFilter(v, selectedCountries, setSelectedCountries)
+            }
+          />
+          <FilterGroup
+            trackingPage="Jobs"
+            title="Remote or on-site"
+            trackingTitle="Work location"
             options={workLocationOptions}
             selected={selectedWorkLocation}
             counts={workLocationCounts}
@@ -353,7 +581,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             Source:
           </p>
           <a
-            href="https://jobs.80000hours.org/"
+            href={withUtm('https://jobs.80000hours.org/', 'Jobs')}
             target="_blank"
             rel="noopener noreferrer"
             className="color-light-teal"

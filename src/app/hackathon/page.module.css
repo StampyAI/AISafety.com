@@ -92,6 +92,13 @@
   overflow-y: hidden;
 }
 
+/* Post-submit thank-you box on /hackathon/details. Fill and border come from
+   the global .border-plus-fill class, spacing from padding utilities; only the
+   corner radius has no utility, and it matches .card. */
+.thanks {
+  border-radius: 16px;
+}
+
 /* Honeypot field: moved off-screen rather than display:none so naive bots
    still "see" and fill it. */
 .hp {

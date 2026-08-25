@@ -7,6 +7,27 @@ export function formatDate(date: Date): string {
   }).format(date)
 }
 
+/** Minute-level "x ago" for freshness readouts (the preview-mode banner's
+ *  "site last rebuilt ..."), where formatRelativeDate's day granularity is
+ *  too coarse. `now` is a parameter so the pure logic is testable. */
+export function formatTimeAgo(isoDate: string, now: Date): string {
+  const then = new Date(isoDate)
+  if (isNaN(then.getTime())) {
+    throw new Error(`formatTimeAgo: invalid date "${isoDate}"`)
+  }
+  const diffMinutes = Math.floor((now.getTime() - then.getTime()) / 60_000)
+  if (diffMinutes < 1) return 'just now'
+  if (diffMinutes < 60) {
+    return diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`
+  }
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) {
+    return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`
+  }
+  const diffDays = Math.floor(diffHours / 24)
+  return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`
+}
+
 export function formatRelativeDate(isoDate: string): string {
   const lastUpdatedDate = new Date(isoDate)
   const now = new Date()

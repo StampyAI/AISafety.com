@@ -21,7 +21,7 @@ export default async function PreviewBanner() {
   return (
     <>
       <ExitPreviewButton buildTime={buildTime} />
-      <PreviewAutoRefresh />
+      <PreviewAutoRefresh buildTime={buildTime} />
     </>
   )
 }

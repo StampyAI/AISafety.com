@@ -21,7 +21,7 @@ import StickyBar, { scrollToAnchor } from '@/components/StickyBar'
 import { EVENT_TYPES, eventTypeColor } from '@/lib/event-types'
 import { selectFeatured, withRandomStandIns } from '@/lib/featured'
 import { trackFilterApply } from '@/lib/analytics'
-import { featuredSlot, placementsById } from '@/lib/placements'
+import { placementsById } from '@/lib/placements'
 import type { EventListing } from '@/lib/data/events'
 import styles from './page.module.css'
 
@@ -427,7 +427,7 @@ export default function EventsClient({ events }: EventsClientProps) {
   // click is tagged with the rank the visitor saw — not its position within an
   // active filter.
   const placements = useMemo(
-    () => placementsById(modeEvents, new Set(featuredEvents.map(e => e.id))),
+    () => placementsById(modeEvents, featuredEvents),
     [modeEvents, featuredEvents]
   )
 
@@ -585,7 +585,7 @@ export default function EventsClient({ events }: EventsClientProps) {
               meta={bottomMetaFor(event)}
               trackingPage="Events"
               trackingId={event.id}
-              trackingPosition={featuredSlot(event)}
+              trackingPosition={placements.get(event.id)}
               trackingSource={mode}
               index={i}
               count={featuredEvents.length}

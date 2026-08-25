@@ -24,7 +24,7 @@ import {
   trainingTypeColor,
 } from '@/lib/training-types'
 import { selectFeatured, withRandomStandIns } from '@/lib/featured'
-import { featuredSlot, placementsById } from '@/lib/placements'
+import { placementsById } from '@/lib/placements'
 import type {
   ProgramBase,
   RecurringProgram,
@@ -280,8 +280,7 @@ export default function TrainingClient({
   // click is tagged with the rank the visitor saw — not its position within an
   // active filter.
   const placements = useMemo(
-    () =>
-      placementsById(modePrograms, new Set(featuredPrograms.map(p => p.id))),
+    () => placementsById(modePrograms, featuredPrograms),
     [modePrograms, featuredPrograms]
   )
 
@@ -517,7 +516,7 @@ export default function TrainingClient({
               )}
               trackingPage="Training"
               trackingId={program.id}
-              trackingPosition={featuredSlot(program)}
+              trackingPosition={placements.get(program.id)}
               trackingSource={mode}
               index={i}
               count={featuredPrograms.length}

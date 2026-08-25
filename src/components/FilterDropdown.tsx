@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+import Icon from './Icon'
 import { useEffect, useRef, useState } from 'react'
 import { trackFilterApply } from '@/lib/analytics'
 import styles from './FilterDropdown.module.css'
@@ -91,22 +91,13 @@ export default function FilterDropdown({
           setOpen(o => !o)
         }}
       >
-        {icon && <Image src={icon} alt="" width={16} height={16} unoptimized />}
+        {icon && <Icon src={icon} />}
         {label}
-        <svg
+        <Icon
+          src="/images/icons/chevron-down.svg"
+          size={16}
           className={styles.chevron}
-          width="12"
-          height="12"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M4 6L8 10L12 6" />
-        </svg>
+        />
       </button>
 
       {open && (

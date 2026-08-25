@@ -1,13 +1,14 @@
 'use client'
 
 import Image from 'next/image'
+import Icon from '@/components/Icon'
 import { trackAirtableView, trackContributeClick } from '@/lib/analytics'
 import styles from './ContributeButtons.module.css'
 
 interface ExtraLink {
   label: string
   url: string
-  /** Path to a 12×12 teal-bright-300 svg in /images. Defaults to the star. */
+  /** Icon shape in /images/icons/ (rendered via <Icon>). Defaults to the star. */
   icon?: string
 }
 
@@ -54,7 +55,7 @@ function ActionRow({
       className={`flex items-center gap-8px color-teal-bright-300 hover-white ${styles.row}`}
     >
       <span className={`bg-teal-bright-850 ${styles.badge}`}>
-        <Image src={icon} alt="" width={12} height={12} unoptimized />
+        <Icon src={icon} size={12} />
       </span>
       <span className="paragraph-xs">{label}</span>
     </a>
@@ -86,13 +87,13 @@ export default function ContributeButtons({
         <div className="flex flex-col gap-8px">
           <ActionRow
             href={suggestEntryUrl}
-            icon="/images/plus-small.svg"
+            icon="/images/icons/plus-small.svg"
             label={addLabel}
             onClick={() => track('add', addLabel, suggestEntryUrl)}
           />
           <ActionRow
             href={suggestCorrectionUrl}
-            icon="/images/pencil-small.svg"
+            icon="/images/icons/pencil-small.svg"
             label="Suggest a correction"
             onClick={() =>
               track('correction', 'Suggest a correction', suggestCorrectionUrl)
@@ -102,7 +103,7 @@ export default function ContributeButtons({
             <ActionRow
               key={link.url}
               href={link.url}
-              icon={link.icon || '/images/star-small.svg'}
+              icon={link.icon || '/images/icons/star-small.svg'}
               label={link.label}
               onClick={() => track('extra', link.label, link.url)}
             />
@@ -129,12 +130,10 @@ export default function ContributeButtons({
           className={styles.airtableImg}
         />
         <span className={`${styles.badge} ${styles.airtableArrow}`}>
-          <Image
+          <Icon
             src="/images/icons/arrow-up-right-figma.svg"
-            alt=""
-            width={24}
-            height={24}
-            unoptimized
+            size={16}
+            className="color-white"
           />
         </span>
         <div className={styles.airtableTextWrap}>

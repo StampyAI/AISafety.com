@@ -1,22 +1,12 @@
 'use client'
 
-import {
-  useState,
-  useMemo,
-  useRef,
-  useLayoutEffect,
-  useEffect,
-  useCallback,
-} from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import FilterGroup from '@/components/FilterGroup'
-import FilterSidebar from '@/components/FilterSidebar'
+import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
+import FilterBar from '@/components/FilterBar'
+import FilterDropdown from '@/components/FilterDropdown'
+import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
-import SearchBar from '@/components/SearchBar'
 import { Community } from '@/lib/data/communities'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
-import { trackListingClick } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
@@ -25,8 +15,8 @@ interface CommunitiesClientProps {
 }
 
 // Filter options based on Airtable data
-const typeOptions = ['Online', 'In person']
 const platformOptions = [
+  'Local',
   'Discord',
   'Facebook',
   'Forum',
@@ -40,11 +30,12 @@ const platformOptions = [
 const activityOptions = ['Very active', 'Active', 'Semi-active', 'Inactive']
 const focusOptions = ['Main focus is AI safety', 'Partial focus on AI safety']
 
+// No search box on this page, so every community passes the base filter.
+const allPass = () => true
+
 export default function CommunitiesClient({
   communities,
 }: CommunitiesClientProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilters, setTypeFilters] = useState<string[]>([])
   const [platformFilters, setPlatformFilters] = useState<string[]>([])
   const [activityFilters, setActivityFilters] = useState<string[]>([])
   const [focusFilters, setFocusFilters] = useState<string[]>([])
@@ -53,28 +44,11 @@ export default function CommunitiesClient({
   // dashboard can tie clicks to page position even after later reordering.
   const placements = useMemo(() => placementsById(communities), [communities])
 
-  const searchPass = useCallback(
-    (community: Community) => {
-      if (!searchQuery) return true
-      const query = searchQuery.toLowerCase()
-      return (
-        community.name.toLowerCase().includes(query) ||
-        community.description.toLowerCase().includes(query) ||
-        Boolean(
-          community.location && community.location.toLowerCase().includes(query)
-        )
-      )
-    },
-    [searchQuery]
-  )
-
+  // Live counts (the shared filter-counts idiom): each dropdown's numbers are
+  // computed over the communities passing every OTHER group, so a count
+  // answers "what would I get if I also ticked this?".
   const groups = useMemo(
     () => ({
-      type: {
-        selected: typeFilters,
-        matches: (community: Community, value: string) =>
-          community.type.includes(value),
-      },
       platform: {
         selected: platformFilters,
         matches: (community: Community, value: string) =>
@@ -91,38 +65,33 @@ export default function CommunitiesClient({
           community.focus === value,
       },
     }),
-    [typeFilters, platformFilters, activityFilters, focusFilters]
+    [platformFilters, activityFilters, focusFilters]
   )
 
   const filteredCommunities = useMemo(
-    () => filterItems(communities, searchPass, groups),
-    [communities, searchPass, groups]
+    () => filterItems(communities, allPass, groups),
+    [communities, groups]
   )
 
   const filterCounts = useMemo(
     () => ({
-      type: optionCounts(
-        filterItems(communities, searchPass, groups, 'type'),
-        typeOptions,
-        groups.type.matches
-      ),
       platform: optionCounts(
-        filterItems(communities, searchPass, groups, 'platform'),
+        filterItems(communities, allPass, groups, 'platform'),
         platformOptions,
         groups.platform.matches
       ),
       activity: optionCounts(
-        filterItems(communities, searchPass, groups, 'activity'),
+        filterItems(communities, allPass, groups, 'activity'),
         activityOptions,
         groups.activity.matches
       ),
       focus: optionCounts(
-        filterItems(communities, searchPass, groups, 'focus'),
+        filterItems(communities, allPass, groups, 'focus'),
         focusOptions,
         groups.focus.matches
       ),
     }),
-    [communities, searchPass, groups]
+    [communities, groups]
   )
 
   const savedScrollY = useRef<number | null>(null)
@@ -153,11 +122,11 @@ export default function CommunitiesClient({
     setter: (v: string[]) => void
   ) => {
     savedScrollY.current = window.scrollY
-    if (current.includes(value)) {
-      setter(current.filter(v => v !== value))
-    } else {
-      setter([...current, value])
-    }
+    setter(
+      current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+    )
   }
 
   useLayoutEffect(() => {
@@ -167,148 +136,140 @@ export default function CommunitiesClient({
     }
   }, [filteredCommunities])
 
+  const count = filteredCommunities.length
+
   return (
-    <div className="flex gap-56px">
-      <div className="width-9-col">
-        <div className="padding-bottom-40px">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search communities by title, description, or location"
-          />
-        </div>
+    <>
+      <FilterBar
+        count={count}
+        noun="community"
+        label={`${count} ${count === 1 ? 'community' : 'communities'}`}
+      >
+        <FilterDropdown
+          trackingPage="Communities"
+          title="Platform"
+          icon="/images/icons/computer.svg"
+          options={platformOptions}
+          selected={platformFilters}
+          counts={filterCounts.platform}
+          onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
+        />
+        <FilterDropdown
+          trackingPage="Communities"
+          title="Activity level"
+          icon="/images/icons/activity.svg"
+          options={activityOptions}
+          selected={activityFilters}
+          counts={filterCounts.activity}
+          onToggle={v => toggleFilter(v, activityFilters, setActivityFilters)}
+        />
+        <FilterDropdown
+          trackingPage="Communities"
+          title="Focus"
+          icon="/images/icons/target.svg"
+          options={focusOptions}
+          selected={focusFilters}
+          counts={filterCounts.focus}
+          onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
+        />
+      </FilterBar>
 
-        {/* Community Cards */}
-        <div className="collection-list">
-          {filteredCommunities.length === 0 ? (
+      <div className="flex gap-56px">
+        <div className="collection-list padding-bottom-40px width-9-col">
+          {filteredCommunities.map(community => (
+            <ListingCard
+              key={community.id}
+              href={community.joinLink !== '#' ? community.joinLink : undefined}
+              name={community.name}
+              description={community.description}
+              logo={community.logo}
+              meta={[
+                {
+                  icon: '/images/icons/computer.svg',
+                  value:
+                    community.platformText || community.platform.join(', '),
+                },
+                ...(community.activityLevel
+                  ? [
+                      {
+                        icon: '/images/icons/activity.svg',
+                        value: community.activityLevel,
+                      },
+                    ]
+                  : []),
+                ...(community.focus
+                  ? [
+                      {
+                        icon: '/images/icons/target.svg',
+                        value: community.focus,
+                      },
+                    ]
+                  : []),
+              ]}
+              trackingPage="Communities"
+              listingId={community.id}
+              placement={placements.get(community.id)}
+              trackingSource="cards"
+            />
+          ))}
+          {filteredCommunities.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>
-          ) : (
-            filteredCommunities.map(community => {
-              const hasLink =
-                Boolean(community.joinLink) && community.joinLink !== '#'
-              const cardContent = (
-                <>
-                  <div className="flex items-center gap-16px padding-bottom-24px">
-                    {community.logo && (
-                      <div className="featured-img">
-                        <Image
-                          src={community.logo}
-                          alt={`${community.name} logo`}
-                          width={64}
-                          height={64}
-                          className="card-image"
-                          unoptimized
-                          onError={e => {
-                            ;(e.target as HTMLImageElement).style.display =
-                              'none'
-                          }}
-                        />
-                      </div>
-                    )}
-                    <h3>{community.name}</h3>
-                  </div>
-                  {community.description && (
-                    <p className="paragraph-small padding-bottom-24px">
-                      {community.description}
-                    </p>
-                  )}
-                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                    Platform
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {community.platformText || community.platform.join(', ')}
-                  </p>
-                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                    Activity level
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {community.activityLevel}
-                  </p>
-                  <p className="paragraph-xs-bold color-teal-400 padding-bottom-4px">
-                    Focus
-                  </p>
-                  <p className="paragraph-small">{community.focus}</p>
-                </>
-              )
-
-              if (!hasLink) {
-                return (
-                  <div key={community.id} className="card card-static">
-                    {cardContent}
-                  </div>
-                )
-              }
-
-              return (
-                <Link
-                  key={community.id}
-                  href={withUtm(community.joinLink, 'Communities')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="card"
-                  onClick={() =>
-                    trackListingClick(
-                      'Communities',
-                      community.name,
-                      community.joinLink,
-                      community.id,
-                      placements.get(community.id),
-                      'cards'
-                    )
-                  }
-                >
-                  {cardContent}
-                </Link>
-              )
-            })
           )}
         </div>
-      </div>
 
-      {/* Filters Sidebar */}
-      <aside className="hide-mobile width-3-col">
-        <FilterSidebar>
-          <FilterGroup
+        <div className="hide-mobile width-3-col">
+          {/* Related resources (moved here from the featured section, since the
+              new full-width featured cards leave no room beside them) */}
+          <div className="padding-bottom-40px">
+            <p className="paragraph-small-bold padding-bottom-32px">
+              Related resources
+            </p>
+            <a
+              href={withUtm(
+                'https://www.lesswrong.com/community',
+                'Communities'
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block padding-bottom-40px hover-opacity-80"
+            >
+              <h3 className="padding-bottom-16px">
+                Map of LessWrong groups{' '}
+                <span className="color-teal-400">→</span>
+              </h3>
+              <p className="paragraph-small color-teal-300">
+                People in Rationalist groups like these often overlap with those
+                in AI safety
+              </p>
+            </a>
+            <a
+              href={withUtm(
+                'https://forum.effectivealtruism.org/groups',
+                'Communities'
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block hover-opacity-80"
+            >
+              <h3 className="padding-bottom-16px">
+                Map of EA groups <span className="color-teal-400">→</span>
+              </h3>
+              <p className="paragraph-small color-teal-300">
+                Effective Altruism groups also tend to be concerned with AI
+                safety
+              </p>
+            </a>
+          </div>
+
+          <ContributeButtons
             trackingPage="Communities"
-            title="Type"
-            options={typeOptions}
-            selected={typeFilters}
-            counts={filterCounts.type}
-            onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
+            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
+            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
+            noun="community"
+            airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrA9iDx7G2roYKwq"
           />
-          <FilterGroup
-            trackingPage="Communities"
-            title="Platform"
-            options={platformOptions}
-            selected={platformFilters}
-            counts={filterCounts.platform}
-            onToggle={v => toggleFilter(v, platformFilters, setPlatformFilters)}
-          />
-          <FilterGroup
-            trackingPage="Communities"
-            title="Activity level"
-            options={activityOptions}
-            selected={activityFilters}
-            counts={filterCounts.activity}
-            onToggle={v => toggleFilter(v, activityFilters, setActivityFilters)}
-          />
-          <FilterGroup
-            trackingPage="Communities"
-            title="Focus"
-            options={focusOptions}
-            selected={focusFilters}
-            counts={filterCounts.focus}
-            onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
-          />
-        </FilterSidebar>
-        <ContributeButtons
-          trackingPage="Communities"
-          suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagKhplUqu07DwVqC/form"
-          suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-          noun="community"
-          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shrA9iDx7G2roYKwq"
-        />
-      </aside>
-    </div>
+        </div>
+      </div>
+    </>
   )
 }

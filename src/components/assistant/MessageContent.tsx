@@ -5,6 +5,7 @@ import type { CitationRef } from '@/lib/assistant/types'
 import { SUGGEST_TYPES } from '@/lib/assistant/constants'
 import CitationCard from './CitationCard'
 import { cardTypePage } from './cardFallback'
+import Icon from '@/components/Icon'
 import styles from './Assistant.module.css'
 
 const SUGGEST_TYPE_SET = new Set<string>(SUGGEST_TYPES)
@@ -176,18 +177,7 @@ function renderInline(
             aria-label={`Open ${cit.name}`}
             onClick={() => onCitationClick?.(cit)}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M7 17L17 7" />
-              <path d="M8 7h9v9" />
-            </svg>
+            <Icon src="/images/icons/arrow-up-right-small.svg" size={12} />
           </a>
         )
       }
@@ -209,18 +199,7 @@ function renderInline(
             aria-label={`Open ${cit.name}`}
             onClick={() => onCitationClick?.(cit)}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M7 17L17 7" />
-              <path d="M8 7h9v9" />
-            </svg>
+            <Icon src="/images/icons/arrow-up-right-small.svg" size={12} />
           </a>
         )
       }
@@ -340,20 +319,7 @@ export function SuggestInline({
     <span className={styles.suggest}>
       <a href="#" className={styles.suggestButton} onClick={handleClick}>
         {label}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M7 17L17 7" />
-          <path d="M8 7h9v9" />
-        </svg>
+        <Icon src="/images/icons/arrow-up-right.svg" size={16} />
         {badge}
       </a>
     </span>
@@ -549,18 +515,7 @@ export default function MessageContent({
                     onClick={() => onLinkClick?.(fb.path, fb.label)}
                   >
                     <span>{fb.label}</span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M7 17L17 7" />
-                      <path d="M8 7h9v9" />
-                    </svg>
+                    <Icon src="/images/icons/arrow-up-right.svg" size={16} />
                   </a>
                 )
               })}

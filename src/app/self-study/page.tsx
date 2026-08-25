@@ -56,7 +56,7 @@ export default async function SelfStudyPage() {
               course.organizer
                 ? [
                     {
-                      icon: '/images/author.svg',
+                      icon: '/images/icons/author.svg',
                       value: `By ${course.organizer}`,
                     },
                   ]
@@ -64,10 +64,15 @@ export default async function SelfStudyPage() {
             }
             meta={[
               ...(course.category
-                ? [{ icon: '/images/category.svg', value: course.category }]
+                ? [
+                    {
+                      icon: '/images/icons/category.svg',
+                      value: course.category,
+                    },
+                  ]
                 : []),
               ...(course.courseType
-                ? [{ icon: '/images/type.svg', value: course.courseType }]
+                ? [{ icon: '/images/icons/type.svg', value: course.courseType }]
                 : []),
             ]}
             trackingPage="Self-study"

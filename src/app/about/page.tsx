@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Icon from '@/components/Icon'
 import styles from './page.module.css'
 
 export const metadata = {
@@ -204,7 +205,11 @@ export default function AboutPage() {
         <div className="flex flex-col gap-56px width-4-col-narrow">
           <div>
             <div className={styles.iconCircle}>
-              <Image src="/images/people.svg" alt="" width={16} height={16} />
+              <Icon
+                src="/images/icons/people.svg"
+                size={16}
+                className="color-teal-bright-300"
+              />
             </div>
             <p className="paragraph-small color-teal-300 padding-top-24px padding-bottom-24px">
               Volunteers tend to contribute on a project-to-project basis,
@@ -223,11 +228,10 @@ export default function AboutPage() {
 
           <div>
             <div className={styles.iconCircle}>
-              <Image
-                src="/images/speech-bubble.svg"
-                alt=""
-                width={16}
-                height={16}
+              <Icon
+                src="/images/icons/speech-bubble.svg"
+                size={16}
+                className="color-teal-bright-300"
               />
             </div>
             <p className="paragraph-small color-teal-300 padding-top-24px padding-bottom-24px">
@@ -248,7 +252,11 @@ export default function AboutPage() {
 
         <div className="width-4-col-narrow">
           <div className={styles.iconCircle}>
-            <Image src="/images/add-doc.svg" alt="" width={16} height={16} />
+            <Icon
+              src="/images/icons/add-doc.svg"
+              size={16}
+              className="color-teal-bright-300"
+            />
           </div>
           <p className="paragraph-small color-teal-300 padding-top-24px padding-bottom-24px">
             We encourage community members to add listings we may have missed

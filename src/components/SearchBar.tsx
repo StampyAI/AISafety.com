@@ -2,6 +2,7 @@
 
 import type { ComponentPropsWithoutRef, KeyboardEvent, RefObject } from 'react'
 import { useRef } from 'react'
+import Icon from '@/components/Icon'
 import styles from './SearchBar.module.css'
 
 type NativeInputProps = Omit<
@@ -90,20 +91,7 @@ export default function SearchBar({
           onMouseDown={event => event.preventDefault()}
           onClick={clearSearch}
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M6 6L14 14M14 6L6 14"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Icon src="/images/icons/x.svg" size={16} />
         </button>
       ) : null}
     </div>

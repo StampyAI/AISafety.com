@@ -23,13 +23,8 @@
   color: var(--white);
 }
 
-/* The leading icon is a fixed teal-300 svg file; recolor it to white when
-   active. The chevron is an inline svg using currentColor, so it follows
-   the text color automatically. */
-.pillActive img {
-  filter: brightness(0) invert(1);
-}
-
+/* The leading Icon and the chevron both use currentColor, so they follow the
+   pill's text color to white automatically when active — no recolor needed. */
 .chevron {
   transition: transform var(--hover-transition);
 }

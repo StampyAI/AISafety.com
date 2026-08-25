@@ -56,80 +56,85 @@ const STATIC_PAGES: SearchEntry[] = [
   page(
     'Training programs',
     '/training',
-    '/images/grad-cap.svg',
+    '/images/icons/grad-cap.svg',
     'Fellowships, bootcamps, and courses in AI safety.'
   ),
   page(
     'Events',
     '/events',
-    '/images/calendar.svg',
+    '/images/icons/calendar.svg',
     'Conferences, competitions, meetups, talks, and workshops in AI safety.'
   ),
   page(
     'Field map',
     '/map',
-    '/images/map.svg',
+    '/images/icons/map.svg',
     'A visual overview of the key organizations, programs, and other resources in AI safety.'
   ),
   page(
     'Communities',
     '/communities',
-    '/images/globe.svg',
+    '/images/icons/globe.svg',
     'Discussion groups and communities, online and in person.'
   ),
   page(
     'Self-study',
     '/self-study',
-    '/images/book.svg',
+    '/images/icons/book.svg',
     'Curated courses and study guides.'
   ),
   page(
     'Jobs',
     '/jobs',
-    '/images/briefcase.svg',
+    '/images/icons/briefcase.svg',
     'Open roles across AI safety.'
   ),
   page(
     'Funding',
     '/funding',
-    '/images/coins.svg',
+    '/images/icons/coins.svg',
     'Grants and funders supporting AI safety work.'
   ),
   page(
     'Media channels',
     '/media-channels',
-    '/images/megaphone.svg',
+    '/images/icons/megaphone.svg',
     'Podcasts, newsletters, and feeds.'
   ),
-  page('Advisors', '/advisors', '/images/person.svg', 'Talk to a 1-1 advisor.'),
+  page(
+    'Advisors',
+    '/advisors',
+    '/images/icons/person.svg',
+    'Talk to a 1-1 advisor.'
+  ),
   page(
     'Volunteer projects',
     '/projects',
-    '/images/clipboard.svg',
+    '/images/icons/clipboard.svg',
     'Volunteer projects you can join.'
   ),
   page(
     'Hackathon 2026',
     '/hackathon',
-    '/images/calendar.svg',
+    '/images/icons/calendar.svg',
     'The annual AISafety.com hackathon – 17–20 September 2026 at CEEALAR, Blackpool, UK.'
   ),
   page(
     'Founder toolkit',
     '/founders',
-    '/images/rocket.svg',
+    '/images/icons/rocket.svg',
     'Resources for founders building AI safety orgs.'
   ),
   page(
     'Donation guide',
     '/donation-guide',
-    '/images/heart.svg',
+    '/images/icons/heart.svg',
     'How to donate effectively.'
   ),
   page(
     'About',
     '/about',
-    '/images/people.svg',
+    '/images/icons/people.svg',
     'Mission, team, and how to contribute.'
   ),
 ]

@@ -11,6 +11,7 @@ import ChatBody, {
   type ChatBodyHandle,
   type TurnLifecycleEvent,
 } from './ChatBody'
+import Icon from '@/components/Icon'
 import styles from './Assistant.module.css'
 
 const STORAGE_KEY = 'aisafety-assistant-messages-v3'
@@ -414,27 +415,9 @@ export default function Assistant() {
         aria-expanded={isOpen}
       >
         {isOpen ? (
-          <svg
-            className={styles.pillIcon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <Icon src="/images/icons/chevron-down-xl.svg" size={32} />
         ) : (
-          <svg
-            className={styles.pillIcon}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path d="M12 3C6.48 3 2 6.92 2 11.5c0 2.06.93 3.93 2.46 5.36-.16 1.13-.6 2.7-1.46 3.6-.13.13-.06.34.12.36 1.66.18 3.84-.43 5.4-1.27.95.27 1.95.45 3.48.45 5.52 0 10-3.92 10-8.5S17.52 3 12 3z" />
-          </svg>
+          <Icon src="/images/icons/speech-bubble-sparkle-xl.svg" size={32} />
         )}
       </button>
 
@@ -453,14 +436,11 @@ export default function Assistant() {
       >
         <header className={styles.header}>
           <div className={styles.headerLabel}>
-            <svg
+            <Icon
+              src="/images/icons/chat.svg"
+              size={16}
               className={styles.headerLabelIcon}
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M12 3C6.48 3 2 6.92 2 11.5c0 2.06.93 3.93 2.46 5.36-.16 1.13-.6 2.7-1.46 3.6-.13.13-.06.34.12.36 1.66.18 3.84-.43 5.4-1.27.95.27 1.95.45 3.48.45 5.52 0 10-3.92 10-8.5S17.52 3 12 3z" />
-            </svg>
+            />
             <span>Chatbot (beta)</span>
           </div>
           <div className={styles.headerActions}>
@@ -472,22 +452,7 @@ export default function Assistant() {
                 aria-label="Clear conversation"
                 title="Clear conversation"
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                </svg>
+                <Icon src="/images/icons/trash.svg" size={16} />
               </button>
             )}
             <button
@@ -498,39 +463,9 @@ export default function Assistant() {
               title={isExpanded ? 'Shrink' : 'Expand'}
             >
               {isExpanded ? (
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="4 14 10 14 10 20" />
-                  <polyline points="20 10 14 10 14 4" />
-                  <line x1="14" y1="10" x2="21" y2="3" />
-                  <line x1="3" y1="21" x2="10" y2="14" />
-                </svg>
+                <Icon src="/images/icons/shrink.svg" size={16} />
               ) : (
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <polyline points="15 3 21 3 21 9" />
-                  <polyline points="9 21 3 21 3 15" />
-                  <line x1="21" y1="3" x2="14" y2="10" />
-                  <line x1="3" y1="21" x2="10" y2="14" />
-                </svg>
+                <Icon src="/images/icons/expand.svg" size={16} />
               )}
             </button>
             <button
@@ -539,20 +474,7 @@ export default function Assistant() {
               onClick={handleClose}
               aria-label="Close assistant"
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <Icon src="/images/icons/x.svg" size={16} />
             </button>
           </div>
         </header>

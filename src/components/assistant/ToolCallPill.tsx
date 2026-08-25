@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { UIToolCall } from '@/lib/assistant/types'
+import Icon from '@/components/Icon'
 import styles from './Assistant.module.css'
 
 const TOOL_LABELS: Record<string, string> = {
@@ -19,50 +20,18 @@ const TOOL_RUNNING_LABELS: Record<string, string> = {
 }
 
 function ToolIcon({ name }: { name: string }) {
-  const common = {
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 2,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  }
   if (name === 'search_listings') {
-    return (
-      <svg {...common}>
-        <circle cx="11" cy="11" r="7" />
-        <line x1="20" y1="20" x2="16.5" y2="16.5" />
-      </svg>
-    )
+    return <Icon src="/images/icons/search.svg" size={16} />
   }
   if (name === 'get_listing') {
-    return (
-      <svg {...common}>
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-      </svg>
-    )
+    return <Icon src="/images/icons/document.svg" size={16} />
   }
   if (name === 'read_listing_page') {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="9" />
-        <ellipse cx="12" cy="12" rx="4" ry="9" />
-        <line x1="3.5" y1="9" x2="20.5" y2="9" />
-        <line x1="3.5" y1="15" x2="20.5" y2="15" />
-      </svg>
-    )
+    return <Icon src="/images/icons/globe.svg" size={16} />
   }
   if (name === 'get_program_history') {
     // Clock turning back — "past rounds".
-    return (
-      <svg {...common}>
-        <path d="M3 12a9 9 0 1 0 3-6.7" />
-        <polyline points="3 3 3 8 8 8" />
-        <polyline points="12 7 12 12 15.5 14" />
-      </svg>
-    )
+    return <Icon src="/images/icons/clock-arrow-back.svg" size={16} />
   }
   return null
 }
@@ -165,18 +134,11 @@ export default function ToolCallPill({ call }: { call: UIToolCall }) {
             </>
           )}
         </span>
-        <svg
+        <Icon
+          src="/images/icons/chevron-down.svg"
+          size={16}
           className={`${styles.toolPillChevron} ${expanded ? styles.toolPillChevronOpen : ''}`}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        />
       </button>
       {expanded && (
         <div className={styles.toolPillDetails}>

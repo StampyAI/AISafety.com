@@ -451,6 +451,14 @@
   color: var(--white);
 }
 
+.editorVersionListChevron {
+  transition: transform 0.15s ease-out;
+}
+
+.editorVersionListToggle[aria-expanded='true'] .editorVersionListChevron {
+  transform: rotate(180deg);
+}
+
 .editorVersionListBody {
   display: flex;
   flex-direction: column;

@@ -2,3 +2,6 @@
 # Set PATH to include common Node.js locations for GUI apps like GitHub Desktop
 export PATH="/usr/local/bin:$PATH"
 npx lint-staged
+
+# Icons must render at their file's native size (12/16/24/32)
+node scripts/check-icon-sizes.mjs

@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import Icon from '@/components/Icon'
 import Image from 'next/image'
 import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import FilterGroup from '@/components/FilterGroup'
@@ -221,7 +222,10 @@ export default function MapClient({
             className={`button-primary ${styles['scroll-button']}`}
           >
             View cards
-            <Image src="/images/arrow-down.svg" alt="" width={16} height={16} />
+            <Icon
+              src="/images/icons/arrow-down.svg"
+              className="color-teal-bright-400"
+            />
           </button>
         </div>
       </div>

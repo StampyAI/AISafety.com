@@ -100,7 +100,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
         <FilterDropdown
           trackingPage="Self-study"
           title="Focus"
-          icon="/images/category.svg"
+          icon="/images/icons/category.svg"
           options={categoryOptions}
           selected={selectedCategories}
           counts={categoryCounts}
@@ -111,7 +111,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
         <FilterDropdown
           trackingPage="Self-study"
           title="Format"
-          icon="/images/type.svg"
+          icon="/images/icons/type.svg"
           options={typeOptions}
           selected={selectedTypes}
           counts={typeCounts}
@@ -132,7 +132,7 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
                 course.organizer
                   ? [
                       {
-                        icon: '/images/author.svg',
+                        icon: '/images/icons/author.svg',
                         value: `By ${course.organizer}`,
                       },
                     ]
@@ -140,10 +140,20 @@ export default function SelfStudyClient({ courses }: SelfStudyClientProps) {
               }
               meta={[
                 ...(course.category
-                  ? [{ icon: '/images/category.svg', value: course.category }]
+                  ? [
+                      {
+                        icon: '/images/icons/category.svg',
+                        value: course.category,
+                      },
+                    ]
                   : []),
                 ...(course.courseType
-                  ? [{ icon: '/images/type.svg', value: course.courseType }]
+                  ? [
+                      {
+                        icon: '/images/icons/type.svg',
+                        value: course.courseType,
+                      },
+                    ]
                   : []),
               ]}
               trackingPage="Self-study"

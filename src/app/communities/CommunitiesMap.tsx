@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
-import Image from 'next/image'
+import Icon from '@/components/Icon'
 import MapControls from '@/components/MapControls'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
@@ -290,7 +290,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           ? `<div class="tooltip-img"><img src="${escapeAttr(logo)}" alt="${escapeAttr(name)} logo" class="tooltip-image" fetchpriority="high" decoding="sync" onerror="this.style.display='none'" /></div>`
           : ''
         const locationLine = location
-          ? `<span class="location-text"><svg class="location-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 1a3.5 3.5 0 0 0-3.5 3.5c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5A3.5 3.5 0 0 0 6 1Zm0 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>${location}</span>`
+          ? `<span class="location-text"><svg class="location-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 1C7 1 7.96 1.43 8.66 2.19C9.36 2.95 9.75 3.98 9.75 5.04C9.75 6.96 8.69 8.66 7.85 9.72C7.36 10.33 6.82 10.89 6.25 11.4C6.11 11.53 5.89 11.53 5.75 11.4C5.18 10.89 4.64 10.33 4.15 9.72C3.31 8.66 2.25 6.96 2.25 5.04C2.25 3.98 2.64 2.95 3.34 2.19C4.04 1.43 5 1 6 1Z" stroke="currentColor" stroke-linejoin="round"/><circle cx="6" cy="4.9" r="1.9" stroke="currentColor" stroke-linejoin="round"/></svg>${location}</span>`
           : ''
         return `<div class="tooltip-header">${headerImage}<div class="tooltip-title-block"><strong class="paragraph-small-bold">${name}</strong>${locationLine}</div></div>${description}`
       }
@@ -645,7 +645,11 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
           className={`button-primary ${styles.mapButton}`}
         >
           <p>View online communities</p>
-          <Image src="/images/arrow-down.svg" alt="" width={12} height={12} />
+          <Icon
+            src="/images/icons/arrow-down.svg"
+            size={16}
+            className="color-teal-bright-400"
+          />
         </button>
         <MapControls
           className={styles.mapControls}

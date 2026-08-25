@@ -10,6 +10,7 @@ import {
   useLayoutEffect,
 } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Icon from '@/components/Icon'
 import ListingCard from '@/components/ListingCard'
 import FeaturedCard from '@/components/FeaturedCard'
 import ContributeButtons from '@/components/ContributeButtons'
@@ -268,20 +269,7 @@ function CitySearch({
                 onRemove(city)
               }}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M6 6L14 14M14 6L6 14"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <Icon src="/images/icons/x-small.svg" size={12} />
             </button>
           </span>
         ))}
@@ -316,20 +304,7 @@ function CitySearch({
             setOpen(false)
           }}
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M6 6L14 14M14 6L6 14"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
+          <Icon src="/images/icons/x.svg" size={16} />
         </button>
       )}
       {open && (matches.length > 0 || normalized !== '') && (

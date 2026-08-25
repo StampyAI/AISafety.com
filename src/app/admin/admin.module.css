@@ -24,6 +24,10 @@
   padding: 14px 24px;
   max-width: 1480px;
   margin: 0 auto;
+  /* Labels never break mid-word; on narrow windows whole items wrap instead. */
+  white-space: nowrap;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 
 .adminBrand {
@@ -571,7 +575,8 @@
 .convFilters {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 
 .convSearch {
@@ -602,6 +607,7 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .convList {
@@ -1152,6 +1158,7 @@
   font-size: 11px;
   color: var(--teal-400);
   cursor: default;
+  white-space: nowrap;
 }
 
 /* ─── Reviewer annotations: rating, labels, shareable links, filters ────── */
@@ -1330,6 +1337,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .excludeMetaOn {

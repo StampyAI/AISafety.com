@@ -23,8 +23,8 @@ import {
   TRAINING_TYPES,
   trainingTypeColor,
 } from '@/lib/training-types'
-import { selectFeatured } from '@/lib/featured'
-import { placementsById } from '@/lib/placements'
+import { selectFeatured, withRandomStandIns } from '@/lib/featured'
+import { featuredSlot, placementsById } from '@/lib/placements'
 import type {
   ProgramBase,
   RecurringProgram,
@@ -260,18 +260,21 @@ export default function TrainingClient({
 
   const modePrograms: ProgramBase[] = mode === 'upcoming' ? programs : recurring
 
-  // Programs whose applications closed are passed over when an open backup
-  // is queued behind them (recurring programs have no applications and
-  // always count as open).
-  const featuredPrograms = useMemo(
-    () =>
-      selectFeatured(modePrograms, p =>
-        'applicationStatus' in p
-          ? (p as TrainingProgram).applicationStatus === 'Open'
-          : true
-      ),
-    [modePrograms]
-  )
+  // Programs whose applications closed are never shown as featured
+  // (recurring programs have no applications and always count as open);
+  // when the queue can't fill both slots, the row is topped up with random
+  // stand-ins from the same set.
+  const featuredPrograms = useMemo(() => {
+    const isOpen = (p: ProgramBase) =>
+      'applicationStatus' in p
+        ? (p as TrainingProgram).applicationStatus === 'Open'
+        : true
+    return withRandomStandIns(
+      selectFeatured(modePrograms, isOpen),
+      modePrograms,
+      isOpen
+    )
+  }, [modePrograms])
 
   // Each program's slot in the full (unfiltered) order of the active set, so a
   // click is tagged with the rank the visitor saw — not its position within an
@@ -514,7 +517,7 @@ export default function TrainingClient({
               )}
               trackingPage="Training"
               trackingId={program.id}
-              trackingPosition={`F${program.featured}`}
+              trackingPosition={featuredSlot(program)}
               trackingSource={mode}
               index={i}
               count={featuredPrograms.length}

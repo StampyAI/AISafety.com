@@ -9,6 +9,12 @@ interface Placeable {
   featured?: string | number | null
 }
 
+/** Slot label for a card in the featured row: 'F<rank>' for a queued entry,
+ *  'F-random' for a random stand-in that has no rank. */
+export function featuredSlot(item: Placeable): string {
+  return item.featured != null ? `F${item.featured}` : 'F-random'
+}
+
 /** Each listing's slot on its page, keyed by record id: the featured cards
  *  (if the page has them) are 'F<rank>'; everything else is numbered '1', '2',
  *  '3'… in display order. Pages without featured cards just get the numbered
@@ -30,7 +36,7 @@ export function placementsById(
     const isFeaturedCard = featuredIds
       ? featuredIds.has(item.id)
       : item.featured === '1' || item.featured === '2'
-    if (isFeaturedCard) placements.set(item.id, `F${item.featured}`)
+    if (isFeaturedCard) placements.set(item.id, featuredSlot(item))
     else {
       n += 1
       placements.set(item.id, String(n))

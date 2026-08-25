@@ -225,7 +225,10 @@ export default function CommunitiesClient({
               Related resources
             </p>
             <a
-              href={withUtm('https://www.lesswrong.com/community', 'Communities')}
+              href={withUtm(
+                'https://www.lesswrong.com/community',
+                'Communities'
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="block padding-bottom-40px hover-opacity-80"

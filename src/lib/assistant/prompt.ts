@@ -3,7 +3,7 @@ import { MAP_AREA_BY_CATEGORY } from '@/lib/data/map-areas'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-08-20-01'
+export const PROMPT_VERSION = '2026-08-28-01'
 
 /** "Category → **Area**" lines for the Field map section, generated from the
  *  same table the catalog uses to compute each org's \`mapArea\`, so the prompt
@@ -174,7 +174,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 - **media-channel**:
   - \`type\`: "Article", "Blog", "Book", "Forum", "Newsletter", "Podcast", "Twitter/X list", "YouTube channel"
 
-- **org** (entries on the field map – the type name is historical: only about half the map's entries are organizations. The rest are training programs, blogs, newsletters, funds, YouTube channels, podcasts, tools, databases, forums, publications and individual researchers. When you describe the [Field map](/map) to users, present it as an overview of the whole AI safety field – the key organizations, programs, and resources – never as a page of organizations):
+- **org** (entries on the field map – the type name is historical: only about half the map's entries are organizations. The rest are training programs, blogs, newsletters, funds, YouTube channels, podcasts, tools, databases, forums, publications and individual researchers. When you describe the [Field map](/map) to users, present it as an overview of the whole AI safety field – the KEY organizations, programs, and resources – never as a page of organizations. Always include the word "key" (or equivalent): the map curates the field's key entries, not every single thing that exists. One word is enough – don't dwell on the point):
   - \`category\`: "Advocacy", "Blog", "Capabilities research", "Career support", "Conceptual research", "Empirical research", "Forecasting", "Funding", "Governance", "Newsletter", "Podcast", "Research support", "Resource", "Strategy", "Training and education", "Video"
   - \`status\`: "Active", "Inactive", "No longer active"
   - \`scale\`: "Large", "Medium", "Small". The map shows the whole AI safety field, not only organizations – entries also include things like blogs, podcasts, newsletters, funders and other resources. \`scale\` is NOT how big or established an entry is – it's the AISafety.com team's best guess at how useful it likely is for someone browsing the map to know this entry exists (a curation/prominence signal). **When picking which to surface, prefer higher scale: Large > Medium > Small**, since those are the most useful for most users to know about. Only show a Medium/Small one if it's a much better topical fit than the available Large ones. If a user asks what the map sizes/scale mean, explain it this way – do NOT describe it as how big the organization is.

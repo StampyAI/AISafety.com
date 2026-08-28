@@ -13,14 +13,16 @@ import type { Catalog, ChatMessage, CitationRef, Listing } from './types'
 // requires this parameter, so it can't be "unlimited" — pick a value well
 // above any realistic response size.
 const MAX_TOKENS = 4096
-// Messages the MODEL sees each turn (7 exchanges) — bounds prompt size and
-// keeps old tool results from crowding out the current question.
-const MAX_HISTORY = 14
-// Messages the conversation LOG keeps (25 exchanges). Wider than the model's
-// window so long chats stay readable in the admin transcript, but bounded so
-// the serialized row stays well inside Airtable's 100,000-character long-text
-// limit (a typical message is ~1,000 chars; upsertConversation also trims
-// further if a row would still overflow).
+// Messages the MODEL sees each turn (25 exchanges) — bounds prompt size on
+// marathon chats. Raised from 14 (28 Aug 2026): the bot forgetting turn 3 by
+// turn 11 hurt exactly the engaged visitors, and the extra input cost only
+// applies to the rare conversation that runs past 7 exchanges.
+const MAX_HISTORY = 50
+// Messages the conversation LOG keeps in the Airtable row (25 exchanges) —
+// bounded so the serialized row stays well inside Airtable's
+// 100,000-character long-text limit (a typical message is ~1,000 chars;
+// upsertConversation also trims further if a row would still overflow, and
+// mirrors the complete transcript to a blob once anything is cut).
 const LOG_HISTORY = 50
 const MAX_TOOL_ITERATIONS = 10
 // Hard server-side budget matching the prompt's "at most 5 page reads per

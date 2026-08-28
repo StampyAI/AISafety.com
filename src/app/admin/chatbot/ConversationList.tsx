@@ -36,7 +36,8 @@ interface LoggedToolCall {
  *  Data.tools holds one array per LOGGED TURN since the conversation began,
  *  and every turn carries exactly one user message (abandoned/error turns log
  *  the question with no reply). Data.history however is a sliding WINDOW (the
- *  last 14 messages), so long conversations lose their oldest messages while
+ *  last 50 messages; 14 on older rows), so long conversations lose their
+ *  oldest stored messages while
  *  tools keeps growing — the two can only be aligned from the END: the last
  *  user message in the window belongs to the last tools entry, and so on
  *  backwards. A reply's tools sit at the entry of the user message it answers;

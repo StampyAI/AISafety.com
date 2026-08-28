@@ -274,6 +274,16 @@ export function validateLogHistoryWithIndices(messages: unknown): {
   }
 }
 
+/** The ENTIRE cleaned conversation with the same widget positions — no
+ *  window at all. This is what the full-transcript blob mirror stores for
+ *  conversations that outgrow the Airtable row (see upsertConversation). */
+export function validateFullHistoryWithIndices(messages: unknown): {
+  history: ChatMessage[]
+  indices: number[]
+} {
+  return cleanMessagesIndexed(messages)
+}
+
 function cleanMessages(messages: unknown): ChatMessage[] {
   return cleanMessagesIndexed(messages).history
 }

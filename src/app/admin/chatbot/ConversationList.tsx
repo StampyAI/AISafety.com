@@ -1,6 +1,13 @@
 'use client'
 
-import { Fragment, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  Fragment,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import styles from '../admin.module.css'
 import TranscriptMessage, {
   ClickedCardsContext,
@@ -137,6 +144,10 @@ interface ConversationData {
    *  indexing the delivery/rating/click keys use. Aligned with `history`.
    *  Absent on rows from before this was logged. */
   historyIndices?: unknown[]
+  /** URL of the conversation's full-transcript blob mirror — present once
+   *  the chat outgrew what the Airtable row can hold. Its presence tells the
+   *  viewer a complete transcript is fetchable via the single-row API. */
+  transcript?: string
   tools: unknown[]
   /** Per-turn (aligned with tools): card ids that degraded to a "Browse X"
    *  link in the visitor's chat. Absent on rows from before this was logged. */
@@ -481,6 +492,9 @@ export default function ConversationList() {
   // Ids of conversations this browser has opened. Loaded after mount
   // (localStorage is browser-only) to avoid an SSR mismatch.
   const [viewed, setViewed] = useState<Set<string>>(new Set())
+  // Ids whose full transcript we've already requested this page view, so
+  // the expand effect below fires once per conversation.
+  const fullFetched = useRef<Set<string>>(new Set())
 
   const PAGE_SIZE = 200
 
@@ -585,6 +599,43 @@ export default function ConversationList() {
       id: linkedId ?? undefined,
     })
   }, [zeroOnly, search, ratingFilter, labelFilter, linkedId])
+
+  // A conversation with a blob-mirrored full transcript arrives windowed in
+  // the list payload (the list endpoint can't afford a blob fetch per row).
+  // When one is opened, refetch just that conversation — the single-row API
+  // merges the blob — and swap it in. Skipped when the stored history
+  // already covers every logged turn (e.g. it came in via a shared ?id=
+  // link, which is served merged).
+  useEffect(() => {
+    if (!expandedId || fullFetched.current.has(expandedId)) return
+    const conv = conversations.find(c => c.id === expandedId)
+    const data = conv?.data
+    if (!data?.transcript) return
+    const turnCount = data.turnTimes?.length ?? 0
+    const stored = data.history.filter(t => t.role === 'user').length
+    if (turnCount > 0 && stored >= turnCount) return
+    fullFetched.current.add(expandedId)
+    const id = expandedId
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/conversations?id=${encodeURIComponent(id)}`
+        )
+        if (!res.ok) return
+        const payload = (await res.json()) as {
+          conversations: Conversation[]
+          listings?: Record<string, ListingInfo>
+        }
+        const full = payload.conversations?.[0]
+        if (!full) return
+        setConversations(prev => prev.map(c => (c.id === full.id ? full : c)))
+        setListings(prev => ({ ...prev, ...(payload.listings ?? {}) }))
+      } catch (err) {
+        // Keep the windowed view — the divider still says turns are missing.
+        console.warn('Could not load the full transcript:', err)
+      }
+    })()
+  }, [expandedId, conversations])
 
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -942,7 +993,10 @@ function ConversationRow({
         return
       }
       const updated = (await res.json()) as { conversation: Conversation }
-      onUpdate(updated.conversation)
+      // Keep the transcript we're already showing: the PATCH re-reads the
+      // row without the blob merge, and annotations never change Data — so
+      // taking the response's data would re-window a merged transcript.
+      onUpdate({ ...updated.conversation, data: conv.data })
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus(''), 1500)
     } catch {

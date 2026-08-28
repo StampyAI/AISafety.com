@@ -40,6 +40,8 @@
   localStorage in the admin editor. Production prompts ship via code.
 */
 
+import { readTranscript, writeTranscript } from '@/lib/admin/transcript-blob'
+
 const TOKEN = process.env.AIRTABLE_TOKEN
 const BASE = process.env.AIRTABLE_BASE_ID
 const CONVERSATIONS_TABLE = process.env.ADMIN_CONVERSATIONS_TABLE_ID
@@ -158,6 +160,11 @@ export interface ConversationData {
    *  rows written before this was tracked; for those, position-keyed badges
    *  are only trustworthy while nothing was dropped from the history. */
   historyIndices?: unknown[]
+  /** URL of this conversation's full-transcript blob mirror — present once
+   *  the conversation outgrew what this row can hold (window or size trim;
+   *  see upsertConversation). The blob stores EVERY message with the same
+   *  widget-position indexing, so the viewer can show the whole chat. */
+  transcript?: string
   tools: unknown[]
   /** One entry per logged turn (aligned with `tools`): card ids in that
    *  turn's reply that rendered as a generic "Browse X" fallback link (or
@@ -565,9 +572,43 @@ export async function updateConversation(
   )
 }
 
+/** Restores a conversation's complete history from its blob mirror, when it
+ *  has one. The blob can be a turn stale (its write is best-effort), so only
+ *  messages from BEFORE the row's own window are taken from it — the window
+ *  always carries the newest turns. Any failure returns the windowed row
+ *  unchanged. */
+async function withFullTranscript(
+  row: ConversationRow
+): Promise<ConversationRow> {
+  const data = row.data
+  if (!data?.transcript) return row
+  // The first stored message's widget position — everything below it was cut
+  // from the row. Rows with a transcript always store the mapping.
+  const firstKept = data.historyIndices?.[0]
+  if (typeof firstKept !== 'number') return row
+  const full = await readTranscript(data.transcript)
+  if (!full) return row
+  const history: HistoryTurn[] = []
+  const indices: number[] = []
+  for (let i = 0; i < full.history.length; i++) {
+    if (full.historyIndices[i] < firstKept) {
+      history.push(full.history[i])
+      indices.push(full.historyIndices[i])
+    }
+  }
+  if (history.length > 0) {
+    data.history = [...history, ...data.history]
+    data.historyIndices = [...indices, ...(data.historyIndices ?? [])]
+  }
+  return row
+}
+
 /** One conversation by record id — for the log's shareable links, which may
  *  point at a conversation older than the page the viewer has loaded. Null
- *  when the id doesn't exist (a deleted row, or a mangled link). */
+ *  when the id doesn't exist (a deleted row, or a mangled link). Long
+ *  conversations come back with their blob-mirrored full transcript merged
+ *  in (the list endpoints stay windowed — one blob fetch per row would not
+ *  scale to a 200-row page). */
 export async function getConversation(
   id: string
 ): Promise<ConversationRow | null> {
@@ -581,8 +622,8 @@ export async function getConversation(
   if (!res.ok) {
     throw new Error(`Airtable get failed: ${res.status} ${await res.text()}`)
   }
-  return rowToConversation(
-    (await res.json()) as AirtableRow<ConversationFields>
+  return withFullTranscript(
+    rowToConversation((await res.json()) as AirtableRow<ConversationFields>)
   )
 }
 
@@ -651,6 +692,10 @@ export async function upsertConversation(input: {
   response: string
   history: HistoryTurn[]
   historyIndices: number[]
+  /** The whole cleaned conversation — `history` is a window of this — with
+   *  its widget positions, for the full-transcript blob mirror. */
+  fullHistory: HistoryTurn[]
+  fullIndices: number[]
   tools: unknown
   fallbackCards: string[]
   citations: string[]
@@ -718,12 +763,36 @@ export async function upsertConversation(input: {
   // until the serialized row fits — the transcript viewer already handles a
   // window that opens mid-exchange, and the per-turn arrays keep the true
   // turn count.
-  let serialized = JSON.stringify(data)
-  while (serialized.length > MAX_DATA_CHARS && data.history.length > 2) {
-    data.history = data.history.slice(1)
-    // Keep the position map aligned with what remains.
-    data.historyIndices = data.historyIndices?.slice(1)
-    serialized = JSON.stringify(data)
+  const fitToLimit = () => {
+    let s = JSON.stringify(data)
+    while (s.length > MAX_DATA_CHARS && data.history.length > 2) {
+      data.history = data.history.slice(1)
+      // Keep the position map aligned with what remains.
+      data.historyIndices = data.historyIndices?.slice(1)
+      s = JSON.stringify(data)
+    }
+    return s
+  }
+  let serialized = fitToLimit()
+
+  // Whatever the window or the size trim cut is gone from this row — mirror
+  // the COMPLETE transcript to a blob and keep its URL, so the viewer can
+  // still show the whole conversation. Short chats (the vast majority) never
+  // need one; once a conversation has one, every later turn refreshes it. A
+  // failed write keeps pointing at the previous copy: this row's own window
+  // always carries the newest turns, so the viewer merges the older blob
+  // with the window and at worst re-loses the same middle turns.
+  if (input.fullHistory.length > data.history.length || previous?.transcript) {
+    const url = await writeTranscript(previous?.transcript, {
+      history: input.fullHistory,
+      historyIndices: input.fullIndices,
+    })
+    const kept = url ?? previous?.transcript
+    if (kept) {
+      data.transcript = kept
+      // Adding the URL can nudge the row back over the ceiling.
+      serialized = fitToLimit()
+    }
   }
 
   const fields: ConversationFields = {

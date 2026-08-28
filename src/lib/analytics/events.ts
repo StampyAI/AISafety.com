@@ -88,6 +88,10 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   // attempt — the submit opens Substack's subscribe page, so completion
   // happens off-site. Never carries the email address.
   'newsletter_signup',
+  // A click on the newsletter signup box outside the email pill — the card
+  // doubles as a link to the newsletter's own page, so visitors can read it
+  // before subscribing.
+  'newsletter_view',
   // A click on one of the footer's external links ("Help us out" /
   // "Newsletters" columns) — outbound, so nothing else records them.
   // `source` is the column heading, `label` the link text, `page` the path

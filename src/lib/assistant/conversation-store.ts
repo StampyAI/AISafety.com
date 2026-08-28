@@ -21,6 +21,11 @@ export interface StoredTurn {
    *  the indexing the widget's delivery/rating/click reports use. Aligned
    *  with `history`. */
   historyIndices: number[]
+  /** The whole cleaned conversation — `history` is a window of this — with
+   *  the same widget-position indexing, for the full-transcript blob mirror
+   *  that keeps long chats intact past the Airtable row's size limit. */
+  fullHistory: { role: 'user' | 'assistant'; content: string }[]
+  fullIndices: number[]
   toolCalls: { name: string; input: unknown; ok: boolean }[]
   response: string
   /** Card ids in this turn's reply that rendered as a generic "Browse X"
@@ -66,6 +71,8 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
         response: turn.response,
         history: turn.history,
         historyIndices: turn.historyIndices,
+        fullHistory: turn.fullHistory,
+        fullIndices: turn.fullIndices,
         tools: turn.toolCalls,
         fallbackCards: turn.fallbackCards,
         citations: turn.citations,

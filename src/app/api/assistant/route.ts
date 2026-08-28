@@ -13,6 +13,7 @@ import {
   buildApiMessages,
   runAssistantStream,
   sseResponse,
+  validateFullHistoryWithIndices,
   validateLogHistoryWithIndices,
   validateMessages,
   type AssistantRunResult,
@@ -96,10 +97,16 @@ export async function POST(req: NextRequest) {
   let messages: ChatMessage[]
   let logHistory: ChatMessage[]
   let logIndices: number[]
+  // The un-windowed cleaned conversation, for the full-transcript blob
+  // mirror — the only copy that survives once a chat outgrows the log row.
+  let fullHistory: ChatMessage[]
+  let fullIndices: number[]
   try {
     messages = validateMessages(body.messages)
     ;({ history: logHistory, indices: logIndices } =
       validateLogHistoryWithIndices(body.messages))
+    ;({ history: fullHistory, indices: fullIndices } =
+      validateFullHistoryWithIndices(body.messages))
   } catch (err) {
     return new Response(
       JSON.stringify({
@@ -211,6 +218,16 @@ export async function POST(req: NextRequest) {
           // delivery/rating/click reports use for this reply.
           historyIndices: [
             ...logIndices,
+            Array.isArray(body.messages) ? body.messages.length : 0,
+          ],
+          // Same list un-windowed, for the blob mirror; the appended reply's
+          // widget position is the same as above.
+          fullHistory: [
+            ...fullHistory,
+            { role: 'assistant', content: assistantText },
+          ],
+          fullIndices: [
+            ...fullIndices,
             Array.isArray(body.messages) ? body.messages.length : 0,
           ],
           toolCalls,

@@ -61,6 +61,7 @@ const FIELD = {
   tags: 'fldAkUlONRN894SZN', // Tags
   review: 'fldaQaobQ98Whc5pV', // Review
   data: 'fld9TbBixMYVOssja', // Data
+  searchOverflow: 'fldEUemATrZA3Dfa4', // Search overflow
   clicked: 'fld3PKIZx3Oo1oxkm', // Clicked
   ratings: 'fld0ZRhDFjpcHTJnm', // Ratings
   delivery: 'fld2HdrWqxHN7BSTH', // Delivery
@@ -419,7 +420,7 @@ function searchFormula(search: string | undefined): string | undefined {
     .split(/\s+/)
     .filter(Boolean)
   if (words.length === 0) return undefined
-  const haystack = `LOWER({${FIELD.data}} & " " & {${FIELD.page}} & " " & {${FIELD.notes}} & " " & ARRAYJOIN({${FIELD.tags}}, " "))`
+  const haystack = `LOWER({${FIELD.data}} & " " & {${FIELD.searchOverflow}} & " " & {${FIELD.page}} & " " & {${FIELD.notes}} & " " & ARRAYJOIN({${FIELD.tags}}, " "))`
   const terms = words.map(w => `SEARCH(LOWER("${w}"), ${haystack})`)
   return terms.length === 1 ? terms[0] : `AND(${terms.join(', ')})`
 }
@@ -795,6 +796,25 @@ export async function upsertConversation(input: {
     }
   }
 
+  // The messages cut from Data above are invisible to the log's free-text
+  // search (an Airtable formula over this row's fields). Mirror their PLAIN
+  // TEXT into the Search overflow field — searched, never displayed (the
+  // transcript blob is the display copy). Capped under Airtable's 100k cell
+  // limit by dropping the OLDEST text first; only a conversation whose
+  // overflow alone tops ~95k (roughly 45+ exchanges) ever escapes search.
+  const cutCount = input.fullHistory.length - data.history.length
+  let overflowText = ''
+  if (cutCount > 0) {
+    overflowText = input.fullHistory
+      .slice(0, cutCount)
+      .map(m => m.content)
+      .join('\n\n')
+    const MAX_OVERFLOW_CHARS = 95_000
+    if (overflowText.length > MAX_OVERFLOW_CHARS) {
+      overflowText = overflowText.slice(-MAX_OVERFLOW_CHARS)
+    }
+  }
+
   const fields: ConversationFields = {
     [FIELD.session]: input.session ?? '',
     // The page where the conversation STARTED — written on create, never
@@ -806,6 +826,8 @@ export async function upsertConversation(input: {
     [FIELD.latencyMs]: input.latencyMs,
     [FIELD.promptVersion]: input.promptVersion,
     [FIELD.data]: serialized,
+    // Skipped while empty so short conversations never touch the field.
+    ...(overflowText ? { [FIELD.searchOverflow]: overflowText } : {}),
   }
 
   const res = existing

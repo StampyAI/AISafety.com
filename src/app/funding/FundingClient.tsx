@@ -1,15 +1,12 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
-import Image from 'next/image'
-import FilterGroup from '@/components/FilterGroup'
-import FilterSidebar from '@/components/FilterSidebar'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import FilterBar from '@/components/FilterBar'
+import FilterDropdown from '@/components/FilterDropdown'
+import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
-import SearchBar from '@/components/SearchBar'
 import { Funder } from '@/lib/data/funding'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
-import { trackListingClick } from '@/lib/analytics'
-import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 
 interface FundingClientProps {
@@ -17,42 +14,30 @@ interface FundingClientProps {
 }
 
 const acceptingOptions = ['Yes', 'No']
-
 const typeOptions = ['Fund', 'Grant program', 'Platform']
 
+// No search box on this page, so every funder passes the base filter.
+const allPass = () => true
+
 export default function FundingClient({ funders }: FundingClientProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedAccepting, setSelectedAccepting] = useState<string[]>([])
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [acceptingFilters, setAcceptingFilters] = useState<string[]>([])
+  const [typeFilters, setTypeFilters] = useState<string[]>([])
 
   // Each funder's slot in the full (unfiltered) page order, so a click is
   // tagged with the rank Bryce set — not its position within an active filter.
   const placements = useMemo(() => placementsById(funders), [funders])
 
-  const searchPass = useCallback(
-    (funder: Funder) => {
-      if (!searchQuery) return true
-      const query = searchQuery.toLowerCase()
-      return (
-        funder.name.toLowerCase().includes(query) ||
-        funder.description.toLowerCase().includes(query)
-      )
-    },
-    [searchQuery]
-  )
-
   const groups = useMemo(
     () => ({
       accepting: {
-        selected: selectedAccepting,
-        // Airtable values are prefixed: "Yes – rolling basis", "Yes –
-        // closes …", or "No". Match on the prefix so the Yes/No filter
-        // catches all variants.
+        selected: acceptingFilters,
+        // Airtable values are prefixed ("Yes – rolling basis", "Yes – closes
+        // …", "No"); match on the prefix so Yes/No catches every variant.
         matches: (funder: Funder, value: string) =>
           (funder.acceptingApplications || '').startsWith(value),
       },
       type: {
-        selected: selectedTypes,
+        selected: typeFilters,
         matches: (funder: Funder, value: string) =>
           (funder.type || '')
             .split(',')
@@ -60,32 +45,28 @@ export default function FundingClient({ funders }: FundingClientProps) {
             .includes(value),
       },
     }),
-    [selectedAccepting, selectedTypes]
+    [acceptingFilters, typeFilters]
   )
 
   const filteredFunders = useMemo(
-    () => filterItems(funders, searchPass, groups),
-    [funders, searchPass, groups]
+    () => filterItems(funders, allPass, groups),
+    [funders, groups]
   )
 
-  const acceptingCounts = useMemo(
-    () =>
-      optionCounts(
-        filterItems(funders, searchPass, groups, 'accepting'),
+  const filterCounts = useMemo(
+    () => ({
+      accepting: optionCounts(
+        filterItems(funders, allPass, groups, 'accepting'),
         acceptingOptions,
         groups.accepting.matches
       ),
-    [funders, searchPass, groups]
-  )
-
-  const typeCounts = useMemo(
-    () =>
-      optionCounts(
-        filterItems(funders, searchPass, groups, 'type'),
+      type: optionCounts(
+        filterItems(funders, allPass, groups, 'type'),
         typeOptions,
         groups.type.matches
       ),
-    [funders, searchPass, groups]
+    }),
+    [funders, groups]
   )
 
   const savedScrollY = useRef<number | null>(null)
@@ -96,11 +77,11 @@ export default function FundingClient({ funders }: FundingClientProps) {
     setter: (v: string[]) => void
   ) => {
     savedScrollY.current = window.scrollY
-    if (current.includes(value)) {
-      setter(current.filter(v => v !== value))
-    } else {
-      setter([...current, value])
-    }
+    setter(
+      current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+    )
   }
 
   useLayoutEffect(() => {
@@ -110,104 +91,76 @@ export default function FundingClient({ funders }: FundingClientProps) {
     }
   }, [filteredFunders])
 
-  return (
-    <div className="flex gap-56px">
-      <div className="width-9-col">
-        <div className="padding-bottom-40px">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search funders by name or description"
-          />
-        </div>
+  const count = filteredFunders.length
 
-        <div className="collection-list padding-bottom-40px">
+  return (
+    <>
+      <FilterBar count={count} noun="funder">
+        <FilterDropdown
+          trackingPage="Funding"
+          title="Accepting applications"
+          icon="/images/icons/form-check.svg"
+          options={acceptingOptions}
+          selected={acceptingFilters}
+          counts={filterCounts.accepting}
+          onToggle={v => toggleFilter(v, acceptingFilters, setAcceptingFilters)}
+        />
+        <FilterDropdown
+          trackingPage="Funding"
+          title="Type"
+          icon="/images/icons/tag.svg"
+          options={typeOptions}
+          selected={typeFilters}
+          counts={filterCounts.type}
+          onToggle={v => toggleFilter(v, typeFilters, setTypeFilters)}
+        />
+      </FilterBar>
+
+      <div className="flex gap-56px">
+        <div className="collection-list padding-bottom-40px width-9-col">
           {filteredFunders.map(funder => (
-            <a
+            <ListingCard
               key={funder.id}
-              href={withUtm(funder.url, 'Funding')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-              onClick={() =>
-                trackListingClick(
-                  'Funding',
-                  funder.name,
-                  funder.url,
-                  funder.id,
-                  placements.get(funder.id)
-                )
-              }
-            >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {funder.logo && (
-                    <Image
-                      src={funder.logo}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                      loading="eager"
-                      onError={e => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                </div>
-                <h3>{funder.name}</h3>
-              </div>
-              <p className="paragraph-small padding-bottom-24px">
-                {funder.description}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Type
-              </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {funder.type}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Accepting applications
-              </p>
-              <p className="paragraph-small">{funder.acceptingApplications}</p>
-            </a>
+              href={funder.url !== '#' ? funder.url : undefined}
+              name={funder.name}
+              description={funder.description}
+              logo={funder.logo}
+              meta={[
+                ...(funder.type
+                  ? [{ icon: '/images/icons/tag.svg', value: funder.type }]
+                  : []),
+                ...(funder.acceptingApplications
+                  ? [
+                      {
+                        icon: funder.acceptingApplications.startsWith('Yes')
+                          ? '/images/icons/form-check.svg'
+                          : '/images/icons/form-pause.svg',
+                        value: funder.acceptingApplications,
+                      },
+                    ]
+                  : []),
+              ]}
+              trackingPage="Funding"
+              listingId={funder.id}
+              placement={placements.get(funder.id)}
+              trackingSource="cards"
+            />
           ))}
           {filteredFunders.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>
           )}
         </div>
-      </div>
 
-      <div className="hide-mobile width-3-col">
-        <FilterSidebar>
-          <FilterGroup
+        <div className="hide-mobile width-3-col">
+          <ContributeButtons
             trackingPage="Funding"
-            title="Accepting applications"
-            options={acceptingOptions}
-            selected={selectedAccepting}
-            counts={acceptingCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedAccepting, setSelectedAccepting)
-            }
+            suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
+            suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
+            noun="funder"
+            airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shr9Mki0gKgHFdcbd"
           />
-          <FilterGroup
-            trackingPage="Funding"
-            title="Type"
-            options={typeOptions}
-            selected={selectedTypes}
-            counts={typeCounts}
-            onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
-          />
-        </FilterSidebar>
-        <ContributeButtons
-          trackingPage="Funding"
-          suggestEntryUrl="https://airtable.com/appF8XfZUGXtfi40E/pagBI1UdaBbFplw20/form"
-          suggestCorrectionUrl="https://airtable.com/appF8XfZUGXtfi40E/pagndDvdya1DSqoxN/form"
-          noun="funder"
-          airtableUrl="https://airtable.com/appF8XfZUGXtfi40E/shr9Mki0gKgHFdcbd"
-        />
+        </div>
       </div>
-    </div>
+    </>
   )
 }

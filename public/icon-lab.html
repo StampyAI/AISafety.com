@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Icon Lab</title>
+    <meta http-equiv="refresh" content="4" />
+    <style>
+      body {
+        margin: 0;
+        background: #0d2427;
+        color: #aab2b3;
+        font-family: system-ui, sans-serif;
+        padding: 44px;
+      }
+      h1 {
+        color: #fff;
+        font-weight: 400;
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      .sub {
+        opacity: 0.6;
+        font-size: 13px;
+        margin-bottom: 36px;
+      }
+      .section {
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        opacity: 0.5;
+        border-top: 1px solid #1c3334;
+        padding-top: 22px;
+        margin-bottom: 6px;
+      }
+      .row {
+        display: flex;
+        gap: 52px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        padding: 16px 0 8px;
+      }
+      .cell {
+        text-align: center;
+      }
+      .big,
+      .sm {
+        display: inline-block;
+        background: #fff;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+      }
+      .big {
+        width: 84px;
+        height: 84px;
+      }
+      .sm {
+        width: 16px;
+        height: 16px;
+        margin-top: 12px;
+      }
+      .lbl {
+        font-size: 13px;
+        margin-top: 14px;
+      }
+      /* a mini card row, so you see the icon in context at real size */
+      .card {
+        margin-top: 28px;
+        max-width: 320px;
+        background: #12302f;
+        border-radius: 16px;
+        padding: 20px;
+      }
+      .meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      .metaicon {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        background: #aab2b3;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Icon lab 🎨</h1>
+    <div class="sub">
+      Live — I update this as we design; it auto-refreshes every 4s. — Cody
+    </div>
+
+    <div class="section">FUNDING · current picks</div>
+    <div class="row">
+      <div class="cell">
+        <span class="big" style="-webkit-mask-image: url(/images/icons/tag.svg); mask-image: url(/images/icons/tag.svg)"></span>
+        <div class="lbl">tag — Type</div>
+        <span class="sm" style="-webkit-mask-image: url(/images/icons/tag.svg); mask-image: url(/images/icons/tag.svg)"></span>
+      </div>
+      <div class="cell">
+        <span class="big" style="-webkit-mask-image: url(/images/icons/form-check.svg); mask-image: url(/images/icons/form-check.svg)"></span>
+        <div class="lbl">form-check — Accepting (yours 🩷)</div>
+        <span class="sm" style="-webkit-mask-image: url(/images/icons/form-check.svg); mask-image: url(/images/icons/form-check.svg)"></span>
+      </div>
+      <div class="cell">
+        <span class="big" style="-webkit-mask-image: url(/images/icons/form-pause.svg); mask-image: url(/images/icons/form-pause.svg)"></span>
+        <div class="lbl">form-pause — Applications paused (yours 🩷)</div>
+        <span class="sm" style="-webkit-mask-image: url(/images/icons/form-pause.svg); mask-image: url(/images/icons/form-pause.svg)"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="color: #fff; font-size: 17px">Some Fund</div>
+      <div class="meta">
+        <span class="metaicon" style="-webkit-mask-image: url(/images/icons/tag.svg); mask-image: url(/images/icons/tag.svg)"></span>Grant program
+      </div>
+      <div class="meta">
+        <span class="metaicon" style="-webkit-mask-image: url(/images/icons/form-check.svg); mask-image: url(/images/icons/form-check.svg)"></span>Yes – rolling basis
+      </div>
+      <div class="meta">
+        <span class="metaicon" style="-webkit-mask-image: url(/images/icons/form-pause.svg); mask-image: url(/images/icons/form-pause.svg)"></span>No
+      </div>
+    </div>
+  </body>
+</html>

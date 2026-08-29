@@ -40,30 +40,6 @@ const resources = [
     viewId: 'viwxv2w8utSEhUeiJ',
     field: 'fldsFpgVduYnNuYkN', // Name
   },
-  {
-    path: '/media-channels',
-    tableId: 'tblCTOMzyH3vILL5I',
-    viewId: 'viwT8KTwupcVyGKLZ',
-    field: 'fldsju0ew5KYrY3Qa', // Name
-  },
-  {
-    path: '/advisors',
-    tableId: 'tblf3KKYnmgcjVGhD',
-    viewId: 'viwIdRmaCar2Y6gPi',
-    field: 'fldDCHQmcF8HLOz5S', // Name
-  },
-  {
-    path: '/projects',
-    tableId: 'tblHT29QNgMYKB8iW',
-    viewId: 'viwVgPN3hgpGa8dRE',
-    field: 'fldtfqsPSKc5ubNs4', // Project Name
-  },
-  {
-    path: '/founders',
-    tableId: 'tbl59Ye8oxvPjoVJv',
-    viewId: 'viwzMBhPBk1GpQXnn',
-    field: 'fldylwo2fwYtfMqM8', // Name
-  },
 ]
 
 // Preview-mode requests can't be served from any Next.js data cache (Draft
@@ -127,6 +103,10 @@ export async function fetchAllCounts(): Promise<
   // Derive redesigned pages' counts from the same data the page renders, so the
   // nav badge always matches the on-page total exactly.
   counts['/communities'] = (await getCommunities()).length
+  counts['/media-channels'] = (await getMediaChannels()).length
+  counts['/advisors'] = (await getAdvisors()).length
+  counts['/projects'] = (await getProjects()).length
+  counts['/founders'] = (await getFounderResources()).length
   counts['/self-study'] = (await getCourses()).length
   counts['/events'] = (await getEvents()).length
   // Both program sets the page lists: upcoming + recurring.

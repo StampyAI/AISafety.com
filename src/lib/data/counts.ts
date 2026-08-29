@@ -29,12 +29,6 @@ const resources = [
     adjust: -4, // Grid view includes 4 category header rows that aren't displayed on the site
   },
   {
-    path: '/jobs',
-    tableId: 'tblyLelYCQjP6w3nV',
-    viewId: 'viwBfn9CIUVqQHUy6',
-    field: 'fldDVJcmd66eF3E7c', // !Title
-  },
-  {
     path: '/funding',
     tableId: 'tblzMTLDZWZKqTxrq',
     viewId: 'viwxv2w8utSEhUeiJ',
@@ -103,6 +97,7 @@ export async function fetchAllCounts(): Promise<
   // Derive redesigned pages' counts from the same data the page renders, so the
   // nav badge always matches the on-page total exactly.
   counts['/communities'] = (await getCommunities()).length
+  counts['/jobs'] = (await getJobs()).length
   counts['/media-channels'] = (await getMediaChannels()).length
   counts['/advisors'] = (await getAdvisors()).length
   counts['/projects'] = (await getProjects()).length

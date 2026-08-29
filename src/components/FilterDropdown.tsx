@@ -16,6 +16,10 @@ interface FilterDropdownProps {
   /** Analytics page name (e.g. 'Training'). When set, turning a value on
    *  records a filter_apply event under this page and the dropdown's title. */
   trackingPage?: string
+  /** Overrides the name the filter is tracked under, so a friendlier display
+   *  title (e.g. 'Remote or on-site') can keep a stable analytics name
+   *  ('Work location'). Defaults to `title`. */
+  trackingTitle?: string
 }
 
 // A single pill-shaped filter that opens a checkbox popover. Used in the
@@ -28,6 +32,7 @@ export default function FilterDropdown({
   onToggle,
   icon,
   trackingPage,
+  trackingTitle,
 }: FilterDropdownProps) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -117,7 +122,11 @@ export default function FilterDropdown({
                   checked={selected.includes(option)}
                   onChange={() => {
                     if (trackingPage && !selected.includes(option))
-                      trackFilterApply(trackingPage, title, option)
+                      trackFilterApply(
+                        trackingPage,
+                        trackingTitle ?? title,
+                        option
+                      )
                     onToggle(option)
                   }}
                   className="checkbox"

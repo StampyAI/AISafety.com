@@ -35,11 +35,11 @@
   width: 300px;
 }
 
-/* Collapsed state: a round icon button. 48px so expanding into the
-   /events-style field (also 48px tall) doesn't jump in size. */
+/* Collapsed state: a round icon button, sized to the zoom control buttons.
+   The expanded field matches this height so nothing jumps on open. */
 .map-search-toggle {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -63,8 +63,8 @@
    floating field stays opaque and legible on top of the map artwork. */
 .map-search-icon {
   position: absolute;
-  left: 16px;
-  top: 24px;
+  left: 14px;
+  top: 20px;
   transform: translateY(-50%);
   z-index: 1;
   width: 16px;
@@ -77,10 +77,10 @@
 }
 
 .map-search-input {
-  height: 48px;
-  padding-left: 40px;
+  height: 40px;
+  padding-left: 38px;
   border: none;
-  border-radius: 24px;
+  border-radius: 20px;
   background-color: color-mix(
     in srgb,
     var(--bright-teal-500) 10%,

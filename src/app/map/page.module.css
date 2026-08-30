@@ -32,7 +32,7 @@
   top: 24px;
   left: 24px;
   z-index: 95;
-  width: 300px;
+  width: 340px;
 }
 
 /* Collapsed state: a round icon button, sized to the zoom control buttons.
@@ -174,14 +174,17 @@
   gap: 2px;
 }
 
+/* Up to two lines so bracketed acronyms at the end of long names stay
+   visible instead of being ellipsed away. */
 .map-search-name {
   font-size: 15px;
   font-weight: 300;
   line-height: 1.3;
   color: var(--white);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .map-search-category {

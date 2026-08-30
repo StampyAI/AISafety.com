@@ -49,36 +49,13 @@ export default function MapSearch({
     const prefix: MapSearchOrg[] = []
     const rest: MapSearchOrg[] = []
     for (const org of orgs) {
-      // Initials of the name, with and without filler words, so acronym
-      // queries ("gcri") find listings whose short name isn't the acronym.
-      const words = org.tooltipTitle
-        .split(/\s+/)
-        .map(w => w.replace(/^[^a-z0-9]+/i, ''))
-        .filter(Boolean)
-      const fillers = new Set([
-        'a',
-        'an',
-        'and',
-        'at',
-        'for',
-        'in',
-        'of',
-        'on',
-        'the',
-        'to',
-      ])
-      const acronym = words.map(w => w[0]).join('')
-      const acronymTight = words
-        .filter(w => !fillers.has(w.toLowerCase()))
-        .map(w => w[0])
-        .join('')
+      // title is the 'Long name for cards' field, which carries bracketed
+      // acronyms like "(CARMA)" — so acronym queries match real data.
       const fields = [
         org.title,
         org.shortName ?? '',
         org.tooltipTitle,
         org.category,
-        acronym,
-        acronymTight,
       ].map(f => f.toLowerCase())
       if (fields.some(f => f.startsWith(q))) prefix.push(org)
       else if (fields.some(f => f.includes(q))) rest.push(org)
@@ -94,7 +71,7 @@ export default function MapSearch({
   }
 
   const pick = (org: MapSearchOrg) => {
-    setQuery(org.tooltipTitle)
+    setQuery(org.title)
     setOpen(false)
     setActiveIndex(-1)
     onPick(org)
@@ -200,9 +177,7 @@ export default function MapSearch({
                 )}
               </span>
               <span className={styles['map-search-text']}>
-                <span className={styles['map-search-name']}>
-                  {org.tooltipTitle}
-                </span>
+                <span className={styles['map-search-name']}>{org.title}</span>
                 <span className={styles['map-search-category']}>
                   {org.category.split(',')[0].trim()}
                 </span>

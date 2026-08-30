@@ -35,10 +35,11 @@
   width: 300px;
 }
 
-/* Collapsed state: a round icon button matching the zoom control buttons. */
+/* Collapsed state: a round icon button. 48px so expanding into the
+   /events-style field (also 48px tall) doesn't jump in size. */
 .map-search-toggle {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;

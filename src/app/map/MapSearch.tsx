@@ -78,6 +78,16 @@ export default function MapSearch({
   // Capture phase so list navigation wins over SearchBar's own key handling
   // on the input (its Enter/Escape behavior is built for the cards search).
   const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
+    // ESC on an empty box closes it back to the icon. With text in the box,
+    // SearchBar's own ESC handling clears it first — so ESC-ESC fully closes.
+    if (event.key === 'Escape' && query.trim() === '') {
+      event.preventDefault()
+      event.stopPropagation()
+      setExpanded(false)
+      setOpen(false)
+      setActiveIndex(-1)
+      return
+    }
     if (!open || results.length === 0) return
     if (event.key === 'ArrowDown') {
       event.preventDefault()

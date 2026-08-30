@@ -155,13 +155,14 @@
   justify-content: center;
 }
 
-/* Map-pin treatment at list size: logo clipped to a circle inside a white
-   disc, with a ring wide enough to actually see at 32px — the map's exact
-   ratio leaves under a pixel here, which loses dark logos against the dark
-   dropdown. Same numbers as the admin map editor's rows. */
+/* The map's exact pin treatment: the image itself is clipped to a circle
+   (border-radius), then sits on the white disc at the map's 60/64 ratio —
+   so square logo files become bold discs with a thin, even white ring,
+   instead of bleeding to the container edge. */
 .map-search-logo img {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   object-fit: contain;
 }
 

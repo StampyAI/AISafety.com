@@ -173,11 +173,13 @@ export default function MapSearch({
                   />
                 )}
               </span>
-              <span className={styles['map-search-name']}>
-                {org.tooltipTitle}
-              </span>
-              <span className={styles['map-search-category']}>
-                {org.category.split(',')[0].trim()}
+              <span className={styles['map-search-text']}>
+                <span className={styles['map-search-name']}>
+                  {org.tooltipTitle}
+                </span>
+                <span className={styles['map-search-category']}>
+                  {org.category.split(',')[0].trim()}
+                </span>
               </span>
             </button>
           ))}

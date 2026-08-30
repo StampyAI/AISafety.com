@@ -49,11 +49,36 @@ export default function MapSearch({
     const prefix: MapSearchOrg[] = []
     const rest: MapSearchOrg[] = []
     for (const org of orgs) {
+      // Initials of the name, with and without filler words, so acronym
+      // queries ("gcri") find listings whose short name isn't the acronym.
+      const words = org.tooltipTitle
+        .split(/\s+/)
+        .map(w => w.replace(/^[^a-z0-9]+/i, ''))
+        .filter(Boolean)
+      const fillers = new Set([
+        'a',
+        'an',
+        'and',
+        'at',
+        'for',
+        'in',
+        'of',
+        'on',
+        'the',
+        'to',
+      ])
+      const acronym = words.map(w => w[0]).join('')
+      const acronymTight = words
+        .filter(w => !fillers.has(w.toLowerCase()))
+        .map(w => w[0])
+        .join('')
       const fields = [
         org.title,
         org.shortName ?? '',
         org.tooltipTitle,
         org.category,
+        acronym,
+        acronymTight,
       ].map(f => f.toLowerCase())
       if (fields.some(f => f.startsWith(q))) prefix.push(org)
       else if (fields.some(f => f.includes(q))) rest.push(org)

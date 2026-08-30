@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Icon from '@/components/Icon'
 import { useMemo, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import SearchBar from '@/components/SearchBar'
@@ -34,6 +35,9 @@ export default function MapSearch({
   onClear,
 }: MapSearchProps) {
   const [query, setQuery] = useState('')
+  // Starts as just a round icon button; the input only appears on demand so
+  // the map stays uncluttered.
+  const [expanded, setExpanded] = useState(false)
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
 
@@ -90,6 +94,26 @@ export default function MapSearch({
     }
   }
 
+  if (!expanded) {
+    return (
+      <div className={className}>
+        <button
+          type="button"
+          className={styles['map-search-toggle']}
+          title="Search the map"
+          aria-label="Search the map"
+          onClick={() => setExpanded(true)}
+        >
+          <Icon
+            src="/images/icons/magnifying-glass.svg"
+            size={16}
+            className="color-white"
+          />
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className={className} onKeyDownCapture={handleKeyDownCapture}>
       <SearchBar
@@ -97,10 +121,13 @@ export default function MapSearch({
         onChange={handleChange}
         placeholder="Search the map"
         className={styles['map-search-input']}
+        autoFocus
         onFocus={() => setOpen(query.trim().length > 0)}
         onBlur={() => {
           setOpen(false)
           setActiveIndex(-1)
+          // Nothing typed or picked — shrink back to the icon.
+          if (query.trim() === '') setExpanded(false)
         }}
       />
       {open && (

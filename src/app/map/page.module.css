@@ -35,6 +35,27 @@
   width: 300px;
 }
 
+/* Collapsed state: a round icon button matching the zoom control buttons. */
+.map-search-toggle {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 50%;
+  box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5);
+  cursor: pointer;
+  transition: background-color var(--hover-transition);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-search-toggle:hover {
+  background-color: var(--teal-800);
+}
+
 .map-search-input {
   height: 40px;
   border-radius: 20px;

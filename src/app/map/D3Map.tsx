@@ -567,7 +567,7 @@ export default function D3Map({ orgs }: D3MapProps) {
         const px = org.x * GRID_SIZE
         const py = org.y * GRID_SIZE
         // Mobile pins are tiny at rest, so land closer in.
-        const k = isMobile() ? 10 : 5
+        const k = isMobile() ? 8 : 3.5
         // Centers the pin in the rendered viewBox area: the group transform
         // places map point p at viewBox coordinate t + offset + k*p.
         svg

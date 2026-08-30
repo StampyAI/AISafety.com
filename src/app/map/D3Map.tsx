@@ -590,7 +590,7 @@ export default function D3Map({ orgs }: D3MapProps) {
           .attr('cy', py)
           .attr('r', r)
           .attr('fill', 'none')
-          .attr('stroke', 'var(--pink)')
+          .attr('stroke', 'var(--bright-teal-500)')
           .attr('stroke-width', 3.5)
           .attr('vector-effect', 'non-scaling-stroke')
           .style('pointer-events', 'none')

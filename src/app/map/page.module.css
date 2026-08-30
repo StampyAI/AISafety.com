@@ -195,6 +195,7 @@
 
 .map-search-empty {
   padding: 12px 16px;
+  font-size: 13px;
   color: var(--teal-300);
 }
 

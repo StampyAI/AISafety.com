@@ -35,8 +35,7 @@ const PADDING_FACTOR = 1.1
 const PADDED_WIDTH = MAP_WIDTH * PADDING_FACTOR
 const PADDED_HEIGHT = MAP_HEIGHT * PADDING_FACTOR
 const GRID_SIZE = MAP_WIDTH / 60
-const BACKGROUND_IMAGE_URL =
-  'https://cdn.prod.website-files.com/65380b51b01b69a63d681e04/67e5dce03ad758280cd8367c_Map%201.5.1.svg'
+const BACKGROUND_IMAGE_URL = '/images/map-1.5.1.svg'
 
 // Logo size scales (handle both cases)
 const SIZE_TO_SCALE: Record<string, number> = {

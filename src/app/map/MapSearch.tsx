@@ -26,7 +26,7 @@ interface MapSearchProps {
   onClear: () => void
 }
 
-const MAX_RESULTS = 8
+const MAX_RESULTS = 5
 
 export default function MapSearch({
   className,

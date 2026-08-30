@@ -249,6 +249,22 @@ export function trackNewsletterSignup(page: string): void {
 }
 
 /**
+ * Track a click on the newsletter signup box outside the email pill — the
+ * card doubles as a link to the newsletter's own page, for visitors who want
+ * to read it before subscribing.
+ */
+export function trackNewsletterView(page: string): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Newsletter - ${page}`, 'View'])
+  sendTrackEvent({
+    type: 'newsletter_view',
+    page,
+    label: 'Newsletter view',
+  })
+}
+
+/**
  * Track a click on one of the footer's external links (the "Help us out" and
  * "Newsletters" columns) — outbound, so nothing else would record them.
  * `section` is the column heading, `label` the link text; `page` is stamped

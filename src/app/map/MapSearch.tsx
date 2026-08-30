@@ -116,6 +116,7 @@ export default function MapSearch({
 
   return (
     <div className={className} onKeyDownCapture={handleKeyDownCapture}>
+      <span className={styles['map-search-icon']} aria-hidden="true" />
       <SearchBar
         value={query}
         onChange={handleChange}

@@ -92,7 +92,7 @@
   box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5);
   /* The field mounts on expand, so a mount animation from the collapsed
      button's width and color makes the circle appear to morph open. */
-  animation: map-search-expand 0.22s ease-out;
+  animation: map-search-expand 0.12s ease-out;
 }
 
 @keyframes map-search-expand {
@@ -157,9 +157,10 @@
   justify-content: center;
 }
 
+/* 60/64 of the circle — the exact logo-to-circle ratio used on the map. */
 .map-search-logo img {
-  width: 20px;
-  height: 20px;
+  width: 22.5px;
+  height: 22.5px;
   object-fit: contain;
 }
 

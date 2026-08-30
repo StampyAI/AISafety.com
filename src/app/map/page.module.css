@@ -25,6 +25,113 @@
   z-index: 95;
 }
 
+/* Map search — top-left, mirroring the zoom controls top-right. Same
+   z-index reasoning: stay below the assistant scrim/panel/pill (96-100). */
+.map-search {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 95;
+  width: 300px;
+}
+
+.map-search-input {
+  height: 40px;
+  border-radius: 20px;
+  background-color: var(--teal-850);
+  border-color: var(--teal-700);
+  color: var(--white);
+  font-size: 14px;
+  box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5);
+}
+
+.map-search-input::placeholder {
+  color: var(--teal-400);
+}
+
+.map-search-results {
+  margin-top: 8px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-700);
+  border-radius: 16px;
+  box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.map-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.map-search-row + .map-search-row {
+  border-top: 1px solid var(--teal-800);
+}
+
+/* Active (keyboard cursor) must come after the base row rule so it wins. */
+.map-search-row:hover,
+.map-search-row-active {
+  background-color: var(--teal-800);
+}
+
+.map-search-logo {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--white);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-search-logo img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.map-search-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--white);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-search-category {
+  flex: none;
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.map-search-empty {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--teal-300);
+}
+
+@media (max-width: 767px) {
+  .map-search {
+    top: 16px;
+    left: 16px;
+    /* Clear of the zoom controls in the top-right corner */
+    width: calc(100% - 96px);
+  }
+}
+
 /* Map tooltip — matches communities mapbox-tooltip */
 .map-tooltip {
   position: fixed;

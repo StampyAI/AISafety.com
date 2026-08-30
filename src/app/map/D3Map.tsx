@@ -2,9 +2,10 @@
 
 // @refresh reset — d3 pipeline is inside useEffect; force remount on edit.
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as d3 from 'd3'
 import MapControls from '@/components/MapControls'
+import MapSearch from './MapSearch'
 import { trackListingClick, trackListingHover } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { positionTooltip } from '@/lib/mapTooltip'
@@ -22,6 +23,7 @@ interface MapOrg {
   x: number | null
   y: number | null
   scale: string | null
+  isMagic?: boolean
 }
 
 interface D3MapProps {
@@ -82,6 +84,33 @@ export default function D3Map({ orgs }: D3MapProps) {
     zoomOut: () => {},
     reset: () => {},
   })
+  // Search fly-to lives in the d3 pipeline for the same reason the zoom
+  // buttons do — the zoom behavior only exists inside the effect below.
+  const searchRef = useRef<{
+    flyTo: (org: {
+      x: number | null
+      y: number | null
+      scale: string | null
+    }) => void
+    clearHighlight: () => void
+  }>({
+    flyTo: () => {},
+    clearHighlight: () => {},
+  })
+  // Magic-map decorations and unlinked furniture rows (e.g. "Last updated")
+  // render as pins but shouldn't be findable.
+  const searchOrgs = useMemo(
+    () =>
+      orgs.filter(
+        org =>
+          !org.isMagic &&
+          org.link &&
+          org.link !== '#' &&
+          org.x !== null &&
+          org.y !== null
+      ),
+    [orgs]
+  )
   // The d3 pipeline below tears down and rebuilds whenever `orgs` changes
   // identity — which preview mode's auto-refresh does on every data change
   // and tab focus. Keeping the last zoom transform here lets the rebuild
@@ -515,6 +544,75 @@ export default function D3Map({ orgs }: D3MapProps) {
       reset: resetView,
     }
 
+    // Search: fly the viewport to a pin and pulse a ring around it. The ring
+    // sits inside svgGroup so it pans/zooms with the map; non-scaling-stroke
+    // keeps its line width constant at any zoom.
+    let highlightRing: d3.Selection<
+      SVGCircleElement,
+      unknown,
+      null,
+      undefined
+    > | null = null
+    const clearHighlight = () => {
+      if (highlightRing) {
+        highlightRing.interrupt()
+        highlightRing.remove()
+        highlightRing = null
+      }
+    }
+    searchRef.current = {
+      clearHighlight,
+      flyTo: org => {
+        if (org.x === null || org.y === null) return
+        clearHighlight()
+        const px = org.x * GRID_SIZE
+        const py = org.y * GRID_SIZE
+        // Mobile pins are tiny at rest, so land closer in.
+        const k = isMobile() ? 10 : 5
+        // Centers the pin in the rendered viewBox area: the group transform
+        // places map point p at viewBox coordinate t + offset + k*p.
+        svg
+          .transition()
+          .duration(800)
+          .call(
+            zoom.transform,
+            d3.zoomIdentity
+              .translate(
+                PADDED_WIDTH / 2 - offsetX - k * px,
+                PADDED_HEIGHT / 2 - offsetY - k * py
+              )
+              .scale(k)
+          )
+        const rawScale = SIZE_TO_SCALE[org.scale || 'Medium'] || 0.6
+        const r = (BASE_LOGO_SIZE * rawScale) / 2 + 10
+        const ring = svgGroup
+          .append('circle')
+          .attr('cx', px)
+          .attr('cy', py)
+          .attr('r', r)
+          .attr('fill', 'none')
+          .attr('stroke', '#ff2d95')
+          .attr('stroke-width', 3.5)
+          .attr('vector-effect', 'non-scaling-stroke')
+          .style('pointer-events', 'none')
+        highlightRing = ring
+        let growing = true
+        const pulse = () => {
+          ring
+            .transition()
+            .duration(600)
+            .ease(d3.easeSinInOut)
+            .attr('r', growing ? r * 1.7 : r)
+            .attr('stroke-opacity', growing ? 0.3 : 0.9)
+            .on('end', () => {
+              growing = !growing
+              pulse()
+            })
+        }
+        pulse()
+      },
+    }
+
     // ESC resets the view, same as the recenter button. Skip while typing in
     // a form field — ESC there shouldn't yank the map.
     const handleEscKey = (e: KeyboardEvent) => {
@@ -573,6 +671,9 @@ export default function D3Map({ orgs }: D3MapProps) {
     return () => {
       // A pending hover dwell must not fire after unmount.
       cancelHoverTimer()
+      // The ring is removed with the SVG; the fns must not outlive the zoom
+      // behavior they close over.
+      searchRef.current = { flyTo: () => {}, clearHighlight: () => {} }
       svgNode.removeEventListener('wheel', preventPageZoom)
       if (tooltipEl) tooltipEl.removeEventListener('click', handleTooltipClick)
       document.removeEventListener('click', handleDocumentClick)
@@ -592,6 +693,13 @@ export default function D3Map({ orgs }: D3MapProps) {
         onZoomIn={() => controlsRef.current.zoomIn()}
         onZoomOut={() => controlsRef.current.zoomOut()}
         onReset={() => controlsRef.current.reset()}
+      />
+
+      <MapSearch
+        className={styles['map-search']}
+        orgs={searchOrgs}
+        onPick={org => searchRef.current.flyTo(org)}
+        onClear={() => searchRef.current.clearHighlight()}
       />
 
       {/* Tooltip — always in DOM for measuring, visibility toggled via ref */}

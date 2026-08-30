@@ -92,11 +92,12 @@ export default function MapSearch({
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       event.stopPropagation()
-      setActiveIndex(i => Math.min(i + 1, results.length - 1))
+      // Wraps: down from the last result returns to the first.
+      setActiveIndex(i => (i + 1) % results.length)
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       event.stopPropagation()
-      setActiveIndex(i => Math.max(i - 1, -1))
+      setActiveIndex(i => (i <= 0 ? results.length - 1 : i - 1))
     } else if (event.key === 'Enter') {
       event.preventDefault()
       event.stopPropagation()
@@ -164,8 +165,8 @@ export default function MapSearch({
                   <Image
                     src={org.mapLogo}
                     alt=""
-                    width={24}
-                    height={24}
+                    width={28}
+                    height={28}
                     unoptimized
                     onError={e => {
                       ;(e.target as HTMLImageElement).style.display = 'none'

@@ -145,8 +145,8 @@
 
 .map-search-logo {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background-color: var(--white);
   overflow: hidden;
@@ -155,10 +155,13 @@
   justify-content: center;
 }
 
-/* 60/64 of the circle — the exact logo-to-circle ratio used on the map. */
+/* Map-pin treatment at list size: logo clipped to a circle inside a white
+   disc, with a ring wide enough to actually see at 32px — the map's exact
+   ratio leaves under a pixel here, which loses dark logos against the dark
+   dropdown. Same numbers as the admin map editor's rows. */
 .map-search-logo img {
-  width: 22.5px;
-  height: 22.5px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
 }
 

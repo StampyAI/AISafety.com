@@ -6,6 +6,7 @@ import FilterDropdown from '@/components/FilterDropdown'
 import ListingCard from '@/components/ListingCard'
 import ContributeButtons from '@/components/ContributeButtons'
 import { Funder } from '@/lib/data/funding'
+import { isAcceptingApplications } from '@/lib/funding-status'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
 import { placementsById } from '@/lib/placements'
 
@@ -31,10 +32,16 @@ export default function FundingClient({ funders }: FundingClientProps) {
     () => ({
       accepting: {
         selected: acceptingFilters,
-        // Airtable values are prefixed ("Yes – rolling basis", "Yes – closes
-        // …", "No"); match on the prefix so Yes/No catches every variant.
-        matches: (funder: Funder, value: string) =>
-          (funder.acceptingApplications || '').startsWith(value),
+        // Airtable values are full sentences ("Accepting applications –
+        // rolling basis", "Not currently accepting applications"); bucket
+        // them into Yes/No via the shared status helper.
+        matches: (funder: Funder, value: string) => {
+          const status = funder.acceptingApplications || ''
+          if (!status) return false
+          return value === 'Yes'
+            ? isAcceptingApplications(status)
+            : !isAcceptingApplications(status)
+        },
       },
       type: {
         selected: typeFilters,
@@ -132,7 +139,9 @@ export default function FundingClient({ funders }: FundingClientProps) {
                 ...(funder.acceptingApplications
                   ? [
                       {
-                        icon: funder.acceptingApplications.startsWith('Yes')
+                        icon: isAcceptingApplications(
+                          funder.acceptingApplications
+                        )
                           ? '/images/icons/form-check.svg'
                           : '/images/icons/form-pause.svg',
                         value: funder.acceptingApplications,

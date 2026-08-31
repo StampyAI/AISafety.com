@@ -3,6 +3,7 @@ import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import FundingClient from './FundingClient'
 import { getFunders } from '@/lib/data/funding'
+import { isAcceptingApplications } from '@/lib/funding-status'
 
 export const metadata = {
   title: 'Funding – AISafety.com',
@@ -57,7 +58,9 @@ export default async function FundingPage() {
               ...(funder.acceptingApplications
                 ? [
                     {
-                      icon: funder.acceptingApplications.startsWith('Yes')
+                      icon: isAcceptingApplications(
+                        funder.acceptingApplications
+                      )
                         ? '/images/icons/form-check.svg'
                         : '/images/icons/form-pause.svg',
                       value: funder.acceptingApplications,

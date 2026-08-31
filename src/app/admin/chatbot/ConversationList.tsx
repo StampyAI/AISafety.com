@@ -1,6 +1,13 @@
 'use client'
 
-import { Fragment, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  Fragment,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import styles from '../admin.module.css'
 import TranscriptMessage, {
   ClickedCardsContext,
@@ -29,7 +36,8 @@ interface LoggedToolCall {
  *  Data.tools holds one array per LOGGED TURN since the conversation began,
  *  and every turn carries exactly one user message (abandoned/error turns log
  *  the question with no reply). Data.history however is a sliding WINDOW (the
- *  last 14 messages), so long conversations lose their oldest messages while
+ *  last 50 messages; 14 on older rows), so long conversations lose their
+ *  oldest stored messages while
  *  tools keeps growing — the two can only be aligned from the END: the last
  *  user message in the window belongs to the last tools entry, and so on
  *  backwards. A reply's tools sit at the entry of the user message it answers;
@@ -137,6 +145,10 @@ interface ConversationData {
    *  indexing the delivery/rating/click keys use. Aligned with `history`.
    *  Absent on rows from before this was logged. */
   historyIndices?: unknown[]
+  /** URL of the conversation's full-transcript blob mirror — present once
+   *  the chat outgrew what the Airtable row can hold. Its presence tells the
+   *  viewer a complete transcript is fetchable via the single-row API. */
+  transcript?: string
   tools: unknown[]
   /** Per-turn (aligned with tools): card ids that degraded to a "Browse X"
    *  link in the visitor's chat. Absent on rows from before this was logged. */
@@ -481,6 +493,9 @@ export default function ConversationList() {
   // Ids of conversations this browser has opened. Loaded after mount
   // (localStorage is browser-only) to avoid an SSR mismatch.
   const [viewed, setViewed] = useState<Set<string>>(new Set())
+  // Ids whose full transcript we've already requested this page view, so
+  // the expand effect below fires once per conversation.
+  const fullFetched = useRef<Set<string>>(new Set())
 
   const PAGE_SIZE = 200
 
@@ -585,6 +600,43 @@ export default function ConversationList() {
       id: linkedId ?? undefined,
     })
   }, [zeroOnly, search, ratingFilter, labelFilter, linkedId])
+
+  // A conversation with a blob-mirrored full transcript arrives windowed in
+  // the list payload (the list endpoint can't afford a blob fetch per row).
+  // When one is opened, refetch just that conversation — the single-row API
+  // merges the blob — and swap it in. Skipped when the stored history
+  // already covers every logged turn (e.g. it came in via a shared ?id=
+  // link, which is served merged).
+  useEffect(() => {
+    if (!expandedId || fullFetched.current.has(expandedId)) return
+    const conv = conversations.find(c => c.id === expandedId)
+    const data = conv?.data
+    if (!data?.transcript) return
+    const turnCount = data.turnTimes?.length ?? 0
+    const stored = data.history.filter(t => t.role === 'user').length
+    if (turnCount > 0 && stored >= turnCount) return
+    fullFetched.current.add(expandedId)
+    const id = expandedId
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/conversations?id=${encodeURIComponent(id)}`
+        )
+        if (!res.ok) return
+        const payload = (await res.json()) as {
+          conversations: Conversation[]
+          listings?: Record<string, ListingInfo>
+        }
+        const full = payload.conversations?.[0]
+        if (!full) return
+        setConversations(prev => prev.map(c => (c.id === full.id ? full : c)))
+        setListings(prev => ({ ...prev, ...(payload.listings ?? {}) }))
+      } catch (err) {
+        // Keep the windowed view — the divider still says turns are missing.
+        console.warn('Could not load the full transcript:', err)
+      }
+    })()
+  }, [expandedId, conversations])
 
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -789,6 +841,10 @@ function ConversationRow({
   const [notes, setNotes] = useState(conv.notes)
   const [saveStatus, setSaveStatus] = useState('')
   const [labelInput, setLabelInput] = useState('')
+  // Custom suggestion menu under the label input (a native <datalist> can't
+  // be styled, so its white popup clashed with the dark admin theme).
+  const [labelMenuOpen, setLabelMenuOpen] = useState(false)
+  const [labelHighlight, setLabelHighlight] = useState(-1)
   const [linkCopied, setLinkCopied] = useState(false)
   const data = conv.data
   // Visitor messages actually stored in the (windowed) history — what the
@@ -942,7 +998,10 @@ function ConversationRow({
         return
       }
       const updated = (await res.json()) as { conversation: Conversation }
-      onUpdate(updated.conversation)
+      // Keep the transcript we're already showing: the PATCH re-reads the
+      // row without the blob merge, and annotations never change Data — so
+      // taking the response's data would re-window a merged transcript.
+      onUpdate({ ...updated.conversation, data: conv.data })
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus(''), 1500)
     } catch {
@@ -958,9 +1017,19 @@ function ConversationRow({
     const canonical =
       allLabels.find(l => l.toLowerCase() === trimmed.toLowerCase()) ?? trimmed
     setLabelInput('')
+    setLabelHighlight(-1)
     if (conv.tags.includes(canonical)) return
     void persist({ tags: [...conv.tags, canonical] })
   }
+
+  // Labels offered in the suggestion menu: not already on the conversation,
+  // narrowed by whatever is typed so far.
+  const labelSuggestions = useMemo(() => {
+    const q = labelInput.trim().toLowerCase()
+    return allLabels.filter(
+      l => !conv.tags.includes(l) && (!q || l.toLowerCase().includes(q))
+    )
+  }, [allLabels, conv.tags, labelInput])
 
   const removeLabel = (label: string) => {
     void persist({ tags: conv.tags.filter(t => t !== label) })
@@ -1337,31 +1406,85 @@ function ConversationRow({
                     </button>
                   </span>
                 ))}
-                <input
-                  className={styles.convLabelInput}
-                  list={`labels-${conv.id}`}
-                  value={labelInput}
-                  onChange={e => setLabelInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addLabel(labelInput)
-                    }
-                  }}
-                  placeholder="Add label…"
-                  title="Pick an existing label or type a new one and press Enter"
-                />
-                <datalist id={`labels-${conv.id}`}>
-                  {allLabels
-                    .filter(l => !conv.tags.includes(l))
-                    .map(l => (
-                      <option key={l} value={l} />
-                    ))}
-                </datalist>
+                <div className={styles.convLabelPicker}>
+                  <input
+                    className={styles.convLabelInput}
+                    value={labelInput}
+                    onChange={e => {
+                      setLabelInput(e.target.value)
+                      setLabelMenuOpen(true)
+                      setLabelHighlight(-1)
+                    }}
+                    onFocus={() => setLabelMenuOpen(true)}
+                    onBlur={() => {
+                      setLabelMenuOpen(false)
+                      setLabelHighlight(-1)
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'ArrowDown' && labelSuggestions.length) {
+                        e.preventDefault()
+                        setLabelMenuOpen(true)
+                        setLabelHighlight(
+                          h => (h + 1) % labelSuggestions.length
+                        )
+                      } else if (
+                        e.key === 'ArrowUp' &&
+                        labelSuggestions.length
+                      ) {
+                        e.preventDefault()
+                        setLabelMenuOpen(true)
+                        setLabelHighlight(h =>
+                          h <= 0 ? labelSuggestions.length - 1 : h - 1
+                        )
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (
+                          labelMenuOpen &&
+                          labelHighlight >= 0 &&
+                          labelHighlight < labelSuggestions.length
+                        ) {
+                          addLabel(labelSuggestions[labelHighlight])
+                        } else {
+                          addLabel(labelInput)
+                        }
+                      } else if (e.key === 'Escape') {
+                        setLabelMenuOpen(false)
+                        setLabelHighlight(-1)
+                      }
+                    }}
+                    placeholder="Add label…"
+                    title="Pick an existing label or type a new one and press Enter"
+                  />
+                  {labelMenuOpen && labelSuggestions.length > 0 && (
+                    <div className={styles.convLabelMenu}>
+                      {labelSuggestions.map((l, i) => (
+                        <button
+                          key={l}
+                          type="button"
+                          className={[
+                            styles.convLabelOption,
+                            i === labelHighlight
+                              ? styles.convLabelOptionActive
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          // Keep the input focused so its blur doesn't close
+                          // the menu before this click lands.
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => addLabel(l)}
+                          onMouseEnter={() => setLabelHighlight(i)}
+                        >
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {labelInput.trim() && (
                   <button
                     type="button"
-                    className={styles.editorButton}
+                    className={styles.convLabelAdd}
                     onClick={() => addLabel(labelInput)}
                   >
                     Add

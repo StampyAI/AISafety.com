@@ -240,7 +240,14 @@ export const DEFAULT_CHIPS = [
 
 export function findPage(path: string): PageInfo | undefined {
   if (!path) return undefined
-  const normalized = path.split('?')[0].split('#')[0]
+  let normalized = path.split('?')[0].split('#')[0]
+  // Vercel renders the homepage under its internal alias '/index' during
+  // background ISR revalidations (the alias is even reachable as a URL),
+  // while the browser always hydrates with '/'. Treating the two differently
+  // makes the server pick DEFAULT_CHIPS and the client the homepage chips —
+  // a text mismatch that throws hydration error #418 on every homepage load
+  // served from such a render.
+  if (normalized === '/index') normalized = '/'
   const exact = PAGES.find(p => p.path === normalized)
   if (exact) return exact
   if (normalized === '/') return PAGES.find(p => p.path === '/')

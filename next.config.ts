@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Vercel's edge routing serves the homepage under its internal alias
+      // /index (Next itself 404s it — try `next start`). Left reachable it's
+      // a duplicate page for search engines and lets a public request
+      // repopulate the homepage ISR cache under the alias. Internal
+      // revalidations invoke the function directly and never pass through
+      // redirects, so this only affects public requests.
+      { source: '/index', destination: '/', permanent: true },
       {
         source: '/founder-toolkit',
         destination: '/founders',

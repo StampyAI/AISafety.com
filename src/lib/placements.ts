@@ -15,23 +15,27 @@ interface Placeable {
  *  list. Pass items in the order they render so the slot matches what the
  *  visitor saw.
  *
- *  Pages with a featured queue (/events, /training) pass `featuredIds` — the
- *  records their queue actually displays — since a queued backup (rank 3+)
- *  renders as a normal grid card and must get a grid number, not an F-slot.
- *  Without `featuredIds`, ranks 1 and 2 count as featured (the fixed-slot
- *  pages). */
+ *  Pages with a featured queue (/events, /training) pass `featured` — the
+ *  cards their row actually displays, in display order — since a queued
+ *  backup (rank 3+) renders as a normal grid card and must get a grid
+ *  number, not an F-slot. A queued entry is stamped with its rank; a random
+ *  stand-in has no rank, so it's stamped with its position in the row, like
+ *  any other featured card. Without `featured`, ranks 1 and 2 count as
+ *  featured (the fixed-slot pages). */
 export function placementsById(
   items: Placeable[],
-  featuredIds?: Set<string>
+  featured?: Placeable[]
 ): Map<string, string> {
   const placements = new Map<string, string>()
+  featured?.forEach((item, i) => {
+    placements.set(item.id, `F${item.featured ?? i + 1}`)
+  })
   let n = 0
   for (const item of items) {
-    const isFeaturedCard = featuredIds
-      ? featuredIds.has(item.id)
-      : item.featured === '1' || item.featured === '2'
-    if (isFeaturedCard) placements.set(item.id, `F${item.featured}`)
-    else {
+    if (placements.has(item.id)) continue
+    if (!featured && (item.featured === '1' || item.featured === '2')) {
+      placements.set(item.id, `F${item.featured}`)
+    } else {
       n += 1
       placements.set(item.id, String(n))
     }

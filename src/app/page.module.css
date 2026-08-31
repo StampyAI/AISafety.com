@@ -46,7 +46,7 @@
 .card-full-width-2 {
   position: relative;
   height: 375px;
-  background-image: url('/images/map.png');
+  background-image: url('/images/map.webp');
   background-position: 40%;
   background-repeat: repeat;
   background-size: 1400px;
@@ -101,7 +101,7 @@
   position: relative;
   height: 680px;
   padding: 56px;
-  background-image: url('/images/keyboard.png');
+  background-image: url('/images/keyboard.webp');
   background-position: 50% 100%;
   background-repeat: no-repeat;
   background-size: cover;

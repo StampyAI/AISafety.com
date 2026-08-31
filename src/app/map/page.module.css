@@ -79,7 +79,9 @@
 .map-search-input {
   height: 40px;
   padding-left: 38px;
-  border: none;
+  /* Same outline as the collapsed circle and the zoom controls; the global
+     .text-field focus style still brightens it to teal-400 while typing. */
+  border: 1px solid var(--teal-700);
   border-radius: 20px;
   background-color: color-mix(
     in srgb,

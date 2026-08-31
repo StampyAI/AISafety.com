@@ -401,9 +401,12 @@ function labelFor(e: {
     return e.query ? `Searched for “${e.query}”` : 'Searched'
   if (e.type === 'filter_apply')
     return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
-  // A rating's label is the bare value ('up' | 'down'), so spell it out.
-  if (e.type === 'chatbot_rating')
+  // A rating's label is the bare value ('up' | 'down' | 'removed'), so spell
+  // it out.
+  if (e.type === 'chatbot_rating') {
+    if (e.label === 'removed') return 'Took back a reply rating'
     return e.label === 'up' ? 'Rated a reply 👍' : 'Rated a reply 👎'
+  }
   // search_click carries the result's title as its label, like listing clicks.
   return e.label ?? EVENT_LABELS[e.type] ?? e.type
 }
@@ -1879,9 +1882,10 @@ function ChatbotView({
               Thumbs ratings visitors gave the chatbot&apos;s replies, from the
               conversation log, for conversations started in the selected date
               range. Each reply counts once, under its latest rating (switching
-              thumbs overwrites). The table lists every rated reply, newest
-              first; a reply that has scrolled out of a long conversation&apos;s
-              stored transcript keeps its rating but not its text.
+              thumbs overwrites; a rating clicked off again is removed). The
+              table lists every rated reply, newest first; a reply that has
+              scrolled out of a long conversation&apos;s stored transcript keeps
+              its rating but not its text.
             </p>
           </Panel>
 

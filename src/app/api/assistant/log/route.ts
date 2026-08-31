@@ -18,7 +18,7 @@ function isValidEvent(value: unknown): value is AssistantEvent {
     return true
   if (v.kind === 'rating')
     return (
-      (v.value === 'up' || v.value === 'down') &&
+      (v.value === 'up' || v.value === 'down' || v.value === null) &&
       typeof v.turnIndex === 'number'
     )
   if (v.kind === 'delivery')

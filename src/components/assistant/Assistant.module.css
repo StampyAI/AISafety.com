@@ -947,11 +947,6 @@
   color: var(--white);
 }
 
-.feedbackButton svg {
-  width: 15px;
-  height: 15px;
-}
-
 /* Label tooltip. A native `title` has a ~1s browser delay; this shows in one
    hover-transition instead. Text comes from the button's aria-label, so the
    string isn't duplicated. */

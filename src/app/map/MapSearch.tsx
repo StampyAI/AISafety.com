@@ -51,12 +51,9 @@ export default function MapSearch({
     for (const org of orgs) {
       // title is the 'Long name for cards' field, which carries bracketed
       // acronyms like "(CARMA)" — so acronym queries match real data.
-      const fields = [
-        org.title,
-        org.shortName ?? '',
-        org.tooltipTitle,
-        org.category,
-      ].map(f => f.toLowerCase())
+      const fields = [org.title, org.shortName ?? '', org.tooltipTitle].map(f =>
+        f.toLowerCase()
+      )
       if (fields.some(f => f.startsWith(q))) prefix.push(org)
       else if (fields.some(f => f.includes(q))) rest.push(org)
     }

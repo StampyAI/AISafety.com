@@ -3,7 +3,7 @@ import { MAP_AREA_BY_CATEGORY } from '@/lib/data/map-areas'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-08-28-01'
+export const PROMPT_VERSION = '2026-08-31-02'
 
 /** "Category → **Area**" lines for the Field map section, generated from the
  *  same table the catalog uses to compute each org's \`mapArea\`, so the prompt
@@ -142,7 +142,8 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 - **funder**:
   - \`type\`: "Fund", "Grant program", "Platform"
   - \`recipientType\`: free text – common values include "Individuals", "Organizations", "Both"
-  - \`acceptingApplications\`: "Yes", "No"
+  - \`acceptingApplications\`: display text — "Applications on a rolling basis", "Applications close [date]", "Not accepting applications"
+  - \`applicationStatus\`: "Open", "Closed" — filter on THIS, not on acceptingApplications (its open and closed wordings share substrings like "accepting applications", so substring filters can't separate them)
 
 - **community**:
   - \`platform\`: "Discord", "Facebook", "Forum", "Gather", "Reddit", "Slack", "Telegram", "WhatsApp", "Other", "Local" (in-person communities are tagged "Local")
@@ -215,7 +216,7 @@ If a search returns 0 matches, try again with fewer or different filters before 
 
 Common patterns:
 - Career questions: \`search_listings({ type: 'job', filters: { ... } })\`
-- Active funders for individuals: \`search_listings({ type: 'funder', filters: { acceptingApplications: 'Yes', recipientType: 'Individuals' } })\`
+- Active funders for individuals: \`search_listings({ type: 'funder', filters: { applicationStatus: 'Open', recipientType: 'Individuals' } })\`
 - Donor wanting to give ("I have $X to donate", "where should I give?"): answer from the donation guide content in your context – it has recommendations broken down by amount – and link to [Donation guide](/donation-guide). Only card a fund or platform the guide itself recommends donating to (e.g. a regranting fund or donation platform like Manifund). Do NOT blanket-search \`type='funder'\` and present those listings as places to donate – [Funding](/funding) lists grantmakers for people SEEKING funding, most of which aren't donation destinations. Donation ≠ funding.
 - Founder questions: two calls, one with type='funder', one with type='founder-resource' (filter type to "Incubator" or "Fiscal sponsor" as relevant).
 - Community near a city: \`search_listings({ type: 'community', near: { city: 'Berlin', radiusKm: 500 } })\`

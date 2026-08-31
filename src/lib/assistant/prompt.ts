@@ -142,7 +142,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 - **funder**:
   - \`type\`: "Fund", "Grant program", "Platform"
   - \`recipientType\`: free text – common values include "Individuals", "Organizations", "Both"
-  - \`acceptingApplications\`: display text — "Accepting applications – rolling basis", "Applications close [date]", "Not accepting applications"
+  - \`acceptingApplications\`: display text — "Applications on a rolling basis", "Applications close [date]", "Not accepting applications"
   - \`applicationStatus\`: "Open", "Closed" — filter on THIS, not on acceptingApplications (its open and closed wordings share substrings like "accepting applications", so substring filters can't separate them)
 
 - **community**:

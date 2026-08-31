@@ -881,21 +881,24 @@ export async function recordCitationClick(
 /** Records the visitor's thumbs rating of one bot reply. Reads-modifies-writes
  *  only the Ratings field (disjoint from the turn upsert's fields and from
  *  Clicked, so none of the three writers can clobber another). A switched
- *  thumb overwrites the earlier value for that turn; re-sending the same value
- *  is a no-op. Like clicks, a rating that arrives before the conversation row
- *  exists is dropped rather than creating a dataless row. */
+ *  thumb overwrites the earlier value for that turn; a null value removes the
+ *  turn's rating (the visitor clicked their thumb off again); re-sending the
+ *  same value is a no-op. Like clicks, a rating that arrives before the
+ *  conversation row exists is dropped rather than creating a dataless row. */
 export async function recordMessageRating(
   session: string,
   turnIndex: number,
-  value: MessageRatingValue
+  value: MessageRatingValue | null
 ): Promise<void> {
   ensureConfig(CONVERSATIONS_TABLE)
   const existing = await findConversationBySession(session)
   if (!existing) return
   const current = parseRatings(str(existing.fields[FIELD.ratings]) || undefined)
   const key = String(turnIndex)
-  if (current[key] === value) return
-  const next: MessageRatings = { ...current, [key]: value }
+  if ((current[key] ?? null) === value) return
+  const next: MessageRatings = { ...current }
+  if (value === null) delete next[key]
+  else next[key] = value
   const res = await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
     method: 'PATCH',
     body: JSON.stringify({

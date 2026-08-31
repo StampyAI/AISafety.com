@@ -226,7 +226,7 @@ export default function Assistant() {
   )
 
   const handleRate = useCallback(
-    (value: 'up' | 'down', turnIndex: number) => {
+    (value: 'up' | 'down' | null, turnIndex: number) => {
       void fireLog({
         kind: 'rating',
         value,
@@ -234,7 +234,12 @@ export default function Assistant() {
         currentPage,
         sessionId: getSessionId(),
       })
-      trackEvent('chatbot_rating', { label: value, page: currentPage })
+      // null = the visitor clicked their thumb off again; labelled 'removed'
+      // so the dashboard's activity feed can spell it out.
+      trackEvent('chatbot_rating', {
+        label: value ?? 'removed',
+        page: currentPage,
+      })
     },
     [currentPage, fireLog]
   )

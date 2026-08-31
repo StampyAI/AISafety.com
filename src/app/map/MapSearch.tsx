@@ -133,7 +133,7 @@ export default function MapSearch({
       <SearchBar
         value={query}
         onChange={handleChange}
-        placeholder="Search the map"
+        placeholder="Search the map…"
         className={styles['map-search-input']}
         autoFocus
         onFocus={() => setOpen(query.trim().length > 0)}

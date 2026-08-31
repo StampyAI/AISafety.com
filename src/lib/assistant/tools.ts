@@ -27,7 +27,7 @@ ARGUMENTS:
 
   Per type:
     job: skillSet ("Policy"|"Research"|"Software engineering"|"Operations"|"Outreach"|"Strategy"|"Legal"|"Data"|"Information security"|"Management"), minimumExperience ("Entry-level"|"Junior"|"Mid"|"Senior"), roleType ("Full-time"|"Part-time"|"Internship"|"Fellowship"|"Volunteering"|"Funding"), workLocation ("Remote"|"On-site"), location (city or country)
-    funder: type ("Fund"|"Grant program"|"Platform"), recipientType ("Individuals"|"Organizations"), applicationStatus ("Open"|"Closed" — use this to filter open/closed funders; acceptingApplications holds display text like "Accepting applications – closes 31 October 2026" and is NOT reliably filterable)
+    funder: type ("Fund"|"Grant program"|"Platform"), recipientType ("Individuals"|"Organizations"), applicationStatus ("Open"|"Closed" — use this to filter open/closed funders; acceptingApplications holds display text like "Applications close 31 October 2026" and is NOT reliably filterable)
     community: platform ("Slack"|"Discord"|"In-person"), type, activityLevel ("Active"|"Quiet"), location
     course: category, courseType
     advisor: focus, status

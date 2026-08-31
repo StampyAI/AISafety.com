@@ -3,7 +3,7 @@ import { MAP_AREA_BY_CATEGORY } from '@/lib/data/map-areas'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-08-31-01'
+export const PROMPT_VERSION = '2026-08-31-02'
 
 /** "Category → **Area**" lines for the Field map section, generated from the
  *  same table the catalog uses to compute each org's \`mapArea\`, so the prompt
@@ -142,8 +142,8 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 - **funder**:
   - \`type\`: "Fund", "Grant program", "Platform"
   - \`recipientType\`: free text – common values include "Individuals", "Organizations", "Both"
-  - \`acceptingApplications\`: display text — "Accepting applications – rolling basis", "Accepting applications – closes [date]", "Not currently accepting applications"
-  - \`applicationStatus\`: "Open", "Closed" — filter on THIS, not on acceptingApplications (both of its wordings contain "accepting applications", so substring filters can't separate them)
+  - \`acceptingApplications\`: display text — "Accepting applications – rolling basis", "Applications close [date]", "Not accepting applications"
+  - \`applicationStatus\`: "Open", "Closed" — filter on THIS, not on acceptingApplications (its open and closed wordings share substrings like "accepting applications", so substring filters can't separate them)
 
 - **community**:
   - \`platform\`: "Discord", "Facebook", "Forum", "Gather", "Reddit", "Slack", "Telegram", "WhatsApp", "Other", "Local" (in-person communities are tagged "Local")

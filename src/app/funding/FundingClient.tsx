@@ -33,8 +33,8 @@ export default function FundingClient({ funders }: FundingClientProps) {
       accepting: {
         selected: acceptingFilters,
         // Airtable values are full sentences ("Accepting applications –
-        // rolling basis", "Not currently accepting applications"); bucket
-        // them into Yes/No via the shared status helper.
+        // rolling basis", "Not accepting applications"); bucket them into
+        // Yes/No via the shared status helper.
         matches: (funder: Funder, value: string) => {
           const status = funder.acceptingApplications || ''
           if (!status) return false

@@ -162,9 +162,11 @@ export async function buildCatalog(): Promise<Catalog> {
         type: f.type,
         recipientType: f.recipientType,
         acceptingApplications: f.acceptingApplications,
-        // Both display wordings contain "accepting applications", so a
-        // substring filter on the field above can't separate open from
-        // closed — filter on this token instead.
+        // The open and closed display wordings share substrings (both
+        // "Accepting applications – rolling basis" and "Not accepting
+        // applications" contain "accepting applications"), so a substring
+        // filter on the field above can't separate open from closed —
+        // filter on this token instead.
         applicationStatus: f.acceptingApplications
           ? isAcceptingApplications(f.acceptingApplications)
             ? 'Open'

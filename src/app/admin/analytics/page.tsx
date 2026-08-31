@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import Icon from '@/components/Icon'
 import {
   readDashboard,
   sourceSlug,
@@ -1417,11 +1418,10 @@ function DashboardTabs({
           >
             {t.icon && (
               <span className={styles.pageTabIcon}>
-                <Image
-                  src={`/images/${t.icon}`}
-                  alt=""
-                  width={12}
-                  height={12}
+                <Icon
+                  className="color-teal-bright-800"
+                  src={`/images/icons/${t.icon}`}
+                  size={12}
                 />
               </span>
             )}

@@ -140,6 +140,14 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       // 128×140 is pin.svg's intrinsic size; the widths reproduce the old
       // look (icon-size 0.25 / 0.35 / 0.45 of the 128px raster).
       const PIN_ASPECT = 140 / 128
+      // The pin's tip sits at y=104 of the SVG's 128×140 canvas (the rest
+      // is shadow padding). The raster is padded with extra transparent
+      // space at the bottom so the tip lands exactly at the canvas's
+      // vertical center — that lets the layer's `icon-anchor: center`
+      // place the tip on the location for every pin size and hover
+      // variant, with no per-size offset expressions.
+      const PIN_TIP_Y = 104 / 128
+      const CANVAS_ASPECT = 2 * PIN_TIP_Y
       const pinWidths: Record<string, number> = {
         city: 32,
         country: 44.8,
@@ -149,19 +157,22 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       function rasterizePin(cssWidth: number) {
         const canvas = document.createElement('canvas')
         canvas.width = Math.round(cssWidth * dpr)
-        canvas.height = Math.round(cssWidth * PIN_ASPECT * dpr)
+        canvas.height = Math.round(cssWidth * CANVAS_ASPECT * dpr)
+        const pinHeight = Math.round(cssWidth * PIN_ASPECT * dpr)
         const ctx = canvas.getContext('2d')!
         if (pinImage) {
           // Drawing an SVG <img> scaled makes the browser re-render the
           // vector at the destination resolution — not resize a bitmap.
-          ctx.drawImage(pinImage, 0, 0, canvas.width, canvas.height)
+          ctx.drawImage(pinImage, 0, 0, canvas.width, pinHeight)
         } else {
-          // Fallback if pin.svg failed to load: a simple filled circle.
+          // Fallback if pin.svg failed to load: a simple filled circle
+          // resting its bottom edge on the tip point (the canvas center).
+          const radius = canvas.width / 2 - 2 * dpr
           ctx.beginPath()
           ctx.arc(
             canvas.width / 2,
-            canvas.height / 2,
-            canvas.width / 2 - 2 * dpr,
+            canvas.height / 2 - radius,
+            radius,
             0,
             Math.PI * 2
           )
@@ -241,6 +252,9 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
             ['get', 'type'],
             ['case', ['boolean', ['get', 'hover'], false], '-hover', ''],
           ],
+          // The raster is bottom-padded so its center IS the pin's tip —
+          // see rasterizePin. Anchoring at center pins the tip to the
+          // location.
           'icon-anchor': 'center',
           'icon-allow-overlap': true,
         },

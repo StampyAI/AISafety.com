@@ -22,6 +22,7 @@ export interface MapSearchOrg {
 interface MapSearchProps {
   className: string
   orgs: MapSearchOrg[]
+  suggestEntryUrl: string
   onPick: (org: MapSearchOrg) => void
   onClear: () => void
 }
@@ -31,6 +32,7 @@ const MAX_RESULTS = 5
 export default function MapSearch({
   className,
   orgs,
+  suggestEntryUrl,
   onPick,
   onClear,
 }: MapSearchProps) {
@@ -182,7 +184,20 @@ export default function MapSearch({
             </button>
           ))}
           {results.length === 0 && (
-            <div className={styles['map-search-empty']}>Nothing found.</div>
+            <div className={styles['map-search-empty']}>
+              Nothing found.{' '}
+              <a
+                href={suggestEntryUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles['map-search-suggest']}
+                // Keep the input's blur from closing the list before the
+                // click lands (same trick as the result rows).
+                onMouseDown={event => event.preventDefault()}
+              >
+                Suggest it
+              </a>
+            </div>
           )}
         </div>
       )}

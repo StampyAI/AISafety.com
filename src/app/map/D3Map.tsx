@@ -28,6 +28,7 @@ interface MapOrg {
 
 interface D3MapProps {
   orgs: MapOrg[]
+  suggestEntryUrl: string
 }
 
 // Map constants from WebFlow
@@ -73,7 +74,7 @@ const AREA_LABELS = [
   { label: 'Gone Graveyard', x: 56, y: 30 },
 ]
 
-export default function D3Map({ orgs }: D3MapProps) {
+export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   // Zoom actions live in the d3 pipeline inside useEffect; the buttons reach
@@ -697,6 +698,7 @@ export default function D3Map({ orgs }: D3MapProps) {
       <MapSearch
         className={styles['map-search']}
         orgs={searchOrgs}
+        suggestEntryUrl={suggestEntryUrl}
         onPick={org => searchRef.current.flyTo(org)}
         onClear={() => searchRef.current.clearHighlight()}
       />

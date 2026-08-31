@@ -216,7 +216,7 @@ export default function MapClient({
     <>
       <div className="padding-bottom-24px">
         <div ref={mapWrapperRef} className={styles['map-wrapper']}>
-          <D3Map orgs={mapOrgs} />
+          <D3Map orgs={mapOrgs} suggestEntryUrl={suggestEntryLink} />
           <button
             onClick={scrollToCards}
             className={`button-primary ${styles['scroll-button']}`}

@@ -204,6 +204,15 @@
   color: var(--teal-300);
 }
 
+.map-search-suggest {
+  color: var(--bright-teal-500);
+  cursor: pointer;
+}
+
+.map-search-suggest:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 767px) {
   .map-search {
     top: 16px;

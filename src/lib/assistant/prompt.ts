@@ -3,7 +3,7 @@ import { MAP_AREA_BY_CATEGORY } from '@/lib/data/map-areas'
 
 /** Stamp on every conversation log row. Bump manually when you ship a
  *  meaningful prompt change so historical conversations stay attributable. */
-export const PROMPT_VERSION = '2026-09-01-01'
+export const PROMPT_VERSION = '2026-09-01-02'
 
 /** "Category → **Area**" lines for the Field map section, generated from the
  *  same table the catalog uses to compute each org's \`mapArea\`, so the prompt
@@ -135,7 +135,7 @@ Filter keys + complete value lists per type. Values are exact catalog labels:
 - **job**:
   - \`skillSet\`: "Data", "Information security", "Legal", "Management", "Operations", "Other", "Outreach", "Policy", "Research", "Software engineering", "Strategy"
   - \`minimumExperience\`: "Entry-level", "Junior (1–4 years experience)", "Mid (5–9 years experience)", "Senior (10+ years experience)" (substring of "Junior" / "Mid" / "Senior" also works)
-  - \`roleType\`: "Full-time", "Part-time", "Internship", "Volunteering", "Funding". Do NOT filter by "Fellowship" – fellowships live on /training and /map, not /jobs. See the fellowship rule below.
+  - \`roleType\`: "Full-time", "Part-time", "Internship". The job catalog holds vacancies only – fellowships and courses are \`type='training'\` (see the fellowship rule below), funding is \`type='funder'\`, and volunteering is \`type='project'\`, so never look for any of them here.
   - \`workLocation\`: "Remote", "On-site"
   - \`location\`: free-text city or country (substring match)
   - Each job result carries a \`datePublished\` meta field. Results come newest-first, so for a vague "show me jobs" take them in order. When you surface an older posting (several months old) as a specific match, lean toward more recent ones where the fit is comparable, and you may note an old one was "posted a while ago" since it's likelier to be filled – don't present a months-old listing as freshly opened.

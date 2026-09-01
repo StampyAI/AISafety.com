@@ -44,14 +44,7 @@ const experienceOptions = [
   'Senior (10+ years experience)',
 ]
 
-const roleTypeOptions = [
-  'Full-time',
-  'Part-time',
-  'Internship',
-  'Fellowship',
-  'Volunteering',
-  'Funding',
-]
+const roleTypeOptions = ['Full-time', 'Part-time', 'Internship']
 
 const workLocationOptions = ['Remote', 'On-site']
 

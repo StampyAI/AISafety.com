@@ -97,6 +97,21 @@
   animation: map-search-expand 0.08s ease-out;
 }
 
+/* iOS zooms the page in whenever it focuses a field under 16px, which yanks
+   the map about as the keyboard appears. 16px is the threshold, not a design
+   choice — the desktop size above is unchanged. */
+@media (max-width: 991px) and (pointer: coarse) {
+  .map-search-input {
+    font-size: 16px;
+  }
+
+  /* The keyboard pushes this up over the results (see flagKeyboard in
+     MapSearch.tsx). It is no use mid-search, so it waits its turn. */
+  :global(body[data-map-search-open]) .scroll-button {
+    display: none;
+  }
+}
+
 @keyframes map-search-expand {
   from {
     width: 40px;

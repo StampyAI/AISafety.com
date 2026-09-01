@@ -104,14 +104,6 @@
   .map-search-input {
     font-size: 16px;
   }
-
-  /* The keyboard cannot be made to cover this button — see the note on
-     .map-container — so it steps aside while the keyboard is up. The flag is
-     driven by the viewport shrinking, not by focus, so it clears itself when
-     the keyboard goes (see useKeyboardFlag in MapSearch.tsx). */
-  :global(body[data-keyboard-open]) .scroll-button {
-    display: none;
-  }
 }
 
 @keyframes map-search-expand {
@@ -327,11 +319,7 @@
 @media (max-width: 991px) {
   .map-container {
     /* Fill the visible viewport minus the 88px navbar. dvh accounts for
-       mobile browser chrome so the View cards button stays on-screen.
-       Note: no viewport unit survives the on-screen keyboard on iOS — the
-       browser shrinks the layout viewport, so vh/svh/lvh/dvh all shrink
-       together. The buttons are hidden while the keyboard is up instead
-       (see the data-keyboard-open rules below). */
+       mobile browser chrome so the View cards button stays on-screen. */
     height: calc(100dvh - 88px);
     min-height: 0;
   }

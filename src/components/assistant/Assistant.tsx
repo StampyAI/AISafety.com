@@ -412,7 +412,7 @@ export default function Assistant() {
     <>
       <button
         type="button"
-        className={`${styles.pill} assistant-pill drop-shadow-dark`}
+        className={`${styles.pill} drop-shadow-dark`}
         onClick={handleTogglePill}
         aria-label={
           isOpen ? 'Close the assistant' : 'Open the AISafety.com assistant'

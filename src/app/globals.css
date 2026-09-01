@@ -1108,6 +1108,15 @@ select.text-field {
   box-shadow: var(--shadow-light);
 }
 
+/* The assistant bubble is position:fixed, and iOS lifts fixed elements above
+   the on-screen keyboard, so it lands on top of the map search. Only /map sets
+   this flag (see MapSearch.tsx), so the bubble is untouched everywhere else. */
+@media (max-width: 991px) and (pointer: coarse) {
+  body[data-keyboard-open] .assistant-pill {
+    display: none;
+  }
+}
+
 .drop-shadow-dark {
   /* Most commmon: for elements (e.g. cards) on really dark bgs */
   box-shadow: var(--shadow-dark);

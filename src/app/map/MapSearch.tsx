@@ -35,6 +35,10 @@ const MAX_RESULTS = 5
 // mounted for the shrink, so this is how long we wait before removing it.
 const COLLAPSE_MS = 80
 
+// A shrink this big is a keyboard; browser chrome sliding in and out is well
+// under it.
+const KEYBOARD_SHRINK_PX = 150
+
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -58,6 +62,43 @@ export default function MapSearch({
   const [closing, setClosing] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // The bottom-anchored buttons ("View cards", the assistant bubble) cannot be
+  // made to sit behind the on-screen keyboard: iOS shrinks the layout viewport,
+  // so every CSS viewport unit shrinks with it, and fixed elements get lifted
+  // above the keyboard regardless. They hide instead, flagged from the viewport
+  // itself rather than from focus — an earlier focus-driven version stranded
+  // them, because dismissing the keyboard without leaving the field never fires
+  // a blur. A viewport that has grown back cannot lie about the keyboard.
+  useEffect(() => {
+    const viewport = window.visualViewport
+    const measure = () => viewport?.height ?? window.innerHeight
+    let tallest = measure()
+
+    const update = () => {
+      const current = measure()
+      if (current > tallest) tallest = current
+      document.body.toggleAttribute(
+        'data-keyboard-open',
+        tallest - current > KEYBOARD_SHRINK_PX
+      )
+    }
+    // Rotating changes the tallest the viewport will ever be, so start over.
+    const reset = () => {
+      tallest = measure()
+      update()
+    }
+
+    viewport?.addEventListener('resize', update)
+    window.addEventListener('resize', update)
+    window.addEventListener('orientationchange', reset)
+    return () => {
+      viewport?.removeEventListener('resize', update)
+      window.removeEventListener('resize', update)
+      window.removeEventListener('orientationchange', reset)
+      document.body.removeAttribute('data-keyboard-open')
+    }
+  }, [])
 
   const openSearch = () => {
     // Cancels a shrink already in flight, so a quick close-then-open reopens

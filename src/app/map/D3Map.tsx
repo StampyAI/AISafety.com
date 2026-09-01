@@ -397,6 +397,14 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
               'map',
               firstCategory || undefined
             )
+            // Clicking a pin leaves the browser's focus ring on the link, and
+            // it is still sitting there when you come back from the tab that
+            // opened. A mouse click does not need a focus ring. detail > 0
+            // means a real pointer click, so a keyboard Enter on a focused
+            // pin keeps its ring and the user keeps their place.
+            if (event.detail > 0) {
+              ;(event.currentTarget as SVGElement | null)?.blur?.()
+            }
           })
       }
 

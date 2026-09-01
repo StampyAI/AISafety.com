@@ -86,6 +86,8 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
   })
   // Search fly-to lives in the d3 pipeline for the same reason the zoom
   // buttons do — the zoom behavior only exists inside the effect below.
+  // Filled in by MapSearch; called when a tap lands on bare map.
+  const closeSearchRef = useRef<() => void>(() => {})
   const searchRef = useRef<{
     flyTo: (org: {
       x: number | null
@@ -205,6 +207,17 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
       })
 
     svg.call(zoom)
+
+    // Mobile: a tap on bare map closes the search. On desktop the field
+    // already collapses when it loses focus, but a touch tap never blurs it
+    // — the d3 gesture handlers swallow that. Pins and their labels live
+    // inside <a>, so taps on a listing are left to their own handler, and a
+    // pan does not reach here because the drag cancels the synthetic click.
+    svg.on('click.mapsearch', event => {
+      if (!isMobile()) return
+      if ((event.target as Element | null)?.closest('a')) return
+      closeSearchRef.current()
+    })
 
     if (savedTransformRef.current) {
       svg.call(zoom.transform, savedTransformRef.current)
@@ -699,6 +712,7 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
         className={styles['map-search']}
         orgs={searchOrgs}
         suggestEntryUrl={suggestEntryUrl}
+        closeRef={closeSearchRef}
         onPick={org => searchRef.current.flyTo(org)}
         onClear={() => searchRef.current.clearHighlight()}
       />

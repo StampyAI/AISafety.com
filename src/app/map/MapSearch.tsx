@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Icon from '@/components/Icon'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { KeyboardEvent, MutableRefObject } from 'react'
 import SearchBar from '@/components/SearchBar'
 import styles from './page.module.css'
 
@@ -25,6 +25,8 @@ interface MapSearchProps {
   suggestEntryUrl: string
   onPick: (org: MapSearchOrg) => void
   onClear: () => void
+  // The map fills this in so a tap on bare map can shut the search.
+  closeRef?: MutableRefObject<() => void>
 }
 
 const MAX_RESULTS = 5
@@ -43,6 +45,7 @@ export default function MapSearch({
   suggestEntryUrl,
   onPick,
   onClear,
+  closeRef,
 }: MapSearchProps) {
   const [query, setQuery] = useState('')
   // Starts as just a round icon button; the input only appears on demand so
@@ -93,6 +96,19 @@ export default function MapSearch({
     }, COLLAPSE_MS)
     return () => window.clearTimeout(timer)
   }, [closing])
+
+  // Re-registered on every render so the map always calls the current
+  // closure rather than one holding stale state.
+  useEffect(() => {
+    if (!closeRef) return
+    closeRef.current = () => {
+      if (!expanded) return
+      // Dismisses the on-screen keyboard as well as clearing focus.
+      inputRef.current?.blur()
+      setQuery('')
+      collapse()
+    }
+  })
 
   // Cmd/Ctrl+F opens this box instead of the browser's find bar. Over the map
   // find-in-page has nothing to work with — the listing names are drawn into

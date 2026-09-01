@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, after } from 'next/server'
+import { isAdmin } from '@/lib/admin/auth'
 import { getCatalog } from '@/lib/assistant/catalog'
 import {
   PRODUCTION_PROMPT,
@@ -18,7 +19,10 @@ import {
   validateMessages,
   type AssistantRunResult,
 } from '@/lib/assistant/stream'
-import { storeConversationTurn } from '@/lib/assistant/conversation-store'
+import {
+  INTERNAL_TAG,
+  storeConversationTurn,
+} from '@/lib/assistant/conversation-store'
 import { getDonationGuideText } from '@/lib/assistant/donation-guide'
 import { getPageLastUpdatedDates } from '@/lib/assistant/page-dates'
 import {
@@ -29,6 +33,26 @@ import type { AssistantRequest, ChatMessage } from '@/lib/assistant/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+/** The only host that serves real visitors. A chat arriving anywhere else came
+ *  from a dev server, a preview deployment or a branch URL — i.e. from us. */
+const PUBLIC_HOST = 'aisafety.com'
+
+/** True when this turn is ours rather than a visitor's: either it didn't arrive
+ *  on the live site, or the browser is signed in to the admin area. The
+ *  per-browser "Exclude this browser" flag is separate and stops the write
+ *  altogether; this only labels what still gets written. */
+function isInternalTurn(req: NextRequest, admin: boolean): boolean {
+  if (admin) return true
+  const host = (
+    req.headers.get('x-forwarded-host') ??
+    req.headers.get('host') ??
+    ''
+  )
+    .split(':')[0]
+    .toLowerCase()
+  return host !== PUBLIC_HOST && host !== `www.${PUBLIC_HOST}`
+}
 
 function readGeo(
   req: NextRequest,
@@ -132,6 +156,9 @@ export async function POST(req: NextRequest) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const userQuery = messages[messages.length - 1].content
   const startedAt = Date.now()
+  // Settled here rather than inside the stream: isAdmin() reads cookies, which
+  // are only available while the request itself is still in scope.
+  const internal = isInternalTurn(req, await isAdmin())
 
   return sseResponse(async ({ send, signal }) => {
     // Persist a turn to the conversation log. Called on success AND on
@@ -239,6 +266,7 @@ export async function POST(req: NextRequest) {
           status,
           latencyMs: Date.now() - startedAt,
           promptVersion: PROMPT_VERSION,
+          tags: internal ? [INTERNAL_TAG] : [],
         })
       )
     }

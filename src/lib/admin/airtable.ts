@@ -709,6 +709,10 @@ export async function upsertConversation(input: {
   zeroMatches: boolean
   status?: 'abandoned' | 'error'
   promptVersion: string
+  /** Labels for a NEW row only (the 'internal' marker on our own test chats).
+   *  Deliberately not patched onto an existing row: later turns must never
+   *  overwrite labels a reviewer added by hand in the log. */
+  tags?: string[]
 }): Promise<void> {
   ensureConfig(CONVERSATIONS_TABLE)
 
@@ -823,6 +827,9 @@ export async function upsertConversation(input: {
     // overwrote the /map it began on. Per-turn pages (including any
     // mid-conversation navigation) live in Data's `pages` array.
     ...(existing ? {} : { [FIELD.page]: input.page }),
+    // Create-only, for the same reason as Page above: a reviewer's hand-added
+    // labels must survive every later turn of the conversation.
+    ...(existing || !input.tags?.length ? {} : { [FIELD.tags]: input.tags }),
     [FIELD.latencyMs]: input.latencyMs,
     [FIELD.promptVersion]: input.promptVersion,
     [FIELD.data]: serialized,
@@ -830,6 +837,11 @@ export async function upsertConversation(input: {
     ...(overflowText ? { [FIELD.searchOverflow]: overflowText } : {}),
   }
 
+  // typecast lets the 'internal' label create itself as a Tags option the
+  // first time it's used, the same way hand-typed labels do in
+  // updateConversation. Only set when a label is actually being written, so a
+  // plain turn keeps the strict write it has always had.
+  const writingTags = !existing && Boolean(input.tags?.length)
   const res = existing
     ? await airtableRequest(`${CONVERSATIONS_TABLE}/${existing.id}`, {
         method: 'PATCH',
@@ -837,7 +849,9 @@ export async function upsertConversation(input: {
       })
     : await airtableRequest(CONVERSATIONS_TABLE, {
         method: 'POST',
-        body: JSON.stringify({ fields }),
+        body: JSON.stringify(
+          writingTags ? { fields, typecast: true } : { fields }
+        ),
       })
 
   if (!res.ok) {

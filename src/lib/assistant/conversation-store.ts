@@ -7,6 +7,12 @@ import {
   upsertConversation,
 } from '@/lib/admin/airtable'
 
+/** Label put on turns that plainly aren't visitor traffic — a chat from a dev
+ *  server, a preview deployment, or a browser signed in to the admin area. The
+ *  rows are still written in full: our own test chats have to come through for
+ *  the conversation log itself to be testable. */
+export const INTERNAL_TAG = 'internal'
+
 export interface StoredTurn {
   ts: string
   sessionId: string | null
@@ -46,6 +52,11 @@ export interface StoredTurn {
   status?: 'abandoned' | 'error'
   latencyMs: number
   promptVersion: string
+  /** Labels applied when the row is first created — currently just the
+   *  'internal' marker for our own test chats. Empty for visitor traffic.
+   *  Never patched onto an existing row, so labels added by hand in the log
+   *  survive every later turn. */
+  tags: string[]
 }
 
 export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
@@ -58,6 +69,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
     zero: turn.zeroMatches,
     status: turn.status,
     ms: turn.latencyMs,
+    ...(turn.tags.length ? { tags: turn.tags } : {}),
   }
   console.log(`[assistant:turn] ${JSON.stringify(summary)}`)
 
@@ -85,6 +97,7 @@ export async function storeConversationTurn(turn: StoredTurn): Promise<void> {
         zeroMatches: turn.zeroMatches,
         status: turn.status,
         promptVersion: turn.promptVersion,
+        tags: turn.tags,
       })
     } catch (err) {
       console.warn(

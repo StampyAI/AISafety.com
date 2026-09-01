@@ -14,15 +14,11 @@ interface AdvisorsClientProps {
 }
 
 const focusOptions = ['Career/contribution', 'Other']
-const statusOptions = ['Active', 'Inactive']
 
 const allPass = () => true
 
 export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
   const [focusFilters, setFocusFilters] = useState<string[]>([])
-  // Default to Active — inactive advisors aren't taking calls, so they start
-  // hidden until the visitor opts into seeing them.
-  const [statusFilters, setStatusFilters] = useState<string[]>(['Active'])
 
   // Each advisor's slot in the full page order, stamped onto a click so the
   // dashboard can tie clicks to page position even after later reordering.
@@ -34,12 +30,8 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
         selected: focusFilters,
         matches: (advisor: Advisor, value: string) => advisor.focus === value,
       },
-      status: {
-        selected: statusFilters,
-        matches: (advisor: Advisor, value: string) => advisor.status === value,
-      },
     }),
-    [focusFilters, statusFilters]
+    [focusFilters]
   )
 
   const filteredAdvisors = useMemo(
@@ -53,11 +45,6 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
         filterItems(advisors, allPass, groups, 'focus'),
         focusOptions,
         groups.focus.matches
-      ),
-      status: optionCounts(
-        filterItems(advisors, allPass, groups, 'status'),
-        statusOptions,
-        groups.status.matches
       ),
     }),
     [advisors, groups]
@@ -97,15 +84,6 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
           counts={filterCounts.focus}
           onToggle={v => toggleFilter(v, focusFilters, setFocusFilters)}
         />
-        <FilterDropdown
-          trackingPage="Advisors"
-          title="Status"
-          icon="/images/icons/activity.svg"
-          options={statusOptions}
-          selected={statusFilters}
-          counts={filterCounts.status}
-          onToggle={v => toggleFilter(v, statusFilters, setStatusFilters)}
-        />
       </FilterBar>
 
       <div className="flex gap-56px">
@@ -117,19 +95,11 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
               name={advisor.name}
               description={advisor.description}
               logo={advisor.logo}
-              meta={[
-                ...(advisor.focus
+              meta={
+                advisor.focus
                   ? [{ icon: '/images/icons/target.svg', value: advisor.focus }]
-                  : []),
-                ...(advisor.status
-                  ? [
-                      {
-                        icon: '/images/icons/activity.svg',
-                        value: advisor.status,
-                      },
-                    ]
-                  : []),
-              ]}
+                  : []
+              }
               trackingPage="Advisors"
               listingId={advisor.id}
               placement={placements.get(advisor.id)}

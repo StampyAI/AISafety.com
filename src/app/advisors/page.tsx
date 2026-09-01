@@ -48,19 +48,11 @@ export default async function AdvisorsPage() {
             name={advisor.name}
             description={advisor.description}
             logo={advisor.logo ?? undefined}
-            meta={[
-              ...(advisor.focus
+            meta={
+              advisor.focus
                 ? [{ icon: '/images/icons/target.svg', value: advisor.focus }]
-                : []),
-              ...(advisor.status
-                ? [
-                    {
-                      icon: '/images/icons/activity.svg',
-                      value: advisor.status,
-                    },
-                  ]
-                : []),
-            ]}
+                : []
+            }
             trackingPage="Advisors"
             trackingId={advisor.id}
             trackingPosition={`F${advisor.featured}`}

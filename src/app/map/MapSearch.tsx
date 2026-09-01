@@ -59,18 +59,6 @@ export default function MapSearch({
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // While the field has focus on a phone the keyboard is up, and the page's
-  // bottom-anchored buttons ride up over the results: Safari lifts fixed
-  // elements above the keyboard, and the map's 100dvh height shrinks. This
-  // flag lets those buttons hide until the field is done with.
-  const flagKeyboard = (on: boolean) => {
-    if (on) document.body.dataset.mapSearchOpen = 'true'
-    else delete document.body.dataset.mapSearchOpen
-  }
-
-  // Unmounting mid-focus (a route change) would otherwise strand the flag.
-  useEffect(() => () => flagKeyboard(false), [])
-
   const openSearch = () => {
     // Cancels a shrink already in flight, so a quick close-then-open reopens
     // the same field instead of leaving it half-collapsed.
@@ -79,6 +67,9 @@ export default function MapSearch({
   }
 
   const collapse = () => {
+    // The ring belongs to the open search — it should not go on pulsing over
+    // the map once the field is gone. Every way of closing lands here.
+    onClear()
     setOpen(false)
     setActiveIndex(-1)
     if (prefersReducedMotion()) {
@@ -235,12 +226,8 @@ export default function MapSearch({
           closing ? ` ${styles['map-search-input-closing']}` : ''
         }`}
         autoFocus
-        onFocus={() => {
-          flagKeyboard(true)
-          setOpen(query.trim().length > 0)
-        }}
+        onFocus={() => setOpen(query.trim().length > 0)}
         onBlur={() => {
-          flagKeyboard(false)
           setOpen(false)
           setActiveIndex(-1)
           // Nothing typed or picked — shrink back to the icon.

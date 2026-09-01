@@ -104,12 +104,6 @@
   .map-search-input {
     font-size: 16px;
   }
-
-  /* The keyboard pushes this up over the results (see flagKeyboard in
-     MapSearch.tsx). It is no use mid-search, so it waits its turn. */
-  :global(body[data-map-search-open]) .scroll-button {
-    display: none;
-  }
 }
 
 @keyframes map-search-expand {

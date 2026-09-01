@@ -318,9 +318,13 @@
 
 @media (max-width: 991px) {
   .map-container {
-    /* Fill the visible viewport minus the 88px navbar. dvh accounts for
-       mobile browser chrome so the View cards button stays on-screen. */
-    height: calc(100dvh - 88px);
+    /* Fill the visible viewport minus the 88px navbar. svh, not dvh: both
+       account for mobile browser chrome, but dvh is the *dynamic* unit and
+       shrinks when the on-screen keyboard opens, which dragged the View
+       cards button up over the map search. svh is the smallest of the three,
+       so the button still clears the chrome, and it holds still while the
+       keyboard is up — the keyboard simply covers it. */
+    height: calc(100svh - 88px);
     min-height: 0;
   }
 }

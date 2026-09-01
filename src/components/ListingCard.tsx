@@ -34,6 +34,9 @@ interface ListingCardProps {
   titleMeta?: ListingCardMeta[]
   /** Metadata rows shown at the bottom of the card. */
   meta: ListingCardMeta[]
+  /** Small, icon-less note pinned below the meta rows with a gap (e.g. a
+   *  job's "Posted:" date). */
+  footnote?: string
   trackingPage: string
   /** Airtable record id, stamped onto the click event. */
   listingId?: string
@@ -69,6 +72,7 @@ export default function ListingCard({
   pills,
   titleMeta,
   meta,
+  footnote,
   trackingPage,
   listingId,
   placement,
@@ -125,6 +129,12 @@ export default function ListingCard({
       </p>
 
       <MetaRows rows={meta} />
+
+      {footnote && (
+        <p className="paragraph-xs color-teal-500 padding-top-16px">
+          {footnote}
+        </p>
+      )}
     </>
   )
 

@@ -35,7 +35,29 @@ const experienceOptions = [
   'Senior (10+ years experience)',
 ]
 
-const roleTypeOptions = ['Full-time', 'Part-time', 'Internship']
+// The 80k !Role type field mixes two independent things, so we split it into
+// two filters: how much time the role takes (Commitment) and what kind of
+// position it is (Type).
+const commitmentOptions = ['Full-time', 'Part-time']
+
+// "Regular role" is the default: a job with none of the special tokens below.
+// Fellowship / Funding / Course / Volunteering listings are filtered out of the
+// jobs data entirely (see getJobs), so the only non-regular kinds left here are
+// internships and the catch-all "Other".
+const typeOptions = ['Regular role', 'Internship', 'Other']
+
+// Tokens that make a role something other than a "Regular role".
+const SPECIAL_ROLE_TOKENS = ['Internship', 'Other']
+
+// Type tokens shown on the card — the special ones minus Volunteering (which we
+// keep out of the UI entirely).
+const DISPLAY_TYPE_TOKENS = typeOptions.filter(t => t !== 'Regular role')
+
+const roleTokens = (job: Job) =>
+  job.roleType
+    .split(',')
+    .map(t => t.trim())
+    .filter(Boolean)
 
 const workLocationOptions = ['Remote', 'On-site']
 
@@ -160,7 +182,8 @@ const allPass = () => true
 export default function JobsClient({ jobs }: JobsClientProps) {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [selectedExperience, setSelectedExperience] = useState<string[]>([])
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const [selectedCommitment, setSelectedCommitment] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<string[]>([])
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [selectedDegrees, setSelectedDegrees] = useState<string[]>([])
@@ -212,13 +235,16 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             .map(e => e.trim())
             .includes(value),
       },
-      role: {
-        selected: selectedRoles,
+      commitment: {
+        selected: selectedCommitment,
+        matches: (job: Job, value: string) => roleTokens(job).includes(value),
+      },
+      type: {
+        selected: selectedTypes,
         matches: (job: Job, value: string) =>
-          job.roleType
-            .split(',')
-            .map(r => r.trim())
-            .includes(value),
+          value === 'Regular role'
+            ? !roleTokens(job).some(t => SPECIAL_ROLE_TOKENS.includes(t))
+            : roleTokens(job).includes(value),
       },
       workLocation: {
         selected: selectedWorkLocation,
@@ -239,7 +265,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   }, [
     selectedSkills,
     selectedExperience,
-    selectedRoles,
+    selectedCommitment,
+    selectedTypes,
     selectedWorkLocation,
     selectedCountries,
     selectedDegrees,
@@ -271,12 +298,22 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     [jobs, groups]
   )
 
-  const roleCounts = useMemo(
+  const commitmentCounts = useMemo(
     () =>
       optionCounts(
-        filterItems(jobs, allPass, groups, 'role'),
-        roleTypeOptions,
-        groups.role.matches
+        filterItems(jobs, allPass, groups, 'commitment'),
+        commitmentOptions,
+        groups.commitment.matches
+      ),
+    [jobs, groups]
+  )
+
+  const typeCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, allPass, groups, 'type'),
+        typeOptions,
+        groups.type.matches
       ),
     [jobs, groups]
   )
@@ -336,7 +373,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     const state: Record<string, unknown> = {}
     if (selectedSkills.length) state.skills = selectedSkills
     if (selectedExperience.length) state.experience = selectedExperience
-    if (selectedRoles.length) state.roleTypes = selectedRoles
+    if (selectedCommitment.length) state.commitment = selectedCommitment
+    if (selectedTypes.length) state.roleType = selectedTypes
     if (selectedWorkLocation.length) state.workLocation = selectedWorkLocation
     if (selectedCountries.length) state.countries = selectedCountries
     if (selectedDegrees.length) state.requiredDegree = selectedDegrees
@@ -348,7 +386,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   }, [
     selectedSkills,
     selectedExperience,
-    selectedRoles,
+    selectedCommitment,
+    selectedTypes,
     selectedWorkLocation,
     selectedCountries,
     selectedDegrees,
@@ -356,6 +395,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
 
   return (
     <>
+      {/* Ordered by real filter usage (Skill set > Minimum experience >
+          Role type > Work location > Location > Required degree). The old
+          "Role type" is now split into Commitment + Type, which take its slot. */}
       <FilterBar count={filteredJobs.length} noun="job">
         <FilterDropdown
           trackingPage="Jobs"
@@ -369,7 +411,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
         <FilterDropdown
           trackingPage="Jobs"
           title="Minimum experience"
-          icon="/images/icons/medal-small.svg"
+          icon="/images/icons/briefcase.svg"
           options={experienceOptions}
           selected={selectedExperience}
           counts={experienceCounts}
@@ -379,21 +421,35 @@ export default function JobsClient({ jobs }: JobsClientProps) {
         />
         <FilterDropdown
           trackingPage="Jobs"
-          title="Required degree"
-          icon="/images/icons/grad-cap.svg"
-          options={degreeOptions}
-          selected={selectedDegrees}
-          counts={degreeCounts}
-          onToggle={v => toggleFilter(v, selectedDegrees, setSelectedDegrees)}
+          title="Commitment"
+          icon="/images/icons/timer.svg"
+          options={commitmentOptions}
+          selected={selectedCommitment}
+          counts={commitmentCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedCommitment, setSelectedCommitment)
+          }
         />
         <FilterDropdown
           trackingPage="Jobs"
-          title="Role type"
-          icon="/images/icons/briefcase.svg"
-          options={roleTypeOptions}
-          selected={selectedRoles}
-          counts={roleCounts}
-          onToggle={v => toggleFilter(v, selectedRoles, setSelectedRoles)}
+          title="Type"
+          icon="/images/icons/tag.svg"
+          options={typeOptions}
+          selected={selectedTypes}
+          counts={typeCounts}
+          onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+        />
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Remote or on-site"
+          trackingTitle="Work location"
+          icon="/images/icons/computer.svg"
+          options={workLocationOptions}
+          selected={selectedWorkLocation}
+          counts={workLocationCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
+          }
         />
         <FilterDropdown
           trackingPage="Jobs"
@@ -408,15 +464,12 @@ export default function JobsClient({ jobs }: JobsClientProps) {
         />
         <FilterDropdown
           trackingPage="Jobs"
-          title="Remote or on-site"
-          trackingTitle="Work location"
-          icon="/images/icons/computer.svg"
-          options={workLocationOptions}
-          selected={selectedWorkLocation}
-          counts={workLocationCounts}
-          onToggle={v =>
-            toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
-          }
+          title="Required degree"
+          icon="/images/icons/grad-cap.svg"
+          options={degreeOptions}
+          selected={selectedDegrees}
+          counts={degreeCounts}
+          onToggle={v => toggleFilter(v, selectedDegrees, setSelectedDegrees)}
         />
       </FilterBar>
 
@@ -429,6 +482,15 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                   { day: 'numeric', month: 'long', year: 'numeric' }
                 )
               : null
+            const tokens = roleTokens(job)
+            const commitmentValue = tokens
+              .filter(t => commitmentOptions.includes(t))
+              .join(' · ')
+            // Special types minus Volunteering; empty for a regular role, which
+            // then shows no Type row.
+            const typeValue = tokens
+              .filter(t => DISPLAY_TYPE_TOKENS.includes(t))
+              .join(' · ')
             return (
               <ListingCard
                 key={job.id}
@@ -439,22 +501,12 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                 trackingName={`${job.name} – ${job.organization}`}
                 description={job.summary}
                 logo={job.logo}
-                titleMeta={
-                  job.organization
+                titleMeta={[
+                  ...(job.organization
                     ? [
                         {
                           icon: '/images/icons/building.svg',
                           value: job.organization,
-                        },
-                      ]
-                    : []
-                }
-                meta={[
-                  ...(job.skillSet
-                    ? [
-                        {
-                          icon: '/images/icons/category.svg',
-                          value: job.skillSet,
                         },
                       ]
                     : []),
@@ -466,15 +518,29 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                         },
                       ]
                     : []),
-                  ...(job.minimumExperience
+                ]}
+                meta={[
+                  ...(job.skillSet
                     ? [
                         {
-                          icon: '/images/icons/medal-small.svg',
-                          value: job.minimumExperience,
+                          icon: '/images/icons/category.svg',
+                          value: `Skillset: ${job.skillSet}`,
                         },
                       ]
                     : []),
-                  ...(job.requiredDegree
+                  ...(job.minimumExperience
+                    ? [
+                        {
+                          icon: '/images/icons/briefcase.svg',
+                          value: `Min experience: ${job.minimumExperience}`,
+                        },
+                      ]
+                    : []),
+                  // "Undergraduate degree or less" is the no-op baseline — hide
+                  // it unless the visitor has explicitly filtered for it.
+                  ...(job.requiredDegree &&
+                  (job.requiredDegree !== 'Undergraduate degree or less' ||
+                    selectedDegrees.includes('Undergraduate degree or less'))
                     ? [
                         {
                           icon: '/images/icons/grad-cap.svg',
@@ -482,26 +548,29 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                         },
                       ]
                     : []),
+                  ...(commitmentValue
+                    ? [
+                        {
+                          // Part-time gets the half timer, like the training
+                          // page; anything including full-time gets the full one.
+                          icon:
+                            commitmentValue === 'Part-time'
+                              ? '/images/icons/timer-half.svg'
+                              : '/images/icons/timer.svg',
+                          value: commitmentValue,
+                        },
+                      ]
+                    : []),
+                  ...(typeValue
+                    ? [{ icon: '/images/icons/tag.svg', value: typeValue }]
+                    : []),
+                  // Compensation last so its presence/absence never shifts the
+                  // rows above it.
                   ...(job.salary
                     ? [{ icon: '/images/icons/money.svg', value: job.salary }]
                     : []),
-                  ...(job.roleType
-                    ? [
-                        {
-                          icon: '/images/icons/briefcase.svg',
-                          value: job.roleType,
-                        },
-                      ]
-                    : []),
-                  ...(posted
-                    ? [
-                        {
-                          icon: '/images/icons/clock.svg',
-                          value: `Posted: ${posted}`,
-                        },
-                      ]
-                    : []),
                 ]}
+                footnote={posted ? `Posted ${posted}` : undefined}
                 trackingPage="Jobs"
                 listingId={job.id}
                 placement={placements.get(job.id)}

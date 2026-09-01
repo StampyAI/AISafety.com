@@ -5,7 +5,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as d3 from 'd3'
 import MapControls from '@/components/MapControls'
-import MapSearch from './MapSearch'
+import MapSearch, { NO_MAP_SEARCH_CONTROL } from './MapSearch'
+import type { MapSearchControl } from './MapSearch'
 import { trackListingClick, trackListingHover } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { positionTooltip } from '@/lib/mapTooltip'
@@ -86,8 +87,9 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
   })
   // Search fly-to lives in the d3 pipeline for the same reason the zoom
   // buttons do — the zoom behavior only exists inside the effect below.
-  // Filled in by MapSearch; called when a tap lands on bare map.
-  const closeSearchRef = useRef<() => void>(() => {})
+  // Filled in by MapSearch: lets the map shut the search on a bare-map tap,
+  // and lets ESC reach the search before it reaches the view reset.
+  const searchControlRef = useRef<MapSearchControl>(NO_MAP_SEARCH_CONTROL)
   const searchRef = useRef<{
     flyTo: (org: {
       x: number | null
@@ -216,7 +218,7 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
     svg.on('click.mapsearch', event => {
       if (!isMobile()) return
       if ((event.target as Element | null)?.closest('a')) return
-      closeSearchRef.current()
+      searchControlRef.current.close()
     })
 
     if (savedTransformRef.current) {
@@ -638,6 +640,13 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
           target.isContentEditable)
       )
         return
+      // An open search gets ESC first. Clicking a listing on the map takes
+      // focus out of the field but leaves the box open, and ESC then has to
+      // still mean "close the search", not "reset the view".
+      if (searchControlRef.current.isOpen()) {
+        searchControlRef.current.escape()
+        return
+      }
       resetView()
     }
     document.addEventListener('keydown', handleEscKey)
@@ -712,7 +721,7 @@ export default function D3Map({ orgs, suggestEntryUrl }: D3MapProps) {
         className={styles['map-search']}
         orgs={searchOrgs}
         suggestEntryUrl={suggestEntryUrl}
-        closeRef={closeSearchRef}
+        controlRef={searchControlRef}
         onPick={org => searchRef.current.flyTo(org)}
         onClear={() => searchRef.current.clearHighlight()}
       />

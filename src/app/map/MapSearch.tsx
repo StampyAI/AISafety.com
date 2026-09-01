@@ -19,14 +19,31 @@ export interface MapSearchOrg {
   scale: string | null
 }
 
+export interface MapSearchControl {
+  isOpen: () => boolean
+  // Shuts the search outright — used by a tap on bare map.
+  close: () => void
+  // What ESC does in the field: clear the text, and close an already-empty
+  // box. Kept identical so ESC behaves the same whether or not the cursor is
+  // still in the field.
+  escape: () => void
+}
+
+export const NO_MAP_SEARCH_CONTROL: MapSearchControl = {
+  isOpen: () => false,
+  close: () => {},
+  escape: () => {},
+}
+
 interface MapSearchProps {
   className: string
   orgs: MapSearchOrg[]
   suggestEntryUrl: string
   onPick: (org: MapSearchOrg) => void
   onClear: () => void
-  // The map fills this in so a tap on bare map can shut the search.
-  closeRef?: MutableRefObject<() => void>
+  // The map fills this in so it can shut the search, and so it knows to let
+  // the search have ESC before falling back to resetting the view.
+  controlRef?: MutableRefObject<MapSearchControl>
 }
 
 const MAX_RESULTS = 5
@@ -45,7 +62,7 @@ export default function MapSearch({
   suggestEntryUrl,
   onPick,
   onClear,
-  closeRef,
+  controlRef,
 }: MapSearchProps) {
   const [query, setQuery] = useState('')
   // Starts as just a round icon button; the input only appears on demand so
@@ -87,19 +104,6 @@ export default function MapSearch({
     }, COLLAPSE_MS)
     return () => window.clearTimeout(timer)
   }, [closing])
-
-  // Re-registered on every render so the map always calls the current
-  // closure rather than one holding stale state.
-  useEffect(() => {
-    if (!closeRef) return
-    closeRef.current = () => {
-      if (!expanded) return
-      // Dismisses the on-screen keyboard as well as clearing focus.
-      inputRef.current?.blur()
-      setQuery('')
-      collapse()
-    }
-  })
 
   // Cmd/Ctrl+F opens this box instead of the browser's find bar. Over the map
   // find-in-page has nothing to work with — the listing names are drawn into
@@ -154,6 +158,31 @@ export default function MapSearch({
     setOpen(value.trim().length > 0)
     if (value.trim() === '') onClear()
   }
+
+  // Re-registered on every render so the map always calls the current
+  // closure rather than one holding stale state.
+  useEffect(() => {
+    if (!controlRef) return
+    controlRef.current = {
+      isOpen: () => expanded,
+      close: () => {
+        if (!expanded) return
+        // Dismisses the on-screen keyboard as well as clearing focus.
+        inputRef.current?.blur()
+        setQuery('')
+        collapse()
+      },
+      escape: () => {
+        if (!expanded) return
+        if (query.trim() !== '') {
+          // Same first step as ESC in the field: empty the box, leave it open.
+          handleChange('')
+          return
+        }
+        collapse()
+      },
+    }
+  })
 
   const pick = (org: MapSearchOrg) => {
     setQuery(org.title)

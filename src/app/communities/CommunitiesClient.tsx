@@ -9,6 +9,7 @@ import { Community } from '@/lib/data/communities'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
+import { activityIcon } from './activity-icon'
 
 interface CommunitiesClientProps {
   communities: Community[]
@@ -192,7 +193,7 @@ export default function CommunitiesClient({
                 ...(community.activityLevel
                   ? [
                       {
-                        icon: '/images/icons/activity.svg',
+                        icon: activityIcon(community.activityLevel),
                         value: community.activityLevel,
                       },
                     ]

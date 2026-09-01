@@ -5,6 +5,7 @@ import CommunitiesClient from './CommunitiesClient'
 import CommunitiesMap from './CommunitiesMap'
 import styles from './page.module.css'
 import { getCommunities } from '@/lib/data/communities'
+import { activityIcon } from './activity-icon'
 
 export const metadata = {
   title: 'Communities – AISafety.com',
@@ -76,7 +77,7 @@ export default async function CommunitiesPage() {
                 ...(community.activityLevel
                   ? [
                       {
-                        icon: '/images/icons/activity.svg',
+                        icon: activityIcon(community.activityLevel),
                         value: community.activityLevel,
                       },
                     ]

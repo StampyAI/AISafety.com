@@ -50,7 +50,7 @@ export default async function MediaChannelsPage() {
             logo={channel.logo ?? undefined}
             meta={
               channel.type
-                ? [{ icon: '/images/icons/tag.svg', value: channel.type }]
+                ? [{ icon: '/images/icons/computer.svg', value: channel.type }]
                 : []
             }
             trackingPage="Media channels"

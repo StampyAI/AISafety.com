@@ -434,6 +434,9 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                 key={job.id}
                 href={job.url}
                 name={job.name}
+                // Keeps the pre-redesign analytics name — 80,000 Hours reuses
+                // titles across orgs, so the org is what makes a row unique.
+                trackingName={`${job.name} – ${job.organization}`}
                 description={job.summary}
                 logo={job.logo}
                 titleMeta={

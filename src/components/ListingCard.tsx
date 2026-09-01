@@ -22,6 +22,10 @@ interface ListingCardProps {
   /** External link. Omit for a static, non-clickable card (e.g. projects). */
   href?: string
   name: string
+  /** Overrides the name the click is tracked under, so a card can show a short
+   *  title but keep a stable, unambiguous analytics name (e.g. jobs track as
+   *  'Research Engineer – Anthropic'). Defaults to `name`. */
+  trackingName?: string
   description: string
   logo?: string | null
   /** Pills shown above the logo (e.g. a category or type). */
@@ -59,6 +63,7 @@ function MetaRows({ rows }: { rows: ListingCardMeta[] }) {
 export default function ListingCard({
   href,
   name,
+  trackingName,
   description,
   logo,
   pills,
@@ -137,7 +142,7 @@ export default function ListingCard({
       onClick={() =>
         trackListingClick(
           trackingPage,
-          name,
+          trackingName ?? name,
           href,
           listingId,
           placement,

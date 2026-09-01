@@ -35,12 +35,6 @@ const resources = [
     field: 'fldDVJcmd66eF3E7c', // !Title
   },
   {
-    path: '/funding',
-    tableId: 'tblzMTLDZWZKqTxrq',
-    viewId: 'viwxv2w8utSEhUeiJ',
-    field: 'fldsFpgVduYnNuYkN', // Name
-  },
-  {
     path: '/media-channels',
     tableId: 'tblCTOMzyH3vILL5I',
     viewId: 'viwT8KTwupcVyGKLZ',
@@ -132,6 +126,7 @@ export async function fetchAllCounts(): Promise<
   // Both program sets the page lists: upcoming + recurring.
   counts['/training'] =
     (await getTrainingPrograms()).length + (await getRecurringPrograms()).length
+  counts['/funding'] = (await getFunders()).length
 
   if (preview) {
     previewCountsMemo = { at: Date.now(), counts }

@@ -841,6 +841,10 @@ function ConversationRow({
   const [notes, setNotes] = useState(conv.notes)
   const [saveStatus, setSaveStatus] = useState('')
   const [labelInput, setLabelInput] = useState('')
+  // Custom suggestion menu under the label input (a native <datalist> can't
+  // be styled, so its white popup clashed with the dark admin theme).
+  const [labelMenuOpen, setLabelMenuOpen] = useState(false)
+  const [labelHighlight, setLabelHighlight] = useState(-1)
   const [linkCopied, setLinkCopied] = useState(false)
   const data = conv.data
   // Visitor messages actually stored in the (windowed) history — what the
@@ -1013,9 +1017,19 @@ function ConversationRow({
     const canonical =
       allLabels.find(l => l.toLowerCase() === trimmed.toLowerCase()) ?? trimmed
     setLabelInput('')
+    setLabelHighlight(-1)
     if (conv.tags.includes(canonical)) return
     void persist({ tags: [...conv.tags, canonical] })
   }
+
+  // Labels offered in the suggestion menu: not already on the conversation,
+  // narrowed by whatever is typed so far.
+  const labelSuggestions = useMemo(() => {
+    const q = labelInput.trim().toLowerCase()
+    return allLabels.filter(
+      l => !conv.tags.includes(l) && (!q || l.toLowerCase().includes(q))
+    )
+  }, [allLabels, conv.tags, labelInput])
 
   const removeLabel = (label: string) => {
     void persist({ tags: conv.tags.filter(t => t !== label) })
@@ -1392,31 +1406,85 @@ function ConversationRow({
                     </button>
                   </span>
                 ))}
-                <input
-                  className={styles.convLabelInput}
-                  list={`labels-${conv.id}`}
-                  value={labelInput}
-                  onChange={e => setLabelInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addLabel(labelInput)
-                    }
-                  }}
-                  placeholder="Add label…"
-                  title="Pick an existing label or type a new one and press Enter"
-                />
-                <datalist id={`labels-${conv.id}`}>
-                  {allLabels
-                    .filter(l => !conv.tags.includes(l))
-                    .map(l => (
-                      <option key={l} value={l} />
-                    ))}
-                </datalist>
+                <div className={styles.convLabelPicker}>
+                  <input
+                    className={styles.convLabelInput}
+                    value={labelInput}
+                    onChange={e => {
+                      setLabelInput(e.target.value)
+                      setLabelMenuOpen(true)
+                      setLabelHighlight(-1)
+                    }}
+                    onFocus={() => setLabelMenuOpen(true)}
+                    onBlur={() => {
+                      setLabelMenuOpen(false)
+                      setLabelHighlight(-1)
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'ArrowDown' && labelSuggestions.length) {
+                        e.preventDefault()
+                        setLabelMenuOpen(true)
+                        setLabelHighlight(
+                          h => (h + 1) % labelSuggestions.length
+                        )
+                      } else if (
+                        e.key === 'ArrowUp' &&
+                        labelSuggestions.length
+                      ) {
+                        e.preventDefault()
+                        setLabelMenuOpen(true)
+                        setLabelHighlight(h =>
+                          h <= 0 ? labelSuggestions.length - 1 : h - 1
+                        )
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (
+                          labelMenuOpen &&
+                          labelHighlight >= 0 &&
+                          labelHighlight < labelSuggestions.length
+                        ) {
+                          addLabel(labelSuggestions[labelHighlight])
+                        } else {
+                          addLabel(labelInput)
+                        }
+                      } else if (e.key === 'Escape') {
+                        setLabelMenuOpen(false)
+                        setLabelHighlight(-1)
+                      }
+                    }}
+                    placeholder="Add label…"
+                    title="Pick an existing label or type a new one and press Enter"
+                  />
+                  {labelMenuOpen && labelSuggestions.length > 0 && (
+                    <div className={styles.convLabelMenu}>
+                      {labelSuggestions.map((l, i) => (
+                        <button
+                          key={l}
+                          type="button"
+                          className={[
+                            styles.convLabelOption,
+                            i === labelHighlight
+                              ? styles.convLabelOptionActive
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          // Keep the input focused so its blur doesn't close
+                          // the menu before this click lands.
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => addLabel(l)}
+                          onMouseEnter={() => setLabelHighlight(i)}
+                        >
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {labelInput.trim() && (
                   <button
                     type="button"
-                    className={styles.editorButton}
+                    className={styles.convLabelAdd}
                     onClick={() => addLabel(labelInput)}
                   >
                     Add

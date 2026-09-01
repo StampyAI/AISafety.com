@@ -94,7 +94,7 @@
   box-shadow: 0px 12px 24px 0px rgba(0, 25, 27, 0.5);
   /* The field mounts on expand, so a mount animation from the collapsed
      button's width and color makes the circle appear to morph open. */
-  animation: map-search-expand 0.12s ease-out;
+  animation: map-search-expand 0.08s ease-out;
 }
 
 @keyframes map-search-expand {
@@ -107,8 +107,27 @@
   }
 }
 
+/* Reverse of the unfurl: the field shrinks back into the circle before it is
+   removed. `forwards` holds the collapsed frame so it cannot pop back to full
+   width in the beat before React unmounts it. */
+.map-search-input-closing {
+  animation: map-search-collapse 0.08s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes map-search-collapse {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 40px;
+    background-color: var(--teal-850);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .map-search-input {
+  .map-search-input,
+  .map-search-input-closing {
     animation: none;
   }
 }

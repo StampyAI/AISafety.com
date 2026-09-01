@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Icon from '@/components/Icon'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import SearchBar from '@/components/SearchBar'
 import styles from './page.module.css'
@@ -29,6 +29,14 @@ interface MapSearchProps {
 
 const MAX_RESULTS = 5
 
+// Mirrors map-search-collapse in page.module.css — the field has to stay
+// mounted for the shrink, so this is how long we wait before removing it.
+const COLLAPSE_MS = 80
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 export default function MapSearch({
   className,
   orgs,
@@ -42,6 +50,65 @@ export default function MapSearch({
   const [expanded, setExpanded] = useState(false)
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  // The field shrinks back into the icon before it is removed; `closing` is
+  // that in-between beat. It stays `expanded` until the animation is done.
+  const [closing, setClosing] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const openSearch = () => {
+    // Cancels a shrink already in flight, so a quick close-then-open reopens
+    // the same field instead of leaving it half-collapsed.
+    setClosing(false)
+    setExpanded(true)
+  }
+
+  const collapse = () => {
+    setOpen(false)
+    setActiveIndex(-1)
+    if (prefersReducedMotion()) {
+      setExpanded(false)
+      return
+    }
+    setClosing(true)
+  }
+
+  useEffect(() => {
+    if (!closing) return
+    const timer = window.setTimeout(() => {
+      setExpanded(false)
+      setClosing(false)
+    }, COLLAPSE_MS)
+    return () => window.clearTimeout(timer)
+  }, [closing])
+
+  // Cmd/Ctrl+F opens this box instead of the browser's find bar. Over the map
+  // find-in-page has nothing to work with — the listing names are drawn into
+  // the SVG, and it cannot pan or zoom to a match — so taking the shortcut is
+  // an upgrade. Down in the cards every name is real text, so we leave it be.
+  // ('/' is not ours to take: SearchTrigger binds it for the site search.)
+  useEffect(() => {
+    const handler = (event: globalThis.KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return
+      if (event.key.toLowerCase() !== 'f') return
+      // Only while the control is actually on screen — once it has scrolled
+      // away with the map, the cards are what the visitor is reading. If the
+      // viewport height can't be read, keep the shortcut rather than silently
+      // doing nothing.
+      const rect = rootRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const viewportH =
+        window.innerHeight || document.documentElement.clientHeight
+      if (viewportH > 0 && (rect.bottom <= 0 || rect.top >= viewportH)) return
+      event.preventDefault()
+      openSearch()
+      // On the first press the input does not exist yet (collapsed is just the
+      // icon button), so focus after React has rendered it.
+      requestAnimationFrame(() => inputRef.current?.focus())
+    }
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -84,9 +151,7 @@ export default function MapSearch({
     if (event.key === 'Escape' && query.trim() === '') {
       event.preventDefault()
       event.stopPropagation()
-      setExpanded(false)
-      setOpen(false)
-      setActiveIndex(-1)
+      collapse()
       return
     }
     if (!open || results.length === 0) return
@@ -108,13 +173,13 @@ export default function MapSearch({
 
   if (!expanded) {
     return (
-      <div className={className}>
+      <div ref={rootRef} className={className}>
         <button
           type="button"
           className={styles['map-search-toggle']}
           title="Search the map"
           aria-label="Search the map"
-          onClick={() => setExpanded(true)}
+          onClick={openSearch}
         >
           <Icon
             src="/images/icons/magnifying-glass.svg"
@@ -127,20 +192,27 @@ export default function MapSearch({
   }
 
   return (
-    <div className={className} onKeyDownCapture={handleKeyDownCapture}>
+    <div
+      ref={rootRef}
+      className={className}
+      onKeyDownCapture={handleKeyDownCapture}
+    >
       <span className={styles['map-search-icon']} aria-hidden="true" />
       <SearchBar
         value={query}
         onChange={handleChange}
+        inputRef={inputRef}
         placeholder="Search the map…"
-        className={styles['map-search-input']}
+        className={`${styles['map-search-input']}${
+          closing ? ` ${styles['map-search-input-closing']}` : ''
+        }`}
         autoFocus
         onFocus={() => setOpen(query.trim().length > 0)}
         onBlur={() => {
           setOpen(false)
           setActiveIndex(-1)
           // Nothing typed or picked — shrink back to the icon.
-          if (query.trim() === '') setExpanded(false)
+          if (query.trim() === '') collapse()
         }}
       />
       {open && (
@@ -195,8 +267,9 @@ export default function MapSearch({
                 // click lands (same trick as the result rows).
                 onMouseDown={event => event.preventDefault()}
               >
-                Suggest it
+                Suggest a listing
               </a>
+              .
             </div>
           )}
         </div>

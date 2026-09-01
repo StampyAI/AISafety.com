@@ -28,12 +28,6 @@ const resources = [
     field: 'fldqYJa5li27kVOUW', // Long name
     adjust: -4, // Grid view includes 4 category header rows that aren't displayed on the site
   },
-  {
-    path: '/funding',
-    tableId: 'tblzMTLDZWZKqTxrq',
-    viewId: 'viwxv2w8utSEhUeiJ',
-    field: 'fldsFpgVduYnNuYkN', // Name
-  },
 ]
 
 // Preview-mode requests can't be served from any Next.js data cache (Draft
@@ -107,6 +101,7 @@ export async function fetchAllCounts(): Promise<
   // Both program sets the page lists: upcoming + recurring.
   counts['/training'] =
     (await getTrainingPrograms()).length + (await getRecurringPrograms()).length
+  counts['/funding'] = (await getFunders()).length
 
   if (preview) {
     previewCountsMemo = { at: Date.now(), counts }

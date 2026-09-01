@@ -1,8 +1,9 @@
 import { fetchLastUpdated } from '@/lib/data/last-updated'
 import PageHeader from '@/components/PageHeader'
-import FeaturedCard from '@/components/FeaturedCardLegacy'
+import FeaturedCard from '@/components/FeaturedCard'
 import FundingClient from './FundingClient'
 import { getFunders } from '@/lib/data/funding'
+import { isAcceptingApplications } from '@/lib/funding-status'
 
 export const metadata = {
   title: 'Funding – AISafety.com',
@@ -16,6 +17,11 @@ export default async function FundingPage() {
     getFunders(),
     fetchLastUpdated('funding'),
   ])
+
+  const featured = [
+    funders.find(f => f.featured === '1'),
+    funders.find(f => f.featured === '2'),
+  ].filter((f): f is NonNullable<typeof f> => f != null)
 
   return (
     <div className="container-default">
@@ -35,38 +41,43 @@ export default async function FundingPage() {
         }
       />
 
-      {/* Featured Cards + Related Resources */}
-      <div className="flex flex-col-mobile gap-56px padding-bottom-80px">
-        <div className="flex flex-col-mobile gap-40px">
-          {[
-            funders.find(f => f.featured === '1'),
-            funders.find(f => f.featured === '2'),
-          ]
-            .filter((f): f is NonNullable<typeof f> => f != null)
-            .map(funder => (
-              <FeaturedCard
-                key={funder.id}
-                href={funder.url !== '#' ? funder.url : undefined}
-                tagline={funder.featuredTagline!}
-                name={funder.name}
-                description={funder.description}
-                logo={funder.logo ?? undefined}
-                metadata={[
-                  { label: 'Type', value: funder.type },
-                  {
-                    label: 'Accepting applications',
-                    value: funder.acceptingApplications,
-                  },
-                ]}
-                trackingPage="Funding"
-                trackingId={funder.id}
-                trackingPosition={`F${funder.featured}`}
-              />
-            ))}
-        </div>
+      <div className="flex flex-wrap gap-56px padding-bottom-80px">
+        {featured.map((funder, i) => (
+          <FeaturedCard
+            key={funder.id}
+            className="width-6-col"
+            href={funder.url !== '#' ? funder.url : undefined}
+            tagline={funder.featuredTagline!}
+            name={funder.name}
+            description={funder.description}
+            logo={funder.logo ?? undefined}
+            meta={[
+              ...(funder.type
+                ? [{ icon: '/images/icons/tag.svg', value: funder.type }]
+                : []),
+              ...(funder.acceptingApplications
+                ? [
+                    {
+                      icon: isAcceptingApplications(
+                        funder.acceptingApplications
+                      )
+                        ? '/images/icons/form-check.svg'
+                        : '/images/icons/form-pause.svg',
+                      value: funder.acceptingApplications,
+                    },
+                  ]
+                : []),
+            ]}
+            trackingPage="Funding"
+            trackingId={funder.id}
+            trackingPosition={`F${funder.featured}`}
+            trackingSource="cards"
+            index={i}
+            count={featured.length}
+          />
+        ))}
       </div>
 
-      {/* Main Content with Search, Cards, and Filters */}
       <FundingClient funders={funders} />
     </div>
   )

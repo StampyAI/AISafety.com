@@ -1,5 +1,6 @@
 import { getJobs } from '@/lib/data/jobs'
 import { getFunders } from '@/lib/data/funding'
+import { isAcceptingApplications } from '@/lib/funding-status'
 import { getAdvisors } from '@/lib/data/advisors'
 import { getCommunities } from '@/lib/data/communities'
 import { getCourses } from '@/lib/data/self-study'
@@ -161,6 +162,16 @@ export async function buildCatalog(): Promise<Catalog> {
         type: f.type,
         recipientType: f.recipientType,
         acceptingApplications: f.acceptingApplications,
+        // The open and closed display wordings share substrings ("Not
+        // accepting applications" contains "accepting applications";
+        // "applications" appears in every state), so a substring filter
+        // on the field above can't separate open from closed — filter on
+        // this token instead.
+        applicationStatus: f.acceptingApplications
+          ? isAcceptingApplications(f.acceptingApplications)
+            ? 'Open'
+            : 'Closed'
+          : null,
       }),
       featured: isFeatured(f),
     })

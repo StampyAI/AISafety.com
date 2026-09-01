@@ -60,8 +60,9 @@ export interface AssistantSuggestEvent {
 
 export interface AssistantRatingEvent {
   kind: 'rating'
-  /** Thumbs up or down on an assistant reply. */
-  value: 'up' | 'down'
+  /** Thumbs up or down on an assistant reply; null when the visitor clicked
+   *  their thumb again to take the rating back. */
+  value: 'up' | 'down' | null
   /** Which assistant turn was rated (its index in the stored conversation
    *  history), so the rating can be pinned to the exact turn. */
   turnIndex: number

@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Icon from '@/components/Icon'
-import { trackNewsletterSignup } from '@/lib/analytics'
+import { trackNewsletterSignup, trackNewsletterView } from '@/lib/analytics'
+import { withUtm } from '@/lib/utm'
 import styles from './NewsletterSignup.module.css'
 
 const DEFAULT_SUBSCRIBE_URL =
@@ -19,10 +20,14 @@ export default function NewsletterSignup({
   /** Substack subscribe page the box opens (defaults to events & training). */
   subscribeUrl?: string
   /** Analytics page name (e.g. 'Events'). When set, a submit records a
-   *  newsletter_signup event under this page. */
+   *  newsletter_signup event under this page, and a click on the card's
+   *  link area records a newsletter_view. */
   trackingPage?: string
 }) {
   const [email, setEmail] = useState('')
+  // The publication's homepage — where the card link goes, so visitors can
+  // read the newsletter before handing over an email.
+  const homepageUrl = subscribeUrl.replace(/\/subscribe\/?$/, '')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -37,7 +42,20 @@ export default function NewsletterSignup({
 
   return (
     <form className={`width-4-col ${styles.card}`} onSubmit={handleSubmit}>
-      <p className={`paragraph-small ${styles.heading}`}>{heading}</p>
+      {/* The heading is a link stretched over the whole card, so clicking
+          anywhere outside the email pill opens the newsletter itself —
+          letting visitors read it without entering an email. */}
+      <a
+        href={trackingPage ? withUtm(homepageUrl, trackingPage) : homepageUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`paragraph-small ${styles.heading}`}
+        onClick={() => {
+          if (trackingPage) trackNewsletterView(trackingPage)
+        }}
+      >
+        {heading}
+      </a>
       {/* A label so clicks anywhere on the pill focus the input. */}
       <label className={styles.field}>
         <input

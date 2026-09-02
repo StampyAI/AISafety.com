@@ -43,8 +43,13 @@ export interface Advisor {
   featuredTagline: string | null
 }
 
+// Inactive advisors aren't taking guidance calls, so they're left off the page
+// entirely rather than surfaced behind a status filter.
+const isActiveAdvisor = (a: Advisor) => a.status === 'Active'
+
 export async function getAdvisors(): Promise<Advisor[]> {
-  if (!hasAirtableCredentials()) return fetchPublicData<Advisor>('advisors')
+  if (!hasAirtableCredentials())
+    return (await fetchPublicData<Advisor>('advisors')).filter(isActiveAdvisor)
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
@@ -74,5 +79,5 @@ export async function getAdvisors(): Promise<Advisor[]> {
     })
   }
 
-  return results
+  return results.filter(isActiveAdvisor)
 }

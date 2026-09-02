@@ -1,19 +1,10 @@
 'use client'
 
-import {
-  useState,
-  useMemo,
-  useRef,
-  useLayoutEffect,
-  useEffect,
-  useCallback,
-} from 'react'
-import Image from 'next/image'
-import FilterGroup from '@/components/FilterGroup'
-import FilterSidebar from '@/components/FilterSidebar'
-import SearchBar from '@/components/SearchBar'
+import { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react'
+import FilterBar from '@/components/FilterBar'
+import FilterDropdown from '@/components/FilterDropdown'
+import ListingCard from '@/components/ListingCard'
 import { Job } from '@/lib/data/jobs'
-import { trackListingClick } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 import { setPageContext } from '@/lib/assistant/page-context'
@@ -44,7 +35,29 @@ const experienceOptions = [
   'Senior (10+ years experience)',
 ]
 
-const roleTypeOptions = ['Full-time', 'Part-time', 'Internship']
+// The 80k !Role type field mixes two independent things, so we split it into
+// two filters: how much time the role takes (Commitment) and what kind of
+// position it is (Type).
+const commitmentOptions = ['Full-time', 'Part-time']
+
+// "Regular role" is the default: a job with none of the special tokens below.
+// Fellowship / Funding / Course / Volunteering listings never reach the site
+// (the Airtable view excludes them), so the only non-regular kinds left here
+// are internships and the catch-all "Other".
+const typeOptions = ['Regular role', 'Internship', 'Other']
+
+// Tokens that make a role something other than a "Regular role".
+const SPECIAL_ROLE_TOKENS = ['Internship', 'Other']
+
+// Type tokens shown on the card — the special ones only, so a regular role
+// shows no Type row.
+const DISPLAY_TYPE_TOKENS = typeOptions.filter(t => t !== 'Regular role')
+
+const roleTokens = (job: Job) =>
+  job.roleType
+    .split(',')
+    .map(t => t.trim())
+    .filter(Boolean)
 
 const workLocationOptions = ['Remote', 'On-site']
 
@@ -164,11 +177,13 @@ const degreeOptions = [
   'Doctoral degree',
 ]
 
+const allPass = () => true
+
 export default function JobsClient({ jobs }: JobsClientProps) {
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [selectedExperience, setSelectedExperience] = useState<string[]>([])
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const [selectedCommitment, setSelectedCommitment] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedWorkLocation, setSelectedWorkLocation] = useState<string[]>([])
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [selectedDegrees, setSelectedDegrees] = useState<string[]>([])
@@ -201,20 +216,6 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     return options
   }, [jobs])
 
-  const searchPass = useCallback(
-    (job: Job) => {
-      if (!searchQuery) return true
-      const query = searchQuery.toLowerCase()
-      return (
-        job.name.toLowerCase().includes(query) ||
-        job.organization.toLowerCase().includes(query) ||
-        job.location.toLowerCase().includes(query) ||
-        job.description.toLowerCase().includes(query)
-      )
-    },
-    [searchQuery]
-  )
-
   const groups = useMemo(() => {
     const named = new Set(countryOptions.filter(c => c !== 'Other'))
     return {
@@ -234,13 +235,16 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             .map(e => e.trim())
             .includes(value),
       },
-      role: {
-        selected: selectedRoles,
+      commitment: {
+        selected: selectedCommitment,
+        matches: (job: Job, value: string) => roleTokens(job).includes(value),
+      },
+      type: {
+        selected: selectedTypes,
         matches: (job: Job, value: string) =>
-          job.roleType
-            .split(',')
-            .map(r => r.trim())
-            .includes(value),
+          value === 'Regular role'
+            ? !roleTokens(job).some(t => SPECIAL_ROLE_TOKENS.includes(t))
+            : roleTokens(job).includes(value),
       },
       workLocation: {
         selected: selectedWorkLocation,
@@ -261,7 +265,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   }, [
     selectedSkills,
     selectedExperience,
-    selectedRoles,
+    selectedCommitment,
+    selectedTypes,
     selectedWorkLocation,
     selectedCountries,
     selectedDegrees,
@@ -269,68 +274,78 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   ])
 
   const filteredJobs = useMemo(
-    () => filterItems(jobs, searchPass, groups),
-    [jobs, searchPass, groups]
+    () => filterItems(jobs, allPass, groups),
+    [jobs, groups]
   )
 
   const skillCounts = useMemo(
     () =>
       optionCounts(
-        filterItems(jobs, searchPass, groups, 'skill'),
+        filterItems(jobs, allPass, groups, 'skill'),
         skillSetOptions,
         groups.skill.matches
       ),
-    [jobs, searchPass, groups]
+    [jobs, groups]
   )
 
   const experienceCounts = useMemo(
     () =>
       optionCounts(
-        filterItems(jobs, searchPass, groups, 'experience'),
+        filterItems(jobs, allPass, groups, 'experience'),
         experienceOptions,
         groups.experience.matches
       ),
-    [jobs, searchPass, groups]
+    [jobs, groups]
   )
 
-  const roleCounts = useMemo(
+  const commitmentCounts = useMemo(
     () =>
       optionCounts(
-        filterItems(jobs, searchPass, groups, 'role'),
-        roleTypeOptions,
-        groups.role.matches
+        filterItems(jobs, allPass, groups, 'commitment'),
+        commitmentOptions,
+        groups.commitment.matches
       ),
-    [jobs, searchPass, groups]
+    [jobs, groups]
+  )
+
+  const typeCounts = useMemo(
+    () =>
+      optionCounts(
+        filterItems(jobs, allPass, groups, 'type'),
+        typeOptions,
+        groups.type.matches
+      ),
+    [jobs, groups]
   )
 
   const workLocationCounts = useMemo(
     () =>
       optionCounts(
-        filterItems(jobs, searchPass, groups, 'workLocation'),
+        filterItems(jobs, allPass, groups, 'workLocation'),
         workLocationOptions,
         groups.workLocation.matches
       ),
-    [jobs, searchPass, groups]
+    [jobs, groups]
   )
 
   const countryCounts = useMemo(
     () =>
       optionCounts(
-        filterItems(jobs, searchPass, groups, 'country'),
+        filterItems(jobs, allPass, groups, 'country'),
         countryOptions,
         groups.country.matches
       ),
-    [jobs, searchPass, groups, countryOptions]
+    [jobs, groups, countryOptions]
   )
 
   const degreeCounts = useMemo(
     () =>
       optionCounts(
-        filterItems(jobs, searchPass, groups, 'degree'),
+        filterItems(jobs, allPass, groups, 'degree'),
         degreeOptions,
         groups.degree.matches
       ),
-    [jobs, searchPass, groups]
+    [jobs, groups]
   )
 
   const toggleFilter = (
@@ -353,16 +368,16 @@ export default function JobsClient({ jobs }: JobsClientProps) {
     }
   }, [filteredJobs])
 
-  // Publish current filter + search state for the assistant to read
+  // Publish current filter state for the assistant to read
   useEffect(() => {
     const state: Record<string, unknown> = {}
     if (selectedSkills.length) state.skills = selectedSkills
     if (selectedExperience.length) state.experience = selectedExperience
-    if (selectedRoles.length) state.roleTypes = selectedRoles
+    if (selectedCommitment.length) state.commitment = selectedCommitment
+    if (selectedTypes.length) state.roleType = selectedTypes
     if (selectedWorkLocation.length) state.workLocation = selectedWorkLocation
     if (selectedCountries.length) state.countries = selectedCountries
     if (selectedDegrees.length) state.requiredDegree = selectedDegrees
-    if (searchQuery) state.search = searchQuery
     setPageContext({
       page: '/jobs',
       filters: Object.keys(state).length > 0 ? state : undefined,
@@ -371,208 +386,205 @@ export default function JobsClient({ jobs }: JobsClientProps) {
   }, [
     selectedSkills,
     selectedExperience,
-    selectedRoles,
+    selectedCommitment,
+    selectedTypes,
     selectedWorkLocation,
     selectedCountries,
     selectedDegrees,
-    searchQuery,
   ])
 
   return (
-    <div className="flex gap-56px">
-      <div className="width-9-col">
-        <div className="padding-bottom-40px">
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search jobs by title, organization, location, or description"
-          />
-        </div>
+    <>
+      {/* Ordered by real filter usage (Skill set > Minimum experience >
+          Role type > Work location > Location > Required degree). The old
+          "Role type" is now split into Commitment + Type, which take its slot. */}
+      <FilterBar count={filteredJobs.length} noun="job">
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Skill set"
+          icon="/images/icons/category.svg"
+          options={skillSetOptions}
+          selected={selectedSkills}
+          counts={skillCounts}
+          onToggle={v => toggleFilter(v, selectedSkills, setSelectedSkills)}
+        />
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Minimum experience"
+          icon="/images/icons/briefcase.svg"
+          options={experienceOptions}
+          selected={selectedExperience}
+          counts={experienceCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedExperience, setSelectedExperience)
+          }
+        />
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Commitment"
+          icon="/images/icons/timer.svg"
+          options={commitmentOptions}
+          selected={selectedCommitment}
+          counts={commitmentCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedCommitment, setSelectedCommitment)
+          }
+        />
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Type"
+          icon="/images/icons/tag.svg"
+          options={typeOptions}
+          selected={selectedTypes}
+          counts={typeCounts}
+          onToggle={v => toggleFilter(v, selectedTypes, setSelectedTypes)}
+        />
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Remote or on-site"
+          trackingTitle="Work location"
+          icon="/images/icons/computer.svg"
+          options={workLocationOptions}
+          selected={selectedWorkLocation}
+          counts={workLocationCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
+          }
+        />
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Location"
+          icon="/images/icons/pin.svg"
+          options={countryOptions}
+          selected={selectedCountries}
+          counts={countryCounts}
+          onToggle={v =>
+            toggleFilter(v, selectedCountries, setSelectedCountries)
+          }
+        />
+        <FilterDropdown
+          trackingPage="Jobs"
+          title="Required degree"
+          icon="/images/icons/grad-cap.svg"
+          options={degreeOptions}
+          selected={selectedDegrees}
+          counts={degreeCounts}
+          onToggle={v => toggleFilter(v, selectedDegrees, setSelectedDegrees)}
+        />
+      </FilterBar>
 
-        <div className="collection-list padding-bottom-40px">
-          {filteredJobs.map(job => (
-            <a
-              key={job.id}
-              href={withUtm(job.url, 'Jobs')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-              onClick={() =>
-                trackListingClick(
-                  'Jobs',
-                  `${job.name} – ${job.organization}`,
-                  job.url,
-                  job.id,
-                  placements.get(job.id)
+      <div className="flex gap-56px">
+        <div className="collection-list padding-bottom-40px width-9-col">
+          {filteredJobs.map(job => {
+            const posted = job.datePublished
+              ? new Date(job.datePublished + 'T00:00:00').toLocaleDateString(
+                  'en-GB',
+                  { day: 'numeric', month: 'long', year: 'numeric' }
                 )
-              }
-            >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {job.logo && (
-                    <Image
-                      src={job.logo}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                      loading="eager"
-                      onError={e => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                </div>
-                <div>
-                  <h3>{job.name}</h3>
-                  <p className="paragraph-small color-teal-300">
-                    {job.organization}
-                  </p>
-                </div>
-              </div>
-              {job.summary && (
-                <p className="paragraph-small padding-bottom-16px">
-                  {job.summary}
-                </p>
-              )}
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Skill set
-              </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {job.skillSet}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Location
-              </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {job.locations.map(loc => (
-                  <span key={loc} className="block">
-                    {loc}
-                  </span>
-                ))}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Minimum experience
-              </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {job.minimumExperience}
-              </p>
-              {job.requiredDegree && (
-                <>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Required degree
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {job.requiredDegree}
-                  </p>
-                </>
-              )}
-              {job.salary && (
-                <>
-                  <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                    Salary
-                  </p>
-                  <p className="paragraph-small padding-bottom-16px">
-                    {job.salary}
-                  </p>
-                </>
-              )}
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Role type
-              </p>
-              <p className="paragraph-small">{job.roleType}</p>
-              {job.datePublished && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 'auto 24px 24px auto',
-                    textAlign: 'right',
-                  }}
-                >
-                  <span className="paragraph-xs color-teal-300 italic">
-                    Posted:{' '}
-                    {(() => {
-                      const d = new Date(job.datePublished + 'T00:00:00')
-                      return d.toLocaleDateString('en-GB', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    })()}
-                  </span>
-                </div>
-              )}
-            </a>
-          ))}
+              : null
+            const tokens = roleTokens(job)
+            const commitmentValue = tokens
+              .filter(t => commitmentOptions.includes(t))
+              .join(' · ')
+            // Special types only; empty for a regular role, which then shows
+            // no Type row.
+            const typeValue = tokens
+              .filter(t => DISPLAY_TYPE_TOKENS.includes(t))
+              .join(' · ')
+            return (
+              <ListingCard
+                key={job.id}
+                href={job.url}
+                name={job.name}
+                // Keeps the pre-redesign analytics name — 80,000 Hours reuses
+                // titles across orgs, so the org is what makes a row unique.
+                trackingName={`${job.name} – ${job.organization}`}
+                description={job.summary}
+                logo={job.logo}
+                titleMeta={[
+                  ...(job.organization
+                    ? [
+                        {
+                          icon: '/images/icons/building.svg',
+                          value: job.organization,
+                        },
+                      ]
+                    : []),
+                  ...(job.locations.length
+                    ? [
+                        {
+                          icon: '/images/icons/pin.svg',
+                          value: job.locations.join(' · '),
+                        },
+                      ]
+                    : []),
+                ]}
+                meta={[
+                  ...(job.skillSet
+                    ? [
+                        {
+                          icon: '/images/icons/category.svg',
+                          value: `Skillset: ${job.skillSet}`,
+                        },
+                      ]
+                    : []),
+                  ...(job.minimumExperience
+                    ? [
+                        {
+                          icon: '/images/icons/briefcase.svg',
+                          value: `Min experience: ${job.minimumExperience}`,
+                        },
+                      ]
+                    : []),
+                  // "Undergraduate degree or less" is the no-op baseline — hide
+                  // it unless the visitor has explicitly filtered for it.
+                  ...(job.requiredDegree &&
+                  (job.requiredDegree !== 'Undergraduate degree or less' ||
+                    selectedDegrees.includes('Undergraduate degree or less'))
+                    ? [
+                        {
+                          icon: '/images/icons/grad-cap.svg',
+                          value: job.requiredDegree,
+                        },
+                      ]
+                    : []),
+                  ...(commitmentValue
+                    ? [
+                        {
+                          // Part-time gets the half timer, like the training
+                          // page; anything including full-time gets the full one.
+                          icon:
+                            commitmentValue === 'Part-time'
+                              ? '/images/icons/timer-half.svg'
+                              : '/images/icons/timer.svg',
+                          value: commitmentValue,
+                        },
+                      ]
+                    : []),
+                  ...(typeValue
+                    ? [{ icon: '/images/icons/tag.svg', value: typeValue }]
+                    : []),
+                  // Compensation last so its presence/absence never shifts the
+                  // rows above it.
+                  ...(job.salary
+                    ? [{ icon: '/images/icons/money.svg', value: job.salary }]
+                    : []),
+                ]}
+                footnote={posted ? `Posted ${posted}` : undefined}
+                trackingPage="Jobs"
+                listingId={job.id}
+                placement={placements.get(job.id)}
+                trackingSource="cards"
+              />
+            )
+          })}
           {filteredJobs.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>
           )}
         </div>
-      </div>
 
-      <div className="hide-mobile width-3-col">
-        <FilterSidebar>
-          <FilterGroup
-            trackingPage="Jobs"
-            title="Skill set"
-            options={skillSetOptions}
-            selected={selectedSkills}
-            counts={skillCounts}
-            onToggle={v => toggleFilter(v, selectedSkills, setSelectedSkills)}
-          />
-          <FilterGroup
-            trackingPage="Jobs"
-            title="Minimum experience"
-            options={experienceOptions}
-            selected={selectedExperience}
-            counts={experienceCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedExperience, setSelectedExperience)
-            }
-          />
-          <FilterGroup
-            trackingPage="Jobs"
-            title="Required degree"
-            options={degreeOptions}
-            selected={selectedDegrees}
-            counts={degreeCounts}
-            onToggle={v => toggleFilter(v, selectedDegrees, setSelectedDegrees)}
-          />
-          <FilterGroup
-            trackingPage="Jobs"
-            title="Role type"
-            options={roleTypeOptions}
-            selected={selectedRoles}
-            counts={roleCounts}
-            onToggle={v => toggleFilter(v, selectedRoles, setSelectedRoles)}
-          />
-          <FilterGroup
-            trackingPage="Jobs"
-            title="Location"
-            options={countryOptions}
-            selected={selectedCountries}
-            counts={countryCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedCountries, setSelectedCountries)
-            }
-          />
-          <FilterGroup
-            trackingPage="Jobs"
-            title="Remote or on-site"
-            trackingTitle="Work location"
-            options={workLocationOptions}
-            selected={selectedWorkLocation}
-            counts={workLocationCounts}
-            onToggle={v =>
-              toggleFilter(v, selectedWorkLocation, setSelectedWorkLocation)
-            }
-          />
-        </FilterSidebar>
-        <div>
-          <p className="paragraph-small padding-bottom-4px padding-top-56px">
-            Source:
-          </p>
+        <div className="hide-mobile width-3-col">
+          <p className="paragraph-small padding-bottom-4px">Source:</p>
           <a
             href={withUtm('https://jobs.80000hours.org/', 'Jobs')}
             target="_blank"
@@ -583,6 +595,6 @@ export default function JobsClient({ jobs }: JobsClientProps) {
           </a>
         </div>
       </div>
-    </div>
+    </>
   )
 }

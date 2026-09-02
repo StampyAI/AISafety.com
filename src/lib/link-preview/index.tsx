@@ -1,16 +1,16 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
-import type { SitePage } from '@/lib/site-pages'
+import { SITE_PAGES, type SitePage } from '@/lib/site-pages'
 
 /**
- * Renders the 1200×630 link-preview card for a page: wordmark, page title and
- * blurb on the left, and the page's nav icon in a white disc on the right,
- * echoing the pills on the homepage card (public/images/link-preview.png).
+ * Renders the 1200×630 link-preview card for a page. It is the homepage card
+ * (public/images/link-preview.png) with two changes: the headline is the page
+ * name, and the page's own pill sits second in the list with a teal glow.
  *
- * background.png is that homepage card's teal gradient with the text and
- * pills removed (a smooth surface fitted to its empty areas), so the two
- * cards share the same backdrop.
+ * Geometry, type sizes and colors are measured from the homepage card so the
+ * two match. background.png is that card's teal gradient with the text and
+ * pills removed (a smooth surface fitted to its empty areas).
  *
  * Each route's `opengraph-image.tsx` calls this with its SITE_PAGES entry.
  * Next generates the PNG at build time, so the fonts and images are read from
@@ -23,19 +23,31 @@ export const contentType = 'image/png'
 const ASSET_DIR = join(process.cwd(), 'src/lib/link-preview')
 const ICON_DIR = join(process.cwd(), 'public/images/icons')
 
-// Nav icons are drawn in --teal-300; recolor to --teal-900 for the white disc.
+// The five pills on the homepage card, in its order. The current page takes
+// the second slot (the first is clipped by the top edge) and the rest follow.
+const PILL_ORDER = ['jobs', 'events', 'communities', 'map', 'advisors'] as const
+const PILL = { left: 637, width: 486, height: 124, pitch: 144, firstTop: -40 }
+const DISC = 104
+const ICON = 40
+
+// Nav icons are drawn in --teal-300; on the white discs they are --teal-bright-800.
 const ICON_SOURCE_COLOR = /#AAB2B3/gi
-const ICON_COLOR = '#00191b'
+const ICON_COLOR = '#094141'
 
 const svgDataUri = (svg: string) =>
   `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
 
-export async function linkPreviewImage({ title, description, icon }: SitePage) {
-  const [regular, medium, background, iconSvg] = await Promise.all([
+export async function linkPreviewImage(page: SitePage) {
+  const others = PILL_ORDER.map(key => SITE_PAGES[key]).filter(
+    p => p.path !== page.path
+  )
+  const pills: SitePage[] = [others[0], page, ...others.slice(1)].slice(0, 5)
+
+  const [regular, semibold, background, ...icons] = await Promise.all([
     readFile(join(ASSET_DIR, 'Inter-Regular.ttf')),
-    readFile(join(ASSET_DIR, 'Inter-Medium.ttf')),
+    readFile(join(ASSET_DIR, 'Inter-SemiBold.ttf')),
     readFile(join(ASSET_DIR, 'background.png')),
-    readFile(join(ICON_DIR, icon), 'utf8'),
+    ...pills.map(p => readFile(join(ICON_DIR, p.icon), 'utf8')),
   ])
 
   return new ImageResponse(
@@ -64,85 +76,99 @@ export async function linkPreviewImage({ title, description, icon }: SitePage) {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          width: 760,
+          width: PILL.left - 40,
           padding: '0 0 0 80px',
         }}
       >
         <div
           style={{
-            fontSize: 30,
-            fontWeight: 500,
+            fontSize: 32,
+            fontWeight: 600,
             letterSpacing: -0.6,
             color: '#88ccc9',
-            marginBottom: 40,
+            marginBottom: 56,
           }}
         >
           AISafety.com
         </div>
         <div
           style={{
-            fontSize: 84,
-            fontWeight: 500,
-            lineHeight: 1.05,
-            letterSpacing: -4,
-            color: '#f1faf9',
-            marginBottom: 28,
-          }}
-        >
-          {title}
-        </div>
-        <div
-          style={{
-            fontSize: 31,
+            fontSize: 72,
             fontWeight: 400,
-            lineHeight: 1.35,
-            color: '#c6cccc',
+            lineHeight: 1.17,
+            letterSpacing: -4.32,
+            color: '#ffffff',
           }}
         >
-          {description}
+          {page.title}
         </div>
       </div>
 
-      <div
-        style={{
-          position: 'absolute',
-          right: 96,
-          top: 165,
-          width: 300,
-          height: 300,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 150,
-          border: '2px solid rgba(136, 204, 201, 0.45)',
-        }}
-      >
-        <div
-          style={{
-            width: 272,
-            height: 272,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 136,
-            backgroundColor: '#ffffff',
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={svgDataUri(iconSvg.replace(ICON_SOURCE_COLOR, ICON_COLOR))}
-            width={136}
-            height={136}
-            alt=""
-          />
-        </div>
-      </div>
+      {pills.map((pill, i) => {
+        const current = pill.path === page.path
+        return (
+          <div
+            key={pill.path}
+            style={{
+              position: 'absolute',
+              left: PILL.left,
+              top: PILL.firstTop + i * PILL.pitch,
+              width: PILL.width,
+              height: PILL.height,
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: PILL.height / 2,
+              border: `2px solid ${current ? '#88ccc9' : '#46797b'}`,
+              backgroundColor: current
+                ? 'rgba(108, 189, 187, 0.14)'
+                : 'transparent',
+              // Satori rejects `boxShadow: undefined`, so only set it here.
+              ...(current && {
+                boxShadow: '0 0 44px rgba(108, 189, 187, 0.6)',
+              }),
+            }}
+          >
+            <div
+              style={{
+                width: DISC,
+                height: DISC,
+                marginLeft: 9,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: DISC / 2,
+                backgroundColor: '#ffffff',
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={svgDataUri(
+                  icons[i].replace(ICON_SOURCE_COLOR, ICON_COLOR)
+                )}
+                width={ICON}
+                height={ICON}
+                alt=""
+              />
+            </div>
+            <div
+              style={{
+                marginLeft: 27,
+                fontSize: 36,
+                fontWeight: 600,
+                color: '#ffffff',
+              }}
+            >
+              {pill.title}
+            </div>
+          </div>
+        )
+      })}
     </div>,
     {
       ...size,
       fonts: [
         { name: 'Inter', data: regular, weight: 400, style: 'normal' },
-        { name: 'Inter', data: medium, weight: 500, style: 'normal' },
+        { name: 'Inter', data: semibold, weight: 600, style: 'normal' },
       ],
     }
   )

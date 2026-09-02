@@ -242,7 +242,11 @@ export default function TrainingClient({
     scrollToAnchor(toggleAnchorRef.current)
   }
 
-  const [selectedStatus, setSelectedStatus] = useState<string[]>(['Open'])
+  // No default Applications filter: the deadline order already keeps open
+  // programs first and parks closed ones at the bottom under a divider, so
+  // everything can show. (/events defaults to Open — a closed event is one
+  // you can't attend, and it has no such ordering to lean on.)
+  const [selectedStatus, setSelectedStatus] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [selectedFocus, setSelectedFocus] = useState<string[]>([])
   const [selectedEntryBar, setSelectedEntryBar] = useState<string[]>([])

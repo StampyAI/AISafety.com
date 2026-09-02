@@ -6,19 +6,10 @@ import CommunitiesMap from './CommunitiesMap'
 import CardsViewTracker from '@/components/CardsViewTracker'
 import styles from './page.module.css'
 import { getCommunities } from '@/lib/data/communities'
+import { pageMetadata } from '@/lib/page-metadata'
+import { SITE_PAGES } from '@/lib/site-pages'
 
-export const metadata = {
-  title: 'Communities – AISafety.com',
-  description:
-    'Groups dedicated to discussing and contributing to AI safety, both online and in-person.',
-  alternates: { canonical: '/communities' },
-  openGraph: {
-    title: 'Communities – AISafety.com',
-    description:
-      'Groups dedicated to discussing and contributing to AI safety, both online and in-person.',
-    images: [{ url: '/images/link-preview.png' }],
-  },
-}
+export const metadata = pageMetadata(SITE_PAGES.communities)
 
 export default async function CommunitiesPage() {
   const [communities, lastUpdated] = await Promise.all([

@@ -17,8 +17,9 @@ export default function FooterLink({
   section: string
   /** The link text, also what the click is recorded as. */
   label: string
-  /** If set, appends `?prefill_<field>=<current path>` to href so Airtable
-   *  captures which page the link was clicked from. */
+  /** If set, appends `?prefill_<field>=<current path>&hide_<field>=true` to
+   *  href so Airtable records which page the link was clicked from, without
+   *  showing the field on the form. */
   airtablePrefillField?: string
 }) {
   // Internal links (e.g. /hackathon) navigate in place; external ones open a
@@ -27,10 +28,9 @@ export default function FooterLink({
   const pathname = usePathname()
   const pageValue = pathname.replace(/^\//, '') || 'home'
 
-  const finalHref = airtablePrefillField
-    ? `${href}${href.includes('?') ? '&' : '?'}prefill_${encodeURIComponent(
-        airtablePrefillField
-      )}=${pageValue}`
+  const field = airtablePrefillField && encodeURIComponent(airtablePrefillField)
+  const finalHref = field
+    ? `${href}${href.includes('?') ? '&' : '?'}prefill_${field}=${pageValue}&hide_${field}=true`
     : href
 
   return (

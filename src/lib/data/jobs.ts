@@ -130,26 +130,12 @@ export function jobSalary(raw: string): string {
   return raw.replace(/\s+-\s+/g, ' – ')
 }
 
-// Role-type categories that don't belong on the jobs board: fellowships and
-// courses are covered in more depth on other pages, funding entries are grants
-// (not roles), and volunteering isn't a paid position. A listing is dropped
-// only when *every* one of its role-type tokens is in this set — a full/part-
-// time role that also carries one of these tags (e.g. a full-time internship)
-// is still a real job and stays.
-const EXCLUDED_ROLE_TYPES = ['Fellowship', 'Course', 'Volunteering', 'Funding']
-
-function isJobsBoardRole(job: Job): boolean {
-  const tokens = job.roleType
-    .split(',')
-    .map(t => t.trim())
-    .filter(Boolean)
-  if (tokens.length === 0) return true
-  return !tokens.every(t => EXCLUDED_ROLE_TYPES.includes(t))
-}
-
+// The board holds vacancies only. The Airtable view ("Jobs AI Safety Only")
+// already excludes Fellowship, Funding, Course and Volunteering, so there is no
+// code-side filter — change the set there, then mirror it in the site's filter
+// options.
 export async function getJobs(): Promise<Job[]> {
-  if (!hasAirtableCredentials())
-    return (await fetchPublicData<Job>('jobs')).filter(isJobsBoardRole)
+  if (!hasAirtableCredentials()) return fetchPublicData<Job>('jobs')
   const raw = await fetchAirtableRecords({
     tableId: TABLE_ID,
     viewId: VIEW_ID,
@@ -212,5 +198,5 @@ export async function getJobs(): Promise<Job[]> {
     return b.datePublished.localeCompare(a.datePublished)
   })
 
-  return results.filter(isJobsBoardRole)
+  return results
 }

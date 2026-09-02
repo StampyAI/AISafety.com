@@ -41,16 +41,16 @@ const experienceOptions = [
 const commitmentOptions = ['Full-time', 'Part-time']
 
 // "Regular role" is the default: a job with none of the special tokens below.
-// Fellowship / Funding / Course / Volunteering listings are filtered out of the
-// jobs data entirely (see getJobs), so the only non-regular kinds left here are
-// internships and the catch-all "Other".
+// Fellowship / Funding / Course / Volunteering listings never reach the site
+// (the Airtable view excludes them), so the only non-regular kinds left here
+// are internships and the catch-all "Other".
 const typeOptions = ['Regular role', 'Internship', 'Other']
 
 // Tokens that make a role something other than a "Regular role".
 const SPECIAL_ROLE_TOKENS = ['Internship', 'Other']
 
-// Type tokens shown on the card — the special ones minus Volunteering (which we
-// keep out of the UI entirely).
+// Type tokens shown on the card — the special ones only, so a regular role
+// shows no Type row.
 const DISPLAY_TYPE_TOKENS = typeOptions.filter(t => t !== 'Regular role')
 
 const roleTokens = (job: Job) =>
@@ -486,8 +486,8 @@ export default function JobsClient({ jobs }: JobsClientProps) {
             const commitmentValue = tokens
               .filter(t => commitmentOptions.includes(t))
               .join(' · ')
-            // Special types minus Volunteering; empty for a regular role, which
-            // then shows no Type row.
+            // Special types only; empty for a regular role, which then shows
+            // no Type row.
             const typeValue = tokens
               .filter(t => DISPLAY_TYPE_TOKENS.includes(t))
               .join(' · ')

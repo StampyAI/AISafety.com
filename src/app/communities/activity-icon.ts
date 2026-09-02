@@ -1,9 +1,16 @@
 // Activity level → pulse-icon height. There are four levels but three icons, so
-// Active and Very active share the tall pulse for now (Bryce is looking at
-// collapsing the data to three).
-export const activityIcon = (level: string) =>
-  level === 'Inactive'
-    ? '/images/icons/activity-low.svg'
-    : level === 'Semi-active'
-      ? '/images/icons/activity-mid.svg'
-      : '/images/icons/activity-high.svg'
+// Active and Very active share the tall pulse. Anything unrecognised gets the
+// plain pulse rather than reading as very active.
+export const activityIcon = (level: string) => {
+  switch (level) {
+    case 'Inactive':
+      return '/images/icons/activity-low.svg'
+    case 'Semi-active':
+      return '/images/icons/activity-mid.svg'
+    case 'Active':
+    case 'Very active':
+      return '/images/icons/activity-high.svg'
+    default:
+      return '/images/icons/activity.svg'
+  }
+}

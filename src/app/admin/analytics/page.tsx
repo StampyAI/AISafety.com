@@ -963,6 +963,36 @@ export default async function AnalyticsPage({
                         counted once).
                       </p>
                     </Panel>
+                    <Panel title="Cards section">
+                      <div className={styles.funnel}>
+                        <Stat
+                          label="Reached the cards"
+                          value={data.cardsViews.toLocaleString()}
+                        />
+                        <Stat
+                          label="% of visitors"
+                          value={shareCell(data.cardsViewShare ?? undefined)}
+                        />
+                        <Stat
+                          label="Button clicks"
+                          value={data.cardsButtonClicks.toLocaleString()}
+                        />
+                        <Stat
+                          label="% of visitors"
+                          value={shareCell(data.cardsButtonShare ?? undefined)}
+                        />
+                      </div>
+                      <p className={styles.caption}>
+                        Reached the cards = page loads where the top of the
+                        listings below the map scrolled into the upper half of
+                        the screen – via the button, by hand, or by arriving on
+                        a link straight to them. Button clicks = clicks on the
+                        button on the map that scrolls there. Both follow the
+                        count mode above; each % of visitors is the share of the
+                        page&apos;s visitors who did it at all (each visitor
+                        counted once). Recording since 3 September 2026.
+                      </p>
+                    </Panel>
                   </div>
                 )}
               {data.filterGroups.length > 0 && (

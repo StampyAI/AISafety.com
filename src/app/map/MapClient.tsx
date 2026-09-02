@@ -9,7 +9,8 @@ import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import RelativeDate from '@/components/RelativeDate'
 import SearchBar from '@/components/SearchBar'
-import { trackListingClick } from '@/lib/analytics'
+import { trackListingClick, trackCardsButtonClick } from '@/lib/analytics'
+import CardsViewTracker from '@/components/CardsViewTracker'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
@@ -218,7 +219,10 @@ export default function MapClient({
         <div ref={mapWrapperRef} className={styles['map-wrapper']}>
           <D3Map orgs={mapOrgs} />
           <button
-            onClick={scrollToCards}
+            onClick={() => {
+              trackCardsButtonClick('Map', 'View cards')
+              scrollToCards()
+            }}
             className={`button-primary ${styles['scroll-button']}`}
           >
             View cards
@@ -231,6 +235,7 @@ export default function MapClient({
       </div>
 
       <div id="cards" className="container-default">
+        <CardsViewTracker page="Map" />
         {lastUpdatedIso && (
           <RelativeDate
             iso={lastUpdatedIso}

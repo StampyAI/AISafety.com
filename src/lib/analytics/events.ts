@@ -84,6 +84,12 @@ export const ALLOWED_EVENT_TYPES = new Set<string>([
   // A click on a page's "View data in Airtable" card — data curiosity, not a
   // contribution, so it's its own kind.
   'airtable_view',
+  // Map pages (Map, Communities): a click on the button on the map that
+  // scrolls down to the listings, and a visitor reaching those listings —
+  // fired once per page load when the top of the cards section scrolls into
+  // the upper half of the screen, however they got there.
+  'cards_button_click',
+  'cards_view',
   // A submit of the newsletter signup box (Events/Training). Counts the
   // attempt — the submit opens Substack's subscribe page, so completion
   // happens off-site. Never carries the email address.
@@ -542,6 +548,15 @@ export interface DashboardData {
   /** Distinct visitors who clicked a "View data in Airtable" card on each
    *  page vs the page's distinct visitors. */
   airtableShareByPage: VisitorShare[]
+  /** Map pages only: visitors reaching the listings below the map (cards_view
+   *  — once per page load, when the cards section scrolls into the upper half
+   *  of the screen) and clicks on the button on the map that scrolls there.
+   *  The counts follow the unique/total mode; the shares divide distinct
+   *  visitors who did it by the page's distinct visitors. 0/null elsewhere. */
+  cardsViews: number
+  cardsViewShare: VisitorShare | null
+  cardsButtonClicks: number
+  cardsButtonShare: VisitorShare | null
   /** Newsletter signup-box submits per page (the box lives on Events and
    *  Training). Submits, not confirmed Substack subscriptions. */
   newsletterByPage: Counted[]
@@ -615,8 +630,9 @@ export interface DashboardData {
   /** Cross-interest overlaps between pages (and the chatbot), from anonymous
    *  visitor ids: pairs ranked by how many visitors engaged with both. */
   correlations: CorrelationRow[]
-  /** Recent clicks and chatbot/search events — page views and map hovers are
-   *  excluded so the feed stays an activity log rather than a firehose. */
+  /** Recent clicks and chatbot/search events — page views, map hovers and
+   *  cards-section views are excluded so the feed stays an activity log
+   *  rather than a firehose. */
   recent: AnalyticsEvent[]
   /** Timestamp of the oldest event in the WHOLE store (not just the selected
    *  range) — lets the dashboard say how far back its data actually goes.
@@ -656,6 +672,10 @@ const EMPTY: Omit<DashboardData, 'source'> = {
   airtableByPage: [],
   airtableViews: 0,
   airtableShareByPage: [],
+  cardsViews: 0,
+  cardsViewShare: null,
+  cardsButtonClicks: 0,
+  cardsButtonShare: null,
   newsletterByPage: [],
   newsletterShareByPage: [],
   siteClickShare: null,
@@ -1162,6 +1182,13 @@ function aggregate(
   let topHovered: ListingRow[] = []
   let hoverShare: VisitorShare[] = []
   let anyHoverShare: VisitorShare | null = null
+  // The cards section below the map: visitors reaching it, and the button
+  // that scrolls there. Both events carry a fixed label, so uniqueClicks'
+  // page+label dedupe makes unique mode one per visitor per day.
+  let cardsViews = 0
+  let cardsViewShare: VisitorShare | null = null
+  let cardsButtonClicks = 0
+  let cardsButtonShare: VisitorShare | null = null
   if (selectedPage != null && MAP_PAGES.has(selectedPage)) {
     const hoverHits = inRange.filter(e => e.type === 'listing_hover' && e.page)
     const hovers = (unique ? uniqueClicks(hoverHits) : hoverHits).filter(
@@ -1170,6 +1197,19 @@ function aggregate(
     topHovered = listingRows(hovers)
     hoverShare = shareOnPage(hovers, listingMember)
     anyHoverShare = anyOnPage(hovers, 'Any listing')
+
+    const cardsViewHits = inRange.filter(
+      e => e.type === 'cards_view' && e.page === selectedPage
+    )
+    cardsViews = (unique ? uniqueClicks(cardsViewHits) : cardsViewHits).length
+    cardsViewShare = anyOnPage(cardsViewHits, 'Cards section')
+    const cardsButtonHits = inRange.filter(
+      e => e.type === 'cards_button_click' && e.page === selectedPage
+    )
+    cardsButtonClicks = (
+      unique ? uniqueClicks(cardsButtonHits) : cardsButtonHits
+    ).length
+    cardsButtonShare = anyOnPage(cardsButtonHits, 'Cards button')
   }
 
   // The Map tab's by-area rollup compares clicks against hovers per area, and
@@ -1208,6 +1248,10 @@ function aggregate(
     airtableByPage,
     airtableViews,
     airtableShareByPage,
+    cardsViews,
+    cardsViewShare,
+    cardsButtonClicks,
+    cardsButtonShare,
     newsletterByPage,
     newsletterShareByPage,
     siteClickShare,
@@ -1237,11 +1281,16 @@ function aggregate(
     optOuts: optOutSplit(inRange),
     visits: visitsData(inRange, unique, firstSeen, startMs, viewVidsByPage),
     correlations: correlations(inRange),
-    // Newest-first already; page views and map hovers are left out so the
-    // feed stays a log of deliberate actions rather than a firehose of visits
-    // and passing cursors.
+    // Newest-first already; page views, map hovers and cards-section views
+    // are left out so the feed stays a log of deliberate actions rather than
+    // a firehose of visits, passing cursors and scrolls.
     recent: inRange
-      .filter(e => e.type !== 'page_view' && e.type !== 'listing_hover')
+      .filter(
+        e =>
+          e.type !== 'page_view' &&
+          e.type !== 'listing_hover' &&
+          e.type !== 'cards_view'
+      )
       .slice(0, 50),
   }
 }

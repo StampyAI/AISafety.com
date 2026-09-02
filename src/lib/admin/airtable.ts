@@ -40,6 +40,11 @@
   localStorage in the admin editor. Production prompts ship via code.
 */
 
+import {
+  replyIndexOf,
+  slicePerTurn,
+  turnsToKeep,
+} from '@/lib/admin/conversation-turns'
 import { readTranscript, writeTranscript } from '@/lib/admin/transcript-blob'
 
 const TOKEN = process.env.AIRTABLE_TOKEN
@@ -153,7 +158,9 @@ export interface ConversationData {
    *  14-message window), then trimmed further if the row would overflow
    *  Airtable's long-text limit. Per-turn arrays (`tools`, `turnTimes`,
    *  `pages`) are never windowed, so their length is the true turn count and
-   *  they align with `history` from the END. */
+   *  they align with `history` from the END. A re-sent turn (the widget's
+   *  Edit / Try again) replaces its earlier entries rather than adding to
+   *  them, so the count stays true. */
   history: HistoryTurn[]
   /** Each history message's position in the VISITOR's message list — the
    *  indexing the widget's delivery/rating/click reports key on. Aligned
@@ -181,6 +188,12 @@ export interface ConversationData {
    *  holds one value, so mid-conversation navigation is recorded here. Absent
    *  on rows written before this was tracked. */
   pages?: unknown[]
+  /** One entry per logged turn (aligned with `tools`): the position of that
+   *  turn's REPLY in the visitor's message list — the turnIndex the widget's
+   *  delivery/rating/click reports key on. What lets a re-sent turn replace
+   *  its earlier entry (see upsertConversation) and the viewer place each
+   *  stored message exactly. Absent on rows written before 2 Sept 2026. */
+  turnIndices?: unknown[]
   citations: string[]
   /** Resolved name/url for each cited listing, so cards survive deletion. */
   citationRefs: StoredCitation[]
@@ -724,23 +737,35 @@ export async function upsertConversation(input: {
     ? parseData(str(existing.fields[FIELD.data]) || undefined)
     : null
 
+  // A re-sent message — the widget's Edit or Try again cut the visitor's
+  // list back to an earlier position and sent again — arrives at a reply
+  // position this row has already logged. This write's history replaces the
+  // old text from that point on, and the per-turn arrays must follow: drop
+  // the entries of every turn at that position or later, then append this
+  // one. Appending regardless let the arrays outgrow the transcript, and the
+  // viewer (which lines them up from the end) then pinned tool calls and
+  // times on the wrong turns.
+  const replyIndex = replyIndexOf(input.historyIndices)
+  const loggedTurns = previous?.tools.length ?? 0
+  const keptTurns = previous ? turnsToKeep(previous, replyIndex) : 0
+  const perTurn = <T>(arr: T[] | undefined, next: T): T[] => [
+    ...slicePerTurn(arr, loggedTurns, keptTurns),
+    next,
+  ]
+
   const data: ConversationData = {
     user: input.user,
     response: input.response,
     history: input.history,
     historyIndices: input.historyIndices,
-    tools: previous ? [...previous.tools, input.tools] : [input.tools],
-    // Same per-turn alignment as tools. Older rows have no fallbackCards key;
-    // starting the array now still aligns because the viewer matches turns
-    // from the END (same trick it already uses for tools vs a windowed
-    // history) — pre-tracking turns simply resolve to no entry.
-    fallbackCards: previous
-      ? [...(previous.fallbackCards ?? []), input.fallbackCards]
-      : [input.fallbackCards],
-    turnTimes: previous
-      ? [...(previous.turnTimes ?? []), input.turnAt]
-      : [input.turnAt],
-    pages: previous ? [...(previous.pages ?? []), input.page] : [input.page],
+    tools: perTurn(previous?.tools, input.tools),
+    // Older rows have no fallbackCards/turnTimes/pages key; starting an array
+    // now still aligns because the viewer matches turns from the END —
+    // pre-tracking turns simply resolve to no entry.
+    fallbackCards: perTurn(previous?.fallbackCards, input.fallbackCards),
+    turnTimes: perTurn(previous?.turnTimes, input.turnAt),
+    pages: perTurn(previous?.pages, input.page),
+    turnIndices: perTurn(previous?.turnIndices, replyIndex),
     citations: previous
       ? Array.from(new Set([...previous.citations, ...input.citations]))
       : input.citations,

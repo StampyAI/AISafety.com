@@ -105,8 +105,8 @@ export default function FundingClient({ funders }: FundingClientProps) {
       <FilterBar count={count} noun="funder">
         <FilterDropdown
           trackingPage="Funding"
-          title="Accepting applications"
-          icon="/images/icons/form-check.svg"
+          title="Application status"
+          icon="/images/icons/paper.svg"
           options={acceptingOptions}
           selected={acceptingFilters}
           counts={filterCounts.accepting}
@@ -133,9 +133,6 @@ export default function FundingClient({ funders }: FundingClientProps) {
               description={funder.description}
               logo={funder.logo}
               meta={[
-                ...(funder.type
-                  ? [{ icon: '/images/icons/tag.svg', value: funder.type }]
-                  : []),
                 ...(funder.acceptingApplications
                   ? [
                       {
@@ -147,6 +144,9 @@ export default function FundingClient({ funders }: FundingClientProps) {
                         value: funder.acceptingApplications,
                       },
                     ]
+                  : []),
+                ...(funder.type
+                  ? [{ icon: '/images/icons/tag.svg', value: funder.type }]
                   : []),
               ]}
               trackingPage="Funding"

@@ -52,9 +52,6 @@ export default async function FundingPage() {
             description={funder.description}
             logo={funder.logo ?? undefined}
             meta={[
-              ...(funder.type
-                ? [{ icon: '/images/icons/tag.svg', value: funder.type }]
-                : []),
               ...(funder.acceptingApplications
                 ? [
                     {
@@ -66,6 +63,9 @@ export default async function FundingPage() {
                       value: funder.acceptingApplications,
                     },
                   ]
+                : []),
+              ...(funder.type
+                ? [{ icon: '/images/icons/tag.svg', value: funder.type }]
                 : []),
             ]}
             trackingPage="Funding"

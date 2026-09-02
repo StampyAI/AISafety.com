@@ -25,6 +25,12 @@ import {
 } from '@/lib/training-types'
 import { selectFeatured, withRandomStandIns } from '@/lib/featured'
 import { placementsById } from '@/lib/placements'
+import {
+  compareByDeadline,
+  SECTION_LABELS,
+  sectionFor,
+  type Section,
+} from '@/lib/training-order'
 import type {
   ProgramBase,
   RecurringProgram,
@@ -95,20 +101,6 @@ function durationLabel(
     return `${Math.round(days / 7)} weeks`
   }
   return days === 1 ? '1 day' : `${days} days`
-}
-
-function monthKey(startDate: string | null): string {
-  if (!startDate) return 'tbc'
-  const d = parseISO(startDate)
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth()).padStart(2, '0')}`
-}
-function monthLabel(startDate: string | null): string {
-  if (!startDate) return 'Dates to be confirmed'
-  return new Intl.DateTimeFormat('en-GB', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(parseISO(startDate))
 }
 
 // Online-or-in-person programs can be done either way, so they surface under
@@ -258,7 +250,12 @@ export default function TrainingClient({
   const [selectedLength, setSelectedLength] = useState<string[]>([])
   const [selectedLocation, setSelectedLocation] = useState<string[]>([])
 
-  const modePrograms: ProgramBase[] = mode === 'upcoming' ? programs : recurring
+  const orderedPrograms = useMemo(
+    () => [...programs].sort(compareByDeadline),
+    [programs]
+  )
+  const modePrograms: ProgramBase[] =
+    mode === 'upcoming' ? orderedPrograms : recurring
 
   // Programs whose applications closed are never shown as featured
   // (recurring programs have no applications and always count as open);
@@ -385,20 +382,19 @@ export default function TrainingClient({
     selectedLocation,
   ])
 
-  // Upcoming programs group under month-of-start headings, mirroring
-  // /events; recurring programs have no dates and stay one flat A–Z grid.
-  const monthGroups = useMemo(() => {
+  // Upcoming programs are one deadline-ordered list; each card carries its
+  // own "Apply by" line, so no month headings. Programs that can't be applied
+  // to sit at the bottom, and once the Applications filter shows more than
+  // one set the blocks get labels so the switch is obvious. Recurring
+  // programs have no dates and stay one flat A–Z grid.
+  const sections = useMemo(() => {
     if (mode !== 'upcoming') return []
-    const groups: {
-      key: string
-      label: string
-      programs: TrainingProgram[]
-    }[] = []
+    const groups: { key: Section; programs: TrainingProgram[] }[] = []
     for (const program of filtered as TrainingProgram[]) {
-      const key = monthKey(program.startDate)
+      const key = sectionFor(program)
       let group = groups.find(g => g.key === key)
       if (!group) {
-        group = { key, label: monthLabel(program.startDate), programs: [] }
+        group = { key, programs: [] }
         groups.push(group)
       }
       group.programs.push(program)
@@ -595,16 +591,18 @@ export default function TrainingClient({
       <div className="flex gap-56px">
         <div className="width-9-col padding-bottom-80px">
           {mode === 'upcoming' ? (
-            monthGroups.map((group, i) => (
+            sections.map((section, i) => (
               <div
-                key={group.key}
+                key={section.key}
                 className={i === 0 ? undefined : 'padding-top-32px'}
               >
-                <p className="paragraph-small color-teal-300 padding-bottom-24px">
-                  {group.label}
-                </p>
+                {sections.length > 1 && (
+                  <p className="paragraph-small color-teal-300 padding-bottom-24px">
+                    {SECTION_LABELS[section.key]}
+                  </p>
+                )}
                 <div className="collection-list">
-                  {group.programs.map(program => renderCard(program))}
+                  {section.programs.map(program => renderCard(program))}
                 </div>
               </div>
             ))

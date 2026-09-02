@@ -502,6 +502,9 @@ export default function EventsClient({ events }: EventsClientProps) {
       selectedCities,
     ])
 
+  // Events group under month-of-start headings: the date you attend is what
+  // matters. (/training differs — its programs order by application deadline
+  // with no month headings; see TrainingClient.)
   const monthGroups = useMemo(() => {
     const groups: { key: string; label: string; events: EventListing[] }[] = []
     for (const event of filteredEvents) {

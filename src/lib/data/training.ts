@@ -364,8 +364,9 @@ export async function getTrainingPrograms(): Promise<TrainingProgram[]> {
     })
   }
 
-  // Order by start date (Melissa's call: soonest first), programs without
-  // a start date after that.
+  // Order by start date (soonest first), programs without a start date
+  // after that. This is the order the public API serves; the /training page
+  // itself re-sorts by application deadline (see TrainingClient).
   results.sort((a, b) => {
     if (!a.startDate && !b.startDate) return 0
     if (!a.startDate) return 1

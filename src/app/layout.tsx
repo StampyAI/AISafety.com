@@ -33,7 +33,8 @@ export const metadata: Metadata = {
     images: [{ url: '/images/link-preview.png' }],
   },
   // Card type only: title, description and image fall back to each page's
-  // own metadata, so X shows the page rather than the homepage blurb.
+  // own (its metadata, or its opengraph-image.tsx), so X shows the page
+  // rather than the homepage blurb.
   twitter: {
     card: 'summary_large_image',
   },

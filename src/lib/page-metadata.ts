@@ -7,7 +7,8 @@ import type { SitePage } from './site-pages'
  * page's own title and blurb (X reads the twitter:* tags first, so they have
  * to be set per page rather than inherited from the root layout).
  *
- * The card image is the site-wide one from the root layout.
+ * The card image comes from the route's `opengraph-image.tsx`, which Next
+ * turns into og:image / twitter:image tags automatically.
  */
 export function pageMetadata({ path, title, description }: SitePage): Metadata {
   const fullTitle = `${title} – AISafety.com`

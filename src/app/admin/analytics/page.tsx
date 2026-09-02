@@ -990,7 +990,7 @@ export default async function AnalyticsPage({
                         button on the map that scrolls there. Both follow the
                         count mode above; each % of visitors is the share of the
                         page&apos;s visitors who did it at all (each visitor
-                        counted once). Recording since 3 September 2026.
+                        counted once). Recording since 2 September 2026.
                       </p>
                     </Panel>
                   </div>

@@ -7,7 +7,11 @@ import MapControls from '@/components/MapControls'
 import styles from './page.module.css'
 import { Community } from '@/lib/data/communities'
 import { positionTooltip } from '@/lib/mapTooltip'
-import { trackListingClick, trackListingHover } from '@/lib/analytics'
+import {
+  trackListingClick,
+  trackListingHover,
+  trackCardsButtonClick,
+} from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
 
 interface CommunitiesMapProps {
@@ -602,6 +606,7 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
   }
 
   function handleViewOnline() {
+    trackCardsButtonClick('Communities', 'View online communities')
     if (mapContainerRef.current) {
       const mapRect = mapContainerRef.current.getBoundingClientRect()
       window.scrollTo({

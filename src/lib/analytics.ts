@@ -386,3 +386,28 @@ export function trackEvent(
   if (typeof window === 'undefined') return
   sendTrackEvent({ type, ...props })
 }
+
+/**
+ * Track a click on the button that sits on a page's map and scrolls down to
+ * the listings below it ("View cards" on Map, "View online communities" on
+ * Communities). `label` is the button's visible text.
+ */
+export function trackCardsButtonClick(page: string, label: string): void {
+  if (typeof window === 'undefined') return
+  if (isTrackingOptedOut()) return
+  window._paq?.push(['trackEvent', `Cards - ${page}`, 'Button click', label])
+  sendTrackEvent({ type: 'cards_button_click', page, label })
+}
+
+/**
+ * Track a visitor reaching the listings below a page's map (Map,
+ * Communities). Fired once per page load, when the top of the cards section
+ * scrolls into the upper half of the screen — via the button, by hand, or by
+ * arriving on a link straight to it. First-party only, like hovers: a passive
+ * signal for the dashboard rather than a Matomo event. The fixed label gives
+ * the dashboard's unique-mode dedupe (one per visitor per page per day) a key.
+ */
+export function trackCardsView(page: string): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({ type: 'cards_view', page, label: 'Cards section' })
+}

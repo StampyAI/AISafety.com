@@ -3,6 +3,7 @@ import PageHeader from '@/components/PageHeader'
 import FeaturedCard from '@/components/FeaturedCard'
 import CommunitiesClient from './CommunitiesClient'
 import CommunitiesMap from './CommunitiesMap'
+import CardsViewTracker from '@/components/CardsViewTracker'
 import styles from './page.module.css'
 import { getCommunities } from '@/lib/data/communities'
 
@@ -39,6 +40,7 @@ export default async function CommunitiesPage() {
         </h2>
       </div>
       <div className="container-default">
+        <CardsViewTracker page="Communities" />
         <PageHeader
           title="Communities"
           lastUpdatedIso={lastUpdated.lastUpdated}

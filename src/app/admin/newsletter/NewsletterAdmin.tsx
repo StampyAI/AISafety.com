@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import adminStyles from '../admin.module.css'
 import styles from './newsletter.module.css'
 
@@ -54,6 +54,7 @@ export default function NewsletterAdmin() {
   const [loading, setLoading] = useState(true)
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState<Draft | null>(null)
   const [notice, setNotice] = useState<{
     kind: 'ok' | 'error'
     text: string
@@ -78,19 +79,9 @@ export default function NewsletterAdmin() {
     void load()
   }, [load])
 
-  async function approve(draft: Draft) {
+  async function send(draft: Draft) {
     if (!draft.listId) return
-    const who =
-      draft.activeContacts == null
-        ? `everyone on “${draft.listName ?? draft.listId}”`
-        : `${draft.activeContacts} contact${draft.activeContacts === 1 ? '' : 's'} on “${draft.listName ?? draft.listId}”`
-    if (
-      !window.confirm(
-        `Send “${draft.subject}” to ${who}?\n\nIt goes out about two minutes after you confirm and cannot be recalled.`
-      )
-    ) {
-      return
-    }
+    setConfirming(null)
     setBusyId(draft.id)
     setNotice(null)
     try {
@@ -251,7 +242,7 @@ export default function NewsletterAdmin() {
                 <button
                   type="button"
                   className={styles.buttonPrimary}
-                  onClick={() => void approve(draft)}
+                  onClick={() => setConfirming(draft)}
                   disabled={!ok || busyId != null}
                 >
                   {busyId === draft.id ? 'Scheduling…' : 'Approve & send'}
@@ -319,6 +310,99 @@ export default function NewsletterAdmin() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {confirming && (
+        <ConfirmSend
+          draft={confirming}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => void send(confirming)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** In-page confirmation for the one irreversible action on this page. */
+function ConfirmSend({
+  draft,
+  onCancel,
+  onConfirm,
+}: {
+  draft: Draft
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const count = draft.activeContacts
+  const listLabel =
+    draft.listName ?? (draft.listId ? `list ${draft.listId}` : '')
+  const who =
+    count == null
+      ? `everyone on ${listLabel}`
+      : `${count} contact${count === 1 ? '' : 's'}`
+
+  useEffect(() => {
+    // Focus lands on Cancel, so a stray Enter never sends.
+    cancelRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  return (
+    <div className={styles.overlay} onClick={onCancel}>
+      <div
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-send-title"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 id="confirm-send-title" className={styles.dialogTitle}>
+          Send this issue?
+        </h2>
+        <dl className={styles.dialogFacts}>
+          <dt>Subject</dt>
+          <dd>{draft.subject}</dd>
+          <dt>To</dt>
+          <dd>
+            {listLabel}
+            {count != null && (
+              <span className={styles.muted}>
+                {' '}
+                · {count} active contact{count === 1 ? '' : 's'}
+              </span>
+            )}
+          </dd>
+          <dt>From</dt>
+          <dd>
+            {draft.fromName} &lt;{draft.fromEmail}&gt;
+          </dd>
+        </dl>
+        <p className={styles.dialogNote}>
+          It goes out about two minutes after you confirm and can&rsquo;t be
+          recalled.
+        </p>
+        <div className={styles.dialogActions}>
+          <button
+            ref={cancelRef}
+            type="button"
+            className={styles.button}
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={styles.buttonPrimary}
+            onClick={onConfirm}
+          >
+            Send to {who}
+          </button>
+        </div>
       </div>
     </div>
   )

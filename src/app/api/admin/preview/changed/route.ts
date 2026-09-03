@@ -32,10 +32,10 @@ import { resourceTables, validResources } from '@/lib/data/last-updated'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Three polls' worth: the edit is reported until it is this old. Generous
-// against Airtable's save-to-API lag (normally a second or two) while keeping
-// the redundant refreshes to a handful.
-const CHANGE_WINDOW_MS = 15_000
+// Five polls' worth: the edit is reported until it is this old. Generous
+// against Airtable's save-to-API lag (normally a second or two); the poller
+// spaces its refreshes out, so this costs two or three per edit.
+const CHANGE_WINDOW_MS = 10_000
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

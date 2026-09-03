@@ -3,10 +3,14 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
-const POLL_MS = 5_000
+const POLL_MS = 2_000
+// The server keeps reporting an edit for several polls (it stays in its
+// look-back window); a re-render takes about a second, so rather than stack
+// them, refresh on every other poll at most. Two or three refreshes per edit.
+const MIN_REFRESH_GAP_MS = 3_500
 
 /** While preview mode is on, keeps the page current without manual reloads:
- *  asks /api/admin/preview/changed every few seconds whether any of this
+ *  asks /api/admin/preview/changed every couple of seconds whether any of this
  *  page's Airtable records changed in the last few moments, and re-renders
  *  when they did. The server looks back over a fixed window rather than
  *  "since your last poll", so an edit Airtable was still saving when one poll
@@ -43,6 +47,7 @@ export default function PreviewAutoRefresh({
     if (pathname.startsWith('/admin')) return
 
     let stopped = false
+    let lastPollRefresh = 0
 
     const tick = async () => {
       // Don't poll (or pile up refreshes) while the tab isn't being looked at;
@@ -65,7 +70,14 @@ export default function PreviewAutoRefresh({
           data.buildTime > buildTime &&
           refreshedForBuildRef.current !== data.buildTime
         if (newBuild) refreshedForBuildRef.current = data.buildTime
-        if (data.changed || newBuild) router.refresh()
+        const now = Date.now()
+        if (
+          newBuild ||
+          (data.changed && now - lastPollRefresh >= MIN_REFRESH_GAP_MS)
+        ) {
+          lastPollRefresh = now
+          router.refresh()
+        }
       } catch (err) {
         // Transient network failure — the next poll will try again.
         console.warn('preview auto-refresh poll failed:', err)

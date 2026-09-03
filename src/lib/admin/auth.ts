@@ -26,6 +26,9 @@ interface PasswordRole {
    *  data on the real pages instead of the cached build. Reads only, and only
    *  published records. */
   preview: boolean
+  /** May approve and send newsletter issues to subscribers from
+   *  /admin/newsletter. Owner only: every approval is a real send. */
+  newsletter: boolean
 }
 
 /** Every password that grants admin access, and the areas each one opens. Each
@@ -40,6 +43,7 @@ const PASSWORD_ROLES: PasswordRole[] = [
     analytics: true,
     mapEditor: true,
     preview: true,
+    newsletter: true,
   },
   // Partner reviewing chat logs: chat areas only, no analytics.
   {
@@ -48,6 +52,7 @@ const PASSWORD_ROLES: PasswordRole[] = [
     analytics: false,
     mapEditor: false,
     preview: false,
+    newsletter: false,
   },
   // Site volunteers: the whole admin except the map editor (it writes to the
   // live Airtable base).
@@ -57,6 +62,7 @@ const PASSWORD_ROLES: PasswordRole[] = [
     analytics: true,
     mapEditor: false,
     preview: true,
+    newsletter: false,
   },
   // Analytics-only volunteers: the dashboard, with the chat areas out of reach.
   {
@@ -65,6 +71,7 @@ const PASSWORD_ROLES: PasswordRole[] = [
     analytics: true,
     mapEditor: false,
     preview: false,
+    newsletter: false,
   },
   // Melissa (site designer): the whole admin except the map editor, on her
   // own password so it can be revoked without touching the volunteers'.
@@ -74,6 +81,7 @@ const PASSWORD_ROLES: PasswordRole[] = [
     analytics: true,
     mapEditor: false,
     preview: true,
+    newsletter: false,
   },
 ]
 
@@ -140,6 +148,12 @@ export async function canEditMap(): Promise<boolean> {
  *  sessions don't work on listings. */
 export async function canUsePreview(): Promise<boolean> {
   return sessionHolds(passwordsWhere(role => role.preview))
+}
+
+/** True when the session may approve and send newsletter issues. Only the
+ *  owner password — an approval sends to every subscriber on the list. */
+export async function canSendNewsletter(): Promise<boolean> {
+  return sessionHolds(passwordsWhere(role => role.newsletter))
 }
 
 export async function setAdminCookie(password: string): Promise<void> {

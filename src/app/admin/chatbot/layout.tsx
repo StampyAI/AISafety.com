@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import {
   canEditMap,
+  canSendNewsletter,
   canUsePreview,
   canViewAnalytics,
   canViewChatbot,
@@ -27,6 +28,7 @@ export default async function ChatbotAdminLayout({
     analytics,
     mapEditor: await canEditMap(),
     preview: await canUsePreview(),
+    newsletter: await canSendNewsletter(),
   }
   return (
     <>

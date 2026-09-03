@@ -11,37 +11,33 @@ import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
 
 export const metadata = {
-  title: 'Map editor – AISafety.com',
+  title: 'Newsletter – AISafety.com',
   robots: { index: false, follow: false },
 }
 
-export default async function MapEditorLayout({
+export default async function NewsletterAdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const chatbot = await canViewChatbot()
   const analytics = await canViewAnalytics()
-  // Only the owner password may move logos on the live map. Anyone else who
-  // is signed in goes to the area they can use; signed-out sessions to login.
-  if (!(await canEditMap())) {
+  const mapEditor = await canEditMap()
+  const preview = await canUsePreview()
+  // Only the owner password may send to subscribers. Anyone else who is
+  // signed in goes to the area they can use; signed-out sessions to login.
+  if (!(await canSendNewsletter())) {
     redirect(
       adminHomeHref({
         chatbot,
         analytics,
-        mapEditor: false,
-        preview: await canUsePreview(),
-        newsletter: await canSendNewsletter(),
+        mapEditor,
+        preview,
+        newsletter: false,
       })
     )
   }
-  const access = {
-    chatbot,
-    analytics,
-    mapEditor: true,
-    preview: await canUsePreview(),
-    newsletter: await canSendNewsletter(),
-  }
+  const access = { chatbot, analytics, mapEditor, preview, newsletter: true }
   return (
     <>
       <AdminHeader tabs={adminTabs(access)} brandHref={adminHomeHref(access)} />

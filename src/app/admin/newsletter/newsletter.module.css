@@ -1,0 +1,126 @@
+/* Newsletter approval page. Same utilitarian admin look as the other
+   sections (admin.module.css); only what that file doesn't already have. */
+
+.draftMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 12px;
+  color: var(--teal-300);
+  margin: 0;
+}
+
+.draftMetaValue {
+  color: var(--white);
+}
+
+.statusOk {
+  color: var(--bright-green);
+  font-weight: 600;
+}
+
+.statusBad {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.problems {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #ff6b6b;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.button,
+.buttonPrimary {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.button {
+  border: 1px solid var(--teal-700);
+  background: var(--teal-900);
+  color: var(--white);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--teal-800);
+}
+
+.buttonPrimary {
+  border: 1px solid var(--bright-green);
+  background: var(--bright-green);
+  color: var(--teal-900);
+}
+
+.buttonPrimary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.button:disabled,
+.buttonPrimary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.notice {
+  font-size: 12px;
+  color: var(--teal-300);
+}
+
+.noticeError {
+  font-size: 12px;
+  color: #ff6b6b;
+}
+
+.noticeOk {
+  font-size: 12px;
+  color: var(--bright-green);
+}
+
+.previewFrame {
+  width: 100%;
+  height: 820px;
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+  background: var(--teal-900);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 7px 10px 7px 0;
+  border-bottom: 1px solid var(--teal-800);
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--teal-400);
+  font-weight: 500;
+}
+
+.table td {
+  color: var(--white);
+}
+
+.muted {
+  color: var(--teal-400);
+}

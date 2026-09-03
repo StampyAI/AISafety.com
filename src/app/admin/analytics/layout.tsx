@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import {
   canEditMap,
+  canSendNewsletter,
   canUsePreview,
   canViewAnalytics,
   canViewChatbot,
@@ -32,6 +33,7 @@ export default async function AnalyticsLayout({
     analytics: true,
     mapEditor: await canEditMap(),
     preview: await canUsePreview(),
+    newsletter: await canSendNewsletter(),
   }
   return (
     <>

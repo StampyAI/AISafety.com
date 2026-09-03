@@ -173,6 +173,30 @@ cache and bundle are untouched. The only Airtable fields it can write are `x`
 and `y` (`buildPositionFields` in `map-editor-core.ts`; any other key in the
 request body is rejected). Publish?/Hide?/Scale stay in Airtable.
 
+## Admin newsletter approval
+
+`/admin/newsletter` (owner password only, `newsletter` capability in
+`src/lib/admin/auth.ts`) is the approval step for the weekly newsletters. The
+pipeline on the owner's machine (`~/Newsletter/issue.py`) renders a Pen draft
+into a branded email and creates a **draft** ActiveCampaign campaign whose
+message carries a hidden content marker (`<!--aisafety-issue:<checksum>-->`).
+The page lists those drafts via `/api/admin/newsletter` (GET), re-running the
+pipeline's own checks on each: still a draft, wired to exactly one list (per-
+list one-click unsubscribe depends on it), one message, marker present and
+matching a fresh checksum of the HTML (`contentDigest` in
+`src/lib/admin/newsletter.ts` mirrors `ac.py`; `newsletter.test.ts` pins the
+two to the same fixtures). A missing marker means someone saved the email in
+ActiveCampaign's visual designer, which wipes injected HTML – the page refuses
+to send. The preview is the stored HTML in a sandboxed iframe
+(`/api/admin/newsletter/preview?draft=ID`; note `draft=`, because ad blockers
+refuse `campaign=` URLs, and CSP `frame-ancestors` rather than X-Frame-Options,
+which would reject the sandbox's opaque origin). Approving (POST) re-verifies,
+then schedules the send through ActiveCampaign's legacy v1 API – the only API
+that can schedule – by creating the sending campaign from the verified message
+(`sdate` two minutes out, in the account's local time read from its own
+timestamps) and deleting the draft shell. Env: `ACTIVECAMPAIGN_URL`,
+`ACTIVECAMPAIGN_KEY` (production only).
+
 ## Deployment
 
 - **Platform**: Vercel (recommended for Next.js)

@@ -6,13 +6,23 @@ import { useEffect, useRef } from 'react'
 const POLL_MS = 5_000
 
 /** While preview mode is on, keeps the page current without manual reloads:
- *  asks /api/admin/preview/changed a few times a minute whether this page's
- *  Airtable records moved, and re-renders when they did; also re-renders on
- *  window focus, catching anything the poll can't see (e.g. deleted
- *  records). The poll also reports the answering deployment's BUILD_TIME —
- *  when that moves past `buildTime` (the one this page rendered with), a
- *  rebuild has gone live and the page re-renders so the pill's "public
- *  built X ago" starts over instead of counting up from the old build.
+ *  asks /api/admin/preview/changed every few seconds whether any of this
+ *  page's Airtable records changed in the last few moments, and re-renders
+ *  when they did. The server looks back over a fixed window rather than
+ *  "since your last poll", so an edit Airtable was still saving when one poll
+ *  ran is caught by the next (a moving cursor skipped such edits for good) —
+ *  at the price of an edit re-rendering the page a couple of times before it
+ *  ages out of the window, each time from the newest data.
+ *
+ *  Also re-renders when the tab becomes visible again or the window regains
+ *  focus: polling pauses in hidden tabs, and this catches whatever happened
+ *  meanwhile, including things the poll can't see (deleted records).
+ *
+ *  The poll also reports the answering deployment's BUILD_TIME — when that
+ *  moves past `buildTime` (the one this page rendered with), a rebuild has
+ *  gone live and the page re-renders so the pill's "public built X ago"
+ *  starts over instead of counting up from the old build.
+ *
  *  router.refresh() re-runs the server render in place, so scroll position
  *  and client state (filters, search) survive. Renders nothing. */
 export default function PreviewAutoRefresh({
@@ -22,8 +32,6 @@ export default function PreviewAutoRefresh({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  // Server time of the last poll; null = baseline not yet established.
-  const sinceRef = useRef<string | null>(null)
   // Last new build already refreshed for — one refresh per deployment, so a
   // poll that keeps reporting a build the page can't pick up (however that
   // might happen) can't loop refreshes every five seconds.
@@ -34,27 +42,23 @@ export default function PreviewAutoRefresh({
     // rendered fresh) — nothing to poll or refresh there.
     if (pathname.startsWith('/admin')) return
 
-    sinceRef.current = null
     let stopped = false
 
     const tick = async () => {
       // Don't poll (or pile up refreshes) while the tab isn't being looked at;
-      // the focus listener below catches up the moment it is again.
+      // the visibility and focus listeners below catch up the moment it is.
       if (document.visibilityState !== 'visible') return
       try {
-        const since = sinceRef.current
-        const query = `path=${encodeURIComponent(pathname)}${since ? `&since=${encodeURIComponent(since)}` : ''}`
-        const res = await fetch(`/api/admin/preview/changed?${query}`, {
-          cache: 'no-store',
-        })
+        const res = await fetch(
+          `/api/admin/preview/changed?path=${encodeURIComponent(pathname)}`,
+          { cache: 'no-store' }
+        )
         if (!res.ok || stopped) return
         const data = (await res.json()) as {
           changed: boolean
-          now: string
           buildTime: string | null
         }
         if (stopped) return
-        sinceRef.current = data.now
         const newBuild =
           data.buildTime !== null &&
           buildTime !== null &&
@@ -71,12 +75,23 @@ export default function PreviewAutoRefresh({
     const interval = setInterval(tick, POLL_MS)
     tick()
 
-    const onFocus = () => router.refresh()
-    window.addEventListener('focus', onFocus)
+    // Switching back to the tab fires both events within the same instant;
+    // one refresh is plenty.
+    let lastReturnRefresh = 0
+    const onReturn = () => {
+      if (document.visibilityState !== 'visible') return
+      const now = Date.now()
+      if (now - lastReturnRefresh < 1_000) return
+      lastReturnRefresh = now
+      router.refresh()
+    }
+    window.addEventListener('focus', onReturn)
+    document.addEventListener('visibilitychange', onReturn)
     return () => {
       stopped = true
       clearInterval(interval)
-      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('focus', onReturn)
+      document.removeEventListener('visibilitychange', onReturn)
     }
   }, [pathname, router, buildTime])
 

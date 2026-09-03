@@ -124,20 +124,19 @@ const configs: Record<string, ResourceConfig> = {
 
 export const validResources = Object.keys(configs)
 
-/** The table(s) whose records feed this resource's page, with the page's
- *  publish filter where the config has one — the polling targets for preview
- *  mode's auto-refresh (see /api/admin/preview/changed). Empty when the
- *  page's content doesn't live in Airtable (/donation-guide). */
-export function resourceTables(
-  resource: string
-): Array<{ tableId: string; filter?: string }> {
+/** The table(s) whose records feed this resource's page — the polling
+ *  targets for preview mode's auto-refresh (see /api/admin/preview/changed).
+ *  Deliberately without the page's publish filter: preview must notice a
+ *  record being unpublished, or a draft being published, just as much as an
+ *  edit to a live record, and the odd extra refresh for a change to a draft
+ *  is harmless. Empty when the page's content doesn't live in Airtable
+ *  (/donation-guide). */
+export function resourceTables(resource: string): string[] {
   const config = configs[resource]
   if (!config) throw new Error(`Unknown resource: '${resource}'`)
   if (config.type === 'constant') return []
-  if (config.type === 'record') return [{ tableId: config.tableId }]
-  if (config.type === 'multi')
-    return config.queries.map(q => ({ tableId: q.tableId, filter: q.filter }))
-  return [{ tableId: config.tableId, filter: config.filter }]
+  if (config.type === 'multi') return config.queries.map(q => q.tableId)
+  return [config.tableId]
 }
 
 interface LastUpdatedResult {

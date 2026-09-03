@@ -78,7 +78,7 @@ export function adminTabs({
       ? [
           {
             href: '/admin/newsletter',
-            label: 'Newsletter',
+            label: 'Newsletters',
             group: 'newsletter' as const,
           },
         ]

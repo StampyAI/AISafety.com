@@ -130,7 +130,7 @@ export default function NewsletterAdmin() {
   return (
     <div className={adminStyles.editorColumn}>
       <div className={adminStyles.pageHeading}>
-        <h1 className={adminStyles.pageTitle}>Newsletter</h1>
+        <h1 className={adminStyles.pageTitle}>Newsletters</h1>
         <p className={adminStyles.pageMeta}>
           {data ? (
             <>

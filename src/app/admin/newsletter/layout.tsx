@@ -11,7 +11,7 @@ import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
 
 export const metadata = {
-  title: 'Newsletter – AISafety.com',
+  title: 'Newsletters – AISafety.com',
   robots: { index: false, follow: false },
 }
 

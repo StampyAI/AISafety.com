@@ -22,14 +22,14 @@ export const SITE_PAGES = {
     path: '/events',
     title: 'Events',
     description:
-      'Find conferences, competitions, meetups, talks, and workshops in AI safety, both online and in person.',
+      'Conferences, competitions, meetups, talks, and workshops in AI safety, both online and in person.',
     icon: 'calendar.svg',
   },
   training: {
     path: '/training',
     title: 'Training programs',
     description:
-      'Find fellowships, bootcamps, and courses in AI safety to upskill and build career capital. Both online and in person.',
+      'Fellowships, bootcamps, and courses in AI safety to upskill and build career capital. Both online and in person.',
     icon: 'grad-cap.svg',
   },
   map: {

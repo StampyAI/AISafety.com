@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
+import sharp from 'sharp'
 import { SITE_PAGES, type SitePage } from '@/lib/site-pages'
 
 /**
@@ -15,12 +16,15 @@ import { SITE_PAGES, type SitePage } from '@/lib/site-pages'
  * redrawn. Pill geometry, type size and colors are measured from that file.
  *
  * Each route's `opengraph-image.tsx` calls this with its SITE_PAGES entry.
- * Next generates the PNG at build time, so the font and images are read from
- * the repo rather than fetched.
+ * Next renders it at build time, so the font and images are read from the
+ * repo rather than fetched. The PNG that next/og produces is re-encoded as
+ * JPEG: the gradient makes the PNG ~440 KB, and WhatsApp drops preview images
+ * over ~300 KB; the JPEG is under 100 KB with no visible change.
  */
 
 export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+export const contentType = 'image/jpeg'
+const JPEG_QUALITY = 88
 
 const ASSET_DIR = join(process.cwd(), 'src/lib/link-preview')
 const ICON_DIR = join(process.cwd(), 'public/images/icons')
@@ -56,7 +60,7 @@ export async function linkPreviewImage(page: SitePage) {
     ...pills.map(p => readFile(join(ICON_DIR, p.icon), 'utf8')),
   ])
 
-  return new ImageResponse(
+  const png = new ImageResponse(
     <div
       style={{
         width: size.width,
@@ -144,4 +148,11 @@ export async function linkPreviewImage(page: SitePage) {
       fonts: [{ name: 'Inter', data: semibold, weight: 600, style: 'normal' }],
     }
   )
+
+  const jpeg = await sharp(Buffer.from(await png.arrayBuffer()))
+    .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+    .toBuffer()
+  return new Response(new Uint8Array(jpeg), {
+    headers: { 'Content-Type': contentType },
+  })
 }

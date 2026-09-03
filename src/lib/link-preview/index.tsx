@@ -6,7 +6,7 @@ import { SITE_PAGES, type SitePage } from '@/lib/site-pages'
 
 /**
  * Renders the 1200×630 link-preview card for a page: the homepage card
- * (public/images/link-preview.png) with the page's own pill second in the
+ * (public/images/link-preview.jpg) with the page's own pill second in the
  * list, filled and ringed like the active item in the global nav, plus a soft
  * teal glow. Wordmark and headline are the homepage card's, on every page.
  *

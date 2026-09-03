@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   openGraph: {
     siteName: 'AISafety.com',
     type: 'website',
-    images: [{ url: '/images/link-preview.png' }],
+    images: [{ url: '/images/link-preview.jpg' }],
   },
   // Card type only: title, description and image fall back to each page's
   // own (its metadata, or its opengraph-image.tsx), so X shows the page

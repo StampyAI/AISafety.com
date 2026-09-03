@@ -4,16 +4,18 @@ import { ImageResponse } from 'next/og'
 import { SITE_PAGES, type SitePage } from '@/lib/site-pages'
 
 /**
- * Renders the 1200×630 link-preview card for a page. It is the homepage card
- * (public/images/link-preview.png) with two changes: the headline is the page
- * name, and the page's own pill sits second in the list with a teal glow.
+ * Renders the 1200×630 link-preview card for a page: the homepage card
+ * (public/images/link-preview.png) with the page's own pill second in the
+ * list, filled and ringed like the active item in the global nav, plus a soft
+ * teal glow. Wordmark and headline are the homepage card's, on every page.
  *
- * Geometry, type sizes and colors are measured from the homepage card so the
- * two match. background.png is that card's teal gradient with the text and
- * pills removed (a smooth surface fitted to its empty areas).
+ * background.png is the homepage card with its pill column replaced by the
+ * same teal gradient (a smooth surface fitted to the card's empty areas), so
+ * the left half is Melissa's file pixel for pixel and only the pills are
+ * redrawn. Pill geometry, type size and colors are measured from that file.
  *
  * Each route's `opengraph-image.tsx` calls this with its SITE_PAGES entry.
- * Next generates the PNG at build time, so the fonts and images are read from
+ * Next generates the PNG at build time, so the font and images are read from
  * the repo rather than fetched.
  */
 
@@ -34,6 +36,11 @@ const ICON = 40
 const ICON_SOURCE_COLOR = /#AAB2B3/gi
 const ICON_COLOR = '#094141'
 
+// The current page's pill uses the global nav's active state:
+// --bright-teal-300 ring on a --teal-850 fill (Navigation.module.css).
+const RING = '#a6dad9'
+const FILL = '#0e2628'
+
 const svgDataUri = (svg: string) =>
   `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
 
@@ -43,8 +50,7 @@ export async function linkPreviewImage(page: SitePage) {
   )
   const pills: SitePage[] = [others[0], page, ...others.slice(1)].slice(0, 5)
 
-  const [regular, semibold, background, ...icons] = await Promise.all([
-    readFile(join(ASSET_DIR, 'Inter-Regular.ttf')),
+  const [semibold, background, ...icons] = await Promise.all([
     readFile(join(ASSET_DIR, 'Inter-SemiBold.ttf')),
     readFile(join(ASSET_DIR, 'background.png')),
     ...pills.map(p => readFile(join(ICON_DIR, p.icon), 'utf8')),
@@ -71,39 +77,6 @@ export async function linkPreviewImage(page: SitePage) {
         style={{ position: 'absolute', top: 0, left: 0 }}
       />
 
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          width: PILL.left - 40,
-          padding: '0 0 0 80px',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 32,
-            fontWeight: 600,
-            letterSpacing: -0.6,
-            color: '#88ccc9',
-            marginBottom: 56,
-          }}
-        >
-          AISafety.com
-        </div>
-        <div
-          style={{
-            fontSize: 72,
-            fontWeight: 400,
-            lineHeight: 1.17,
-            letterSpacing: -4.32,
-            color: '#ffffff',
-          }}
-        >
-          {page.title}
-        </div>
-      </div>
-
       {pills.map((pill, i) => {
         const current = pill.path === page.path
         return (
@@ -118,10 +91,8 @@ export async function linkPreviewImage(page: SitePage) {
               display: 'flex',
               alignItems: 'center',
               borderRadius: PILL.height / 2,
-              border: `2px solid ${current ? '#88ccc9' : '#46797b'}`,
-              backgroundColor: current
-                ? 'rgba(108, 189, 187, 0.14)'
-                : 'transparent',
+              border: `2px solid ${current ? RING : '#46797b'}`,
+              backgroundColor: current ? FILL : 'transparent',
               // Satori rejects `boxShadow: undefined`, so only set it here.
               ...(current && {
                 boxShadow: '0 0 44px rgba(108, 189, 187, 0.6)',
@@ -166,10 +137,7 @@ export async function linkPreviewImage(page: SitePage) {
     </div>,
     {
       ...size,
-      fonts: [
-        { name: 'Inter', data: regular, weight: 400, style: 'normal' },
-        { name: 'Inter', data: semibold, weight: 600, style: 'normal' },
-      ],
+      fonts: [{ name: 'Inter', data: semibold, weight: 600, style: 'normal' }],
     }
   )
 }

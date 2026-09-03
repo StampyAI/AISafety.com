@@ -2,35 +2,22 @@ import type { Metadata } from 'next'
 import type { SitePage } from './site-pages'
 
 /**
- * <head> metadata for a public page: <title>, description, canonical URL, and
- * matching Open Graph + Twitter Card tags so shared links unfurl with the
- * page's own title and blurb (X reads the twitter:* tags first, so they have
- * to be set per page rather than inherited from the root layout).
+ * <head> metadata for a public page: <title>, description and canonical URL.
  *
- * The card image comes from the route's `opengraph-image.tsx`, which Next
- * turns into og:image / twitter:image tags automatically.
+ * Deliberately no `openGraph` or `twitter` block. Next fills og:/twitter:
+ * title and description from the fields below, the root layout's site name,
+ * card type and fallback image are inherited, and a route's
+ * `opengraph-image.tsx` replaces that image with the page's own card.
+ *
+ * A page-level `openGraph` object would replace the root one wholesale, and
+ * if it named `images` Next would also ignore the route's generated card
+ * (file-based images only apply when the same segment's config leaves
+ * `images` unset). Both happened on 2–3 September 2026.
  */
 export function pageMetadata({ path, title, description }: SitePage): Metadata {
-  const fullTitle = `${title} – AISafety.com`
   return {
-    title: fullTitle,
+    title: `${title} – AISafety.com`,
     description,
     alternates: { canonical: path },
-    openGraph: {
-      title: fullTitle,
-      description,
-      url: path,
-      siteName: 'AISafety.com',
-      type: 'website',
-      // A page's openGraph block replaces the root layout's wholesale, so the
-      // site-wide card image has to be repeated here. Twitter falls back to it.
-      // A route's opengraph-image.tsx, when present, takes precedence.
-      images: [{ url: '/images/link-preview.png' }],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: fullTitle,
-      description,
-    },
   }
 }

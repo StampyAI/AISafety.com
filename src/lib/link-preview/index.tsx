@@ -86,7 +86,11 @@ export async function linkPreviewImage(page: SitePage) {
               position: 'absolute',
               left: PILL.left,
               top: PILL.firstTop + i * PILL.pitch,
-              width: PILL.width,
+              // Long names ("Volunteer projects") need more room than the homepage
+              // pill gives them, so a pill may grow to fit its label; the others keep
+              // the measured width.
+              minWidth: PILL.width,
+              paddingRight: 48,
               height: PILL.height,
               display: 'flex',
               alignItems: 'center',

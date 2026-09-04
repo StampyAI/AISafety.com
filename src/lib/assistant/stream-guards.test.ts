@@ -144,8 +144,11 @@ function fakeClient(script: ScriptedGeneration[]): {
     messages: {
       create: async (params: { messages: Anthropic.MessageParam[] }) => {
         calls.push(JSON.parse(JSON.stringify(params.messages)))
-        const gen = script.shift()
-        if (!gen) throw new Error('fake client script exhausted')
+        const next = script.shift()
+        if (!next) throw new Error('fake client script exhausted')
+        // Bound to a non-optional type: narrowing does not carry into the
+        // hoisted generator function below.
+        const gen: ScriptedGeneration = next
         async function* events() {
           yield {
             type: 'message_start',

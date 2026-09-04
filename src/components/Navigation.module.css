@@ -243,7 +243,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
-  max-width: 280px;
+  max-width: 400px;
   border-radius: 8px;
   pointer-events: none;
   visibility: hidden;
@@ -252,6 +252,14 @@
     opacity var(--hover-transition),
     visibility var(--hover-transition);
   z-index: 5;
+}
+
+/* Page thumbnail at the top of the tooltip, scaled to its width. */
+.nav-tooltip-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
 }
 
 /* Items stack inside the +N dropdown, so there the tooltip opens beside the

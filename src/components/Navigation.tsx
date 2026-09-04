@@ -13,6 +13,7 @@ import {
   useState,
 } from 'react'
 import { SearchButton, SearchProvider } from './SearchTrigger'
+import { SITE_PAGES } from '@/lib/site-pages'
 import styles from './Navigation.module.css'
 
 const navItems = [
@@ -49,6 +50,27 @@ const navItems = [
   },
   { href: '/donation-guide', label: 'Donation guide', icon: 'heart.svg' },
 ]
+
+// Hover tooltip copy: the one-line description each page already uses for
+// its <meta> tag and link-preview card, so the two can never drift apart.
+const descriptionByPath: Record<string, string> = Object.fromEntries(
+  Object.values(SITE_PAGES).map(page => [page.path, page.description])
+)
+
+// Surface, shadow, type and spacing come from globals; Navigation.module.css
+// only positions the tooltip and shows it on hover.
+const tooltipClass = `${styles['nav-tooltip']} border-plus-fill drop-shadow-extra-dark paragraph-xs color-teal-300 padding-top-12px padding-bottom-12px padding-left-16px padding-right-16px`
+
+// Desktop-only: rendered inside the nav pills and the +N dropdown items,
+// never in the mobile menu. aria-hidden keeps the description out of the
+// link's spoken name; the page's own <meta> description covers that.
+function NavTooltip({ href }: { href: string }) {
+  return (
+    <p className={tooltipClass} aria-hidden="true">
+      {descriptionByPath[href]}
+    </p>
+  )
+}
 
 // Caps the visible row at 6 items — Funding and below live in the +N menu
 // (and the mobile menu, which always lists everything).
@@ -357,6 +379,7 @@ export default function Navigation({
                     {counts[item.href]}
                   </p>
                 )}
+                <NavTooltip href={item.href} />
               </Link>
             ))}
 
@@ -410,6 +433,7 @@ export default function Navigation({
                           {counts[item.href]}
                         </p>
                       )}
+                      <NavTooltip href={item.href} />
                     </Link>
                   ))}
                 </div>

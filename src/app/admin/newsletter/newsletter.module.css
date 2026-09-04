@@ -189,3 +189,14 @@
   gap: 10px;
   margin-top: 20px;
 }
+
+/* Same amber warning box as the map editor's "this edits the live site". */
+.liveWarning {
+  border-color: #f5b942;
+  color: #f5b942;
+}
+
+.liveWarning strong {
+  color: #f5b942;
+  font-weight: 600;
+}

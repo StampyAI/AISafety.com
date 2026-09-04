@@ -145,6 +145,12 @@ export default function NewsletterAdmin() {
         </p>
       </div>
 
+      <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
+        <strong>This sends real emails.</strong> Approving an issue schedules it
+        to go to every subscriber on its list about two minutes later. There’s
+        no recall once it’s out. Use with caution.
+      </div>
+
       {notice && (
         <p
           className={

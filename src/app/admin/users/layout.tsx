@@ -6,20 +6,20 @@ import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
 
 export const metadata = {
-  title: 'Map editor – AISafety.com',
+  title: 'Admin admin – AISafety.com',
   robots: { index: false, follow: false },
 }
 
-export default async function MapEditorLayout({
+export default async function UsersAdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const access = await currentAccess()
-  // Moving logos writes to the live Airtable base.
+  // Changing who can sign in. Viewing needs no fresh session; the write routes do.
   // Anyone signed in without it goes to the first area they do have;
   // signed-out sessions to login.
-  if (!access.mapEditor) {
+  if (!access.manageUsers) {
     redirect(adminHomeHref(access))
   }
   const who = await currentAdmin()

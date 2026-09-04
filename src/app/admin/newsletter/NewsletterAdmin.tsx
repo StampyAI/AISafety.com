@@ -96,6 +96,12 @@ export default function NewsletterAdmin() {
         campaignId?: string
         sdate?: string
       }
+      if (res.status === 401 && body.error === 'reauth') {
+        // The session is older than the approval step allows: confirm with
+        // Google (one click) and come back to this page.
+        window.location.assign('/api/admin/auth/google?next=/admin/newsletter')
+        return
+      }
       if (!res.ok) {
         const detail = body.problems?.length
           ? body.problems.join('; ')

@@ -51,3 +51,4 @@ events.mock.json
 
 # local icon design lab (not shipped)
 public/icon-lab.html
+/.admin-dev/

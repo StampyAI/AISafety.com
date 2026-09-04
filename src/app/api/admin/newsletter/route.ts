@@ -1,5 +1,6 @@
 /*
-  Newsletter approval API (owner-password sessions only — canSendNewsletter).
+  Newsletter approval API (owner sessions only — canSendNewsletter; POST also
+  needs a Google session under NEWSLETTER_FRESH_SECONDS old).
 
   GET  /api/admin/newsletter   → { fetchedAt, drafts, recent }
                                   drafts = pipeline-made draft campaigns with
@@ -13,7 +14,11 @@
 */
 
 import { NextRequest } from 'next/server'
-import { canSendNewsletter } from '@/lib/admin/auth'
+import {
+  canSendNewsletter,
+  hasFreshSession,
+  NEWSLETTER_FRESH_SECONDS,
+} from '@/lib/admin/auth'
 import {
   approveAndSend,
   DraftProblemError,
@@ -35,8 +40,14 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-async function ensureAuth(): Promise<Response | null> {
+async function ensureAuth(fresh = false): Promise<Response | null> {
   if (!(await canSendNewsletter())) return json({ error: 'unauthorized' }, 401)
+  // Approving sends real email: the session must have come through Google
+  // recently. The page reacts to this answer by sending the browser back
+  // through Google and returning here.
+  if (fresh && !(await hasFreshSession(NEWSLETTER_FRESH_SECONDS))) {
+    return json({ error: 'reauth' }, 401)
+  }
   if (!isNewsletterConfigured()) {
     return json(
       { error: 'ACTIVECAMPAIGN_URL / ACTIVECAMPAIGN_KEY not set' },
@@ -60,7 +71,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await ensureAuth()
+  const auth = await ensureAuth(true)
   if (auth) return auth
   let body: unknown
   try {

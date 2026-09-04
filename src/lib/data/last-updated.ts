@@ -1,7 +1,7 @@
 import { DONATION_GUIDE_LAST_UPDATED } from '@/lib/donation-guide-date'
 import { formatDate } from '@/lib/format-date'
 import { fetchAirtableWithRetry } from './airtable'
-import { isPreviewRequest } from '@/lib/preview'
+import { isPreviewRequest, shareLiveRead } from '@/lib/preview'
 
 // All field references below use permanent field IDs (rename-proof); the
 // requests set returnFieldsByFieldId so responses are keyed the same way.
@@ -162,11 +162,25 @@ export async function fetchLastUpdated(
   if (!token || !baseId) return { lastUpdated: null, formattedDate: null }
 
   // Preview mode skips the hourly fetch cache, so the "Updated X ago" line
-  // reflects the edit the admin just made (see src/lib/preview.ts).
-  const requestInit: RequestInit = (await isPreviewRequest())
-    ? { cache: 'no-store' }
-    : { next: { revalidate: 3600 } }
+  // reflects the edit the admin just made (see src/lib/preview.ts); the
+  // requests one page view fans out into share the read.
+  if (await isPreviewRequest()) {
+    return shareLiveRead(`last-updated:${resource}`, () =>
+      readLastUpdated(config, resource, token, baseId, { cache: 'no-store' })
+    )
+  }
+  return readLastUpdated(config, resource, token, baseId, {
+    next: { revalidate: 3600 },
+  })
+}
 
+async function readLastUpdated(
+  config: Exclude<ResourceConfig, ConstantConfig>,
+  resource: string,
+  token: string,
+  baseId: string,
+  requestInit: RequestInit
+): Promise<LastUpdatedResult> {
   if (config.type === 'record') {
     const response = await fetchAirtableWithRetry(
       `https://api.airtable.com/v0/${baseId}/${config.tableId}/${config.recordId}?returnFieldsByFieldId=true`,

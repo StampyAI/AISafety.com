@@ -64,13 +64,25 @@ export async function GET(request: NextRequest) {
 
   const since = new Date(Date.now() - CHANGE_WINDOW_MS)
 
-  // Sequential on purpose — same rate-limit care as everywhere else.
+  // Sequential on purpose — same rate-limit care as everywhere else. No
+  // retries either: the browser asks again in two seconds anyway, and a poll
+  // waiting out a rate limit would only pile onto the reads that tripped it.
   let changed = false
-  for (const tableId of resourceTables(resource)) {
-    if (await hasChangesSince(baseId, token, tableId, since)) {
-      changed = true
-      break
+  try {
+    for (const tableId of resourceTables(resource)) {
+      if (
+        await hasChangesSince(baseId, token, tableId, since, undefined, {
+          attempts: 0,
+        })
+      ) {
+        changed = true
+        break
+      }
     }
+  } catch (error) {
+    // Usually Airtable's 429 during a burst of reads; the next poll retries.
+    console.warn(`preview change check failed: ${error}`)
+    return json({ changed: false, buildTime, error: 'airtable' }, 503)
   }
   return json({ changed, buildTime })
 }

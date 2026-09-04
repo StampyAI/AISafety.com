@@ -38,7 +38,12 @@ export function SearchProvider({
     fetchedRef.current = true
     setLoad({ status: 'loading' })
     try {
-      const res = await fetch('/api/search-index')
+      // Without cookies on purpose. In preview mode the browser's Draft Mode
+      // cookie would otherwise make the server rebuild the whole index from
+      // live Airtable — a dozen tables at once, well past its rate limit —
+      // and search hung for a minute or more. The prebuilt index the public
+      // site searches is plenty for finding a listing.
+      const res = await fetch('/api/search-index', { credentials: 'omit' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const body = (await res.json()) as unknown
       if (!Array.isArray(body)) {

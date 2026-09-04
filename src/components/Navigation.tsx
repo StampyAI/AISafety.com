@@ -80,6 +80,13 @@ const MIN_OVERFLOW = 6
 // Must match the transition on .nav-dropdown-closing in the CSS.
 const DROPDOWN_EXIT_MS = 80
 
+// Tooltip warm-up. The first pill hovered waits TOOLTIP_DELAY_MS (must match
+// the transition-delay on the hovered .nav-tooltip in the CSS); after that,
+// moving across other pills opens their tooltips at once, until the pointer
+// has been off the pills for TOOLTIP_WARM_MS.
+const TOOLTIP_DELAY_MS = 400
+const TOOLTIP_WARM_MS = 300
+
 export default function Navigation({
   counts,
 }: {
@@ -133,6 +140,44 @@ export default function Navigation({
     [cancelDropdownClose]
   )
   useEffect(() => cancelDropdownClose, [cancelDropdownClose])
+
+  // Warm-up state lives as data-tooltips-warm on the <nav>, read by the CSS,
+  // so skimming across pills never re-renders the component. The <nav> is
+  // found from the event rather than navRef: the compiler lint forbids a ref
+  // that these handlers capture from also being written by the opacity
+  // reveal below.
+  const warmTimer = useRef<number | null>(null)
+  const coolTimer = useRef<number | null>(null)
+  const onPillEnter = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.pointerType === 'touch') return
+    const navEl = e.currentTarget.closest('nav')
+    if (coolTimer.current !== null) {
+      window.clearTimeout(coolTimer.current)
+      coolTimer.current = null
+    }
+    if (!navEl || navEl.hasAttribute('data-tooltips-warm')) return
+    warmTimer.current = window.setTimeout(() => {
+      navEl.setAttribute('data-tooltips-warm', '')
+    }, TOOLTIP_DELAY_MS)
+  }
+  const onPillLeave = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.pointerType === 'touch') return
+    const navEl = e.currentTarget.closest('nav')
+    if (warmTimer.current !== null) {
+      window.clearTimeout(warmTimer.current)
+      warmTimer.current = null
+    }
+    coolTimer.current = window.setTimeout(() => {
+      navEl?.removeAttribute('data-tooltips-warm')
+    }, TOOLTIP_WARM_MS)
+  }
+  useEffect(
+    () => () => {
+      if (warmTimer.current !== null) window.clearTimeout(warmTimer.current)
+      if (coolTimer.current !== null) window.clearTimeout(coolTimer.current)
+    },
+    []
+  )
   const navRef = useRef<HTMLElement>(null)
   const navOuterRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
@@ -366,6 +411,8 @@ export default function Navigation({
                 ref={el => {
                   itemRefs.current[i] = el
                 }}
+                onPointerEnter={onPillEnter}
+                onPointerLeave={onPillLeave}
               >
                 <div className={styles['nav-item-icon']}>
                   <Icon
@@ -392,8 +439,14 @@ export default function Navigation({
                   : undefined
               }
               data-open={isDropdownOpen ? '' : undefined}
-              onPointerEnter={openDropdownOnHover}
-              onPointerLeave={closeDropdownOnLeave}
+              onPointerEnter={e => {
+                openDropdownOnHover(e)
+                onPillEnter(e)
+              }}
+              onPointerLeave={e => {
+                closeDropdownOnLeave(e)
+                onPillLeave(e)
+              }}
               onPointerDown={e => {
                 lastPointerType.current = e.pointerType
               }}
@@ -420,6 +473,8 @@ export default function Navigation({
                       aria-current={pathname === item.href ? 'page' : undefined}
                       style={{ marginBottom: '8px' }}
                       onClick={() => setIsDropdownOpen(false)}
+                      onPointerEnter={onPillEnter}
+                      onPointerLeave={onPillLeave}
                     >
                       <div className={styles['nav-item-icon']}>
                         <Icon

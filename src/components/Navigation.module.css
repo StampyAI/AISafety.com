@@ -270,8 +270,16 @@
   .nav-dropdown-item:focus-visible .nav-tooltip {
     visibility: visible;
     opacity: 1;
-    /* The pause before opening; closing is immediate. */
+    /* The pause before opening (TOOLTIP_DELAY_MS in the JSX); closing is
+       immediate. */
     transition-delay: 0.4s;
+  }
+
+  /* Once one tooltip has shown, the others open at once while the pointer
+     keeps moving across the pills. */
+  .nav-menu[data-tooltips-warm] .nav-item:hover .nav-tooltip,
+  .nav-menu[data-tooltips-warm] .nav-dropdown-item:hover .nav-tooltip {
+    transition-delay: 0s;
   }
 }
 

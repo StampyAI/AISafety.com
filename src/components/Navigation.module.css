@@ -117,6 +117,18 @@
 
 /* Surface (fill + border) from the global .border-plus-fill class, matching
    the filter dropdown popover. */
+/* Invisible strip over the 8px gap between the +N pill and its panel, so
+   the pointer can travel down into the panel without leaving the pill's
+   hover area. Only while open. */
+.nav-item-last[data-open]::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 266px;
+  height: 8px;
+}
+
 .nav-dropdown {
   position: absolute;
   top: 48px;

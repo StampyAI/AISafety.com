@@ -5,6 +5,7 @@ import Icon from './Icon'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -73,6 +74,39 @@ export default function Navigation({
     setIsMenuOpen(false)
   }, [pathname])
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // The +N pill opens on hover for mouse and trackpad users. Closing waits a
+  // moment so the pointer can cross the gap into the panel (bridged by the
+  // ::after strip in the CSS) or clip a corner without the menu snapping
+  // shut. Touch pointers are ignored here and keep tap-to-toggle.
+  const closeTimer = useRef<number | null>(null)
+  const lastPointerType = useRef('')
+  const cancelDropdownClose = useCallback(() => {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }, [])
+  const openDropdownOnHover = useCallback(
+    (e: ReactPointerEvent) => {
+      if (e.pointerType === 'touch') return
+      cancelDropdownClose()
+      setIsDropdownOpen(true)
+    },
+    [cancelDropdownClose]
+  )
+  const closeDropdownOnLeave = useCallback(
+    (e: ReactPointerEvent) => {
+      if (e.pointerType === 'touch') return
+      cancelDropdownClose()
+      closeTimer.current = window.setTimeout(
+        () => setIsDropdownOpen(false),
+        150
+      )
+    },
+    [cancelDropdownClose]
+  )
+  useEffect(() => cancelDropdownClose, [cancelDropdownClose])
   const navRef = useRef<HTMLElement>(null)
   const navOuterRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
@@ -309,7 +343,19 @@ export default function Navigation({
                   ? ''
                   : undefined
               }
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              data-open={isDropdownOpen ? '' : undefined}
+              onPointerEnter={openDropdownOnHover}
+              onPointerLeave={closeDropdownOnLeave}
+              onPointerDown={e => {
+                lastPointerType.current = e.pointerType
+              }}
+              // Mouse users already opened it by hovering, so a click keeps it
+              // open; touch has no hover, so a tap still toggles.
+              onClick={() =>
+                setIsDropdownOpen(open =>
+                  lastPointerType.current === 'touch' ? !open : true
+                )
+              }
             >
               <p className="paragraph-small-bold">+{overflowItems.length}</p>
               {isDropdownOpen && (

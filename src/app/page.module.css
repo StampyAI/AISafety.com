@@ -385,6 +385,25 @@
     left: auto;
   }
 
+  /* Soft scrim behind the "Updated ..." label. Mobile moves the label to the
+     top-right corner, past the point where the card's left-to-right gradient
+     has faded out, leaving pale text sitting on bright sky. */
+  .card-full-width-1::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 210px;
+    height: 70px;
+    background-image: radial-gradient(
+      ellipse 210px 42px at 100% 23px,
+      rgba(0, 0, 0, 0.3),
+      rgba(0, 0, 0, 0.27) 55%,
+      rgba(0, 0, 0, 0) 100%
+    );
+    pointer-events: none;
+  }
+
   .aisafety-info {
     flex-direction: column;
     align-items: flex-start;

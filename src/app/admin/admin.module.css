@@ -1171,6 +1171,110 @@
   border-color: var(--teal-500);
 }
 
+.convReviewedBy {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.convActivity {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.convActivityRow {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--teal-300);
+}
+
+.convActivityWho {
+  color: var(--white);
+  font-weight: 600;
+}
+
+.convActivityWhen {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--teal-400);
+}
+
+.convNoteLegacy {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--teal-800);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--teal-300);
+  white-space: pre-wrap;
+}
+
+.convNoteList {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.convNoteEntry {
+  padding: 8px 10px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+}
+
+.convNoteMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.convNoteActions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.convNoteDelete {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--teal-400);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.convNoteDelete:hover {
+  color: var(--white);
+}
+
+.convNoteDanger {
+  color: #ff8b8b;
+}
+
+.convNoteConfirm {
+  color: #ff8b8b;
+  font-size: 11px;
+}
+
+.convNoteText {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--white);
+  white-space: pre-wrap;
+}
+
 .convStatus {
   font-size: 11px;
   color: var(--teal-400);

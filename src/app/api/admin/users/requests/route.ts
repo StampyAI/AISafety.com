@@ -8,13 +8,14 @@
   that route takes the name Google gave us and clears the request.
 */
 
-import { NextRequest } from 'next/server'
+import { after, NextRequest } from 'next/server'
 import {
   canManageUsers,
   currentAdmin,
   hasFreshSession,
   SENSITIVE_FRESH_SECONDS,
 } from '@/lib/admin/auth'
+import { audit } from '@/lib/admin/audit'
 import { normaliseEmail } from '@/lib/admin/users'
 import { usersStore } from '@/lib/admin/users-store'
 
@@ -50,6 +51,13 @@ export async function DELETE(req: NextRequest) {
   const me = await currentAdmin()
   console.log(
     `[admin-users] ${me?.name ?? 'unknown'} dismissed the request from ${email}`
+  )
+  after(() =>
+    audit({
+      kind: 'request-dismissed',
+      actor: me?.name ?? 'unknown',
+      subject: email,
+    })
   )
   return new Response(null, { status: 204 })
 }

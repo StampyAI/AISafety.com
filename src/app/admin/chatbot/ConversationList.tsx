@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { parseLog, parseNotes } from '@/lib/admin/annotation-log'
 import styles from '../admin.module.css'
 import TranscriptMessage, {
   ClickedCardsContext,
@@ -189,6 +190,10 @@ interface Conversation {
   /** Reviewer's verdict on the whole conversation ('' when not yet rated) —
    *  distinct from `ratings`, the visitor's own thumbs on individual replies. */
   review: ReviewValue | ''
+  /** Admin name behind the current verdict ('' when unrated). */
+  reviewedBy: string
+  /** One line per annotation change, oldest first (see annotation-log.ts). */
+  reviewLog: string
   data: ConversationData | null
   clickedCitations: string[]
   /** Visitor's thumbs ratings of the bot's replies (turn index → 'up' |
@@ -824,7 +829,8 @@ function ConversationRow({
   onToggle: () => void
   onUpdate: (c: Conversation) => void
 }) {
-  const [notes, setNotes] = useState(conv.notes)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [deletingNote, setDeletingNote] = useState<number | null>(null)
   const [saveStatus, setSaveStatus] = useState('')
   const [labelInput, setLabelInput] = useState('')
   // Custom suggestion menu under the label input (a native <datalist> can't
@@ -976,6 +982,8 @@ function ConversationRow({
     notes?: string
     tags?: string[]
     review?: ReviewValue | null
+    addNote?: string
+    deleteNote?: { index: number; at: string; actor: string }
   }) => {
     setSaveStatus('saving…')
     try {
@@ -985,7 +993,8 @@ function ConversationRow({
         body: JSON.stringify({ id: conv.id, ...patch }),
       })
       if (!res.ok) {
-        setSaveStatus('save failed')
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        setSaveStatus(body.error ?? 'save failed')
         return
       }
       const updated = (await res.json()) as { conversation: Conversation }
@@ -1365,11 +1374,16 @@ function ConversationRow({
                   type="button"
                   className={styles.convCopyLink}
                   onClick={() => void copyLink()}
-                  title="Copy a direct link to this conversation — opening it still needs the admin password"
+                  title="Copy a direct link to this conversation — opening it still needs an admin sign-in"
                 >
                   {linkCopied ? 'Link copied ✓' : '🔗 Copy link'}
                 </button>
               </div>
+              {conv.review && conv.reviewedBy && (
+                <div className={styles.convReviewedBy}>
+                  Rated {conv.review.toLowerCase()} by {conv.reviewedBy}
+                </div>
+              )}
             </div>
 
             <div className={styles.convDetailField}>
@@ -1478,16 +1492,129 @@ function ConversationRow({
 
             <div className={styles.convDetailField}>
               <div className={styles.convDetailLabel}>Notes</div>
+              {(() => {
+                const parsed = parseNotes(conv.notes)
+                return (
+                  <>
+                    {parsed.legacy && (
+                      <div className={styles.convNoteLegacy}>
+                        {parsed.legacy}
+                      </div>
+                    )}
+                    {parsed.entries.length > 0 && (
+                      <ul className={styles.convNoteList}>
+                        {parsed.entries.map((n, i) => (
+                          <li key={i} className={styles.convNoteEntry}>
+                            <div className={styles.convNoteMeta}>
+                              <span className={styles.convActivityWho}>
+                                {n.actor}
+                              </span>
+                              <span className={styles.convActivityWhen}>
+                                {n.at}
+                              </span>
+                              <span className={styles.convNoteActions}>
+                                {deletingNote === i ? (
+                                  <>
+                                    <span className={styles.convNoteConfirm}>
+                                      Delete this note?
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className={`${styles.convNoteDelete} ${styles.convNoteDanger}`}
+                                      onClick={() => {
+                                        setDeletingNote(null)
+                                        void persist({
+                                          deleteNote: {
+                                            index: i,
+                                            at: n.at,
+                                            actor: n.actor,
+                                          },
+                                        })
+                                      }}
+                                    >
+                                      Yes, delete
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.convNoteDelete}
+                                      onClick={() => setDeletingNote(null)}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className={styles.convNoteDelete}
+                                    onClick={() => setDeletingNote(i)}
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </span>
+                            </div>
+                            <div className={styles.convNoteText}>{n.text}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )
+              })()}
               <textarea
                 className={styles.convNotes}
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                onBlur={() => {
-                  if (notes !== conv.notes) void persist({ notes })
+                value={noteDraft}
+                onChange={e => setNoteDraft(e.target.value)}
+                onKeyDown={e => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    e.preventDefault()
+                    if (noteDraft.trim()) {
+                      void persist({ addNote: noteDraft })
+                      setNoteDraft('')
+                    }
+                  }
                 }}
-                placeholder="Notes for this conversation…"
+                placeholder="Add a note — it will be signed with your name and the time"
               />
+              <div className={styles.convAnnotRow}>
+                <button
+                  type="button"
+                  className={styles.convLabelAdd}
+                  disabled={!noteDraft.trim()}
+                  onClick={() => {
+                    void persist({ addNote: noteDraft })
+                    setNoteDraft('')
+                  }}
+                >
+                  Add note
+                </button>
+              </div>
             </div>
+
+            {conv.reviewLog.trim() && (
+              <div className={styles.convDetailField}>
+                <div className={styles.convDetailLabel}>Activity</div>
+                <ul className={styles.convActivity}>
+                  {parseLog(conv.reviewLog).map((e, i) => (
+                    <li key={i} className={styles.convActivityRow}>
+                      {e.actor ? (
+                        <>
+                          <span className={styles.convActivityWho}>
+                            {e.actor}
+                          </span>{' '}
+                          {e.what}
+                          <span className={styles.convActivityWhen}>
+                            {e.at}
+                          </span>
+                        </>
+                      ) : (
+                        e.what
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {saveStatus && (
               <div className={styles.convStatus}>{saveStatus}</div>

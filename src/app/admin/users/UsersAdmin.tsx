@@ -30,10 +30,44 @@ interface AccessRequest {
   count: number
 }
 
+interface AuditEvent {
+  at: string
+  kind: string
+  actor: string
+  subject?: string
+  detail?: string
+}
+
 interface Payload {
   users: Row[]
   requests: AccessRequest[]
+  activity: AuditEvent[]
   shared: boolean
+}
+
+/** "Bryce approved a@b.c (Analytics)" — one line per event. */
+function describeEvent(e: AuditEvent): string {
+  const tail = e.detail ? ` (${e.detail})` : ''
+  switch (e.kind) {
+    case 'sign-in':
+      return `${e.actor} signed in`
+    case 'access-requested':
+      return `${e.actor} requested access${e.detail ? ` as ${e.detail}` : ''}`
+    case 'approved':
+      return `${e.actor} approved ${e.subject}${tail}`
+    case 'added':
+      return `${e.actor} added ${e.subject}${tail}`
+    case 'access-changed':
+      return `${e.actor} changed ${e.subject}'s tabs to ${e.detail || 'none'}`
+    case 'removed':
+      return `${e.actor} removed ${e.subject}`
+    case 'request-dismissed':
+      return `${e.actor} dismissed the request from ${e.subject}`
+    case 'newsletter-sent':
+      return `${e.actor} approved a newsletter send${tail}`
+    default:
+      return `${e.actor} ${e.kind}${e.subject ? ` ${e.subject}` : ''}${tail}`
+  }
 }
 
 function when(iso: string | null): string {
@@ -449,6 +483,26 @@ export default function UsersAdmin() {
           </div>
         </form>
       </div>
+
+      {data && data.activity.length > 0 && (
+        <div className={adminStyles.editorBlock}>
+          <div className={adminStyles.editorBlockHeader}>
+            <h2 className={adminStyles.editorBlockTitle}>Recent activity</h2>
+          </div>
+          <p className={adminStyles.sectionHint}>
+            Sign-ins, access requests, approvals, tab changes, removals and
+            newsletter sends, newest first.
+          </p>
+          <ul className={styles.activity}>
+            {data.activity.map((e, i) => (
+              <li key={`${e.at}-${i}`} className={styles.activityRow}>
+                <span className={styles.activityWhen}>{when(e.at)}</span>
+                <span>{describeEvent(e)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {data && !data.shared && (
         <p className={styles.notice}>

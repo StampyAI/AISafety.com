@@ -16,9 +16,11 @@
                                   409 with { problems } when verification fails
 */
 
-import { NextRequest } from 'next/server'
+import { after, NextRequest } from 'next/server'
+import { audit } from '@/lib/admin/audit'
 import {
   canSendNewsletter,
+  currentAdmin,
   canViewNewsletter,
   hasFreshSession,
   NEWSLETTER_FRESH_SECONDS,
@@ -109,6 +111,15 @@ export async function POST(req: NextRequest) {
   }
   try {
     const result = await approveAndSend(campaignId, listId)
+    const who = await currentAdmin()
+    after(() =>
+      audit({
+        kind: 'newsletter-sent',
+        actor: who?.name ?? 'unknown',
+        subject: `campaign ${campaignId}`,
+        detail: result.listName ?? undefined,
+      })
+    )
     return json(result)
   } catch (err) {
     if (err instanceof DraftProblemError) {

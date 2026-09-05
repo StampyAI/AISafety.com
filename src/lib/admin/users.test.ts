@@ -15,6 +15,7 @@ import {
   ROOT_ADMINS,
   validateUserInput,
 } from './users'
+import { adminHomeHref, adminTabs } from '@/app/admin/nav'
 
 describe('access flags', () => {
   it('lists every area once with a tab href', () => {
@@ -32,8 +33,21 @@ describe('access flags', () => {
   it('keeps the writing, sending and granting areas out of the default', () => {
     expect(DEFAULT_NEW_ACCESS.mapEditor).toBe(false)
     expect(DEFAULT_NEW_ACCESS.newsletter).toBe(false)
+    expect(DEFAULT_NEW_ACCESS.newsletterPreview).toBe(false)
     expect(DEFAULT_NEW_ACCESS.manageUsers).toBe(false)
     expect(DEFAULT_NEW_ACCESS.playground).toBe(true)
+  })
+
+  it('shows one Newsletters tab whether a session may send or only look', () => {
+    const both = adminTabs(accessFrom(['newsletter', 'newsletterPreview']))
+    expect(both.filter(t => t.href === '/admin/newsletter')).toHaveLength(1)
+    const viewer = adminTabs(accessFrom(['newsletterPreview']))
+    expect(viewer).toEqual([
+      { href: '/admin/newsletter', label: 'Newsletters', group: 'newsletter' },
+    ])
+    expect(adminHomeHref(accessFrom(['newsletterPreview']))).toBe(
+      '/admin/newsletter'
+    )
   })
 
   it('parses untrusted input strictly', () => {

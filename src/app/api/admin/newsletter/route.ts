@@ -1,8 +1,11 @@
 /*
-  Newsletter approval API (owner sessions only — canSendNewsletter; POST also
-  needs a Google session under NEWSLETTER_FRESH_SECONDS old).
+  Newsletter approval API. GET is open to anyone who may see the page
+  (canViewNewsletter: approvers and preview-only reviewers); POST needs an
+  approver (canSendNewsletter) with a Google session under
+  NEWSLETTER_FRESH_SECONDS old.
 
-  GET  /api/admin/newsletter   → { fetchedAt, drafts, recent }
+  GET  /api/admin/newsletter   → { fetchedAt, canSend, drafts, recent }
+                                  canSend = this session may approve;
                                   drafts = pipeline-made draft campaigns with
                                   their verification result; recent = latest
                                   sends/scheduled campaigns
@@ -16,6 +19,7 @@
 import { NextRequest } from 'next/server'
 import {
   canSendNewsletter,
+  canViewNewsletter,
   hasFreshSession,
   NEWSLETTER_FRESH_SECONDS,
 } from '@/lib/admin/auth'
@@ -40,13 +44,19 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-async function ensureAuth(fresh = false): Promise<Response | null> {
-  if (!(await canSendNewsletter())) return json({ error: 'unauthorized' }, 401)
-  // Approving sends real email: the session must have come through Google
-  // recently. The page reacts to this answer by sending the browser back
-  // through Google and returning here.
-  if (fresh && !(await hasFreshSession(NEWSLETTER_FRESH_SECONDS))) {
-    return json({ error: 'reauth' }, 401)
+async function ensureAuth(send = false): Promise<Response | null> {
+  if (send) {
+    // Approving sends real email: an approver's session, and one that came
+    // through Google recently. The page reacts to 'reauth' by sending the
+    // browser back through Google and returning here. Preview-only sessions
+    // get a plain 401 — the page never offers them the button.
+    if (!(await canSendNewsletter()))
+      return json({ error: 'unauthorized' }, 401)
+    if (!(await hasFreshSession(NEWSLETTER_FRESH_SECONDS))) {
+      return json({ error: 'reauth' }, 401)
+    }
+  } else if (!(await canViewNewsletter())) {
+    return json({ error: 'unauthorized' }, 401)
   }
   if (!isNewsletterConfigured()) {
     return json(
@@ -61,8 +71,17 @@ export async function GET() {
   const auth = await ensureAuth()
   if (auth) return auth
   try {
-    const [drafts, recent] = await Promise.all([listDrafts(), listRecent()])
-    return json({ fetchedAt: new Date().toISOString(), drafts, recent })
+    const [drafts, recent, canSend] = await Promise.all([
+      listDrafts(),
+      listRecent(),
+      canSendNewsletter(),
+    ])
+    return json({
+      fetchedAt: new Date().toISOString(),
+      canSend,
+      drafts,
+      recent,
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[newsletter] list failed: ${message}`)

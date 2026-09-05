@@ -182,6 +182,13 @@ export async function canSendNewsletter(): Promise<boolean> {
   return (await currentAccess()).newsletter
 }
 
+/** May open /admin/newsletter and look at drafts and previews: approvers,
+ *  plus preview-only reviewers who can never send. */
+export async function canViewNewsletter(): Promise<boolean> {
+  const a = await currentAccess()
+  return a.newsletter || a.newsletterPreview
+}
+
 /** May open /admin/users and change who can sign in; the write routes also
  *  require hasFreshSession(SENSITIVE_FRESH_SECONDS). */
 export async function canManageUsers(): Promise<boolean> {

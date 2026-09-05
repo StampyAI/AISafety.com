@@ -16,6 +16,10 @@ export interface AccessFlags {
   preview: boolean
   /** /admin/newsletter — approve issues. Every approval is a real send. */
   newsletter: boolean
+  /** /admin/newsletter, read-only — see the drafted issues and their previews
+   *  (a design reviewer, a second pair of eyes) with no way to send. Same tab;
+   *  the Approve button and the send API stay behind `newsletter`. */
+  newsletterPreview: boolean
   /** /admin/users — add, change or remove other people's access. */
   manageUsers: boolean
 }
@@ -41,6 +45,11 @@ export const ACCESS_AREAS: AreaInfo[] = [
   { key: 'mapEditor', label: 'Map editor', href: '/admin/map' },
   { key: 'preview', label: 'Site preview', href: '/admin/preview' },
   { key: 'newsletter', label: 'Newsletters', href: '/admin/newsletter' },
+  {
+    key: 'newsletterPreview',
+    label: 'Newsletters (preview only)',
+    href: '/admin/newsletter',
+  },
   { key: 'manageUsers', label: 'Admin admin', href: '/admin/users' },
 ]
 

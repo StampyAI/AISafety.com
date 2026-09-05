@@ -3,18 +3,18 @@
 
   The draft's email HTML, as a subscriber will see it (personalisation tags
   neutralised), for the sandboxed preview frame on /admin/newsletter.
-  Owner-password sessions only. Never cached.
+  Approvers and preview-only reviewers (canViewNewsletter). Never cached.
 */
 
 import { NextRequest } from 'next/server'
-import { canSendNewsletter } from '@/lib/admin/auth'
+import { canViewNewsletter } from '@/lib/admin/auth'
 import { isNewsletterConfigured, previewHtml } from '@/lib/admin/newsletter'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  if (!(await canSendNewsletter())) {
+  if (!(await canViewNewsletter())) {
     return new Response('unauthorized', { status: 401 })
   }
   if (!isNewsletterConfigured()) {

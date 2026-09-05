@@ -20,15 +20,29 @@ export function adminTabs(
   access: AdminAccess,
   opts: { pendingRequests?: number } = {}
 ): AdminNavTab[] {
-  return ACCESS_AREAS.filter(a => access[a.key]).map(a => ({
-    href: a.href,
-    label:
-      a.key === 'manageUsers' && opts.pendingRequests
-        ? `${a.label} (${opts.pendingRequests})`
-        : a.label,
-    group:
-      a.key === 'playground' || a.key === 'conversationLog' ? 'chatbot' : a.key,
-  }))
+  const tabs: AdminNavTab[] = []
+  for (const a of ACCESS_AREAS) {
+    if (!access[a.key]) continue
+    // Two areas can open the same page (newsletter + newsletterPreview);
+    // the page gets one tab, named after the first area that grants it.
+    if (tabs.some(t => t.href === a.href)) continue
+    tabs.push({
+      href: a.href,
+      label:
+        a.key === 'manageUsers' && opts.pendingRequests
+          ? `${a.label} (${opts.pendingRequests})`
+          : a.key === 'newsletterPreview'
+            ? 'Newsletters'
+            : a.label,
+      group:
+        a.key === 'playground' || a.key === 'conversationLog'
+          ? 'chatbot'
+          : a.key === 'newsletterPreview'
+            ? 'newsletter'
+            : a.key,
+    })
+  }
+  return tabs
 }
 
 /** Where a session should land when it has no particular destination: the

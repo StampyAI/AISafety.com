@@ -21,16 +21,17 @@ export default async function NewsletterAdminLayout({
   children: React.ReactNode
 }) {
   const access = await currentAccess()
-  // Every approval on this page is a real send.
-  // Anyone signed in without it goes to the first area they do have;
-  // signed-out sessions to login.
-  if (!access.newsletter) {
+  // Approvers and preview-only reviewers may open the page. Anyone signed in
+  // without either goes to the first area they do have; signed-out sessions
+  // to login.
+  if (!access.newsletter && !access.newsletterPreview) {
     redirect(adminHomeHref(access))
   }
-  // Approvals send real email, so the session must have come through Google
-  // recently. An older session takes one more trip through Google's account
-  // chooser and lands straight back here.
-  if (!(await hasFreshSession(NEWSLETTER_FRESH_SECONDS))) {
+  // Approvals send real email, so an approver's session must have come
+  // through Google recently. An older session takes one more trip through
+  // Google's account chooser and lands straight back here. Preview-only
+  // sessions can't send, so they aren't bounced.
+  if (access.newsletter && !(await hasFreshSession(NEWSLETTER_FRESH_SECONDS))) {
     redirect('/api/admin/auth/google?next=/admin/newsletter')
   }
   const who = await currentAdmin()

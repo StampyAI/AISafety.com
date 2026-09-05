@@ -31,6 +31,9 @@ interface Recent {
 
 interface Payload {
   fetchedAt: string
+  /** This session may approve. Preview-only reviewers get false and no
+   *  button; the API refuses them anyway. */
+  canSend: boolean
   drafts: Draft[]
   recent: Recent[]
 }
@@ -151,11 +154,19 @@ export default function NewsletterAdmin() {
         </p>
       </div>
 
-      <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
-        <strong>This sends real emails.</strong> Approving an issue schedules it
-        to go to every subscriber on its list about two minutes later. There’s
-        no recall once it’s out. Use with caution.
-      </div>
+      {data?.canSend !== false && (
+        <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
+          <strong>This sends real emails.</strong> Approving an issue schedules
+          it to go to every subscriber on its list about two minutes later.
+          There’s no recall once it’s out. Use with caution.
+        </div>
+      )}
+      {data?.canSend === false && (
+        <p className={styles.notice}>
+          Preview only: you can open every drafted issue below, but approving
+          and sending stays with the owner.
+        </p>
+      )}
 
       {notice && (
         <p
@@ -251,14 +262,16 @@ export default function NewsletterAdmin() {
                 >
                   {previewId === draft.id ? 'Hide preview' : 'Preview'}
                 </button>
-                <button
-                  type="button"
-                  className={styles.buttonPrimary}
-                  onClick={() => setConfirming(draft)}
-                  disabled={!ok || busyId != null}
-                >
-                  {busyId === draft.id ? 'Scheduling…' : 'Approve & send'}
-                </button>
+                {data.canSend && (
+                  <button
+                    type="button"
+                    className={styles.buttonPrimary}
+                    onClick={() => setConfirming(draft)}
+                    disabled={!ok || busyId != null}
+                  >
+                    {busyId === draft.id ? 'Scheduling…' : 'Approve & send'}
+                  </button>
+                )}
               </div>
               {previewId === draft.id && (
                 <iframe

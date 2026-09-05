@@ -138,6 +138,39 @@
   box-shadow: var(--shadow-extra-dark);
   width: 266px;
   z-index: 5;
+  /* Quick open: fades in while dropping the last few pixels into place,
+     growing slightly from the +N pill's corner. Runs once on mount; closing
+     stays instant. */
+  transform-origin: top right;
+  animation: nav-dropdown-in 0.12s ease-out;
+}
+
+@keyframes nav-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Close: a plain, quicker fade (DROPDOWN_EXIT_MS in the JSX keeps the panel
+   mounted for exactly this long). No movement on the way out. */
+.nav-dropdown-closing {
+  opacity: 0;
+  transition: opacity 0.08s ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-dropdown {
+    animation: none;
+  }
+
+  .nav-dropdown-closing {
+    transition: none;
+  }
 }
 
 .nav-dropdown-item {

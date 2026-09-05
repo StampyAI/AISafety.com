@@ -14,6 +14,7 @@ import {
   type ListingRow,
   type OverallListingRow,
   type SearchPanelData,
+  type MapSearchPanelData,
   type VisitorShare,
 } from '@/lib/analytics/events'
 import {
@@ -400,6 +401,18 @@ function labelFor(e: {
     return SEARCH_OPEN_LABELS[e.source ?? ''] ?? 'Opened search'
   if (e.type === 'search_query')
     return e.query ? `Searched for “${e.query}”` : 'Searched'
+  // The /map search box: its events carry page 'Map', so the pill already
+  // says where; the line says which control.
+  if (e.type === 'map_search_open')
+    return e.source === 'cmd-f'
+      ? 'Opened the map search (⌘F)'
+      : 'Opened the map search'
+  if (e.type === 'map_search_query')
+    return e.query ? `Searched the map for “${e.query}”` : 'Searched the map'
+  if (e.type === 'map_search_pick')
+    return e.label
+      ? `Picked “${e.label}” from the map search`
+      : 'Picked a map search result'
   if (e.type === 'filter_apply')
     return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
   // A rating's label is the bare value ('up' | 'down' | 'removed'), so spell
@@ -562,6 +575,8 @@ export default async function AnalyticsPage({
   // Same url lookup for the hovered-listings table — hover rows carry their
   // own urls, independent of the click rows above.
   const hoverUrlByName = new Map(data.topHovered.map(r => [r.name, r.url]))
+  // And for the map search's picked-listings table.
+  const pickUrlByName = new Map(data.mapSearch.picked.map(r => [r.name, r.url]))
   // Every hover is by definition from the map, so hovers aren't split by
   // source and the table's % denominator is simply the sum of its rows.
   const hoverTotal = data.topHovered.reduce((sum, r) => sum + r.count, 0)
@@ -995,6 +1010,16 @@ export default async function AnalyticsPage({
                     </Panel>
                   </div>
                 )}
+              {data.selectedPage === 'Map' && (
+                <MapSearchPanels
+                  data={data.mapSearch}
+                  unique={unique}
+                  logoFor={name =>
+                    logoByName.get(name) ?? faviconFor(pickUrlByName.get(name))
+                  }
+                  linkFor={name => pickUrlByName.get(name)}
+                />
+              )}
               {data.filterGroups.length > 0 && (
                 <div className={styles.grid}>
                   <Panel title="Filter usage">
@@ -2098,6 +2123,105 @@ function SearchView({
           one leads to. The Page column is the page the result belongs to; a row
           without one can&apos;t be matched to a single page in the search
           index.
+        </p>
+      </Panel>
+    </>
+  )
+}
+
+/** The Map tab's search-box panels: the funnel from opening the box to
+ *  picking a result, how it's opened, what's searched for, and which
+ *  listings get picked. Only the Field map has the box, so only the Map tab
+ *  renders these. */
+function MapSearchPanels({
+  data,
+  unique,
+  logoFor,
+  linkFor,
+}: {
+  data: MapSearchPanelData
+  unique: boolean
+  logoFor: (name: string) => string | undefined
+  linkFor: (name: string) => string | undefined
+}) {
+  const usersHead = unique ? 'Users' : undefined
+  const sum = (rows: Counted[]) => rows.reduce((s, r) => s + r.count, 0)
+  const rankByName = new Map(data.picked.map(r => [r.name, r.position]))
+  return (
+    <>
+      <div className={styles.grid}>
+        <Panel title="Search box · funnel">
+          <Funnel
+            stages={[
+              { label: 'Opened the search', value: data.funnel.opened },
+              { label: 'Typed a search', value: data.funnel.searched },
+              { label: 'Picked a result', value: data.funnel.picked },
+            ]}
+          />
+          <p className={styles.caption}>
+            The search box at the top left of the map – not the sitewide search,
+            which has its own tab. Unique users at each step;{' '}
+            {shareCell(data.openShare ?? undefined)} of the page&apos;s visitors
+            opened it at all. Recording since 5 September 2026.
+          </p>
+        </Panel>
+        <Panel title="Search box · how it's opened">
+          <CountTable
+            rows={data.openMethods}
+            labelHead="Method"
+            countHead={usersHead ?? 'Opens'}
+            total={sum(data.openMethods)}
+          />
+          <p className={styles.caption}>
+            The magnifying-glass button on the map, or ⌘F / Ctrl+F while the map
+            is on screen.
+          </p>
+        </Panel>
+      </div>
+      <div className={styles.grid}>
+        <Panel title="Search box · what people search for">
+          <CountTable
+            rows={data.topQueries}
+            labelHead="Search"
+            countHead={usersHead ?? 'Searches'}
+            total={sum(data.topQueries)}
+          />
+          <p className={styles.caption}>
+            A search is recorded once the visitor pauses typing, so a few
+            half-typed words are normal.
+          </p>
+        </Panel>
+        <Panel title="Search box · no results">
+          <CountTable
+            rows={data.noResultQueries}
+            labelHead="Search"
+            countHead={usersHead ?? 'Searches'}
+            total={sum(data.noResultQueries)}
+          />
+          <p className={styles.caption}>
+            What visitors looked for on the map and didn&apos;t find – worth
+            scanning for listings the map should have, or names it should match.
+          </p>
+        </Panel>
+      </div>
+      <Panel title="Search box · picked listings">
+        {/* Stays 'Picks' in unique mode: one per visitor per listing per DAY
+            summed across days, not distinct users — the same rule as the
+            Top hovered table. */}
+        <CountTable
+          rows={data.picked}
+          labelHead="Listing"
+          countHead="Picks"
+          rankHead="Rank"
+          rankFor={name => rankByName.get(name)}
+          logoFor={logoFor}
+          linkFor={linkFor}
+          total={sum(data.picked)}
+        />
+        <p className={styles.caption}>
+          The listings visitors picked from the results – the map flies to the
+          pin. Rank is where the listing sat in the results when picked (1 =
+          top), shown as a range when it varied.
         </p>
       </Panel>
     </>

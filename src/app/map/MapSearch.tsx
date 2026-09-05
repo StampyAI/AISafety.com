@@ -2,9 +2,15 @@
 
 import Image from 'next/image'
 import Icon from '@/components/Icon'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, MutableRefObject } from 'react'
 import SearchBar from '@/components/SearchBar'
+import {
+  trackMapSearchOpen,
+  trackMapSearchPick,
+  trackMapSearchQuery,
+  type MapSearchOpenMethod,
+} from '@/lib/analytics'
 import styles from './page.module.css'
 
 export interface MapSearchOrg {
@@ -14,6 +20,8 @@ export interface MapSearchOrg {
   shortName: string | null
   category: string
   mapLogo: string | null
+  // The listing's site, recorded with a pick so the dashboard can show it.
+  link: string
   x: number | null
   y: number | null
   scale: string | null
@@ -75,8 +83,37 @@ export default function MapSearch({
   const [closing, setClosing] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Analytics. The refs mirror state so recordQuery (called from timers and
+  // handlers) always reads the latest text and result count without being
+  // re-created on every keystroke.
+  const expandedRef = useRef(false)
+  const queryRef = useRef('')
+  const resultCountRef = useRef(0)
+  // The search already recorded since the box was opened (lowercased), so
+  // settling on the same text twice doesn't double-count it.
+  const lastTrackedQueryRef = useRef<string | null>(null)
 
-  const openSearch = () => {
+  // Record the current search for the analytics, if it hasn't been already.
+  // The settle timer below calls it when typing pauses; it's flushed early
+  // when a result is picked or the box is left before the pause.
+  const recordQuery = useCallback(() => {
+    const text = queryRef.current.trim()
+    if (!text) return
+    const key = text.toLowerCase()
+    if (lastTrackedQueryRef.current === key) return
+    lastTrackedQueryRef.current = key
+    trackMapSearchQuery(text, resultCountRef.current)
+  }, [])
+
+  const openSearch = (method: MapSearchOpenMethod) => {
+    // Only a real closed→open counts — ⌘F with the box already up just
+    // refocuses it. The ref is set here too, not just in the effect below, so
+    // two presses in one render can't both count.
+    if (!expandedRef.current) {
+      expandedRef.current = true
+      lastTrackedQueryRef.current = null
+      trackMapSearchOpen(method)
+    }
     // Cancels a shrink already in flight, so a quick close-then-open reopens
     // the same field instead of leaving it half-collapsed.
     setClosing(false)
@@ -84,6 +121,8 @@ export default function MapSearch({
   }
 
   const collapse = () => {
+    // Text typed and then abandoned still counts as a search.
+    recordQuery()
     // The ring belongs to the open search — it should not go on pulsing over
     // the map once the field is gone. Every way of closing lands here.
     onClear()
@@ -124,7 +163,7 @@ export default function MapSearch({
         window.innerHeight || document.documentElement.clientHeight
       if (viewportH > 0 && (rect.bottom <= 0 || rect.top >= viewportH)) return
       event.preventDefault()
-      openSearch()
+      openSearch('cmd-f')
       // On the first press the input does not exist yet (collapsed is just the
       // icon button), so focus after React has rendered it.
       requestAnimationFrame(() => inputRef.current?.focus())
@@ -152,6 +191,20 @@ export default function MapSearch({
     return [...prefix, ...rest].slice(0, MAX_RESULTS)
   }, [orgs, query])
 
+  useEffect(() => {
+    expandedRef.current = expanded
+    queryRef.current = query
+    resultCountRef.current = results.length
+  })
+
+  // A search counts once the visitor pauses typing; every keystroke restarts
+  // the clock, so half-typed words mostly stay out of the data.
+  useEffect(() => {
+    if (!expanded || !query.trim()) return
+    const timer = window.setTimeout(recordQuery, 2000)
+    return () => window.clearTimeout(timer)
+  }, [expanded, query, recordQuery])
+
   const handleChange = (value: string) => {
     setQuery(value)
     setActiveIndex(-1)
@@ -176,6 +229,7 @@ export default function MapSearch({
         if (!expanded) return
         if (query.trim() !== '') {
           // Same first step as ESC in the field: empty the box, leave it open.
+          recordQuery()
           handleChange('')
           return
         }
@@ -184,7 +238,23 @@ export default function MapSearch({
     }
   })
 
-  const pick = (org: MapSearchOrg) => {
+  // `rank` is the result's place in the list, counted from 1.
+  const pick = (org: MapSearchOrg, rank: number) => {
+    // The search that led here may not have settled yet.
+    recordQuery()
+    // First category only, matching how the map's clicks and hovers are
+    // sliced by area; '' (uncategorized) is sent as nothing.
+    trackMapSearchPick(
+      query.trim(),
+      org.title,
+      org.link,
+      org.id,
+      String(rank),
+      org.category.split(',')[0].trim() || undefined
+    )
+    // The picked name now fills the box; it must not be recorded as a search
+    // of its own when the settle timer fires on it.
+    lastTrackedQueryRef.current = org.title.trim().toLowerCase()
     setQuery(org.title)
     setOpen(false)
     setActiveIndex(-1)
@@ -202,6 +272,8 @@ export default function MapSearch({
       collapse()
       return
     }
+    // ESC with text: SearchBar clears the box next — record it first.
+    if (event.key === 'Escape') recordQuery()
     if (!open || results.length === 0) return
     if (event.key === 'ArrowDown') {
       event.preventDefault()
@@ -215,7 +287,8 @@ export default function MapSearch({
     } else if (event.key === 'Enter') {
       event.preventDefault()
       event.stopPropagation()
-      pick(results[activeIndex === -1 ? 0 : activeIndex])
+      const index = activeIndex === -1 ? 0 : activeIndex
+      pick(results[index], index + 1)
     }
   }
 
@@ -227,7 +300,7 @@ export default function MapSearch({
           className={styles['map-search-toggle']}
           title="Search the map"
           aria-label="Search the map"
-          onClick={openSearch}
+          onClick={() => openSearch('button')}
         >
           <Icon
             src="/images/icons/magnifying-glass.svg"
@@ -257,6 +330,8 @@ export default function MapSearch({
         autoFocus
         onFocus={() => setOpen(query.trim().length > 0)}
         onBlur={() => {
+          // Leaving the field is the last sure chance to record the text.
+          recordQuery()
           setOpen(false)
           setActiveIndex(-1)
           // Nothing typed or picked — shrink back to the icon.
@@ -278,7 +353,7 @@ export default function MapSearch({
               // which closes this list before a click would land.
               onMouseDown={event => {
                 event.preventDefault()
-                pick(org)
+                pick(org, i + 1)
               }}
             >
               <span className={styles['map-search-logo']}>

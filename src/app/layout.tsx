@@ -62,8 +62,9 @@ export default async function RootLayout({
             // 'aisafety_no_track' mirrors OPTOUT_KEY in src/lib/analytics.ts —
             // browsers opted out via the privacy page (or admin) send Matomo
             // nothing, matching the first-party analytics behavior.
+            // Framed renders are the nav's hover previews: never counted.
             var noTrack = false;
-            try { noTrack = !!localStorage.getItem('aisafety_no_track'); } catch (e) {}
+            try { noTrack = !!localStorage.getItem('aisafety_no_track') || window.self !== window.top; } catch (e) {}
             if (!noTrack) {
               _paq.push(['trackPageView']);
               _paq.push(['enableLinkTracking']);

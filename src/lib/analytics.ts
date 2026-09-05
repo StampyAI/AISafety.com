@@ -61,6 +61,9 @@ export function getTrackingOptOut(): string {
 /** True when this browser has opted out of first-party analytics — used to keep
  *  the site owner's own clicks out of the dashboard. */
 export function isTrackingOptedOut(): boolean {
+  // A page rendered inside a frame is one of the nav's hover previews (the
+  // site is not embedded anywhere else): never count it as a visit or click.
+  if (typeof window !== 'undefined' && window.self !== window.top) return true
   return getTrackingOptOut() !== ''
 }
 

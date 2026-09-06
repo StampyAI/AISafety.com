@@ -24,6 +24,7 @@ import { Redis } from '@upstash/redis'
 import { Ratelimit } from '@upstash/ratelimit'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { displayFilterGroup, displayFilterValue } from '@/lib/filter-tracking'
 
 export interface AnalyticsEvent {
   /** Event kind, e.g. 'listing_click'. Must be in ALLOWED_EVENT_TYPES. */
@@ -1089,12 +1090,18 @@ function aggregate(
   const filterApplies = unique ? uniqueFilterApplies(filterHits) : filterHits
   const filtersByPage = tally(filterApplies.map(e => e.page as string))
   const pageFilters = filterApplies.filter(e => e.page === selectedPage)
-  const filterGroups = tally(pageFilters.map(e => e.source ?? '(unknown)'))
-  const filterValues = tally(
-    pageFilters.map(
-      e => `${e.source ?? '(unknown)'}: ${e.label ?? '(unknown)'}`
-    )
-  )
+  // Renamed filter titles and options are logged under their original names;
+  // show the current wording so old and new clicks land in one row.
+  const filterGroupName = (e: AnalyticsEvent) =>
+    displayFilterGroup(e.page ?? '', e.source ?? '(unknown)')
+  const filterValueName = (e: AnalyticsEvent) => {
+    const group = e.source ?? '(unknown)'
+    const label = e.label ?? '(unknown)'
+    const page = e.page ?? ''
+    return `${displayFilterGroup(page, group)}: ${displayFilterValue(page, group, label)}`
+  }
+  const filterGroups = tally(pageFilters.map(filterGroupName))
+  const filterValues = tally(pageFilters.map(filterValueName))
   const filterUsers = uniqueUsers(
     filterHits.filter(e => e.page === selectedPage)
   )
@@ -1168,14 +1175,8 @@ function aggregate(
     pageClicks.filter(e => e.position),
     e => e.position as string
   )
-  const filterGroupShare = shareOnPage(
-    pageFilters,
-    e => e.source ?? '(unknown)'
-  )
-  const filterValueShare = shareOnPage(
-    pageFilters,
-    e => `${e.source ?? '(unknown)'}: ${e.label ?? '(unknown)'}`
-  )
+  const filterGroupShare = shareOnPage(pageFilters, filterGroupName)
+  const filterValueShare = shareOnPage(pageFilters, filterValueName)
   const anyFilterShare = anyOnPage(pageFilters, 'Any filter')
 
   // Contribute-button and Airtable-card clicks. uniqueClicks dedupes on

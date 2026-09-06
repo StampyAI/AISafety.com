@@ -2,16 +2,20 @@
 
 import { usePathname } from 'next/navigation'
 import { useEffect } from 'react'
+import { MAPBOX_GL_CSS_URL, MAPBOX_GL_JS_URL } from '@/lib/communities-map'
 
 /**
- * Warms the browser cache with the field map's images while the visitor reads
- * some other page, so that clicking "Field map" draws a complete map at once
- * instead of trickling in ~370 logos. The map's own images are the slow part
- * of opening /map: about 1.7 MB spread over hundreds of small files, most of
- * them permanently cacheable on Vercel Blob.
+ * Warms the browser cache with the two maps' heavy assets while the visitor
+ * reads some other page, so that clicking through draws a complete map at
+ * once:
+ * - the field map's images (about 1.7 MB in ~370 small files, most of them
+ *   permanently cacheable on Vercel Blob), which were the slow part of /map;
+ * - the Mapbox library and stylesheet the /communities map loads from
+ *   Mapbox's CDN (about 310 KB, cacheable for a year), whose download time
+ *   swings from a fraction of a second to several seconds.
  *
- * Deliberately timid, because it spends the visitor's bandwidth on a page
- * they have not asked for yet:
+ * Deliberately timid, because it spends the visitor's bandwidth on pages they
+ * have not asked for yet:
  * - desktop only (the site's 991px breakpoint, plus a hovering pointer), and
  *   never when the browser reports Data Saver or a 2G-class connection;
  * - not on /map itself, where the map fills the cache the ordinary way;
@@ -20,23 +24,23 @@ import { useEffect } from 'react'
  * - runs once per browser session (sessionStorage), and never twice in one
  *   page load;
  * - uses `<link rel="prefetch">`, which browsers fetch at their lowest
- *   priority and stop for anything the page needs. Browsers without it
- *   (Safari) get plain Image() fetches a few at a time instead.
+ *   priority and set aside for anything the page needs. Browsers without it
+ *   (Safari) get plain low-priority fetches a few at a time instead.
  *
- * Renders nothing. If anything goes wrong the visitor just gets the map at
- * its usual speed, so failures are logged, not surfaced.
+ * Renders nothing. If anything goes wrong the visitor just gets the maps at
+ * their usual speed, so failures are logged, not surfaced.
  */
 
-// Once per browser session, set the moment the list arrives, or when the
-// visitor reaches /map by themselves.
-const SESSION_KEY = 'aisafety_map_images_prefetched'
+// Once per browser session, set the moment the image list arrives, or when
+// the visitor reaches /map by themselves.
+const SESSION_KEY = 'aisafety_maps_prefetched'
 // How long after the page's own `load` event to wait before starting.
 const SETTLE_MS = 3_000
 // requestIdleCallback may never find an idle slot on a busy page; start
 // anyway after this long.
 const IDLE_TIMEOUT_MS = 2_000
-// Image() fallback: this many fetches in flight at once, so they never crowd
-// out what the visitor is doing.
+// Fallback path: this many image fetches in flight at once, so they never
+// crowd out what the visitor is doing.
 const FALLBACK_CONCURRENCY = 6
 // Matches the CSS breakpoint (992px and up is desktop) and the hover checks
 // used elsewhere in the site, so tablets and phones held sideways are out.
@@ -50,6 +54,13 @@ let startedThisPageLoad = false
 interface NetworkInformation {
   saveData?: boolean
   effectiveType?: string
+}
+
+interface Asset {
+  href: string
+  // Same request destination the page will use for the file, so the cached
+  // response is the one it gets.
+  as: 'image' | 'script' | 'style'
 }
 
 function sessionDone(): boolean {
@@ -89,22 +100,23 @@ function isMapPath(pathname: string): boolean {
   return pathname === '/map' || pathname.startsWith('/map/')
 }
 
-function prefetchWithLinks(urls: string[]) {
+function prefetchWithLinks(assets: Asset[]) {
   const fragment = document.createDocumentFragment()
-  for (const url of urls) {
+  for (const asset of assets) {
     const link = document.createElement('link')
     link.rel = 'prefetch'
-    // Same request destination as the map's SVG <image> elements, so the
-    // cached response is the one they get.
-    link.as = 'image'
-    link.href = url
+    link.as = asset.as
+    link.href = asset.href
     fragment.appendChild(link)
   }
   document.head.appendChild(fragment)
 }
 
-function prefetchWithImages(urls: string[]) {
-  const queue = [...urls]
+// Without prefetch support: images through Image(), a few at a time; the
+// library files through low-priority no-cors fetches, whose opaque responses
+// still land in the HTTP cache under the URL the page will ask for.
+function prefetchWithFetches(assets: Asset[]): Promise<unknown> {
+  const queue = assets.filter(a => a.as === 'image').map(a => a.href)
   // Held until loaded so garbage collection can't cancel an in-flight fetch.
   const inFlight = new Set<HTMLImageElement>()
   const startNext = () => {
@@ -121,6 +133,12 @@ function prefetchWithImages(urls: string[]) {
     img.src = url
   }
   for (let i = 0; i < FALLBACK_CONCURRENCY; i++) startNext()
+
+  return Promise.all(
+    assets
+      .filter(a => a.as !== 'image')
+      .map(a => fetch(a.href, { mode: 'no-cors', priority: 'low' }))
+  )
 }
 
 async function preload() {
@@ -132,19 +150,24 @@ async function preload() {
   // its own images now.
   if (isMapPath(window.location.pathname)) return
 
+  const assets: Asset[] = [
+    ...urls.map((href): Asset => ({ href, as: 'image' })),
+    { href: MAPBOX_GL_JS_URL, as: 'script' },
+    { href: MAPBOX_GL_CSS_URL, as: 'style' },
+  ]
   if (document.createElement('link').relList.supports('prefetch')) {
-    prefetchWithLinks(urls)
+    prefetchWithLinks(assets)
   } else {
-    prefetchWithImages(urls)
+    await prefetchWithFetches(assets)
   }
 
-  // The map's drawing code is loaded on demand when /map opens; fetching it
-  // now saves that round trip too. Same module MapClient loads, so it lands
-  // in the same cache entry.
+  // The field map's drawing code is loaded on demand when /map opens;
+  // fetching it now saves that round trip too. Same module MapClient loads,
+  // so it lands in the same cache entry.
   await import('@/app/map/D3Map')
 }
 
-export default function MapImagePreload() {
+export default function MapPreload() {
   const pathname = usePathname()
 
   useEffect(() => {
@@ -164,8 +187,8 @@ export default function MapImagePreload() {
       if (cancelled || startedThisPageLoad) return
       startedThisPageLoad = true
       preload().catch(err => {
-        // Best effort: the map just opens at its normal speed.
-        console.warn('Map image preload failed:', err)
+        // Best effort: the maps just open at their normal speed.
+        console.warn('Map preload failed:', err)
       })
     }
     const whenIdle = () => {

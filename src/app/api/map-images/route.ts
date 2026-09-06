@@ -3,7 +3,7 @@ import { getMapData } from '@/lib/data/map'
 import { mapImageUrls } from '@/lib/map-images'
 
 // The URL of every image the field map draws (its background and one logo per
-// placed listing), read by MapImagePreload to warm the browser cache from
+// placed listing), read by MapPreload to warm the browser cache from
 // other pages. Prebuilt with the site and refreshed on the same hourly cycle
 // as /map itself, so the list matches what the map will draw. About 5 KB
 // compressed.

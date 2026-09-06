@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import Navigation from './Navigation'
 import Footer from './Footer'
 import Assistant from './assistant/Assistant'
-import MapImagePreload from './MapImagePreload'
+import MapPreload from './MapPreload'
 
 // Routes that render without Navigation/Footer/Assistant
 const standaloneRoutes = ['/poster-map', '/admin']
@@ -31,7 +31,7 @@ export default function LayoutShell({
       {children}
       <Footer />
       <Assistant />
-      <MapImagePreload />
+      <MapPreload />
     </>
   )
 }

@@ -13,6 +13,7 @@ import {
   trackCardsButtonClick,
 } from '@/lib/analytics'
 import { withUtm } from '@/lib/utm'
+import { MAPBOX_GL_CSS_URL, MAPBOX_GL_JS_URL } from '@/lib/communities-map'
 
 interface CommunitiesMapProps {
   communities: Community[]
@@ -629,26 +630,19 @@ export default function CommunitiesMap({ communities }: CommunitiesMapProps) {
       <link
         rel="preload"
         as="script"
-        href="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.js"
+        href={MAPBOX_GL_JS_URL}
         fetchPriority="high"
       />
-      <link
-        rel="preload"
-        as="style"
-        href="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.css"
-      />
+      <link rel="preload" as="style" href={MAPBOX_GL_CSS_URL} />
       <link
         rel="preload"
         as="image"
         href="/images/pin.svg"
         type="image/svg+xml"
       />
-      <link
-        href="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.css"
-        rel="stylesheet"
-      />
+      <link href={MAPBOX_GL_CSS_URL} rel="stylesheet" />
       <Script
-        src="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.js"
+        src={MAPBOX_GL_JS_URL}
         strategy="afterInteractive"
         onLoad={handleScriptLoad}
       />

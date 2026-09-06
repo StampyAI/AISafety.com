@@ -80,7 +80,7 @@ See `CLAUDE.md` at the repo root for the map of `src/` and the project conventio
 
 3. Copy a sibling's `opengraph-image.tsx` and point it at your `SITE_PAGES` entry. That gives the page its link-preview card.
 4. Add the route to `src/app/sitemap.ts`, and to `Navigation.tsx` and `Footer.tsx` if it belongs in the nav.
-5. Give tracked links and filters a stable tracking name from the start (the `trackingPage` / `trackingTitle` props). Renaming them later splits the analytics history.
+5. Give tracked links and pages a stable tracking name from the start (the `trackingPage` prop). Renaming a filter's title or one of its options is fine: change the label in the page, then add one line to `src/lib/filter-tracking.ts` mapping the new wording to the value logged so far. The filter keeps logging its original name and the dashboard shows the new wording for old and new clicks alike.
 6. Never rename an existing slug. If a path must move, add a redirect in `next.config.ts`.
 
 ## Adding an Airtable table to the data layer

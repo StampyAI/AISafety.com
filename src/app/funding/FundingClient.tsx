@@ -14,7 +14,9 @@ interface FundingClientProps {
   funders: Funder[]
 }
 
-const acceptingOptions = ['Yes', 'No']
+// Were "Yes" / "No" until 6 September 2026; analytics still log those values
+// so the filter's history stays in one line (see lib/filter-tracking).
+const acceptingOptions = ['Open', 'Closed']
 const typeOptions = ['Fund', 'Grant program', 'Platform']
 
 // No search box on this page, so every funder passes the base filter.
@@ -33,12 +35,12 @@ export default function FundingClient({ funders }: FundingClientProps) {
       accepting: {
         selected: acceptingFilters,
         // Airtable values are full sentences ("Applications on a rolling
-        // basis", "Not accepting applications"); bucket them into Yes/No
+        // basis", "Not accepting applications"); bucket them into Open/Closed
         // via the shared status helper.
         matches: (funder: Funder, value: string) => {
           const status = funder.acceptingApplications || ''
           if (!status) return false
-          return value === 'Yes'
+          return value === 'Open'
             ? isAcceptingApplications(status)
             : !isAcceptingApplications(status)
         },

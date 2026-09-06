@@ -51,6 +51,7 @@ import Logo from './Logo'
 import SortableTable, { type SortColumn, type SortValue } from './SortableTable'
 import admin from '../admin.module.css'
 import styles from './analytics.module.css'
+import { displayFilterGroup, displayFilterValue } from '@/lib/filter-tracking'
 
 // Always render fresh — the dashboard reflects live event counts and the
 // selected date range comes from the query string.
@@ -401,6 +402,7 @@ function labelFor(e: {
   type: string
   source?: string
   query?: string
+  page?: string
 }): string {
   if (e.type === 'search_open')
     return SEARCH_OPEN_LABELS[e.source ?? ''] ?? 'Opened search'
@@ -418,8 +420,13 @@ function labelFor(e: {
     return e.label
       ? `Picked “${e.label}” from the map search`
       : 'Picked a map search result'
-  if (e.type === 'filter_apply')
-    return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
+  if (e.type === 'filter_apply') {
+    // Renamed filters log their original names; show the current wording.
+    const page = e.page ?? ''
+    const group = e.source ?? '?'
+    const value = e.label ?? '?'
+    return `Filtered by ${displayFilterGroup(page, group)}: ${displayFilterValue(page, group, value)}`
+  }
   // A rating's label is the bare value ('up' | 'down' | 'removed'), so spell
   // it out.
   if (e.type === 'chatbot_rating') {

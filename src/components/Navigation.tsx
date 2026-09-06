@@ -60,8 +60,10 @@ const DROPDOWN_EXIT_MS = 80
 
 export default function Navigation({
   counts,
+  preview = false,
 }: {
   counts: Partial<Record<string, number>>
+  preview?: boolean
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -321,7 +323,7 @@ export default function Navigation({
     }
   }, [])
   return (
-    <SearchProvider counts={counts}>
+    <SearchProvider counts={counts} preview={preview}>
       <div ref={navOuterRef} className={`${styles.nav} ${styles['nav-fixed']}`}>
         <div className={styles['nav-container']}>
           <Link href="/" className="padding-right-24px">

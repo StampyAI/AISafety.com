@@ -47,11 +47,13 @@ export default async function PreviewAdminPage() {
           rendered from live Airtable data — open pages notice an edit within a
           few seconds and update themselves, no reload needed. The pink preview
           button switches you back, and always stays visible while preview mode
-          is on, even with the switch buttons hidden here. Search keeps using
-          the public site&rsquo;s prebuilt index, so a fresh edit reaches the
-          search results later than the page itself. Visitors see none of this:
-          they keep the fast prebuilt pages, which catch up on their own a
-          couple of minutes after each edit.
+          is on, even with the switch buttons hidden here. Search uses the
+          public site&rsquo;s prebuilt index, which catches up within a minute
+          or two of an edit; preview mode fetches it afresh each time you open
+          search, so a fresh edit reaches the search results a little later than
+          the page itself. Visitors see none of this: they keep the fast
+          prebuilt pages, which catch up on their own a couple of minutes after
+          each edit.
         </p>
       </div>
     </div>

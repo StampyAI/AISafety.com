@@ -25,8 +25,7 @@ import {
   hasFreshSession,
   SENSITIVE_FRESH_SECONDS,
 } from '@/lib/admin/auth'
-import { ACCESS_AREAS, type AccessFlags } from '@/lib/admin/access'
-import { audit, recentAudit } from '@/lib/admin/audit'
+import type { AccessFlags } from '@/lib/admin/access'
 import { approvedMail, sendAdminMail } from '@/lib/admin/mail'
 import { publicOrigin } from '@/lib/admin/origin'
 import {
@@ -74,11 +73,10 @@ export async function GET() {
   const auth = await ensureAuth(false)
   if (auth) return auth
   const me = await currentAdmin()
-  const [managed, signIns, requests, activity] = await Promise.all([
+  const [managed, signIns, requests] = await Promise.all([
     usersStore.list(),
     usersStore.lastSignIns().catch(() => ({}) as Record<string, string>),
     usersStore.listRequests().catch(() => []),
-    recentAudit(60),
   ])
   const users = [
     ...ROOT_ADMINS.map(u => ({
@@ -105,16 +103,9 @@ export async function GET() {
   return json({
     users,
     requests: [...requests].sort((a, b) => (a.lastAt < b.lastAt ? 1 : -1)),
-    activity,
     shared: usersStoreIsShared,
   })
 }
-
-/** "Analytics, Newsletters" — for the activity trail. */
-const tabsOn = (a: AccessFlags) =>
-  ACCESS_AREAS.filter(x => a[x.key])
-    .map(x => x.label)
-    .join(', ')
 
 const summarise = (a: AccessFlags) =>
   Object.entries(a)
@@ -154,14 +145,6 @@ export async function POST(req: NextRequest) {
   console.log(
     `[admin-users] ${user.addedBy} ${request ? 'approved' : 'added'} ${user.email} with ${summarise(user.access)}`
   )
-  after(() =>
-    audit({
-      kind: request ? 'approved' : 'added',
-      actor: user.addedBy,
-      subject: user.email,
-      detail: tabsOn(user.access),
-    })
-  )
   // Let them know, after the response has gone out.
   const loginUrl = `${publicOrigin(req)}/admin/login`
   after(() =>
@@ -199,14 +182,6 @@ export async function PATCH(req: NextRequest) {
   const patch: { access: AccessFlags } = { access: checked.value }
   const user = await usersStore.update(email, patch)
   if (!user) return json({ error: 'No such user.' }, 404)
-  after(() =>
-    audit({
-      kind: 'access-changed',
-      actor: me?.name ?? 'unknown',
-      subject: email,
-      detail: tabsOn(patch.access),
-    })
-  )
   console.log(
     `[admin-users] ${me?.name ?? 'unknown'} changed ${email}: access=${summarise(patch.access)}`
   )
@@ -228,9 +203,6 @@ export async function DELETE(req: NextRequest) {
   }
   const removed = await usersStore.remove(email)
   if (!removed) return json({ error: 'No such user.' }, 404)
-  after(() =>
-    audit({ kind: 'removed', actor: me?.name ?? 'unknown', subject: email })
-  )
   console.log(`[admin-users] ${me?.name ?? 'unknown'} removed ${email}`)
   return new Response(null, { status: 204 })
 }

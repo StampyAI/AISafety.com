@@ -8,6 +8,7 @@ import {
   parseNotes,
   removeNote,
   serializeNotes,
+  stampToDate,
 } from './annotation-log'
 
 const before = { review: '', tags: ['scope'], notes: '' }
@@ -178,5 +179,14 @@ describe('removeNote', () => {
         deleteNote: { index: 0, at: 'a', actor: 'CC' },
       })
     ).toEqual(['deleted a note by CC'])
+  })
+})
+
+describe('stampToDate', () => {
+  it('reads a stored UTC stamp back as the right instant', () => {
+    expect(stampToDate('2026-09-05 11:42 UTC')?.toISOString()).toBe(
+      '2026-09-05T11:42:00.000Z'
+    )
+    expect(stampToDate('hand-written')).toBeNull()
   })
 })

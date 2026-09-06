@@ -840,11 +840,40 @@ function tallyPositions(positions: string[]): Counted[] {
     .sort((a, b) => positionSortKey(a.name) - positionSortKey(b.name))
 }
 
+// ─── The dashboard's time zone ───────────────────────────────────────────────
+// Day boundaries, "today" and displayed times all use one fixed reporting
+// zone, the same for every viewer — the usual analytics convention (store
+// UTC, report in one configured zone). UTC was chosen on 6 September 2026 so
+// the definition of "a day" never depends on where the owner happens to be
+// living. Change it here and nowhere else; the page says which zone it is.
+export const DASHBOARD_TZ = 'UTC'
+
+/** "2026-09-05" — the dashboard-zone calendar day an instant falls on. */
+export function dashboardDay(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-CA', { timeZone: DASHBOARD_TZ })
+}
+
+/** "+00:00" / "+01:00" — the dashboard zone's UTC offset on a given day, for
+ *  turning a calendar date into an epoch bound (DST-aware should the zone
+ *  ever be one that has it). */
+export function dashboardOffset(day: string): string {
+  const probe = new Date(`${day}T12:00:00Z`)
+  const part = new Intl.DateTimeFormat('en-GB', {
+    timeZone: DASHBOARD_TZ,
+    timeZoneName: 'longOffset',
+  })
+    .formatToParts(probe)
+    .find(p => p.type === 'timeZoneName')?.value
+  const m = /GMT([+-]\d{2}:\d{2})/.exec(part ?? '')
+  return m ? m[1] : '+00:00'
+}
+
 /** Collapse repeat events so a visitor counts once per listing per day: keep
  *  only the most recent event per (visitor, day, page, listing). Used for
  *  listing clicks, and by topHovered for map hovers — same key, same
- *  semantics, and the two types are always deduped separately. The day uses
- *  Bryce's timezone (UTC-5), matching the date-range bounds. Clicks with no id
+ *  semantics, and the two types are always deduped separately. The day is the
+ *  dashboard's (DASHBOARD_TZ, see dashboardDay), matching the date-range bounds.
+ *  Clicks with no id
  *  (e.g. private browsing, where we can't tell visitors apart) are each kept.
  *  Expects a newest-first list, so the first time a key is seen is the most
  *  recent click. */
@@ -857,9 +886,7 @@ function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
       continue
     }
     const t = Date.parse(e.ts)
-    const day = Number.isNaN(t)
-      ? ''
-      : new Date(t - 5 * 3_600_000).toISOString().slice(0, 10)
+    const day = Number.isNaN(t) ? '' : dashboardDay(t)
     const key = `${e.vid}\x00${day}\x00${e.page ?? ''}\x00${listingMember(e)}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -869,7 +896,7 @@ function uniqueClicks(clicks: AnalyticsEvent[]): AnalyticsEvent[] {
 }
 
 /** Unique-mode dedupe for filter activations: one per visitor per group+value
- *  per Bogotá day. The group (`source`) is part of the key — the same value
+ *  per dashboard-zone day. The group (`source`) is part of the key — the same value
  *  under two groups (e.g. 'Online') stays two activations. */
 function uniqueFilterApplies(events: AnalyticsEvent[]): AnalyticsEvent[] {
   const seen = new Set<string>()
@@ -880,9 +907,7 @@ function uniqueFilterApplies(events: AnalyticsEvent[]): AnalyticsEvent[] {
       continue
     }
     const t = Date.parse(e.ts)
-    const day = Number.isNaN(t)
-      ? ''
-      : new Date(t - 5 * 3_600_000).toISOString().slice(0, 10)
+    const day = Number.isNaN(t) ? '' : dashboardDay(t)
     const key = `${e.vid}\x00${day}\x00${e.page ?? ''}\x00${e.source ?? ''}\x00${e.label ?? ''}`
     if (seen.has(key)) continue
     seen.add(key)

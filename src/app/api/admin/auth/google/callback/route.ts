@@ -42,7 +42,6 @@ import {
   type IdTokenClaims,
 } from '@/lib/admin/google-oidc'
 import { publicOrigin } from '@/lib/admin/origin'
-import { audit } from '@/lib/admin/audit'
 import { requestMail, sendAdminMail } from '@/lib/admin/mail'
 import { ROOT_ADMINS } from '@/lib/admin/users'
 import { findAdminUser } from '@/lib/admin/users'
@@ -142,13 +141,6 @@ export async function GET(req: NextRequest) {
       }`
     )
     if (!recorded) return fail('not-allowed')
-    after(() =>
-      audit({
-        kind: 'access-requested',
-        actor: email,
-        detail: googleName ?? undefined,
-      })
-    )
     // Tell the owner, after the redirect has gone out.
     const requestedAt = new Date().toISOString()
     after(async () => {
@@ -182,7 +174,6 @@ export async function GET(req: NextRequest) {
   }
 
   console.log(`[admin-auth] ${user.name} (${user.email}) signed in with Google`)
-  after(() => audit({ kind: 'sign-in', actor: user.name, subject: user.email }))
   // Also where a managed user's name comes from: Google's profile name,
   // first time they sign in (and again if they change it).
   usersStore

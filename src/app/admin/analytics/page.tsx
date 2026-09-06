@@ -16,6 +16,9 @@ import {
   type SearchPanelData,
   type MapSearchPanelData,
   type VisitorShare,
+  DASHBOARD_TZ,
+  dashboardDay,
+  dashboardOffset,
 } from '@/lib/analytics/events'
 import {
   readConversationStats,
@@ -97,8 +100,8 @@ const OVERVIEW_KEYS = new Set(OVERVIEW_TABS.map(t => t.key))
 // and only Map has areas, so the by-area rollup is Map-only.
 const MAP_PAGES = new Set(['Map', 'Communities'])
 
-// Bryce is in Colombia — fixed UTC-5, no DST — so day boundaries use -05:00.
-const TZ_OFFSET = '-05:00'
+// Day boundaries and displayed times use the dashboard's fixed reporting zone
+// (DASHBOARD_TZ in events.ts, UTC) — the same for every viewer.
 const DAY = 86_400_000
 
 interface ResolvedRange extends DateRange {
@@ -114,13 +117,15 @@ function first(v: string | string[] | undefined): string | undefined {
 }
 
 /** Translate the query string into concrete epoch-ms bounds. Defaults to the
- *  last 30 days. A custom from/to (inclusive, Bogotá day boundaries) wins. */
+ *  last 30 days. A custom from/to (inclusive, dashboard-zone day boundaries) wins. */
 function resolveRange(sp: SearchParams): ResolvedRange {
   const from = first(sp.from)
   const to = first(sp.to)
   if (from || to) {
-    const s = from ? Date.parse(`${from}T00:00:00${TZ_OFFSET}`) : NaN
-    const e = to ? Date.parse(`${to}T23:59:59.999${TZ_OFFSET}`) : NaN
+    const s = from
+      ? Date.parse(`${from}T00:00:00${dashboardOffset(from)}`)
+      : NaN
+    const e = to ? Date.parse(`${to}T23:59:59.999${dashboardOffset(to)}`) : NaN
     return {
       startMs: Number.isNaN(s) ? null : s,
       endMs: Number.isNaN(e) ? null : e,
@@ -133,9 +138,9 @@ function resolveRange(sp: SearchParams): ResolvedRange {
   const now = Date.now()
   switch (range) {
     case 'today': {
-      const today = new Date(now - 5 * 3_600_000).toISOString().slice(0, 10)
+      const today = dashboardDay(now)
       return {
-        startMs: Date.parse(`${today}T00:00:00${TZ_OFFSET}`),
+        startMs: Date.parse(`${today}T00:00:00${dashboardOffset(today)}`),
         endMs: null,
         key: 'today',
       }
@@ -343,7 +348,7 @@ function searchPageBadges(
 function formatTime(iso: string): string {
   try {
     return new Date(iso).toLocaleString('en-GB', {
-      timeZone: 'America/Bogota',
+      timeZone: DASHBOARD_TZ,
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -439,7 +444,7 @@ function pct1(part: number, total: number): string {
 function formatDay(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString('en-GB', {
-      timeZone: 'America/Bogota',
+      timeZone: DASHBOARD_TZ,
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -693,6 +698,12 @@ export default async function AnalyticsPage({
               data since {formatDay(data.oldestTs)}
             </span>
           )}
+          <span
+            className={styles.coverage}
+            title="Day boundaries and times on this page are in UTC, the same for everyone. The rest of the admin shows your own local time."
+          >
+            times in {DASHBOARD_TZ}
+          </span>
           <ExcludeToggle />
         </div>
       </div>

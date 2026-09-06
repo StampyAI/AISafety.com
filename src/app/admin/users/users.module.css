@@ -193,32 +193,3 @@
   font-size: 12px;
   color: var(--bright-teal-300);
 }
-
-.activity {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 6px;
-}
-
-.activityRow {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--white);
-  line-height: 1.45;
-}
-
-.activityWhen {
-  color: var(--teal-400);
-  white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-  .activityRow {
-    grid-template-columns: 1fr;
-    gap: 2px;
-  }
-}

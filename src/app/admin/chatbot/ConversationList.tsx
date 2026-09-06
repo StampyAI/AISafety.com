@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { parseLog, parseNotes } from '@/lib/admin/annotation-log'
+import { parseLog, parseNotes, stampToDate } from '@/lib/admin/annotation-log'
 import styles from '../admin.module.css'
 import TranscriptMessage, {
   ClickedCardsContext,
@@ -259,6 +259,20 @@ function formatTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** A stored "2026-09-05 11:42 UTC" annotation stamp, in the viewer's own time
+ *  zone like every other time on this page ("5 Sept 2026, 12:42"). */
+function formatStamp(stamp: string): string {
+  const d = stampToDate(stamp)
+  if (!d) return stamp
+  return d.toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function formatLatency(ms: number): string {
@@ -1510,7 +1524,7 @@ function ConversationRow({
                                 {n.actor}
                               </span>
                               <span className={styles.convActivityWhen}>
-                                {n.at}
+                                {formatStamp(n.at)}
                               </span>
                               <span className={styles.convNoteActions}>
                                 {deletingNote === i ? (
@@ -1604,7 +1618,7 @@ function ConversationRow({
                           </span>{' '}
                           {e.what}
                           <span className={styles.convActivityWhen}>
-                            {e.at}
+                            {formatStamp(e.at)}
                           </span>
                         </>
                       ) : (

@@ -184,3 +184,11 @@ export function removeNote(
   parsed.entries.splice(target.index, 1)
   return serializeNotes(parsed)
 }
+
+/** The Date behind a stored "2026-09-05 11:42 UTC" stamp; null when the text
+ *  isn't one (a hand-written line). */
+export function stampToDate(stamp: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}) UTC$/.exec(stamp.trim())
+  if (!m) return null
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]))
+}

@@ -4,10 +4,14 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
 /** Fired on `window` whenever this component re-renders the page because its
- *  records changed, or because the tab was returned to — `detail.pathname`
- *  says which page. Search listens, so the entries for this page are re-read
- *  live in the same moment (and share the page's own Airtable read). */
+ *  records changed — `detail.pathname` says which page. Search listens, so
+ *  the entries for this page are re-read live in the same moment (and share
+ *  the page's own Airtable read). */
 export const PREVIEW_CHANGED_EVENT = 'preview:changed'
+/** Fired on `window` when the tab or window is returned to. Polling paused
+ *  meanwhile, and coming back from Airtable is when an edit to any page's
+ *  records may be waiting — search re-checks every listing type. */
+export const PREVIEW_RETURNED_EVENT = 'preview:returned'
 
 function notifyChanged(pathname: string) {
   window.dispatchEvent(
@@ -108,7 +112,7 @@ export default function PreviewAutoRefresh({
       if (now - lastReturnRefresh < 1_000) return
       lastReturnRefresh = now
       router.refresh()
-      notifyChanged(pathname)
+      window.dispatchEvent(new Event(PREVIEW_RETURNED_EVENT))
     }
     window.addEventListener('focus', onReturn)
     document.addEventListener('visibilitychange', onReturn)

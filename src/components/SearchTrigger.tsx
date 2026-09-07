@@ -14,7 +14,10 @@ import { usePathname } from 'next/navigation'
 import { typeForPath, withLiveEntries, type LoadState } from '@/lib/search'
 import type { SearchEntry, SearchType } from '@/lib/data/search-index'
 import { trackSearchOpen, type SearchOpenMethod } from '@/lib/analytics'
-import { PREVIEW_CHANGED_EVENT } from './PreviewAutoRefresh'
+import {
+  PREVIEW_CHANGED_EVENT,
+  PREVIEW_RETURNED_EVENT,
+} from './PreviewAutoRefresh'
 import SearchModal from './SearchModal'
 
 interface SearchContextValue {
@@ -27,16 +30,34 @@ const SearchContext = createContext<SearchContextValue | null>(null)
 // Preview mode re-reads on open anything older than this: the prebuilt index
 // (whose server copy /api/check-rebuild refreshes within about a minute of an
 // Airtable edit, so asking more often gains nothing) and the live entries for
-// the page being looked at (which the page's own change poll keeps current in
-// between, see below).
+// the page being looked at.
 const PREVIEW_MAX_AGE_MS = 30_000
+// Live entries this old are dropped: by then the prebuilt index has long
+// caught up, and an edit made while nothing was watching that table (someone
+// else's, to a page other than the one open) must not stay hidden behind an
+// older live read.
+const LIVE_TTL_MS = 10 * 60_000
+// Returning to the tab re-checks every type at once (a dozen small Airtable
+// reads); flicking between windows shouldn't repeat that within this long —
+// the check is left for the next open instead.
+const RECONCILE_MIN_GAP_MS = 10_000
 
-/** Preview mode: a live read of the entries for one page, laid over the
- *  prebuilt index while that page is being looked at. */
+/** Preview mode: a live read of one type's entries, laid over the prebuilt
+ *  index (see SearchProvider). */
 interface LiveEntries {
-  pathname: string
-  type: SearchType
   entries: SearchEntry[]
+  at: number
+}
+
+function withoutExpired(
+  live: ReadonlyMap<SearchType, LiveEntries>,
+  now: number
+): ReadonlyMap<SearchType, LiveEntries> {
+  const cutoff = now - LIVE_TTL_MS
+  let expired = false
+  for (const { at } of live.values()) if (at < cutoff) expired = true
+  if (!expired) return live
+  return new Map([...live].filter(([, { at }]) => at >= cutoff))
 }
 
 export function SearchProvider({
@@ -58,14 +79,24 @@ export function SearchProvider({
   const fetchedAtRef = useRef<number | null>(null)
   const fetchingRef = useRef(false)
   // Preview mode only. The prebuilt index lags an edit by a minute or two,
-  // which is fine for every page but the one being checked — so the entries
-  // for that page are re-read live (one table, two for /training) whenever
-  // the page itself refreshes for a change, and on open once they are
-  // PREVIEW_MAX_AGE_MS old. Kept for one page only: after navigating, the new
-  // page's are read on its first open and these are ignored.
-  const [live, setLive] = useState<LiveEntries | null>(null)
-  const liveAtRef = useRef<{ pathname: string; at: number } | null>(null)
-  const liveFetchingRef = useRef(false)
+  // so the types that may have changed are re-read live (one table each,
+  // two for /training) and laid over it: the page being looked at whenever
+  // it refreshes for a change, and — on the first open, and each time the
+  // tab is returned to, which is when edits made in Airtable are waiting —
+  // every type whose table changed in the last few minutes
+  // (/api/admin/preview/changed-types). Results never wait for these reads:
+  // the prebuilt index shows first and each type is replaced as its read
+  // lands.
+  const [live, setLive] = useState<ReadonlyMap<SearchType, LiveEntries>>(
+    () => new Map()
+  )
+  const liveAtRef = useRef(new Map<SearchType, number>())
+  const liveFetchingRef = useRef(new Set<SearchType>())
+  const reconcilingRef = useRef(false)
+  const lastReconcileAtRef = useRef(0)
+  // Whether the next open should ask which types changed: at first, and
+  // again after a return to the tab that didn't check straight away.
+  const reconcileOnOpenRef = useRef(true)
   const triggerElRef = useRef<HTMLElement | null>(null)
 
   const fetchIndex = useCallback(async () => {
@@ -121,15 +152,14 @@ export function SearchProvider({
     }
   }, [preview])
 
-  // Re-reads the entries for the page at `path` unless a read newer than
-  // `maxAge` is already in hand. Failures keep the prebuilt entries: the next
-  // change or open tries again.
-  const fetchLive = useCallback(async (path: string, maxAge: number) => {
-    const type = typeForPath(path)
-    if (!type || liveFetchingRef.current) return
-    const last = liveAtRef.current
-    if (last && last.pathname === path && Date.now() - last.at < maxAge) return
-    liveFetchingRef.current = true
+  // Re-reads one type's entries unless a read newer than `maxAge` is in
+  // hand. Failures keep the prebuilt entries: the next change, return or
+  // open tries again.
+  const fetchLive = useCallback(async (type: SearchType, maxAge: number) => {
+    if (liveFetchingRef.current.has(type)) return
+    const at = liveAtRef.current.get(type)
+    if (at !== undefined && Date.now() - at < maxAge) return
+    liveFetchingRef.current.add(type)
     try {
       const res = await fetch(
         `/api/admin/preview/search-entries?type=${encodeURIComponent(type)}`,
@@ -140,57 +170,99 @@ export function SearchProvider({
       if (body.type !== type || !Array.isArray(body.entries)) {
         throw new Error('Unexpected search-entries response')
       }
-      liveAtRef.current = { pathname: path, at: Date.now() }
-      setLive({ pathname: path, type, entries: body.entries as SearchEntry[] })
+      const now = Date.now()
+      liveAtRef.current.set(type, now)
+      const entries = body.entries as SearchEntry[]
+      setLive(prev => new Map(prev).set(type, { entries, at: now }))
     } catch (err) {
-      console.warn('Live search entries failed:', err)
+      console.warn(`Live search entries for ${type} failed:`, err)
     } finally {
-      liveFetchingRef.current = false
+      liveFetchingRef.current.delete(type)
     }
   }, [])
 
-  // The page just re-rendered for a change to its records: re-read its
-  // entries in the same breath (the two reads share one Airtable fetch).
-  // Only once search has been used on this page — before that, the first
-  // open reads them anyway, and an unused search shouldn't cost table reads.
+  // Asks which types changed in the last few minutes and re-reads those,
+  // one after another (rate-limit care: each is a table read).
+  const reconcile = useCallback(async () => {
+    if (reconcilingRef.current) return
+    reconcilingRef.current = true
+    lastReconcileAtRef.current = Date.now()
+    try {
+      const res = await fetch('/api/admin/preview/changed-types', {
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const body = (await res.json()) as { types?: unknown }
+      if (!Array.isArray(body.types)) {
+        throw new Error('Unexpected changed-types response')
+      }
+      reconcileOnOpenRef.current = false
+      for (const type of body.types as SearchType[]) await fetchLive(type, 0)
+    } catch (err) {
+      // Left for the next open to try again.
+      console.warn('Checking for changed listings failed:', err)
+    } finally {
+      reconcilingRef.current = false
+    }
+  }, [fetchLive])
+
   useEffect(() => {
     if (!preview) return
+    // The page just re-rendered for a change to its records: re-read its
+    // entries in the same breath (the two reads share one Airtable fetch).
+    // Only once search has been used — before that, the first open reads
+    // them anyway, and an unused search shouldn't cost table reads.
     const onChanged = (e: Event) => {
       if (fetchedAtRef.current === null) return
       const detail = (e as CustomEvent<{ pathname?: string }>).detail
-      fetchLive(detail?.pathname ?? pathname, 0)
+      const type = typeForPath(detail?.pathname ?? pathname)
+      if (type) fetchLive(type, 0)
+    }
+    // Back from elsewhere, likely Airtable: edits may have been made to any
+    // page's records while polling was paused.
+    const onReturned = () => {
+      const recently =
+        Date.now() - lastReconcileAtRef.current < RECONCILE_MIN_GAP_MS
+      if (fetchedAtRef.current === null || recently) {
+        reconcileOnOpenRef.current = true
+      } else {
+        reconcile()
+      }
     }
     window.addEventListener(PREVIEW_CHANGED_EVENT, onChanged)
-    return () => window.removeEventListener(PREVIEW_CHANGED_EVENT, onChanged)
-  }, [preview, pathname, fetchLive])
+    window.addEventListener(PREVIEW_RETURNED_EVENT, onReturned)
+    return () => {
+      window.removeEventListener(PREVIEW_CHANGED_EVENT, onChanged)
+      window.removeEventListener(PREVIEW_RETURNED_EVENT, onReturned)
+    }
+  }, [preview, pathname, fetchLive, reconcile])
 
   const handleOpen = useCallback(
     (method: SearchOpenMethod) => {
       triggerElRef.current = document.activeElement as HTMLElement | null
       fetchIndex()
-      if (preview) fetchLive(pathname, PREVIEW_MAX_AGE_MS)
+      if (preview) {
+        const type = typeForPath(pathname)
+        if (type) fetchLive(type, PREVIEW_MAX_AGE_MS)
+        if (reconcileOnOpenRef.current) reconcile()
+        setLive(prev => withoutExpired(prev, Date.now()))
+      }
       setOpen(true)
       trackSearchOpen(method)
     },
-    [fetchIndex, fetchLive, preview, pathname]
+    [fetchIndex, fetchLive, reconcile, preview, pathname]
   )
 
-  // What the modal searches: the prebuilt index, with this page's live
-  // entries swapped in while in preview mode.
+  // What the modal searches: the prebuilt index, with every live-read type
+  // swapped in while in preview mode.
   const loadForModal = useMemo<LoadState>(() => {
-    if (
-      !preview ||
-      load.status !== 'ready' ||
-      !live ||
-      live.pathname !== pathname
-    ) {
-      return load
+    if (!preview || load.status !== 'ready' || live.size === 0) return load
+    let index = load.index
+    for (const [type, { entries }] of live) {
+      index = withLiveEntries(index, type, entries)
     }
-    return {
-      status: 'ready',
-      index: withLiveEntries(load.index, live.type, live.entries),
-    }
-  }, [preview, load, live, pathname])
+    return { status: 'ready', index }
+  }, [preview, load, live])
 
   const handleClose = useCallback(() => {
     setOpen(false)

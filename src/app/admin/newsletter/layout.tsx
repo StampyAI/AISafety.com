@@ -10,11 +10,6 @@ import { pendingRequestCount } from '@/lib/admin/users-store'
 import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
 
-export const metadata = {
-  title: 'Newsletters – AISafety.com',
-  robots: { index: false, follow: false },
-}
-
 export default async function NewsletterAdminLayout({
   children,
 }: {

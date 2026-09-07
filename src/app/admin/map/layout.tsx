@@ -5,11 +5,6 @@ import { pendingRequestCount } from '@/lib/admin/users-store'
 import { adminTabs, adminHomeHref } from '../nav'
 import styles from '../admin.module.css'
 
-export const metadata = {
-  title: 'Map editor – AISafety.com',
-  robots: { index: false, follow: false },
-}
-
 export default async function MapEditorLayout({
   children,
 }: {

@@ -14,6 +14,7 @@ import CardsViewTracker from '@/components/CardsViewTracker'
 import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
+import { isPlacedOnMap } from '@/lib/map-images'
 import styles from './page.module.css'
 
 const D3Map = dynamic(() => import('./D3Map'), {
@@ -171,9 +172,9 @@ export default function MapClient({
     [orgs, basePass, groups]
   )
 
-  const mapOrgs = useMemo(() => {
-    return orgs.filter(org => org.x !== null && org.y !== null)
-  }, [orgs])
+  // Same rule /api/map-images uses, so the background preload warms exactly
+  // the logos drawn here.
+  const mapOrgs = useMemo(() => orgs.filter(isPlacedOnMap), [orgs])
 
   const categoryCounts = useMemo(
     () =>
@@ -217,7 +218,7 @@ export default function MapClient({
     <>
       <div className="padding-bottom-24px">
         <div ref={mapWrapperRef} className={styles['map-wrapper']}>
-          <D3Map orgs={mapOrgs} />
+          <D3Map orgs={mapOrgs} suggestEntryUrl={suggestEntryLink} />
           <button
             onClick={() => {
               trackCardsButtonClick('Map', 'View cards')

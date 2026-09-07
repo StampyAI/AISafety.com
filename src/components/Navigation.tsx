@@ -54,10 +54,16 @@ const navItems = [
 // (and the mobile menu, which always lists everything).
 const MIN_OVERFLOW = 6
 
+// How long the +N panel stays mounted after closing, for its fade-out.
+// Must match the transition on .nav-dropdown-closing in the CSS.
+const DROPDOWN_EXIT_MS = 80
+
 export default function Navigation({
   counts,
+  preview = false,
 }: {
   counts: Partial<Record<string, number>>
+  preview?: boolean
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -180,6 +186,27 @@ export default function Navigation({
     return () => document.removeEventListener('click', handleClickOutside)
   }, [isDropdownOpen])
 
+  // Fade-out: after closing, the panel stays mounted with the closing class
+  // for DROPDOWN_EXIT_MS. The flag is derived during render (React's
+  // previous-render pattern) rather than in an effect: an effect ran one paint
+  // too late, so the panel unmounted for a frame and remounted, replaying its
+  // entrance animation as a flicker. Reopening mid-fade just drops the class,
+  // so the panel snaps back without replaying the entrance.
+  const [isDropdownClosing, setIsDropdownClosing] = useState(false)
+  const [prevDropdownOpen, setPrevDropdownOpen] = useState(isDropdownOpen)
+  if (prevDropdownOpen !== isDropdownOpen) {
+    setPrevDropdownOpen(isDropdownOpen)
+    if (!isDropdownOpen) setIsDropdownClosing(true)
+  }
+  useEffect(() => {
+    if (!isDropdownClosing) return
+    const timer = window.setTimeout(
+      () => setIsDropdownClosing(false),
+      DROPDOWN_EXIT_MS
+    )
+    return () => window.clearTimeout(timer)
+  }, [isDropdownClosing])
+
   useLayoutEffect(() => {
     // A StickyBar toggle click announces its programmatic jump-to-top so the
     // upward scroll it causes doesn't reveal the nav over the fresh content.
@@ -296,7 +323,7 @@ export default function Navigation({
     }
   }, [])
   return (
-    <SearchProvider counts={counts}>
+    <SearchProvider counts={counts} preview={preview}>
       <div ref={navOuterRef} className={`${styles.nav} ${styles['nav-fixed']}`}>
         <div className={styles['nav-container']}>
           <Link href="/" className="padding-right-24px">
@@ -358,8 +385,12 @@ export default function Navigation({
               }
             >
               <p className="paragraph-small-bold">+{overflowItems.length}</p>
-              {isDropdownOpen && (
-                <div className={`${styles['nav-dropdown']} border-plus-fill`}>
+              {(isDropdownOpen || isDropdownClosing) && (
+                <div
+                  className={`${styles['nav-dropdown']} border-plus-fill${
+                    !isDropdownOpen ? ` ${styles['nav-dropdown-closing']}` : ''
+                  }`}
+                >
                   {overflowItems.map(item => (
                     <Link
                       key={item.href}

@@ -33,9 +33,10 @@ interface TrackPayload {
   /** The map-area dimension — the listing's FIRST category, stamped on
    *  Map-page clicks and hovers so the dashboard can slice the map by area. */
   area?: string
-  /** Site-search events: the query text as typed. */
+  /** Site-search and map-search events: the query text as typed. */
   query?: string
-  /** search_query only: how many results the query returned. */
+  /** search_query / map_search_query only: how many results the query
+   *  returned. */
   results?: number
 }
 
@@ -371,6 +372,59 @@ export function trackSearchClick(
     position,
     source: resultType,
     page: window.location.pathname,
+  })
+}
+
+/** How the /map search box was opened: its magnifying-glass button, or
+ *  ⌘F/Ctrl+F taking over the browser's find-in-page while over the map. */
+export type MapSearchOpenMethod = 'button' | 'cmd-f'
+
+/**
+ * Track the Field map's own search box opening. Distinct from the sitewide
+ * search modal, which has its own search_* events: different box, different
+ * outcome (a pick flies the map to the pin instead of opening a page). Always
+ * on the Map page, so `page` is the resource-page name the map's clicks and
+ * hovers already use.
+ */
+export function trackMapSearchOpen(method: MapSearchOpenMethod): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({ type: 'map_search_open', page: 'Map', source: method })
+}
+
+/**
+ * Track a settled /map search — fired once the visitor pauses typing, or
+ * immediately if they pick a result / leave the box before the pause.
+ * `results` is how many listings matched (0 = the map has nothing for it).
+ */
+export function trackMapSearchQuery(query: string, results: number): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({ type: 'map_search_query', page: 'Map', query, results })
+}
+
+/**
+ * Track a /map search result being picked (the map flies to the listing).
+ * `query` is what was typed when it was picked; `position` is the result's
+ * rank counted from 1; `area` is the listing's first category — the same area
+ * dimension map clicks and hovers carry, so picks can be sliced like them.
+ */
+export function trackMapSearchPick(
+  query: string,
+  title: string,
+  url: string,
+  listingId: string,
+  position: string,
+  area?: string
+): void {
+  if (typeof window === 'undefined') return
+  sendTrackEvent({
+    type: 'map_search_pick',
+    page: 'Map',
+    query: query || undefined,
+    label: title,
+    url,
+    listingId,
+    position,
+    area,
   })
 }
 

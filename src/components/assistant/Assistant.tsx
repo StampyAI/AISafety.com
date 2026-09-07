@@ -17,20 +17,30 @@ import styles from './Assistant.module.css'
 const STORAGE_KEY = 'aisafety-assistant-messages-v3'
 const SESSION_KEY = 'aisafety-assistant-session-v1'
 
+/** A fresh id for this browser session: the platform's UUID generator, or
+ *  its cryptographic random bytes where that is missing. Never Math.random,
+ *  so an id can't be guessed from the clock. */
+function newSessionId(): string {
+  const c = typeof crypto !== 'undefined' ? crypto : undefined
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID()
+  if (c && typeof c.getRandomValues === 'function') {
+    const bytes = c.getRandomValues(new Uint8Array(16))
+    return `s-${Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')}`
+  }
+  return `s-${Date.now()}`
+}
+
 function getSessionId(): string {
   if (typeof window === 'undefined') return ''
   try {
     let id = sessionStorage.getItem(SESSION_KEY)
     if (!id) {
-      id =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `s-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      id = newSessionId()
       sessionStorage.setItem(SESSION_KEY, id)
     }
     return id
   } catch {
-    return `s-${Date.now()}`
+    return newSessionId()
   }
 }
 

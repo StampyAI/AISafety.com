@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[newsletter] preview ${id} failed: ${message}`)
-    return new Response(message, { status: 502 })
+    return new Response('Preview failed; details are in the server log.', {
+      status: 502,
+    })
   }
 }

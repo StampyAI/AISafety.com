@@ -59,7 +59,10 @@ export async function GET() {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error(`[map-editor] list failed: ${message}`)
-    return json({ error: message }, 502)
+    return json(
+      { error: 'Airtable read failed; details are in the server log.' },
+      502
+    )
   }
 }
 
@@ -71,7 +74,16 @@ function airtableFailure(id: string, what: string, err: unknown): Response {
   const message = err instanceof Error ? err.message : String(err)
   console.error(`[map-editor] ${what} failed for ${id}: ${message}`)
   const rateLimited = /\b429\b/.test(message) && /RATE_LIMIT/.test(message)
-  return json({ error: message }, rateLimited ? 429 : 502)
+  // Airtable's own error text stays in the log: it can name tables and
+  // fields, and the editor only needs the status to decide what to do.
+  return json(
+    {
+      error: rateLimited
+        ? 'Airtable is rate-limiting; try again in about 30 seconds.'
+        : `Airtable ${what} failed; details are in the server log.`,
+    },
+    rateLimited ? 429 : 502
+  )
 }
 
 export async function PATCH(req: NextRequest) {

@@ -1,12 +1,20 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ACCESS_AREAS,
   DEFAULT_NEW_ACCESS,
   type AccessFlags,
 } from '@/lib/admin/access'
+import {
+  decodePending,
+  encodePending,
+  type PendingAction,
+  type PendingState,
+  REQUESTS_API,
+  USERS_API,
+} from '@/lib/admin/users-pending'
 import adminStyles from '../admin.module.css'
 import styles from './users.module.css'
 
@@ -49,7 +57,58 @@ function when(iso: string | null): string {
   })
 }
 
-const REAUTH_URL = '/api/admin/auth/google?next=/admin/users'
+const EMPTY_FORM = { email: '', access: DEFAULT_NEW_ACCESS }
+
+// A write from a session Google minted more than 30 minutes ago is refused
+// with 401 reauth. The page then leaves for Google's account chooser and lands
+// back here with ?resume=1. What it was doing meanwhile sits in sessionStorage
+// (this tab only): the ticks, the add form and the refused request, which is
+// sent again on return so the click isn't lost.
+const RESUME_PARAM = 'resume'
+const REAUTH_URL = `/api/admin/auth/google?next=${encodeURIComponent(
+  `/admin/users?${RESUME_PARAM}=1`
+)}`
+const PENDING_KEY = 'aisafety-admin-users:pending'
+
+function stashPending(state: PendingState): void {
+  try {
+    sessionStorage.setItem(PENDING_KEY, encodePending(state))
+  } catch {
+    // Storage refused (private mode, quota): the ticks just aren't kept.
+  }
+}
+
+/** Read and clear what the page stashed before leaving for Google. */
+function takePending(): PendingState | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY)
+    if (raw !== null) sessionStorage.removeItem(PENDING_KEY)
+    return decodePending(raw)
+  } catch {
+    return null
+  }
+}
+
+/** True on the first load straight back from Google. Strips the marker, so a
+ *  reload or a bookmark of this URL is an ordinary visit. */
+function takeResumeMarker(): boolean {
+  const url = new URL(window.location.href)
+  if (!url.searchParams.has(RESUME_PARAM)) return false
+  url.searchParams.delete(RESUME_PARAM)
+  window.history.replaceState(null, '', url.toString())
+  return true
+}
+
+/** One request to the API, described so it can be sent now or, after a trip
+ *  through Google, again. */
+function action(
+  method: PendingAction['method'],
+  body: Record<string, unknown>,
+  okText: string,
+  extra: Partial<Pick<PendingAction, 'url' | 'clearForm'>> = {}
+): PendingAction {
+  return { method, body, okText, url: USERS_API, clearForm: false, ...extra }
+}
 
 /** One checkbox per tab. */
 function AccessPicker({
@@ -94,22 +153,35 @@ export default function UsersAdmin() {
   } | null>(null)
   const [busy, setBusy] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
-  const [form, setForm] = useState<{ email: string; access: AccessFlags }>({
-    email: '',
-    access: DEFAULT_NEW_ACCESS,
-  })
+  const [form, setForm] = useState<{ email: string; access: AccessFlags }>(
+    EMPTY_FORM
+  )
   /** Tabs ticked for each pending request before it is approved. */
   const [requestPicks, setRequestPicks] = useState<Record<string, AccessFlags>>(
     {}
   )
+  // The latest ticks and form, for the stash: call() is memoised, so it reads
+  // them through refs rather than closing over one render.
+  const picksRef = useRef(requestPicks)
+  const formRef = useRef(form)
+  useEffect(() => {
+    picksRef.current = requestPicks
+  }, [requestPicks])
+  useEffect(() => {
+    formRef.current = form
+  }, [form])
 
+  const loadSeq = useRef(0)
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current
     setLoading(true)
     setLoadError(null)
     try {
-      const res = await fetch('/api/admin/users', { cache: 'no-store' })
+      const res = await fetch(USERS_API, { cache: 'no-store' })
       const body = (await res.json()) as Payload & { error?: string }
       if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
+      // A newer load has started since: let that one set the list.
+      if (seq !== loadSeq.current) return
       setData(body)
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err))
@@ -118,53 +190,78 @@ export default function UsersAdmin() {
     }
   }, [])
 
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  /** One call to the API; a stale session bounces through Google and back. */
-  async function call(
-    method: 'POST' | 'PATCH' | 'DELETE',
-    body: Record<string, unknown>,
-    okText: string,
-    url = '/api/admin/users'
-  ): Promise<boolean> {
-    setBusy(true)
-    setNotice(null)
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const payload = (await res.json().catch(() => ({}))) as {
-        error?: string
-      }
-      if (res.status === 401 && payload.error === 'reauth') {
-        // Changing who can sign in needs a session Google minted recently:
-        // one trip through the account chooser, then straight back here.
-        window.location.assign(REAUTH_URL)
+  /** One call to the API. A stale session gets 401 reauth: stash what the
+   *  page is doing, go through Google, and finish on return. `replay` is that
+   *  return trip, where a second refusal is shown rather than bounced again. */
+  const call = useCallback(
+    async (act: PendingAction, replay = false): Promise<boolean> => {
+      setBusy(true)
+      setNotice(null)
+      try {
+        const res = await fetch(act.url, {
+          method: act.method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(act.body),
+        })
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string
+        }
+        if (res.status === 401 && payload.error === 'reauth') {
+          if (replay) {
+            throw new Error(
+              'Google did not refresh the sign-in. Try that once more.'
+            )
+          }
+          // Changing who can sign in needs a session Google minted recently:
+          // one trip through the account chooser, then straight back here to
+          // pick up where this left off.
+          stashPending({
+            at: Date.now(),
+            action: act,
+            requestPicks: picksRef.current,
+            form: formRef.current,
+          })
+          window.location.assign(REAUTH_URL)
+          return false
+        }
+        if (!res.ok) throw new Error(payload.error ?? `HTTP ${res.status}`)
+        setNotice({ kind: 'ok', text: act.okText })
+        if (act.clearForm) setForm(EMPTY_FORM)
+        await load()
+        // The tab bar is server-rendered; refresh it so the pending-request
+        // badge on "Admin admin" follows what just happened.
+        router.refresh()
+        return true
+      } catch (err) {
+        setNotice({
+          kind: 'error',
+          text: err instanceof Error ? err.message : String(err),
+        })
+        // Puts back whatever an optimistic tick changed.
+        await load()
         return false
+      } finally {
+        setBusy(false)
       }
-      if (!res.ok) throw new Error(payload.error ?? `HTTP ${res.status}`)
-      setNotice({ kind: 'ok', text: okText })
-      await load()
-      // The tab bar is server-rendered; refresh it so the pending-request
-      // badge on "Admin admin" follows what just happened.
-      router.refresh()
-      return true
-    } catch (err) {
-      setNotice({
-        kind: 'error',
-        text: err instanceof Error ? err.message : String(err),
-      })
-      // Puts back whatever an optimistic tick changed.
-      await load()
-      return false
-    } finally {
-      setBusy(false)
+    },
+    [load, router]
+  )
+
+  // First load. Back within the hour of leaving for Google, the ticks and the
+  // add form come back as they were; straight back from Google, the refused
+  // request is sent again as well.
+  useEffect(() => {
+    const pending = takePending()
+    const resume = takeResumeMarker()
+    if (pending) {
+      setRequestPicks(pending.requestPicks)
+      setForm(pending.form)
     }
-  }
+    void (async () => {
+      await load()
+      if (resume && pending?.action) await call(pending.action, true)
+    })()
+  }, [load, call])
 
   const tabsOn = (a: AccessFlags) =>
     ACCESS_AREAS.filter(x => a[x.key]).map(x => x.label)
@@ -183,20 +280,24 @@ export default function UsersAdmin() {
         : prev
     )
     void call(
-      'PATCH',
-      { email: u.email, access: next },
-      `${who(u)} now has: ${tabsOn(next).join(', ') || 'nothing'}.`
+      action(
+        'PATCH',
+        { email: u.email, access: next },
+        `${who(u)} now has: ${tabsOn(next).join(', ') || 'nothing'}.`
+      )
     )
   }
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
-    const ok = await call(
-      'POST',
-      form,
-      `${form.email.trim().toLowerCase()} can now sign in.`
+    await call(
+      action(
+        'POST',
+        form,
+        `${form.email.trim().toLowerCase()} can now sign in.`,
+        { clearForm: true }
+      )
     )
-    if (ok) setForm({ email: '', access: DEFAULT_NEW_ACCESS })
   }
 
   return (
@@ -263,9 +364,11 @@ export default function UsersAdmin() {
                         disabled={busy}
                         onClick={() =>
                           void call(
-                            'POST',
-                            { email: r.email, access: picks },
-                            `${r.name ?? r.email} can now sign in.`
+                            action(
+                              'POST',
+                              { email: r.email, access: picks },
+                              `${r.name ?? r.email} can now sign in.`
+                            )
                           )
                         }
                       >
@@ -277,10 +380,12 @@ export default function UsersAdmin() {
                         disabled={busy}
                         onClick={() =>
                           void call(
-                            'DELETE',
-                            { email: r.email },
-                            `Request from ${r.name ?? r.email} dismissed.`,
-                            '/api/admin/users/requests'
+                            action(
+                              'DELETE',
+                              { email: r.email },
+                              `Request from ${r.name ?? r.email} dismissed.`,
+                              { url: REQUESTS_API }
+                            )
                           )
                         }
                       >
@@ -356,9 +461,11 @@ export default function UsersAdmin() {
                             onClick={() => {
                               setRemoving(null)
                               void call(
-                                'DELETE',
-                                { email: u.email },
-                                `${who(u)} can no longer sign in.`
+                                action(
+                                  'DELETE',
+                                  { email: u.email },
+                                  `${who(u)} can no longer sign in.`
+                                )
                               )
                             }}
                           >

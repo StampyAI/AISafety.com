@@ -51,7 +51,14 @@ function when(iso: string | null): string {
   })
 }
 
-export default function NewsletterAdmin() {
+export default function NewsletterAdmin({
+  canSend,
+}: {
+  /** This session may approve (from the server, so it is known before the
+   *  ActiveCampaign read finishes). Picks which notice shows at the top; the
+   *  Approve button itself follows the API's answer in `data.canSend`. */
+  canSend: boolean
+}) {
   const [data, setData] = useState<Payload | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -154,14 +161,14 @@ export default function NewsletterAdmin() {
         </p>
       </div>
 
-      {data?.canSend !== false && (
+      {canSend && (
         <div className={`${adminStyles.notice} ${styles.liveWarning}`}>
           <strong>This sends real emails.</strong> Approving an issue schedules
           it to go to every subscriber on its list about two minutes later.
           There’s no recall once it’s out. Use with caution.
         </div>
       )}
-      {data?.canSend === false && (
+      {!canSend && (
         <p className={styles.notice}>
           Preview only: you can open every drafted issue below, but approving
           and sending stays with the owner.

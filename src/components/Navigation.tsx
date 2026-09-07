@@ -54,9 +54,9 @@ const navItems = [
 // (and the mobile menu, which always lists everything).
 const MIN_OVERFLOW = 6
 
-// How long the +N panel stays mounted after closing, for its fade-out.
+// How long the +N panel stays mounted after closing, for its exit animation.
 // Must match the transition on .nav-dropdown-closing in the CSS.
-const DROPDOWN_EXIT_MS = 80
+const DROPDOWN_EXIT_MS = 100
 
 export default function Navigation({
   counts,

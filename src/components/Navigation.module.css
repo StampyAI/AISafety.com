@@ -99,6 +99,8 @@
   color: inherit;
   cursor: pointer;
   transition: all var(--hover-transition);
+  /* Anchors the hover tooltip. */
+  position: relative;
 }
 
 .nav-item-last {
@@ -188,6 +190,8 @@
   background: transparent;
   cursor: pointer;
   transition: all var(--hover-transition);
+  /* Anchors the hover tooltip. */
+  position: relative;
 }
 
 .nav-dropdown-item:hover {
@@ -224,6 +228,67 @@
    inside the overflow dropdown. */
 .nav-item-last[data-active-inside] {
   border-color: var(--bright-teal-300);
+}
+
+/* Hover tooltip: the page's one-line description, opened under the pill
+   after a short pause. Desktop only by construction — .nav-menu is hidden
+   under 991px and the (hover: hover) guard skips touch screens above it.
+   Surface, shadow, type and padding come from globals (.border-plus-fill,
+   .drop-shadow-extra-dark, .paragraph-xs, .padding-*); only placement and
+   show/hide live here.
+   pointer-events: none so it never catches the cursor or covers a click. */
+.nav-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 400px;
+  border-radius: 8px;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity var(--hover-transition),
+    visibility var(--hover-transition);
+  z-index: 5;
+}
+
+/* Page thumbnail at the top of the tooltip, scaled to its width. */
+.nav-tooltip-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* Items stack inside the +N dropdown, so there the tooltip opens beside the
+   panel (its 24px padding plus the same 8px gap) instead of under the item. */
+.nav-dropdown-item .nav-tooltip {
+  top: 0;
+  left: auto;
+  right: calc(100% + 32px);
+  transform: none;
+}
+
+@media (hover: hover) {
+  .nav-item:hover .nav-tooltip,
+  .nav-item:focus-visible .nav-tooltip,
+  .nav-dropdown-item:hover .nav-tooltip,
+  .nav-dropdown-item:focus-visible .nav-tooltip {
+    visibility: visible;
+    opacity: 1;
+    /* The pause before opening (TOOLTIP_DELAY_MS in the JSX); closing is
+       immediate. */
+    transition-delay: 0.4s;
+  }
+
+  /* Once one tooltip has shown, the others open at once while the pointer
+     keeps moving across the pills. */
+  .nav-menu[data-tooltips-warm] .nav-item:hover .nav-tooltip,
+  .nav-menu[data-tooltips-warm] .nav-dropdown-item:hover .nav-tooltip {
+    transition-delay: 0s;
+  }
 }
 
 .nav-search-button {

@@ -12,9 +12,12 @@ const standaloneRoutes = ['/poster-map', '/admin']
 export default function LayoutShell({
   children,
   counts,
+  preview,
 }: {
   children: React.ReactNode
   counts: Partial<Record<string, number>>
+  /** This browser is in preview mode (see PreviewBanner). */
+  preview: boolean
 }) {
   const pathname = usePathname()
   const isStandalone = standaloneRoutes.some(
@@ -27,7 +30,7 @@ export default function LayoutShell({
 
   return (
     <>
-      <Navigation counts={counts} />
+      <Navigation counts={counts} preview={preview} />
       {children}
       <Footer />
       <Assistant />

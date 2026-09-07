@@ -14,10 +14,13 @@
     Page            (single line text)  — page the conversation started on
     Latency ms      (number)            — latest turn's latency
     Prompt version  (single line text)  — latest, e.g. "2026-05-07-1"
-    Notes           (long text)         — admin annotations
+    Notes           (long text)         — admin notes as signed entries
+                                          (annotation-log.ts: parseNotes)
     Tags            (multi-select)      — admin annotations; new options are
                                           created on the fly (typecast) when a
                                           reviewer labels a conversation
+    Reviewed by     (text)              — admin name behind the current verdict
+    Review log      (long text)         — who changed which annotation, when
     Review          (single select)     — reviewer's verdict on the whole
                                           conversation: Good / Bad / Unsure
     Created at      (created time)      — auto, first-turn timestamp
@@ -46,6 +49,20 @@ import {
   turnsToKeep,
 } from '@/lib/admin/conversation-turns'
 import { readTranscript, writeTranscript } from '@/lib/admin/transcript-blob'
+import {
+  appendLog,
+  appendNote,
+  describeAnnotationChanges,
+  formatLogLines,
+  removeNote,
+} from './annotation-log'
+
+/** A note deletion aimed at an entry that has since moved or gone. */
+export class NoteNotFoundError extends Error {
+  constructor() {
+    super('That note has changed since the page loaded. Reload and try again.')
+  }
+}
 
 const TOKEN = process.env.AIRTABLE_TOKEN
 const BASE = process.env.AIRTABLE_BASE_ID
@@ -65,6 +82,8 @@ const FIELD = {
   notes: 'fldpjWWpS9R0cFXRU', // Notes
   tags: 'fldAkUlONRN894SZN', // Tags
   review: 'fldaQaobQ98Whc5pV', // Review
+  reviewedBy: 'flddIHuDdVFQXrE8o', // Reviewed by — who set the current verdict
+  reviewLog: 'fldZ6fQMLRahkc9wl', // Review log — one line per annotation change
   data: 'fld9TbBixMYVOssja', // Data
   searchOverflow: 'fldEUemATrZA3Dfa4', // Search overflow
   clicked: 'fld3PKIZx3Oo1oxkm', // Clicked
@@ -271,6 +290,11 @@ export interface ConversationRow {
   /** Reviewer's verdict on the whole conversation ('' when not yet rated) —
    *  distinct from `ratings`, the visitor's own thumbs on individual replies. */
   review: ReviewValue | ''
+  /** Admin sign-in name of whoever set the current verdict ('' when unrated). */
+  reviewedBy: string
+  /** Who did what to this row's annotations, one line per change, oldest
+   *  first — see annotation-log.ts for the format. */
+  reviewLog: string
   data: ConversationData | null
   /** Listing ids whose cards the visitor clicked during this conversation. */
   clickedCitations: string[]
@@ -411,6 +435,8 @@ function rowToConversation(
       ? tags.filter((t): t is string => typeof t === 'string')
       : [],
     review: parseReview(f[FIELD.review]),
+    reviewedBy: str(f[FIELD.reviewedBy]),
+    reviewLog: str(f[FIELD.reviewLog]),
     data: parseData(str(f[FIELD.data]) || undefined),
     clickedCitations: parseClicked(str(f[FIELD.clicked]) || undefined),
     ratings: parseRatings(str(f[FIELD.ratings]) || undefined),
@@ -559,14 +585,66 @@ export async function listConversationsForStats(range: {
 
 export async function updateConversation(
   id: string,
-  patch: { notes?: string; tags?: string[]; review?: ReviewValue | null }
+  patch: {
+    notes?: string
+    tags?: string[]
+    review?: ReviewValue | null
+    /** A new signed note, appended to the Notes field under the actor's name. */
+    addNote?: string
+    /** An existing signed note to remove (anyone may delete any note). */
+    deleteNote?: { index: number; at: string; actor: string }
+  },
+  /** Admin sign-in name of whoever is making the change, for the row's
+   *  Review log and Reviewed by. */
+  actor: string
 ): Promise<ConversationRow> {
   ensureConfig(CONVERSATIONS_TABLE)
+  // Read the row first so the log can say what actually changed (a re-sent
+  // identical label list or unchanged notes writes no line).
+  const current = await airtableRequest(
+    `${CONVERSATIONS_TABLE}/${id}?returnFieldsByFieldId=true`
+  )
+  if (!current.ok) {
+    throw new Error(
+      `Airtable read failed: ${current.status} ${await current.text()}`
+    )
+  }
+  const before = rowToConversation(
+    (await current.json()) as AirtableRow<ConversationFields>
+  )
+  const changes = describeAnnotationChanges(
+    { review: before.review, tags: before.tags, notes: before.notes },
+    patch
+  )
+
   const fields: ConversationFields = {}
   if (patch.notes !== undefined) fields[FIELD.notes] = patch.notes
+  if (patch.addNote !== undefined && patch.addNote.trim()) {
+    fields[FIELD.notes] = appendNote(
+      patch.notes ?? before.notes,
+      actor,
+      patch.addNote
+    )
+  }
+  if (patch.deleteNote) {
+    const next = removeNote(before.notes, patch.deleteNote)
+    if (next === null) throw new NoteNotFoundError()
+    fields[FIELD.notes] = next
+  }
   if (patch.tags !== undefined) fields[FIELD.tags] = patch.tags
   // null clears the verdict (the reviewer clicked their rating off again).
-  if (patch.review !== undefined) fields[FIELD.review] = patch.review
+  if (patch.review !== undefined) {
+    fields[FIELD.review] = patch.review
+    if ((patch.review ?? '') !== before.review) {
+      fields[FIELD.reviewedBy] = patch.review ? actor : ''
+    }
+  }
+  if (changes.length > 0) {
+    fields[FIELD.reviewLog] = appendLog(
+      before.reviewLog,
+      formatLogLines(actor, changes)
+    )
+  }
   // typecast lets a label that isn't yet a Tags option create itself, so
   // reviewers can define new labels on the go. The route validates Review
   // against REVIEW_VALUES, so typecast can't invent verdict options.

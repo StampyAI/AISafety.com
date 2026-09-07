@@ -560,7 +560,6 @@ export default function JobsClient({ jobs }: JobsClientProps) {
           <FilterGroup
             trackingPage="Jobs"
             title="Remote or on-site"
-            trackingTitle="Work location"
             options={workLocationOptions}
             selected={selectedWorkLocation}
             counts={workLocationCounts}

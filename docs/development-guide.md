@@ -21,12 +21,12 @@ AIRTABLE_BASE_ID=your_base_id
 
 Everything else is optional and only needed for the feature it unlocks:
 
-| Add                                     | To get                                                                                   |
-| --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `ADMIN_PASSWORD=anything`               | the admin area at `/admin/login`                                                         |
-| `ANTHROPIC_API_KEY`                     | the chatbot (unlimited locally; rate limits need Redis)                                  |
-| `BLOB_READ_WRITE_TOKEN`                 | permanent image URLs; without it images use Airtable's expiring URLs, fine for a session |
-| `KV_REST_API_URL` + `KV_REST_API_TOKEN` | analytics in Redis; without them events go to a local `.analytics-dev/` file             |
+| Add                                                                                               | To get                                                                                                                    |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `ADMIN_SESSION_SECRET` (copy from Vercel) | the admin area at `/admin/login`, signing in with a Google account that is a root admin or was approved at `/admin/users` |
+| `ANTHROPIC_API_KEY`                                                                               | the chatbot (unlimited locally; rate limits need Redis)                                                                   |
+| `BLOB_READ_WRITE_TOKEN`                                                                           | permanent image URLs; without it images use Airtable's expiring URLs, fine for a session                                  |
+| `KV_REST_API_URL` + `KV_REST_API_TOKEN`                                                           | analytics in Redis; without them events go to a local `.analytics-dev/` file                                              |
 
 The full list is in `docs/architecture.md`. Never commit `.env.local`.
 
@@ -80,7 +80,7 @@ See `CLAUDE.md` at the repo root for the map of `src/` and the project conventio
 
 3. Copy a sibling's `opengraph-image.tsx` and point it at your `SITE_PAGES` entry. That gives the page its link-preview card.
 4. Add the route to `src/app/sitemap.ts`, and to `Navigation.tsx` and `Footer.tsx` if it belongs in the nav.
-5. Give tracked links and filters a stable tracking name from the start (the `trackingPage` / `trackingTitle` props). Renaming them later splits the analytics history.
+5. Give tracked links and pages a stable tracking name from the start (the `trackingPage` prop). Renaming a filter's title or one of its options is fine: change the label in the page, then add one line to `src/lib/filter-tracking.ts` mapping the new wording to the value logged so far. The filter keeps logging its original name and the dashboard shows the new wording for old and new clicks alike.
 6. Never rename an existing slug. If a path must move, add a redirect in `next.config.ts`.
 
 ## Adding an Airtable table to the data layer
@@ -104,7 +104,7 @@ Pure logic (ordering, parsing, formatting, validation) goes in a dependency-free
 
 ## Admin and preview mode locally
 
-Set `ADMIN_PASSWORD` in `.env.local` and sign in at `/admin/login`. Preview mode (`/admin/preview`) needs Airtable credentials, since it reads Airtable live. `PREVIEW_KEY_SEED` only matters for production builds.
+Copy `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` and `ADMIN_SESSION_SECRET` from Vercel into `.env.local` and sign in at `/admin/login` with a Google account that is a root admin in `src/lib/admin/users.ts` or was approved at `/admin/users` (the dev port must be among the Google client's registered redirect URIs; 3000 is). There is no password.
 
 ## Troubleshooting
 

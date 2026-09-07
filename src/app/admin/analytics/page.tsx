@@ -14,7 +14,11 @@ import {
   type ListingRow,
   type OverallListingRow,
   type SearchPanelData,
+  type MapSearchPanelData,
   type VisitorShare,
+  DASHBOARD_TZ,
+  dashboardDay,
+  dashboardOffset,
 } from '@/lib/analytics/events'
 import {
   readConversationStats,
@@ -47,6 +51,7 @@ import Logo from './Logo'
 import SortableTable, { type SortColumn, type SortValue } from './SortableTable'
 import admin from '../admin.module.css'
 import styles from './analytics.module.css'
+import { displayFilterGroup, displayFilterValue } from '@/lib/filter-tracking'
 
 // Always render fresh — the dashboard reflects live event counts and the
 // selected date range comes from the query string.
@@ -96,8 +101,8 @@ const OVERVIEW_KEYS = new Set(OVERVIEW_TABS.map(t => t.key))
 // and only Map has areas, so the by-area rollup is Map-only.
 const MAP_PAGES = new Set(['Map', 'Communities'])
 
-// Bryce is in Colombia — fixed UTC-5, no DST — so day boundaries use -05:00.
-const TZ_OFFSET = '-05:00'
+// Day boundaries and displayed times use the dashboard's fixed reporting zone
+// (DASHBOARD_TZ in events.ts, UTC) — the same for every viewer.
 const DAY = 86_400_000
 
 interface ResolvedRange extends DateRange {
@@ -113,13 +118,15 @@ function first(v: string | string[] | undefined): string | undefined {
 }
 
 /** Translate the query string into concrete epoch-ms bounds. Defaults to the
- *  last 30 days. A custom from/to (inclusive, Bogotá day boundaries) wins. */
+ *  last 30 days. A custom from/to (inclusive, dashboard-zone day boundaries) wins. */
 function resolveRange(sp: SearchParams): ResolvedRange {
   const from = first(sp.from)
   const to = first(sp.to)
   if (from || to) {
-    const s = from ? Date.parse(`${from}T00:00:00${TZ_OFFSET}`) : NaN
-    const e = to ? Date.parse(`${to}T23:59:59.999${TZ_OFFSET}`) : NaN
+    const s = from
+      ? Date.parse(`${from}T00:00:00${dashboardOffset(from)}`)
+      : NaN
+    const e = to ? Date.parse(`${to}T23:59:59.999${dashboardOffset(to)}`) : NaN
     return {
       startMs: Number.isNaN(s) ? null : s,
       endMs: Number.isNaN(e) ? null : e,
@@ -132,9 +139,9 @@ function resolveRange(sp: SearchParams): ResolvedRange {
   const now = Date.now()
   switch (range) {
     case 'today': {
-      const today = new Date(now - 5 * 3_600_000).toISOString().slice(0, 10)
+      const today = dashboardDay(now)
       return {
-        startMs: Date.parse(`${today}T00:00:00${TZ_OFFSET}`),
+        startMs: Date.parse(`${today}T00:00:00${dashboardOffset(today)}`),
         endMs: null,
         key: 'today',
       }
@@ -342,7 +349,7 @@ function searchPageBadges(
 function formatTime(iso: string): string {
   try {
     return new Date(iso).toLocaleString('en-GB', {
-      timeZone: 'America/Bogota',
+      timeZone: DASHBOARD_TZ,
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -395,13 +402,31 @@ function labelFor(e: {
   type: string
   source?: string
   query?: string
+  page?: string
 }): string {
   if (e.type === 'search_open')
     return SEARCH_OPEN_LABELS[e.source ?? ''] ?? 'Opened search'
   if (e.type === 'search_query')
     return e.query ? `Searched for “${e.query}”` : 'Searched'
-  if (e.type === 'filter_apply')
-    return `Filtered by ${e.source ?? '?'}: ${e.label ?? '?'}`
+  // The /map search box: its events carry page 'Map', so the pill already
+  // says where; the line says which control.
+  if (e.type === 'map_search_open')
+    return e.source === 'cmd-f'
+      ? 'Opened the map search (⌘F)'
+      : 'Opened the map search'
+  if (e.type === 'map_search_query')
+    return e.query ? `Searched the map for “${e.query}”` : 'Searched the map'
+  if (e.type === 'map_search_pick')
+    return e.label
+      ? `Picked “${e.label}” from the map search`
+      : 'Picked a map search result'
+  if (e.type === 'filter_apply') {
+    // Renamed filters log their original names; show the current wording.
+    const page = e.page ?? ''
+    const group = e.source ?? '?'
+    const value = e.label ?? '?'
+    return `Filtered by ${displayFilterGroup(page, group)}: ${displayFilterValue(page, group, value)}`
+  }
   // A rating's label is the bare value ('up' | 'down' | 'removed'), so spell
   // it out.
   if (e.type === 'chatbot_rating') {
@@ -426,7 +451,7 @@ function pct1(part: number, total: number): string {
 function formatDay(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString('en-GB', {
-      timeZone: 'America/Bogota',
+      timeZone: DASHBOARD_TZ,
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -562,6 +587,8 @@ export default async function AnalyticsPage({
   // Same url lookup for the hovered-listings table — hover rows carry their
   // own urls, independent of the click rows above.
   const hoverUrlByName = new Map(data.topHovered.map(r => [r.name, r.url]))
+  // And for the map search's picked-listings table.
+  const pickUrlByName = new Map(data.mapSearch.picked.map(r => [r.name, r.url]))
   // Every hover is by definition from the map, so hovers aren't split by
   // source and the table's % denominator is simply the sum of its rows.
   const hoverTotal = data.topHovered.reduce((sum, r) => sum + r.count, 0)
@@ -678,6 +705,12 @@ export default async function AnalyticsPage({
               data since {formatDay(data.oldestTs)}
             </span>
           )}
+          <span
+            className={styles.coverage}
+            title="Day boundaries and times on this page are in UTC, the same for everyone. The rest of the admin shows your own local time."
+          >
+            times in {DASHBOARD_TZ}
+          </span>
           <ExcludeToggle />
         </div>
       </div>
@@ -995,6 +1028,16 @@ export default async function AnalyticsPage({
                     </Panel>
                   </div>
                 )}
+              {data.selectedPage === 'Map' && (
+                <MapSearchPanels
+                  data={data.mapSearch}
+                  unique={unique}
+                  logoFor={name =>
+                    logoByName.get(name) ?? faviconFor(pickUrlByName.get(name))
+                  }
+                  linkFor={name => pickUrlByName.get(name)}
+                />
+              )}
               {data.filterGroups.length > 0 && (
                 <div className={styles.grid}>
                   <Panel title="Filter usage">
@@ -2098,6 +2141,105 @@ function SearchView({
           one leads to. The Page column is the page the result belongs to; a row
           without one can&apos;t be matched to a single page in the search
           index.
+        </p>
+      </Panel>
+    </>
+  )
+}
+
+/** The Map tab's search-box panels: the funnel from opening the box to
+ *  picking a result, how it's opened, what's searched for, and which
+ *  listings get picked. Only the Field map has the box, so only the Map tab
+ *  renders these. */
+function MapSearchPanels({
+  data,
+  unique,
+  logoFor,
+  linkFor,
+}: {
+  data: MapSearchPanelData
+  unique: boolean
+  logoFor: (name: string) => string | undefined
+  linkFor: (name: string) => string | undefined
+}) {
+  const usersHead = unique ? 'Users' : undefined
+  const sum = (rows: Counted[]) => rows.reduce((s, r) => s + r.count, 0)
+  const rankByName = new Map(data.picked.map(r => [r.name, r.position]))
+  return (
+    <>
+      <div className={styles.grid}>
+        <Panel title="Search box · funnel">
+          <Funnel
+            stages={[
+              { label: 'Opened the search', value: data.funnel.opened },
+              { label: 'Typed a search', value: data.funnel.searched },
+              { label: 'Picked a result', value: data.funnel.picked },
+            ]}
+          />
+          <p className={styles.caption}>
+            The search box at the top left of the map – not the sitewide search,
+            which has its own tab. Unique users at each step;{' '}
+            {shareCell(data.openShare ?? undefined)} of the page&apos;s visitors
+            opened it at all. Recording since 5 September 2026.
+          </p>
+        </Panel>
+        <Panel title="Search box · how it's opened">
+          <CountTable
+            rows={data.openMethods}
+            labelHead="Method"
+            countHead={usersHead ?? 'Opens'}
+            total={sum(data.openMethods)}
+          />
+          <p className={styles.caption}>
+            The magnifying-glass button on the map, or ⌘F / Ctrl+F while the map
+            is on screen.
+          </p>
+        </Panel>
+      </div>
+      <div className={styles.grid}>
+        <Panel title="Search box · what people search for">
+          <CountTable
+            rows={data.topQueries}
+            labelHead="Search"
+            countHead={usersHead ?? 'Searches'}
+            total={sum(data.topQueries)}
+          />
+          <p className={styles.caption}>
+            A search is recorded once the visitor pauses typing, so a few
+            half-typed words are normal.
+          </p>
+        </Panel>
+        <Panel title="Search box · no results">
+          <CountTable
+            rows={data.noResultQueries}
+            labelHead="Search"
+            countHead={usersHead ?? 'Searches'}
+            total={sum(data.noResultQueries)}
+          />
+          <p className={styles.caption}>
+            What visitors looked for on the map and didn&apos;t find – worth
+            scanning for listings the map should have, or names it should match.
+          </p>
+        </Panel>
+      </div>
+      <Panel title="Search box · picked listings">
+        {/* Stays 'Picks' in unique mode: one per visitor per listing per DAY
+            summed across days, not distinct users — the same rule as the
+            Top hovered table. */}
+        <CountTable
+          rows={data.picked}
+          labelHead="Listing"
+          countHead="Picks"
+          rankHead="Rank"
+          rankFor={name => rankByName.get(name)}
+          logoFor={logoFor}
+          linkFor={linkFor}
+          total={sum(data.picked)}
+        />
+        <p className={styles.caption}>
+          The listings visitors picked from the results – the map flies to the
+          pin. Rank is where the listing sat in the results when picked (1 =
+          top), shown as a range when it varied.
         </p>
       </Panel>
     </>

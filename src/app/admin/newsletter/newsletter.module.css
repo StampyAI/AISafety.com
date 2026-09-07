@@ -15,7 +15,7 @@
 }
 
 .statusOk {
-  color: var(--bright-green);
+  color: var(--bright-teal-300);
   font-weight: 600;
 }
 
@@ -60,8 +60,8 @@
 }
 
 .buttonPrimary {
-  border: 1px solid var(--bright-green);
-  background: var(--bright-green);
+  border: 1px solid var(--bright-teal-300);
+  background: var(--bright-teal-300);
   color: var(--teal-900);
 }
 
@@ -87,7 +87,7 @@
 
 .noticeOk {
   font-size: 12px;
-  color: var(--bright-green);
+  color: var(--bright-teal-300);
 }
 
 .previewFrame {
@@ -188,4 +188,15 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+/* Same amber warning box as the map editor's "this edits the live site". */
+.liveWarning {
+  border-color: #f5b942;
+  color: #f5b942;
+}
+
+.liveWarning strong {
+  color: #f5b942;
+  font-weight: 600;
 }

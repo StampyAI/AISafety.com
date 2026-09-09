@@ -421,16 +421,34 @@ export async function uploadImage(
       502
     )
   }
-  const data = (await res.json()) as {
-    fields?: Record<string, { id: string; url: string }[]>
+  // The upload reply keys fields by id, so re-read the record by name.
+  const after = await airtableRequest(`${table}/${record}`)
+  if (!after.ok) {
+    throw new QueueError(
+      `Airtable read failed after upload: ${after.status}`,
+      502
+    )
   }
-  const list = data.fields?.[field] ?? []
+  const stored = ((await after.json()) as { fields: RawFields }).fields[field]
+  const list = Array.isArray(stored)
+    ? stored.filter(
+        (
+          x
+        ): x is {
+          id: string
+          url: string
+          thumbnails?: { large?: { url?: string } }
+        } =>
+          isRecord(x) && typeof x.id === 'string' && typeof x.url === 'string'
+      )
+    : []
   const newest = list[list.length - 1]
   if (newest && list.length > 1) {
-    // Keep only the picture just dropped.
+    // A logo slot holds one picture: keep only the one just dropped.
     await patchRecord(table, record, { [field]: [{ id: newest.id }] })
   }
-  return newest ? [newest.url] : []
+  if (!newest) return []
+  return [newest.thumbnails?.large?.url ?? newest.url]
 }
 
 // ─── Airtable helpers ───────────────────────────────────────────────────────

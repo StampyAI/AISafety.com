@@ -442,6 +442,34 @@
   font-weight: 500;
 }
 
+.editable {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  max-width: 100%;
+  padding: 2px 8px;
+  margin: -2px -8px;
+  border-radius: 6px;
+  cursor: text;
+}
+
+.editable:hover,
+.editable:focus-visible {
+  background: var(--q-sel);
+  outline: none;
+}
+
+.editHint {
+  display: inline-flex;
+  align-self: center;
+  color: var(--q-muted);
+  opacity: 0.55;
+}
+
+.editable:hover .editHint {
+  opacity: 1;
+}
+
 .edit {
   display: inline-flex;
   align-items: center;

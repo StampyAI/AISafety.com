@@ -141,8 +141,39 @@ function linkLabel(url: string): string {
   return 'Open source'
 }
 
+/** Text, numbers, lists of text and empty fields can be typed into. Lists
+ *  are edited as comma-separated text. Attachments and checkboxes cannot. */
 function isEditable(v: unknown): boolean {
-  return typeof v === 'string' || v === null || v === undefined
+  return (
+    typeof v === 'string' ||
+    typeof v === 'number' ||
+    v === null ||
+    v === undefined ||
+    (Array.isArray(v) && v.every(x => typeof x === 'string'))
+  )
+}
+
+/** Turn what was typed back into the shape Airtable expects for that field:
+ *  a list stays a list, a number stays a number, empty clears the field. */
+function coerceEdits(
+  edits: Record<string, string>,
+  original: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, text] of Object.entries(edits)) {
+    const was = original[k]
+    const t = text.trim()
+    if (t === '') out[k] = null
+    else if (Array.isArray(was)) {
+      out[k] = t
+        .split(',')
+        .map(x => x.trim())
+        .filter(Boolean)
+    } else if (typeof was === 'number' && !Number.isNaN(Number(t))) {
+      out[k] = Number(t)
+    } else out[k] = text
+  }
+  return out
 }
 
 function isOpen(item: QueueItem): boolean {
@@ -497,7 +528,14 @@ export default function QueueAdmin() {
           ) {
             if (!(item.type === 'Change' && item.changes.length === 0)) {
               e.preventDefault()
-              void act(item, 'accept', { edits: d.edits })
+              void act(item, 'accept', {
+                edits: coerceEdits(
+                  d.edits,
+                  item.type === 'Change'
+                    ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
+                    : (live[item.id]?.fields ?? item.fields ?? {})
+                ),
+              })
             }
           } else if (
             item &&
@@ -564,7 +602,7 @@ export default function QueueAdmin() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, drafts, move, act, toast, showHelp, setDraft])
+  }, [selected, drafts, move, act, toast, showHelp, setDraft, live])
 
   const waiting = ordered.flat.length
   const doneToday = ordered.done.length
@@ -824,6 +862,11 @@ function Detail({
   const nothingToApply = item.type === 'Change' && item.changes.length === 0
   const reason = d.chip ?? d.other.trim()
   const editCount = Object.keys(d.edits).length
+  const original: Record<string, unknown> =
+    item.type === 'Change'
+      ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
+      : (live?.fields ?? item.fields ?? {})
+  const editsToSave = () => coerceEdits(d.edits, original)
 
   return (
     <div className={styles.detailInner}>
@@ -878,6 +921,7 @@ function Detail({
         </section>
       )}
 
+      {/* Edits typed on the page, in the field's own shape. */}
       {item.type === 'Add' && (live || item.fields) && (
         <>
           <SitePreview
@@ -918,6 +962,12 @@ function Detail({
                       rows={2}
                       autoFocus
                       defaultValue={d.edits[c.field] ?? show(c.to)}
+                      onKeyDown={e => {
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          setD({ editing: null })
+                        }
+                      }}
                       onBlur={e =>
                         setD({
                           editing: null,
@@ -926,20 +976,12 @@ function Detail({
                       }
                     />
                   ) : (
-                    <>
-                      {c.field in d.edits ? d.edits[c.field] : show(c.to)}
-                      {c.field in d.edits && (
-                        <em className={styles.edited}>edited</em>
-                      )}
-                      {!revising && (
-                        <button
-                          className={styles.edit}
-                          onClick={() => setD({ editing: c.field })}
-                        >
-                          <Icon src={ICON.pencil} size={12} /> edit
-                        </button>
-                      )}
-                    </>
+                    <EditableValue
+                      text={c.field in d.edits ? d.edits[c.field] : show(c.to)}
+                      edited={c.field in d.edits}
+                      canEdit={!revising}
+                      onEdit={() => setD({ editing: c.field })}
+                    />
                   )}
                 </span>
               </div>
@@ -1063,7 +1105,7 @@ function Detail({
               <button
                 className={`${styles.button} ${styles.primary}`}
                 disabled={d.busy}
-                onClick={() => act('accept', { edits: d.edits })}
+                onClick={() => act('accept', { edits: editsToSave() })}
               >
                 <Icon
                   src={item.type === 'Add' ? ICON.plus : ICON.check}
@@ -1167,7 +1209,13 @@ function Fields({
               className={styles.input}
               rows={value.length > 120 ? 5 : 2}
               autoFocus
-              defaultValue={value}
+              defaultValue={empty && !edited ? '' : value}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setD({ editing: null })
+                }
+              }}
               onBlur={e =>
                 setD({
                   editing: null,
@@ -1192,26 +1240,21 @@ function Fields({
           ) : empty && isAttachment ? (
             <span className={styles.noImage}>none</span>
           ) : empty ? (
-            <span className={styles.empty}>—</span>
+            <EditableValue
+              text="—"
+              muted
+              edited={false}
+              canEdit={!revising}
+              onEdit={() => setD({ editing: k })}
+            />
           ) : (
-            <>
-              {isUrl ? (
-                <a href={v as string} target="_blank" rel="noreferrer">
-                  {value}
-                </a>
-              ) : (
-                value
-              )}
-              {edited && <em className={styles.edited}>edited</em>}
-              {!revising && isEditable(v) && !isAttachment && (
-                <button
-                  className={styles.edit}
-                  onClick={() => setD({ editing: k })}
-                >
-                  <Icon src={ICON.pencil} size={12} /> edit
-                </button>
-              )}
-            </>
+            <EditableValue
+              text={value}
+              href={isUrl ? (v as string) : undefined}
+              edited={edited}
+              canEdit={!revising && isEditable(v) && !isAttachment}
+              onEdit={() => setD({ editing: k })}
+            />
           )}
         </span>
       </div>
@@ -1227,6 +1270,58 @@ function Fields({
         <div className={styles.fieldsRest}>{last.map(row)}</div>
       )}
     </div>
+  )
+}
+
+/** A value you can click to edit: a visible pencil, a hover tint, and a link
+ *  that still opens when it is one. */
+function EditableValue({
+  text,
+  href,
+  edited,
+  canEdit,
+  muted,
+  onEdit,
+}: {
+  text: string
+  href?: string
+  edited: boolean
+  canEdit: boolean
+  muted?: boolean
+  onEdit: () => void
+}) {
+  const body = href ? (
+    <a href={href} target="_blank" rel="noreferrer">
+      {text}
+    </a>
+  ) : (
+    <span className={muted ? styles.empty : undefined}>{text}</span>
+  )
+  if (!canEdit) return body
+  return (
+    <span
+      className={styles.editable}
+      role="button"
+      tabIndex={0}
+      title="Click to edit"
+      onClick={e => {
+        // A click on the link itself opens the link; anywhere else edits.
+        if ((e.target as HTMLElement).tagName === 'A') return
+        onEdit()
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onEdit()
+        }
+      }}
+    >
+      {body}
+      {edited && <em className={styles.edited}>edited</em>}
+      <span className={styles.editHint}>
+        <Icon src={ICON.pencil} size={12} />
+      </span>
+    </span>
   )
 }
 

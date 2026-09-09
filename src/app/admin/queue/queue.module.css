@@ -499,6 +499,7 @@
   font-size: 12px;
   font-style: normal;
   color: var(--q-accent);
+  white-space: nowrap;
 }
 
 .code,

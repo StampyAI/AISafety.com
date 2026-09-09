@@ -1,14 +1,9 @@
 'use client'
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem } from '@/lib/admin/queue'
+import Icon from '@/components/Icon'
+import SitePreview from './SitePreview'
 import styles from './queue.module.css'
 
 // The Queue is a triage tool Bryce sits in for long stretches, so it has its
@@ -27,6 +22,65 @@ const SECTION_LABEL: Record<Section, string> = {
   broom: 'Broom',
   rules: 'Rules',
   comb: 'Comb',
+}
+
+// Library icons (public/images/icons), rendered through the site's <Icon>.
+const ICON = {
+  requests: '/images/icons/speech-bubble.svg',
+  mail: '/images/icons/mail.svg',
+  discord: '/images/icons/discord.svg',
+  form: '/images/icons/clipboard.svg',
+  broom: '/images/icons/flag.svg',
+  comb: '/images/icons/magnifying-glass.svg',
+  rule: '/images/icons/book.svg',
+  check: '/images/icons/check.svg',
+  x: '/images/icons/x.svg',
+  question: '/images/icons/question-mark.svg',
+  plus: '/images/icons/plus.svg',
+  stars: '/images/icons/stars.svg',
+  undo: '/images/icons/reset.svg',
+  external: '/images/icons/link-out.svg',
+  table: '/images/icons/table.svg',
+  arrow: '/images/icons/arrow-right.svg',
+  timer: '/images/icons/timer.svg',
+  done: '/images/icons/check-in-circle.svg',
+  pencil: '/images/icons/pencil-small.svg',
+} as const
+
+const SECTION_ICON: Record<Section, string> = {
+  requests: ICON.requests,
+  broom: ICON.broom,
+  rules: ICON.rule,
+  comb: ICON.comb,
+}
+
+function sourceIcon(item: QueueItem): string {
+  if (item.type === 'Rule' || item.source === 'Teach') return ICON.rule
+  switch (item.source) {
+    case 'Email':
+      return ICON.mail
+    case 'Discord':
+      return ICON.discord
+    case 'Form':
+      return ICON.form
+    case 'Broom':
+      return ICON.broom
+    default:
+      return ICON.comb
+  }
+}
+
+function verdictIcon(item: QueueItem): string {
+  if (item.verdict === 'Publish' || item.verdict === 'Fix') return ICON.check
+  if (item.verdict === 'Unsure') return ICON.question
+  return ICON.x
+}
+
+function linkIcon(url: string): string {
+  if (url.includes('airtable.com')) return ICON.table
+  if (url.includes('discord.com')) return ICON.discord
+  if (url.includes('mail.google.com')) return ICON.mail
+  return ICON.external
 }
 
 type Theme = 'light' | 'dark'
@@ -466,9 +520,9 @@ export default function QueueAdmin() {
           <button
             className={styles.ghost}
             onClick={() => setShowHelp(v => !v)}
-            title="Keyboard shortcuts"
+            title="Keyboard shortcuts (?)"
           >
-            ?
+            <Icon src={ICON.question} />
           </button>
           <button className={styles.ghost} onClick={toggleTheme}>
             {theme === 'light' ? 'Dark' : 'Light'}
@@ -502,6 +556,7 @@ export default function QueueAdmin() {
               return (
                 <div key={section} className={styles.group}>
                   <div className={styles.groupHead}>
+                    <Icon src={SECTION_ICON[section]} size={12} />
                     {SECTION_LABEL[section]}
                     <span className={styles.groupCount}>{list.length}</span>
                   </div>
@@ -549,6 +604,9 @@ export default function QueueAdmin() {
       {toast && (
         <div className={styles.toast} role="status">
           <span className={styles.toastText}>
+            <Icon
+              src={toast.item.status === 'Rejected' ? ICON.x : ICON.check}
+            />
             <strong>{toast.text}</strong>
             <span className={styles.toastTitle}>{toast.item.title}</span>
           </span>
@@ -557,6 +615,7 @@ export default function QueueAdmin() {
             disabled={draft(toast.item.id).busy}
             onClick={() => void act(toast.item, 'undo')}
           >
+            <Icon src={ICON.undo} size={12} className={styles.undoIcon} />
             Undo <kbd>U</kbd>
           </button>
         </div>
@@ -617,16 +676,26 @@ function Row({
       className={`${styles.row} ${active ? styles.rowActive : ''}`}
       onClick={onClick}
     >
-      <span className={`${styles.dot} ${dotClass(item)}`} aria-hidden />
+      <span className={`${styles.rowIcon} ${dotClass(item)}`}>
+        <Icon src={sourceIcon(item)} />
+      </span>
       <span className={styles.rowBody}>
         <span className={styles.rowTitle}>{item.title}</span>
         <span className={styles.rowMeta}>
           {item.source !== 'Comb' && <span>{item.source}</span>}
           {item.page && <span>{item.page}</span>}
           {item.verdict && (
-            <span className={verdictClass(item)}>{item.verdict}</span>
+            <span className={`${styles.withIcon} ${verdictClass(item)}`}>
+              <Icon src={verdictIcon(item)} size={12} />
+              {item.verdict}
+            </span>
           )}
-          {item.status === 'Revising' && <span>revising…</span>}
+          {item.status === 'Revising' && (
+            <span className={styles.withIcon}>
+              <Icon src={ICON.timer} size={12} />
+              revising
+            </span>
+          )}
         </span>
       </span>
     </button>
@@ -668,11 +737,13 @@ function Detail({
       <div className={styles.detailHead}>
         <div className={styles.pills}>
           <span className={`${styles.pill} ${dotClass(item)}`}>
+            <Icon src={sourceIcon(item)} size={12} />
             {item.source}
           </span>
           {item.page && <span className={styles.pillPage}>{item.page}</span>}
           {item.verdict && (
             <span className={`${styles.pill} ${verdictClass(item)}`}>
+              <Icon src={verdictIcon(item)} size={12} />
               Fable: {item.verdict}
             </span>
           )}
@@ -681,26 +752,44 @@ function Detail({
         <h2 className={styles.title}>{item.title}</h2>
         <div className={styles.links}>
           {item.sourceLink && (
-            <a href={item.sourceLink} target="_blank" rel="noreferrer">
-              {linkLabel(item.sourceLink)} ↗
+            <a
+              href={item.sourceLink}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.withIcon}
+            >
+              <Icon src={linkIcon(item.sourceLink)} size={12} />
+              {linkLabel(item.sourceLink)}
             </a>
           )}
           {item.url && (
-            <a href={item.url} target="_blank" rel="noreferrer">
-              {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')} ↗
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.withIcon}
+            >
+              <Icon src={ICON.external} size={12} />
+              {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
             </a>
           )}
         </div>
       </div>
 
       {item.sourceExcerpt && (
-        <Fold label="What they wrote" open={item.source !== 'Broom'}>
+        <section className={styles.block}>
+          <h3 className={styles.h3}>
+            {item.source === 'Broom' ? 'What Broom found' : 'What they wrote'}
+          </h3>
           <blockquote className={styles.quote}>{item.sourceExcerpt}</blockquote>
-        </Fold>
+        </section>
       )}
 
       {item.type === 'Add' && item.fields && (
-        <Fields item={item} d={d} setD={setD} />
+        <>
+          <SitePreview page={item.page} fields={item.fields} edits={d.edits} />
+          <Fields item={item} d={d} setD={setD} />
+        </>
       )}
 
       {item.type === 'Change' &&
@@ -716,6 +805,9 @@ function Detail({
               <div key={c.field} className={styles.diffRow}>
                 <span className={styles.label}>{c.field}</span>
                 <span className={styles.from}>{show(c.from)}</span>
+                <span className={styles.arrow}>
+                  <Icon src={ICON.arrow} size={12} />
+                </span>
                 <span className={styles.to}>
                   {d.editing === c.field ? (
                     <textarea
@@ -741,7 +833,7 @@ function Detail({
                           className={styles.edit}
                           onClick={() => setD({ editing: c.field })}
                         >
-                          edit
+                          <Icon src={ICON.pencil} size={12} /> edit
                         </button>
                       )}
                     </>
@@ -752,28 +844,36 @@ function Detail({
           </div>
         ))}
 
-      {item.type === 'Rule' && item.diff && (
-        <pre className={styles.code}>{item.diff}</pre>
+      {item.type === 'Rule' && (
+        <section className={styles.block}>
+          <h3 className={styles.h3}>What changes for the bots</h3>
+          <p className={styles.summary}>
+            {item.summary ?? 'No summary was written for this rule.'}
+          </p>
+          {item.appliesTo && (
+            <p className={styles.note}>Applies to: {item.appliesTo}</p>
+          )}
+        </section>
       )}
 
       {item.reasons.length > 0 && (
-        <Fold
-          label={`Why ${item.verdict ? item.verdict.toLowerCase() : 'this'}`}
-          summary={item.reasons[0]}
-          open={item.source !== 'Comb'}
-        >
+        <section className={styles.block}>
+          <h3 className={styles.h3}>
+            Why {item.verdict ? item.verdict.toLowerCase() : 'this'}
+          </h3>
           <ul className={styles.reasons}>
             {item.reasons.map((r, i) => (
               <li key={i}>{r}</li>
             ))}
           </ul>
-        </Fold>
+        </section>
       )}
 
       {item.replyDraft && (
-        <Fold label="Reply draft">
+        <section className={styles.block}>
+          <h3 className={styles.h3}>Reply draft</h3>
           <pre className={styles.draft}>{item.replyDraft}</pre>
-        </Fold>
+        </section>
       )}
 
       {(item.error || d.error) && (
@@ -782,7 +882,8 @@ function Detail({
 
       <div className={styles.actions}>
         {revising ? (
-          <p className={styles.note}>
+          <p className={`${styles.note} ${styles.withIcon}`}>
+            <Icon src={ICON.timer} size={12} />
             Claude is revising this{item.note ? ` (“${item.note}”)` : ''}.
           </p>
         ) : d.mode === 'reject' ? (
@@ -813,6 +914,7 @@ function Detail({
                 disabled={d.busy || (!reason && item.type !== 'Rule')}
                 onClick={() => act('reject', { reason })}
               >
+                <Icon src={ICON.x} size={12} />
                 {d.busy ? 'Rejecting…' : 'Confirm reject'} <kbd>↵</kbd>
               </button>
               <button
@@ -840,6 +942,7 @@ function Detail({
                 disabled={d.busy || !d.note.trim()}
                 onClick={() => act('revise', { note: d.note })}
               >
+                <Icon src={ICON.stars} size={12} />
                 {d.busy ? 'Sending…' : 'Send to Claude'}
               </button>
               <button
@@ -859,6 +962,10 @@ function Detail({
                 disabled={d.busy}
                 onClick={() => act('accept', { edits: d.edits })}
               >
+                <Icon
+                  src={item.type === 'Add' ? ICON.plus : ICON.check}
+                  size={12}
+                />
                 {d.busy ? 'Applying…' : acceptLabel(item)} <kbd>A</kbd>
               </button>
             )}
@@ -867,6 +974,7 @@ function Detail({
               disabled={d.busy}
               onClick={() => setD({ mode: 'reject' })}
             >
+              <Icon src={ICON.x} size={12} />
               Reject <kbd>R</kbd>
             </button>
             {item.type !== 'Rule' && (
@@ -875,6 +983,7 @@ function Detail({
                 disabled={d.busy}
                 onClick={() => setD({ mode: 'note' })}
               >
+                <Icon src={ICON.stars} size={12} />
                 Ask Claude to change it <kbd>N</kbd>
               </button>
             )}
@@ -887,28 +996,6 @@ function Detail({
         )}
       </div>
     </div>
-  )
-}
-
-function Fold({
-  label,
-  summary,
-  open = false,
-  children,
-}: {
-  label: string
-  summary?: string
-  open?: boolean
-  children: ReactNode
-}) {
-  return (
-    <details className={styles.fold} open={open}>
-      <summary>
-        <span className={styles.foldLabel}>{label}</span>
-        {summary && <span className={styles.foldSummary}>{summary}</span>}
-      </summary>
-      <div className={styles.foldBody}>{children}</div>
-    </details>
   )
 }
 
@@ -959,7 +1046,7 @@ function Fields({
                   className={styles.edit}
                   onClick={() => setD({ editing: k })}
                 >
-                  edit
+                  <Icon src={ICON.pencil} size={12} /> edit
                 </button>
               )}
             </>
@@ -972,11 +1059,7 @@ function Fields({
     <div className={styles.fields}>
       {main.map(row)}
       {rest.length > 0 && (
-        <Fold
-          label={`${rest.length} more field${rest.length === 1 ? '' : 's'}`}
-        >
-          <div className={styles.fields}>{rest.map(row)}</div>
-        </Fold>
+        <div className={styles.fieldsRest}>{rest.map(row)}</div>
       )}
     </div>
   )
@@ -995,7 +1078,12 @@ function DoneList({
 }) {
   return (
     <div className={styles.detailInner}>
-      <h2 className={styles.title}>Done today</h2>
+      <h2 className={`${styles.title} ${styles.withIcon}`}>
+        <span className={styles.yes}>
+          <Icon src={ICON.done} />
+        </span>
+        Done today
+      </h2>
       <p className={styles.note}>
         Published listings and field changes reach the site within about three
         minutes.
@@ -1003,9 +1091,19 @@ function DoneList({
       <div className={styles.doneList}>
         {items.map(item => (
           <div key={item.id} className={styles.doneRow}>
-            <span className={`${styles.dot} ${dotClass(item)}`} aria-hidden />
+            <span className={dotClass(item)}>
+              <Icon src={sourceIcon(item)} />
+            </span>
             <span className={styles.doneTitle}>{item.title}</span>
-            <span className={styles.doneWhat}>
+            <span className={`${styles.doneWhat} ${styles.withIcon}`}>
+              <span
+                className={item.status === 'Rejected' ? styles.no : styles.yes}
+              >
+                <Icon
+                  src={item.status === 'Rejected' ? ICON.x : ICON.check}
+                  size={12}
+                />
+              </span>
               {doneLabel(item)}
               {item.rejectReason && ` · ${item.rejectReason}`}
               <span className={styles.when}> · {ago(item.decidedAt)}</span>
@@ -1019,6 +1117,7 @@ function DoneList({
                 disabled={busyFor(item.id)}
                 onClick={() => onUndo(item)}
               >
+                <Icon src={ICON.undo} size={12} />
                 {busyFor(item.id) ? 'Undoing…' : 'Undo'}
               </button>
             </span>

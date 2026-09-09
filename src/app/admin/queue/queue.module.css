@@ -170,8 +170,8 @@
 
 .groupHead {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 7px;
   padding: 10px 16px 6px;
   font-size: 11px;
   font-weight: 650;
@@ -217,13 +217,20 @@
   border-left-color: var(--q-accent);
 }
 
-.dot {
+.rowIcon {
   flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 7px;
-  border-radius: 50%;
-  background: currentColor;
+  display: inline-flex;
+  margin-top: 2px;
+}
+
+.withIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.undoIcon {
+  margin-right: 2px;
 }
 
 .dotEmail {
@@ -313,6 +320,7 @@
 .pillPage {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   padding: 2px 9px;
   border-radius: 999px;
   font-size: 12px;
@@ -370,7 +378,7 @@
 }
 
 .diffRow {
-  grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 150px minmax(0, 1fr) 16px minmax(0, 1fr);
   padding: 10px 14px;
   background: var(--q-panel);
   border: 1px solid var(--q-border);
@@ -393,6 +401,12 @@
   overflow-wrap: anywhere;
 }
 
+.arrow {
+  display: inline-flex;
+  align-self: center;
+  color: var(--q-muted);
+}
+
 .from {
   color: var(--q-muted);
   text-decoration: line-through;
@@ -408,6 +422,9 @@
 }
 
 .edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   background: none;
   border: none;
   padding: 0;
@@ -454,44 +471,41 @@
   font-size: 14px;
 }
 
-.fold summary {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  cursor: pointer;
-  list-style: none;
-  font-size: 13px;
+.block {
+  display: grid;
+  gap: 8px;
+}
+
+.h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--q-muted);
 }
 
-.fold summary::-webkit-details-marker {
-  display: none;
+.summary {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--q-text);
 }
 
-.fold summary::before {
-  content: '▸';
-  font-size: 11px;
-  transition: transform 120ms;
+.siteFrame {
+  /* The site's own ground, so the card reads exactly as a visitor sees it. */
+  max-width: 400px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--teal-900);
+  color: var(--white);
 }
 
-.fold[open] summary::before {
-  transform: rotate(90deg);
-}
-
-.foldLabel {
-  font-weight: 500;
-}
-
-.foldSummary {
-  color: var(--q-text-2);
-}
-
-.fold[open] .foldSummary {
-  display: none;
-}
-
-.foldBody {
-  margin-top: 10px;
+.fieldsRest {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--q-border);
 }
 
 .reasons {
@@ -524,7 +538,8 @@
   bottom: 0;
   margin: 0 -40px -120px;
   padding: 14px 40px 22px;
-  background: linear-gradient(to top, var(--q-bg) 70%, transparent);
+  background: var(--q-bg);
+  border-top: 1px solid var(--q-border);
 }
 
 .buttons {
@@ -538,6 +553,7 @@
 .ghost {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   height: 36px;
   padding: 0 14px;
   border-radius: 8px;
@@ -687,17 +703,13 @@
 
 .doneRow {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto auto;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
   gap: 12px;
   align-items: center;
   padding: 8px 12px;
   background: var(--q-panel);
   border: 1px solid var(--q-border);
   border-radius: 8px;
-}
-
-.doneRow .dot {
-  margin-top: 0;
 }
 
 .doneTitle {
@@ -739,7 +751,7 @@
 .toastText {
   display: flex;
   gap: 10px;
-  align-items: baseline;
+  align-items: center;
   min-width: 0;
 }
 
@@ -748,6 +760,9 @@
 }
 
 .toastUndo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex: none;
   height: 30px;
   padding: 0 10px;
@@ -831,5 +846,9 @@
   .diffRow {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .arrow {
+    transform: rotate(90deg);
   }
 }

@@ -97,8 +97,11 @@ export interface QueueItem {
   url: string | null
   /** Change: the proposed field edits. */
   changes: ProposedChange[]
-  /** Rule: the proposed rulebook diff. */
+  /** Rule: the proposed rulebook diff (applied by the worker, never shown). */
   diff: string | null
+  /** Rule: what changes, in plain words, and which rulebook it touches. */
+  summary: string | null
+  appliesTo: string | null
   verdict: Verdict | null
   reasons: string[]
   rejectChips: string[]
@@ -176,9 +179,13 @@ function rowToItem(row: {
   let url: string | null = null
   let changes: ProposedChange[] = []
   let diff: string | null = null
+  let summary: string | null = null
+  let appliesTo: string | null = null
   if (isRecord(proposal)) {
     changes = toChanges(proposal.changes)
     diff = str(proposal.diff)
+    summary = str(proposal.summary)
+    appliesTo = str(proposal.applies_to) ?? str(proposal.appliesTo)
     name = str(proposal.name)
     url = str(proposal.url)
     if (isRecord(proposal.fields)) {
@@ -210,6 +217,8 @@ function rowToItem(row: {
     url,
     changes,
     diff,
+    summary,
+    appliesTo,
     verdict: str(f[F.verdict]) as Verdict | null,
     reasons: lines(f[F.reasons]),
     rejectChips: lines(f[F.rejectChips]),

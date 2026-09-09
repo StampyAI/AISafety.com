@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { QueueItem } from '@/lib/admin/queue'
+import Image from 'next/image'
+import type { FieldInfo, QueueItem } from '@/lib/admin/queue'
 import Icon from '@/components/Icon'
 import SitePreview from './SitePreview'
 import styles from './queue.module.css'
@@ -133,19 +134,6 @@ const NAME_KEYS = /\b(name|title)\b|^organi[sz]ation$/i
 const URL_KEYS = /^(url|website|link|join link|apply link|application link)$/i
 const DESC_KEYS = /description/i
 
-function orderedFields(fields: Record<string, unknown>): {
-  main: [string, unknown][]
-  rest: [string, unknown][]
-} {
-  const entries = Object.entries(fields).filter(
-    ([, v]) => v !== null && v !== undefined && v !== ''
-  )
-  const pick = (re: RegExp) => entries.filter(([k]) => re.test(k))
-  const main = [...pick(NAME_KEYS), ...pick(URL_KEYS), ...pick(DESC_KEYS)]
-  const seen = new Set(main.map(([k]) => k))
-  return { main, rest: entries.filter(([k]) => !seen.has(k)) }
-}
-
 function linkLabel(url: string): string {
   if (url.includes('mail.google.com')) return 'Open email'
   if (url.includes('discord.com')) return 'Open Discord'
@@ -217,6 +205,11 @@ export default function QueueAdmin() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [toast, setToast] = useState<Toast | null>(null)
+  // The focused item's record as it is in Airtable now, plus the table's
+  // field list, so empty fields (a missing logo) show as empty. By item id.
+  const [live, setLive] = useState<
+    Record<string, { fields: Record<string, unknown>; schema: FieldInfo[] }>
+  >({})
   const [showDone, setShowDone] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [theme, setTheme] = useState<Theme>('light')
@@ -227,6 +220,31 @@ export default function QueueAdmin() {
     comb: false,
   })
   const listRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const detailRef = useRef<HTMLDivElement>(null)
+
+  // The page never scrolls as a whole: the queue fills the viewport below the
+  // admin header and the list and the detail pane scroll on their own, so
+  // the header, the top bar and the list stay put and nothing slides under
+  // the header. The header's height depends on the window width, so it is
+  // measured rather than assumed.
+  useEffect(() => {
+    const fit = () => {
+      const el = rootRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top + window.scrollY
+      el.style.height = `${Math.max(320, window.innerHeight - top)}px`
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null
+    ro?.observe(document.body)
+    return () => {
+      window.removeEventListener('resize', fit)
+      ro?.disconnect()
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -327,6 +345,36 @@ export default function QueueAdmin() {
     setSelectedId(ordered.flat[0]?.id ?? null)
   }, [items, ordered.flat, selectedId, selected, showDone])
 
+  useEffect(() => {
+    if (!selected || selected.type !== 'Add') return
+    if (!selected.targetTable || !selected.targetRecord) return
+    if (live[selected.id]) return
+    const id = selected.id
+    const target = `${selected.targetTable}/${selected.targetRecord}`
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`${API}?target=${encodeURIComponent(target)}`, {
+          cache: 'no-store',
+        })
+        const data = (await res.json()) as {
+          fields?: Record<string, unknown>
+          schema?: FieldInfo[]
+        }
+        if (!cancelled && res.ok && data.fields) {
+          const fields = data.fields
+          const schema = data.schema ?? []
+          setLive(prev => ({ ...prev, [id]: { fields, schema } }))
+        }
+      } catch {
+        // the snapshot stays
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selected, live])
+
   const draft = (id: string): Draft => drafts[id] ?? FRESH
   const setDraft = useCallback((id: string, patch: Partial<Draft>) => {
     setDrafts(prev => ({ ...prev, [id]: { ...(prev[id] ?? FRESH), ...patch } }))
@@ -335,6 +383,7 @@ export default function QueueAdmin() {
   const select = useCallback((id: string) => {
     setSelectedId(id)
     setShowDone(false)
+    if (detailRef.current) detailRef.current.scrollTop = 0
     const row = listRef.current?.querySelector<HTMLElement>(`[data-id="${id}"]`)
     row?.scrollIntoView({ block: 'nearest' })
   }, [])
@@ -522,7 +571,10 @@ export default function QueueAdmin() {
   const total = waiting + doneToday
 
   return (
-    <div className={`${styles.queue} ${theme === 'dark' ? styles.dark : ''}`}>
+    <div
+      ref={rootRef}
+      className={`${styles.queue} ${theme === 'dark' ? styles.dark : ''}`}
+    >
       <div className={styles.top}>
         <div className={styles.topLeft}>
           <h1 className={styles.h1}>Queue</h1>
@@ -615,7 +667,7 @@ export default function QueueAdmin() {
             })}
           </div>
 
-          <div className={styles.detail}>
+          <div className={styles.detail} ref={detailRef}>
             {showDone ? (
               <DoneList
                 items={ordered.done}
@@ -626,6 +678,7 @@ export default function QueueAdmin() {
             ) : selected ? (
               <Detail
                 item={selected}
+                live={live[selected.id] ?? null}
                 d={draft(selected.id)}
                 setD={patch => setDraft(selected.id, patch)}
                 act={(action, extra) => void act(selected, action, extra)}
@@ -756,11 +809,13 @@ function verdictClass(item: QueueItem): string {
 
 function Detail({
   item,
+  live,
   d,
   setD,
   act,
 }: {
   item: QueueItem
+  live: { fields: Record<string, unknown>; schema: FieldInfo[] } | null
   d: Draft
   setD: (patch: Partial<Draft>) => void
   act: (action: Action, extra?: Record<string, unknown>) => void
@@ -823,10 +878,20 @@ function Detail({
         </section>
       )}
 
-      {item.type === 'Add' && item.fields && (
+      {item.type === 'Add' && (live || item.fields) && (
         <>
-          <SitePreview page={item.page} fields={item.fields} edits={d.edits} />
-          <Fields item={item} d={d} setD={setD} />
+          <SitePreview
+            page={item.page}
+            fields={live?.fields ?? item.fields ?? {}}
+            edits={d.edits}
+          />
+          <Fields
+            item={item}
+            fields={live?.fields ?? item.fields ?? {}}
+            schema={live?.schema ?? []}
+            d={d}
+            setD={setD}
+          />
         </>
       )}
 
@@ -1037,18 +1102,59 @@ function Detail({
   )
 }
 
+const IMAGE_URL =
+  /\.(png|jpe?g|webp|gif|svg)(\?|$)|airtableusercontent\.com|blob\.vercel-storage\.com/i
+
+function isImageList(v: unknown): v is string[] {
+  return (
+    Array.isArray(v) &&
+    v.length > 0 &&
+    v.every(x => typeof x === 'string' && IMAGE_URL.test(x))
+  )
+}
+
+// Fields Airtable fills in itself: shown last, never worth editing.
+const HOUSEKEEPING =
+  /^(created|date added|last modified|created time|record id|submitter's email)$/i
+
 function Fields({
   item,
+  fields,
+  schema,
   d,
   setD,
 }: {
   item: QueueItem
+  fields: Record<string, unknown>
+  schema: FieldInfo[]
   d: Draft
   setD: (patch: Partial<Draft>) => void
 }) {
-  const { main, rest } = orderedFields(item.fields ?? {})
+  // With the table's field list we show every column, empty ones included,
+  // in the table's order (name, link and description first); without it,
+  // only what the snapshot carries.
+  const types = new Map(schema.map(f => [f.name, f.type]))
+  const all: Record<string, unknown> = {}
+  if (schema.length) {
+    for (const f of schema) all[f.name] = fields[f.name] ?? null
+    for (const [k, v] of Object.entries(fields)) if (!(k in all)) all[k] = v
+  } else {
+    Object.assign(all, fields)
+  }
+  const entries = Object.entries(all)
+  const pick = (re: RegExp) => entries.filter(([k]) => re.test(k))
+  const main = [...pick(NAME_KEYS), ...pick(URL_KEYS), ...pick(DESC_KEYS)]
+  const seen = new Set(main.map(([k]) => k))
+  const rest = entries.filter(([k]) => !seen.has(k) && !HOUSEKEEPING.test(k))
+  const last = entries.filter(([k]) => !seen.has(k) && HOUSEKEEPING.test(k))
   const revising = item.status === 'Revising'
   const row = ([k, v]: [string, unknown]) => {
+    const isAttachment = types.get(k) === 'multipleAttachments'
+    const empty =
+      v === null ||
+      v === undefined ||
+      v === '' ||
+      (Array.isArray(v) && v.length === 0)
     const edited = k in d.edits
     const value = edited ? d.edits[k] : show(v)
     const isUrl = typeof v === 'string' && /^https?:\/\//.test(v) && !edited
@@ -1069,6 +1175,24 @@ function Fields({
                 })
               }
             />
+          ) : isImageList(v) ? (
+            <span className={styles.thumbs}>
+              {v.map(src => (
+                <Image
+                  key={src}
+                  src={src}
+                  alt=""
+                  width={56}
+                  height={56}
+                  unoptimized
+                  className={styles.thumb}
+                />
+              ))}
+            </span>
+          ) : empty && isAttachment ? (
+            <span className={styles.noImage}>none</span>
+          ) : empty ? (
+            <span className={styles.empty}>—</span>
           ) : (
             <>
               {isUrl ? (
@@ -1079,7 +1203,7 @@ function Fields({
                 value
               )}
               {edited && <em className={styles.edited}>edited</em>}
-              {!revising && isEditable(v) && (
+              {!revising && isEditable(v) && !isAttachment && (
                 <button
                   className={styles.edit}
                   onClick={() => setD({ editing: k })}
@@ -1098,6 +1222,9 @@ function Fields({
       {main.map(row)}
       {rest.length > 0 && (
         <div className={styles.fieldsRest}>{rest.map(row)}</div>
+      )}
+      {last.length > 0 && (
+        <div className={styles.fieldsRest}>{last.map(row)}</div>
       )}
     </div>
   )

@@ -2,6 +2,7 @@
   Queue API (sessions with the queue area only).
 
   GET  /api/admin/queue                        → { items }
+  GET  /api/admin/queue?target=<tbl>/<rec>     → { fields, schema } (live)
   POST /api/admin/queue  body { id, action, edits?, reason?, note? } → { item }
        action: accept | reject | revise | undo
 
@@ -16,6 +17,8 @@ import { canReviewQueue, currentAdmin } from '@/lib/admin/auth'
 import {
   acceptItem,
   getQueueItem,
+  getTableSchema,
+  getTargetFields,
   listQueue,
   QueueError,
   rejectItem,
@@ -49,10 +52,20 @@ function failure(e: unknown): Response {
   return json({ error: msg }, 502)
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await ensureAuth()
   if (auth) return auth
   try {
+    const target = req.nextUrl.searchParams.get('target')
+    if (target) {
+      const [table = '', record = ''] = target.split('/')
+      const [fields, schema] = await Promise.all([
+        getTargetFields(table, record),
+        getTableSchema(table),
+      ])
+      if (!fields) return json({ error: 'That record no longer exists.' }, 404)
+      return json({ fields, schema })
+    }
     return json({ items: await listQueue() })
   } catch (e) {
     return failure(e)

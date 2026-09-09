@@ -29,8 +29,9 @@
   --q-comb: #0f766e;
 
   margin: 0;
-  /* The shared admin header above is 68px tall. */
-  min-height: calc(100vh - 68px);
+  /* Height is set from JS to fill the viewport below the admin header. */
+  min-height: 320px;
+  overflow: hidden;
   background: var(--q-bg);
   color: var(--q-text);
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
@@ -159,9 +160,7 @@
   border-right: 1px solid var(--q-border);
   background: var(--q-panel-2);
   overflow-y: auto;
-  max-height: calc(100vh - 68px - 57px);
-  position: sticky;
-  top: 125px;
+  min-height: 0;
 }
 
 .group {
@@ -309,7 +308,9 @@
 
 .detail {
   min-width: 0;
-  padding: 28px 40px 120px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 40px 0;
 }
 
 .detailInner {
@@ -521,6 +522,37 @@
   color: var(--white);
 }
 
+.thumbs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--q-panel);
+  border: 1px solid var(--q-border);
+}
+
+.noImage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  border: 1px dashed var(--q-border-strong);
+  color: var(--q-muted);
+  font-size: 11px;
+}
+
+.empty {
+  color: var(--q-muted);
+}
+
 .fieldsRest {
   display: grid;
   gap: 10px;
@@ -556,7 +588,7 @@
 .actions {
   position: sticky;
   bottom: 0;
-  margin: 0 -40px -120px;
+  margin: 0 -40px 0;
   padding: 14px 40px 22px;
   background: var(--q-bg);
   border-top: 1px solid var(--q-border);
@@ -847,18 +879,17 @@
   }
 
   .list {
-    position: static;
     max-height: 40vh;
     border-right: none;
     border-bottom: 1px solid var(--q-border);
   }
 
   .detail {
-    padding: 20px 20px 120px;
+    padding: 20px 20px 0;
   }
 
   .actions {
-    margin: 0 -20px -120px;
+    margin: 0 -20px 0;
     padding: 12px 20px 20px;
   }
 

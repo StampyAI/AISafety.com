@@ -128,6 +128,7 @@ export class QueueError extends Error {
 }
 
 const TABLE_ID_RE = /^tbl[A-Za-z0-9]{14}$/
+const PROTECTED_FIELDS = new Set(['Publish?', 'Hide?'])
 
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.trim() !== '' ? v : null
@@ -276,6 +277,96 @@ export async function getQueueItem(id: string): Promise<QueueItem | null> {
   )
 }
 
+// ─── The target record, live ────────────────────────────────────────────────
+
+export interface FieldInfo {
+  name: string
+  type: string
+}
+
+const schemaCache = new Map<string, { at: number; fields: FieldInfo[] }>()
+const SCHEMA_TTL_MS = 10 * 60 * 1000
+
+/** Every field of a resource table, in Airtable's column order, so the page
+ *  can list what is EMPTY on a record (a missing logo, an empty location)
+ *  and not only what is filled. Read from the base's metadata, cached. */
+export async function getTableSchema(table: string): Promise<FieldInfo[]> {
+  if (!TABLE_ID_RE.test(table)) return []
+  const hit = schemaCache.get(table)
+  if (hit && Date.now() - hit.at < SCHEMA_TTL_MS) return hit.fields
+  const token = process.env.AIRTABLE_TOKEN
+  const base = process.env.AIRTABLE_BASE_ID
+  if (!token || !base) return []
+  const res = await fetch(
+    `https://api.airtable.com/v0/meta/bases/${base}/tables`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    }
+  )
+  if (!res.ok) return []
+  const data = (await res.json()) as {
+    tables: { id: string; fields: { name: string; type: string }[] }[]
+  }
+  for (const t of data.tables) {
+    schemaCache.set(t.id, {
+      at: Date.now(),
+      fields: t.fields
+        .filter(f => !PROTECTED_FIELDS.has(f.name))
+        .map(f => ({ name: f.name, type: f.type })),
+    })
+  }
+  return schemaCache.get(table)?.fields ?? []
+}
+
+/** The target record's fields as they are in Airtable right now, keyed by
+ *  field NAME. Attachments become a list of URLs (the large thumbnail when
+ *  Airtable made one, else the file); Publish?/Hide? are dropped. Used for
+ *  the focused item, because the snapshot on the queue row was taken when
+ *  the row was written and Airtable's attachment URLs expire within hours. */
+export async function getTargetFields(
+  table: string,
+  record: string
+): Promise<Record<string, unknown> | null> {
+  if (!TABLE_ID_RE.test(table) || !isRecordId(record)) return null
+  const res = await airtableRequest(`${table}/${record}`)
+  if (res.status === 404 || res.status === 403) return null
+  if (!res.ok) {
+    throw new QueueError(
+      `Airtable read failed: ${res.status} ${await res.text()}`,
+      502
+    )
+  }
+  const data = (await res.json()) as { fields: RawFields }
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(data.fields)) {
+    if (PROTECTED_FIELDS.has(k)) continue
+    if (
+      Array.isArray(v) &&
+      v.length &&
+      v.every(isRecord) &&
+      v.every(x => typeof x.url === 'string')
+    ) {
+      out[k] = v.map(x => {
+        const large =
+          isRecord(x.thumbnails) && isRecord(x.thumbnails.large)
+            ? x.thumbnails.large.url
+            : null
+        return typeof large === 'string' ? large : (x.url as string)
+      })
+    } else if (
+      v === null ||
+      typeof v === 'string' ||
+      typeof v === 'number' ||
+      typeof v === 'boolean' ||
+      (Array.isArray(v) && v.every(x => typeof x === 'string'))
+    ) {
+      out[k] = v
+    }
+  }
+  return out
+}
+
 // ─── Airtable helpers ───────────────────────────────────────────────────────
 
 async function patchRecord(
@@ -337,8 +428,6 @@ function target(item: QueueItem): { table: string; record: string } {
   }
   return { table, record }
 }
-
-const PROTECTED_FIELDS = new Set(['Publish?', 'Hide?'])
 
 /** Field name → value pairs the admin typed, checked before they reach
  *  Airtable: names must be plain short strings and never the publish flags. */

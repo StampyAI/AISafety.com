@@ -15,7 +15,7 @@ import styles from './queue.module.css'
 const NAME_KEYS = /\b(name|title)\b|^organi[sz]ation$/i
 const DESC_KEYS = /^description( \(short\))?$|^short description$/i
 const ANY_DESC = /description/i
-const LOGO_KEYS = /logo/i
+const LOGO_KEYS = /logo|image/i
 const PILL_KEYS =
   /^(type|mode|platform|categor(y|ies)|status|format|topics?|level|entry bar|funding type|kind)$/i
 const DATE_KEYS = /^(start date|date|deadline|end date)$/i

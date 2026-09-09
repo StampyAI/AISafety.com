@@ -373,6 +373,14 @@ function describeDelivery(
   return undefined
 }
 
+/** Tooltip for the row-header thumb badge. */
+function ratingTitle(value: 'up' | 'down', count: number): string {
+  const which = value === 'up' ? 'thumbs up' : 'thumbs down'
+  return count === 1
+    ? `The visitor rated a reply ${which}`
+    : `The visitor rated ${count} replies ${which}`
+}
+
 /** Row-header badge for the latest turn: only the cases worth flagging when
  *  skimming (the transcript carries the full note per reply). */
 function deliveryBadge(
@@ -915,6 +923,19 @@ function ConversationRow({
     }
     return m
   }, [conv.ratings])
+  // Header badge: how many replies the visitor rated each way, so a thumb is
+  // visible while skimming the list rather than only inside the transcript.
+  // Counted straight off the field (not via clientIndexOf) — a rating is worth
+  // flagging even when we can't pin it to a specific reply.
+  const ratingCounts = useMemo(() => {
+    let up = 0
+    let down = 0
+    for (const value of Object.values(conv.ratings)) {
+      if (value === 'up') up++
+      else if (value === 'down') down++
+    }
+    return { up, down }
+  }, [conv.ratings])
   // Maps a stored-history index to the visitor's message-list position — the
   // indexing the delivery reports, thumbs ratings, and turn-scoped click keys
   // are keyed on. New rows store the mapping (historyIndices); the two
@@ -1094,6 +1115,22 @@ function ConversationRow({
             </span>
             {turnCount > 1 && <span>{turnCount} turns</span>}
             {geo && <span>{geo}</span>}
+            {ratingCounts.up > 0 && (
+              <span
+                className={styles.convRowRating}
+                title={ratingTitle('up', ratingCounts.up)}
+              >
+                👍{ratingCounts.up > 1 ? ` ${ratingCounts.up}` : ''}
+              </span>
+            )}
+            {ratingCounts.down > 0 && (
+              <span
+                className={styles.convRowRating}
+                title={ratingTitle('down', ratingCounts.down)}
+              >
+                👎{ratingCounts.down > 1 ? ` ${ratingCounts.down}` : ''}
+              </span>
+            )}
             {conv.review && (
               <span
                 className={`${styles.convRowReview} ${styles[`convRowReview${conv.review}`]}`}

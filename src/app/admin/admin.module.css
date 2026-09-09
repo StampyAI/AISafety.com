@@ -718,6 +718,13 @@
   font-weight: 600;
 }
 
+/* Visitor's thumb in the collapsed row header, so a rated chat stands out
+ * while skimming; the per-reply thumb in the transcript says which reply. */
+.convRowRating {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .convRowAbandoned {
   color: #ffb87a;
   font-weight: 600;

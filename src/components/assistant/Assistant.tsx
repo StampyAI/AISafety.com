@@ -279,13 +279,15 @@ export default function Assistant() {
     (
       outcome: 'received' | 'stopped' | 'error' | 'left',
       live: LiveTurn,
-      ms: number
+      ms: number,
+      error?: string
     ) => {
       void fireLog({
         kind: 'delivery',
         outcome,
         turnIndex: live.turnIndex,
         ms,
+        error,
         panelOpen: isOpenRef.current,
         tabVisible: tabIsVisible(),
         panelClosedAtMs: live.panelClosedAtMs,
@@ -325,7 +327,7 @@ export default function Assistant() {
       const live = liveTurnRef.current
       if (!live || live.turnIndex !== e.turnIndex) return
       liveTurnRef.current = null
-      reportDelivery(e.phase, live, e.ms)
+      reportDelivery(e.phase, live, e.ms, e.error)
       if (e.phase === 'received' && (!isOpenRef.current || !tabIsVisible())) {
         unseenRef.current = { turnIndex: live.turnIndex, sentAt: live.sentAt }
       }

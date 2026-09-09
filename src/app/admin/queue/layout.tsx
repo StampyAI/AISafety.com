@@ -3,7 +3,6 @@ import { currentAccess, currentAdmin } from '@/lib/admin/auth'
 import { pendingQueueCount } from '@/lib/admin/queue'
 import AdminHeader from '../AdminHeader'
 import { adminTabs, adminHomeHref } from '../nav'
-import styles from '../admin.module.css'
 
 export default async function QueueAdminLayout({
   children,
@@ -18,6 +17,8 @@ export default async function QueueAdminLayout({
   }
   const who = await currentAdmin()
   const pendingQueue = await pendingQueueCount()
+  // No consoleWrap here: the Queue paints its own full-width surface
+  // (queue.module.css) below the shared admin header.
   return (
     <>
       <AdminHeader
@@ -25,7 +26,7 @@ export default async function QueueAdminLayout({
         brandHref={adminHomeHref(access)}
         signedInAs={who?.name}
       />
-      <main className={styles.consoleWrap}>{children}</main>
+      <main>{children}</main>
     </>
   )
 }

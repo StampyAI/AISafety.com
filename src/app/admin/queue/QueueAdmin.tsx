@@ -85,6 +85,16 @@ function orderedFields(fields: Record<string, unknown>): {
   return { main, rest: entries.filter(([k]) => !seen.has(k)) }
 }
 
+/** What the link back opens, judged by where it points rather than by the
+ *  item's source: a form submission arrives as an email, a Comb suggestion
+ *  links to its Airtable record. */
+function linkLabel(url: string): string {
+  if (url.includes('mail.google.com')) return 'Open the email'
+  if (url.includes('discord.com')) return 'Open the Discord message'
+  if (url.includes('airtable.com')) return 'Open in Airtable'
+  return 'Open the source'
+}
+
 function isEditable(v: unknown): boolean {
   return typeof v === 'string' || v === null || v === undefined
 }
@@ -421,11 +431,7 @@ function Card({
           <div className={styles.links}>
             {item.sourceLink && (
               <a href={item.sourceLink} target="_blank" rel="noreferrer">
-                {item.source === 'Email'
-                  ? 'Open the email'
-                  : item.source === 'Discord'
-                    ? 'Open the Discord message'
-                    : 'Open in Airtable'}
+                {linkLabel(item.sourceLink)}
               </a>
             )}
             {item.url && (
@@ -449,8 +455,10 @@ function Card({
             <div className={styles.diff}>
               {item.changes.length === 0 ? (
                 <p className={styles.muted}>
-                  No field change proposed. Reject to clear the flag, or ask
-                  Claude for one.
+                  No field change proposed.{' '}
+                  {item.verdict === 'Dismiss'
+                    ? 'Fable thinks the flag is wrong: Reject clears it.'
+                    : 'Reject clears the flag, or ask Claude for a proposal.'}
                 </p>
               ) : (
                 item.changes.map(c => (
@@ -607,13 +615,17 @@ function Card({
             </div>
           ) : (
             <div className={styles.actions}>
-              <button
-                className={`${adminStyles.editorButton} ${adminStyles.editorButtonPrimary}`}
-                disabled={state.busy}
-                onClick={() => act('accept', { edits: editedFields })}
-              >
-                {state.busy ? 'Applying…' : acceptLabel(item)}
-              </button>
+              {/* A Change with nothing to change (Fable said Dismiss or Unsure)
+                  has no Apply: Reject clears the flag, or ask for a proposal. */}
+              {!(item.type === 'Change' && item.changes.length === 0) && (
+                <button
+                  className={`${adminStyles.editorButton} ${adminStyles.editorButtonPrimary}`}
+                  disabled={state.busy}
+                  onClick={() => act('accept', { edits: editedFields })}
+                >
+                  {state.busy ? 'Applying…' : acceptLabel(item)}
+                </button>
+              )}
               <button
                 className={`${adminStyles.editorButton} ${styles.rejectButton}`}
                 disabled={state.busy}

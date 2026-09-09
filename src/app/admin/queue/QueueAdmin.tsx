@@ -45,6 +45,7 @@ const ICON = {
   timer: '/images/icons/timer.svg',
   done: '/images/icons/check-in-circle.svg',
   pencil: '/images/icons/pencil-small.svg',
+  chevron: '/images/icons/chevron-down.svg',
 } as const
 
 const SECTION_ICON: Record<Section, string> = {
@@ -85,6 +86,7 @@ function linkIcon(url: string): string {
 
 type Theme = 'light' | 'dark'
 const THEME_KEY = 'aisafety-admin-queue:theme'
+const COLLAPSED_KEY = 'aisafety-admin-queue:collapsed'
 
 function sectionOf(item: QueueItem): Section {
   if (item.type === 'Rule' || item.source === 'Teach') return 'rules'
@@ -218,16 +220,42 @@ export default function QueueAdmin() {
   const [showDone, setShowDone] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [theme, setTheme] = useState<Theme>('light')
+  const [collapsed, setCollapsed] = useState<Record<Section, boolean>>({
+    requests: false,
+    broom: false,
+    rules: false,
+    comb: false,
+  })
   const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(THEME_KEY)
       if (saved === 'dark' || saved === 'light') setTheme(saved)
+      const folded = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '{}')
+      if (folded && typeof folded === 'object') {
+        setCollapsed(prev => {
+          const next = { ...prev }
+          for (const key of SECTIONS) next[key] = folded[key] === true
+          return next
+        })
+      }
     } catch {
-      // storage refused: stay on the default
+      // storage refused: stay on the defaults
     }
   }, [])
+
+  const toggleGroup = (section: Section) => {
+    setCollapsed(prev => {
+      const next = { ...prev, [section]: !prev[section] }
+      try {
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next))
+      } catch {
+        // ignore
+      }
+      return next
+    })
+  }
 
   const toggleTheme = () => {
     const next: Theme = theme === 'light' ? 'dark' : 'light'
@@ -280,9 +308,9 @@ export default function QueueAdmin() {
     groups.rules.sort(newest)
     groups.comb.sort(byVerdict)
     done.sort((a, b) => ((a.decidedAt ?? '') < (b.decidedAt ?? '') ? 1 : -1))
-    const flat = SECTIONS.flatMap(s => groups[s])
+    const flat = SECTIONS.filter(s => !collapsed[s]).flatMap(s => groups[s])
     return { groups, done, flat }
-  }, [items])
+  }, [items, collapsed])
 
   const selected = useMemo(() => {
     if (!items) return null
@@ -294,6 +322,7 @@ export default function QueueAdmin() {
   useEffect(() => {
     if (!items) return
     if (selectedId && ordered.flat.some(i => i.id === selectedId)) return
+    if (selected && isOpen(selected)) return
     if (selected && !isOpen(selected) && showDone) return
     setSelectedId(ordered.flat[0]?.id ?? null)
   }, [items, ordered.flat, selectedId, selected, showDone])
@@ -555,12 +584,21 @@ export default function QueueAdmin() {
               if (list.length === 0 && section !== 'requests') return null
               return (
                 <div key={section} className={styles.group}>
-                  <div className={styles.groupHead}>
+                  <button
+                    className={styles.groupHead}
+                    onClick={() => toggleGroup(section)}
+                    aria-expanded={!collapsed[section]}
+                  >
                     <Icon src={SECTION_ICON[section]} size={12} />
                     {SECTION_LABEL[section]}
                     <span className={styles.groupCount}>{list.length}</span>
-                  </div>
-                  {list.length === 0 ? (
+                    <span
+                      className={`${styles.groupChevron} ${collapsed[section] ? styles.groupChevronClosed : ''}`}
+                    >
+                      <Icon src={ICON.chevron} size={12} />
+                    </span>
+                  </button>
+                  {collapsed[section] ? null : list.length === 0 ? (
                     <div className={styles.groupEmpty}>Nothing waiting</div>
                   ) : (
                     list.map(item => (

@@ -1,0 +1,427 @@
+/* Queue: one review inbox for everything waiting on the owner. Same
+   utilitarian look as the other admin sections (admin.module.css); only what
+   that file lacks. */
+
+.page {
+  display: grid;
+  gap: 28px;
+}
+
+.section {
+  display: grid;
+  gap: 12px;
+}
+
+.sectionHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--teal-400);
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--teal-400);
+}
+
+.cards {
+  display: grid;
+  gap: 10px;
+}
+
+.card {
+  background-color: var(--teal-900);
+  border: 1px solid var(--teal-800);
+  border-radius: 8px;
+}
+
+.cardOpen {
+  border-color: var(--teal-700);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-weight: 600;
+  color: var(--white);
+  font-size: 14px;
+}
+
+.cardRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.chevron {
+  color: var(--teal-400);
+}
+
+.cardBody {
+  display: grid;
+  gap: 12px;
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--teal-800);
+  padding-top: 12px;
+}
+
+.badge,
+.badgePage {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid var(--teal-700);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--teal-300);
+}
+
+.badgeRequest {
+  border-color: transparent;
+  background-color: var(--teal-800);
+  color: var(--bright-teal-300);
+}
+
+.badgeBroom {
+  border-color: transparent;
+  background-color: var(--teal-800);
+  color: var(--white);
+}
+
+.badgeComb {
+  color: var(--teal-300);
+}
+
+.badgeRule {
+  border-style: dashed;
+}
+
+.verdict {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.verdictYes {
+  color: var(--bright-teal-300);
+  border-color: var(--bright-teal-500);
+}
+
+.verdictMaybe {
+  color: var(--teal-300);
+  border-color: var(--teal-600);
+}
+
+.verdictNo {
+  color: #ff8b8b;
+  border-color: #ff8b8b;
+}
+
+.links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.links a {
+  color: var(--bright-teal-300);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.excerpt {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--teal-700);
+  color: var(--teal-300);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.fields {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldList {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  font-size: 13px;
+  align-items: start;
+}
+
+.fieldName {
+  color: var(--teal-400);
+  font-size: 12px;
+  padding-top: 1px;
+}
+
+.fieldValue {
+  margin: 0;
+  color: var(--white);
+  min-width: 0;
+}
+
+.fieldText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fieldValue a {
+  color: var(--bright-teal-300);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.moreFields summary {
+  font-size: 12px;
+  color: var(--teal-400);
+  cursor: pointer;
+}
+
+.moreFields[open] summary {
+  margin-bottom: 8px;
+}
+
+.editButton {
+  background: none;
+  border: none;
+  padding: 0 0 0 8px;
+  color: var(--teal-400);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.editButton:hover {
+  color: var(--white);
+}
+
+.edited {
+  color: var(--bright-teal-300);
+  font-size: 11px;
+}
+
+.diff {
+  display: grid;
+  gap: 6px;
+}
+
+.diffRow {
+  display: grid;
+  grid-template-columns: 160px 1fr 1fr;
+  gap: 12px;
+  font-size: 13px;
+  align-items: start;
+}
+
+.from {
+  color: var(--teal-400);
+  text-decoration: line-through;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.to {
+  color: var(--bright-teal-300);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.rule,
+.draft {
+  margin: 0;
+  padding: 10px 12px;
+  background-color: var(--teal-850);
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  color: var(--teal-200);
+}
+
+.reasons summary {
+  font-size: 12px;
+  color: var(--teal-300);
+  cursor: pointer;
+}
+
+.reasons ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--teal-200);
+  display: grid;
+  gap: 4px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.rejectButton {
+  color: #ff8b8b;
+}
+
+.panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--teal-700);
+  border-radius: 6px;
+}
+
+.panelLabel {
+  font-size: 12px;
+  color: var(--teal-300);
+  margin: 0;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chip {
+  padding: 5px 10px;
+  border: 1px solid var(--teal-700);
+  border-radius: 999px;
+  background: none;
+  color: var(--teal-300);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chip:hover {
+  color: var(--white);
+}
+
+.chipOn {
+  border-color: var(--bright-teal-500);
+  color: var(--white);
+}
+
+.other {
+  max-width: 320px;
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--teal-300);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.linkButton:hover:not(:disabled) {
+  color: var(--white);
+}
+
+.linkButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.muted {
+  font-size: 12px;
+  color: var(--teal-400);
+}
+
+.noticeError {
+  font-size: 12px;
+  color: #ff6b6b;
+  margin: 0;
+}
+
+.doneList {
+  display: grid;
+  gap: 6px;
+}
+
+.doneRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--teal-800);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.doneTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--white);
+  min-width: 0;
+}
+
+.doneWhat {
+  color: var(--teal-300);
+}
+
+.doneActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .fieldRow,
+  .diffRow,
+  .doneRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

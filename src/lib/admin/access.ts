@@ -4,6 +4,9 @@
 // follows (a tab, a checkbox, a capability).
 
 export interface AccessFlags {
+  /** /admin/queue — accept or reject proposed changes and additions to the
+   *  directory. Every accept writes to the live base. */
+  queue: boolean
   /** /admin/chatbot/playground — try prompts against the live catalog. */
   playground: boolean
   /** /admin/chatbot/log — read visitors' chat transcripts, rate and label them. */
@@ -35,6 +38,7 @@ export interface AreaInfo {
 
 /** In tab order. adminHomeHref() sends a session to the first one it has. */
 export const ACCESS_AREAS: AreaInfo[] = [
+  { key: 'queue', label: 'Queue', href: '/admin/queue' },
   { key: 'playground', label: 'Playground', href: '/admin/chatbot/playground' },
   {
     key: 'conversationLog',

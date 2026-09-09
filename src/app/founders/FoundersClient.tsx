@@ -1,16 +1,14 @@
 'use client'
 
 import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
-import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { FounderResource } from '@/lib/data/founders'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
-import { trackListingClick } from '@/lib/analytics'
-import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
+import FounderResourceCard from './FounderResourceCard'
 
 interface FoundersClientProps {
   resources: FounderResource[]
@@ -103,49 +101,11 @@ export default function FoundersClient({ resources }: FoundersClientProps) {
 
         <div className="collection-list padding-bottom-40px">
           {filteredResources.map(resource => (
-            <a
+            <FounderResourceCard
               key={resource.id}
-              href={withUtm(resource.website, 'Founders')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-              onClick={() =>
-                trackListingClick(
-                  'Founders',
-                  resource.name,
-                  resource.website,
-                  resource.id,
-                  placements.get(resource.id)
-                )
-              }
-            >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {resource.image && (
-                    <Image
-                      src={resource.image}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                      loading="eager"
-                      onError={e => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                </div>
-                <h3>{resource.name}</h3>
-              </div>
-              <p className="paragraph-small padding-bottom-24px">
-                {resource.description}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Type
-              </p>
-              <p className="paragraph-small">{resource.type}</p>
-            </a>
+              resource={resource}
+              placement={placements.get(resource.id)}
+            />
           ))}
           {filteredResources.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>

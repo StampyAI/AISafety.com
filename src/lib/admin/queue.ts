@@ -367,6 +367,72 @@ export async function getTargetFields(
   return out
 }
 
+// ─── Image upload ───────────────────────────────────────────────────────────
+
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+/** Puts one image into an attachment field of the target record, replacing
+ *  whatever was there (a logo slot holds one picture). Goes through
+ *  Airtable's upload endpoint, so no public URL is needed. The record is
+ *  unpublished, so nothing reaches the site until Accept. */
+export async function uploadImage(
+  table: string,
+  record: string,
+  field: string,
+  file: { filename: string; contentType: string; base64: string }
+): Promise<string[]> {
+  if (!TABLE_ID_RE.test(table) || !isRecordId(record)) {
+    throw new QueueError('This item has no valid target record.', 400)
+  }
+  const schema = await getTableSchema(table)
+  const info = schema.find(f => f.name === field)
+  if (!info || info.type !== 'multipleAttachments') {
+    throw new QueueError(`"${field}" is not an image field.`, 400)
+  }
+  if (!/^image\/(png|jpe?g|webp|gif|svg\+xml)$/.test(file.contentType)) {
+    throw new QueueError('Only PNG, JPEG, WebP, GIF or SVG images.', 400)
+  }
+  const bytes = Math.floor((file.base64.length * 3) / 4)
+  if (bytes > MAX_UPLOAD_BYTES) {
+    throw new QueueError('That image is over 5 MB.', 400)
+  }
+  const token = process.env.AIRTABLE_TOKEN
+  const base = process.env.AIRTABLE_BASE_ID
+  if (!token || !base) throw new QueueError('Airtable is not configured.', 500)
+  const res = await fetch(
+    `https://content.airtable.com/v0/${base}/${record}/${encodeURIComponent(field)}/uploadAttachment`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contentType: file.contentType,
+        filename: file.filename.slice(0, 120) || 'image',
+        file: file.base64,
+      }),
+      cache: 'no-store',
+    }
+  )
+  if (!res.ok) {
+    throw new QueueError(
+      `Airtable refused the upload: ${res.status} ${(await res.text()).slice(0, 300)}`,
+      502
+    )
+  }
+  const data = (await res.json()) as {
+    fields?: Record<string, { id: string; url: string }[]>
+  }
+  const list = data.fields?.[field] ?? []
+  const newest = list[list.length - 1]
+  if (newest && list.length > 1) {
+    // Keep only the picture just dropped.
+    await patchRecord(table, record, { [field]: [{ id: newest.id }] })
+  }
+  return newest ? [newest.url] : []
+}
+
 // ─── Airtable helpers ───────────────────────────────────────────────────────
 
 async function patchRecord(

@@ -566,6 +566,47 @@
   border: 1px solid var(--q-border);
 }
 
+.imageSlot {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dropZone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  height: 56px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--q-border-strong);
+  color: var(--q-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    border-color 120ms,
+    background 120ms;
+}
+
+.dropZone:hover,
+.dropZoneOver {
+  border-color: var(--q-accent);
+  background: var(--q-accent-soft);
+  color: var(--q-text);
+}
+
+.dropZoneSmall {
+  height: 32px;
+  min-width: 0;
+}
+
+.noticeInline {
+  font-size: 12px;
+  color: var(--q-danger);
+}
+
 .noImage {
   display: inline-flex;
   align-items: center;

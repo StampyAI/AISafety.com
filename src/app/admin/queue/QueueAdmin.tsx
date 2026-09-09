@@ -15,6 +15,7 @@ import styles from './queue.module.css'
 // already decided.
 
 const API = '/api/admin/queue'
+const UPLOAD_API = '/api/admin/queue/upload'
 
 type Section = 'requests' | 'broom' | 'rules' | 'comb'
 const SECTIONS: Section[] = ['requests', 'broom', 'rules', 'comb']
@@ -406,6 +407,20 @@ export default function QueueAdmin() {
     }
   }, [selected, live])
 
+  const setLiveField = useCallback(
+    (id: string, field: string, value: unknown) => {
+      setLive(prev => {
+        const cur = prev[id]
+        if (!cur) return prev
+        return {
+          ...prev,
+          [id]: { ...cur, fields: { ...cur.fields, [field]: value } },
+        }
+      })
+    },
+    []
+  )
+
   const draft = (id: string): Draft => drafts[id] ?? FRESH
   const setDraft = useCallback((id: string, patch: Partial<Draft>) => {
     setDrafts(prev => ({ ...prev, [id]: { ...(prev[id] ?? FRESH), ...patch } }))
@@ -717,6 +732,9 @@ export default function QueueAdmin() {
               <Detail
                 item={selected}
                 live={live[selected.id] ?? null}
+                onImage={(field, urls) =>
+                  setLiveField(selected.id, field, urls)
+                }
                 d={draft(selected.id)}
                 setD={patch => setDraft(selected.id, patch)}
                 act={(action, extra) => void act(selected, action, extra)}
@@ -848,12 +866,14 @@ function verdictClass(item: QueueItem): string {
 function Detail({
   item,
   live,
+  onImage,
   d,
   setD,
   act,
 }: {
   item: QueueItem
   live: { fields: Record<string, unknown>; schema: FieldInfo[] } | null
+  onImage: (field: string, urls: string[]) => void
   d: Draft
   setD: (patch: Partial<Draft>) => void
   act: (action: Action, extra?: Record<string, unknown>) => void
@@ -933,6 +953,7 @@ function Detail({
             item={item}
             fields={live?.fields ?? item.fields ?? {}}
             schema={live?.schema ?? []}
+            onImage={onImage}
             d={d}
             setD={setD}
           />
@@ -1163,12 +1184,14 @@ function Fields({
   item,
   fields,
   schema,
+  onImage,
   d,
   setD,
 }: {
   item: QueueItem
   fields: Record<string, unknown>
   schema: FieldInfo[]
+  onImage: (field: string, urls: string[]) => void
   d: Draft
   setD: (patch: Partial<Draft>) => void
 }) {
@@ -1223,22 +1246,14 @@ function Fields({
                 })
               }
             />
-          ) : isImageList(v) ? (
-            <span className={styles.thumbs}>
-              {v.map(src => (
-                <Image
-                  key={src}
-                  src={src}
-                  alt=""
-                  width={56}
-                  height={56}
-                  unoptimized
-                  className={styles.thumb}
-                />
-              ))}
-            </span>
-          ) : empty && isAttachment ? (
-            <span className={styles.noImage}>none</span>
+          ) : isAttachment || isImageList(v) ? (
+            <ImageSlot
+              itemId={item.id}
+              field={k}
+              urls={isImageList(v) ? v : []}
+              canUpload={isAttachment && !revising}
+              onDone={urls => onImage(k, urls)}
+            />
           ) : empty ? (
             <EditableValue
               text="—"
@@ -1270,6 +1285,128 @@ function Fields({
         <div className={styles.fieldsRest}>{last.map(row)}</div>
       )}
     </div>
+  )
+}
+
+/** The pictures in an attachment field, and a drop target: drag an image in
+ *  or click to choose one, and it goes onto the record right away. */
+function ImageSlot({
+  itemId,
+  field,
+  urls,
+  canUpload,
+  onDone,
+}: {
+  itemId: string
+  field: string
+  urls: string[]
+  canUpload: boolean
+  onDone: (urls: string[]) => void
+}) {
+  const [over, setOver] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const send = async (file: File) => {
+    setError(null)
+    if (!file.type.startsWith('image/')) {
+      setError('That is not an image.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Over 5 MB.')
+      return
+    }
+    setBusy(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader()
+        r.onload = () => {
+          const s = String(r.result)
+          resolve(s.slice(s.indexOf(',') + 1))
+        }
+        r.onerror = () => reject(new Error('Could not read the file.'))
+        r.readAsDataURL(file)
+      })
+      const res = await fetch(UPLOAD_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: itemId,
+          field,
+          filename: file.name,
+          contentType: file.type,
+          data: base64,
+        }),
+      })
+      const data = (await res.json()) as { urls?: string[]; error?: string }
+      if (!res.ok || !data.urls)
+        throw new Error(data.error ?? `HTTP ${res.status}`)
+      onDone(data.urls)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <span className={styles.imageSlot}>
+      {urls.map(src => (
+        <Image
+          key={src}
+          src={src}
+          alt=""
+          width={56}
+          height={56}
+          unoptimized
+          className={styles.thumb}
+        />
+      ))}
+      {canUpload && (
+        <span
+          className={`${styles.dropZone} ${over ? styles.dropZoneOver : ''} ${
+            urls.length ? styles.dropZoneSmall : ''
+          }`}
+          role="button"
+          tabIndex={0}
+          title="Drop an image here, or click to choose one"
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={e => {
+            if (e.key === 'Enter') inputRef.current?.click()
+          }}
+          onDragOver={e => {
+            e.preventDefault()
+            setOver(true)
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={e => {
+            e.preventDefault()
+            setOver(false)
+            const file = e.dataTransfer.files[0]
+            if (file) void send(file)
+          }}
+        >
+          {busy ? 'Uploading…' : urls.length ? 'Replace' : 'Drop image'}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) void send(file)
+              e.target.value = ''
+            }}
+          />
+        </span>
+      )}
+      {!canUpload && urls.length === 0 && (
+        <span className={styles.noImage}>none</span>
+      )}
+      {error && <span className={styles.noticeInline}>{error}</span>}
+    </span>
   )
 }
 

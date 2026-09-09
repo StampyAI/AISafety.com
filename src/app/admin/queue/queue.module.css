@@ -543,12 +543,19 @@
 }
 
 .siteFrame {
-  /* The site's own ground, so the card reads exactly as a visitor sees it. */
-  max-width: 400px;
+  /* The site's own ground and column width (.collection-list is 369px), so
+     the card reads exactly as a visitor sees it. */
+  width: 409px;
+  max-width: 100%;
   padding: 20px;
   border-radius: 12px;
   background: var(--teal-900);
   color: var(--white);
+}
+
+.siteFrame > * {
+  width: 369px;
+  max-width: 100%;
 }
 
 .thumbs {

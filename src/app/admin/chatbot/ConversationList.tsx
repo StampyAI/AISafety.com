@@ -166,6 +166,8 @@ interface TurnDelivery {
   received?: number
   stopped?: number
   error?: number
+  /** What the error was, as the browser saw it (set alongside `error`). */
+  errorText?: string
   left?: number
   panelClosed?: number
   tabHidden?: number
@@ -312,11 +314,13 @@ function describeDelivery(
     }
   }
   if (d.error != null) {
+    const at = `failed in the browser at ${formatElapsed(d.error)}`
     return {
-      label: `failed in the browser at ${formatElapsed(d.error)}`,
+      label: d.errorText ? `${at} — ${d.errorText}` : at,
       warn: true,
       title:
-        "The visitor's browser hit an error before the reply finished (network drop, or the server sent an error) — they saw an error message",
+        "The visitor's browser hit an error before the reply finished (network drop, or the server sent an error) — they saw an error message" +
+        (d.errorText ? `\n\nWhat the browser reported: ${d.errorText}` : ''),
     }
   }
   if (d.received != null) {
@@ -401,7 +405,8 @@ function deliveryBadge(
     return {
       text: 'NOT DELIVERED',
       title:
-        "The visitor's browser hit an error before the reply finished — they saw an error message",
+        "The visitor's browser hit an error before the reply finished — they saw an error message" +
+        (d.errorText ? `\n\nWhat the browser reported: ${d.errorText}` : ''),
     }
   }
   if (

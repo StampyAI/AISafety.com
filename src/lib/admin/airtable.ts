@@ -34,8 +34,9 @@
     Delivery        (long text)         — JSON map of turn index → what the
                                           visitor's browser reported about
                                           the reply (received / stopped /
-                                          left the page mid-answer, panel
-                                          closed, tab hidden, seen later); see
+                                          failed, with the error text / left
+                                          the page mid-answer, panel closed,
+                                          tab hidden, seen later); see
                                           TurnDelivery. Written out-of-band by
                                           the delivery logger
 
@@ -260,6 +261,10 @@ export interface TurnDelivery {
   stopped?: number
   /** The browser hit an error mid-reply (network drop, malformed frame). */
   error?: number
+  /** What that error was, as the browser saw it — the exception's name and
+   *  message, the server's error event, or 'empty reply' — plus how much of
+   *  the reply had arrived by then. Only ever set alongside `error`. */
+  errorText?: string
   /** The page was unloaded (tab closed, full navigation) mid-reply. */
   left?: number
   /** The chat panel was closed while the reply was still streaming (first
@@ -289,6 +294,10 @@ const DELIVERY_NUMBER_KEYS = [
   'seen',
 ] as const
 const DELIVERY_BOOLEAN_KEYS = ['panelOpen', 'tabVisible'] as const
+const DELIVERY_STRING_KEYS = ['errorText'] as const
+/** Cap on a stored error text — room for an HTTP status line plus the start
+ *  of the server's message, without a runaway body bloating the field. */
+export const DELIVERY_TEXT_MAX = 300
 
 /** Raw record fields, keyed by permanent field ID (see FIELD above). The
  *  Clicked field holds a JSON array of listing ids whose cards the visitor
@@ -422,6 +431,12 @@ function parseDelivery(raw: string | undefined): DeliveryByTurn {
       }
       for (const key of DELIVERY_BOOLEAN_KEYS) {
         if (typeof v[key] === 'boolean') entry[key] = v[key]
+      }
+      for (const key of DELIVERY_STRING_KEYS) {
+        const text = v[key]
+        if (typeof text === 'string' && text.trim() !== '') {
+          entry[key] = text.slice(0, DELIVERY_TEXT_MAX)
+        }
       }
       if (Object.keys(entry).length > 0) out[turn] = entry
     }

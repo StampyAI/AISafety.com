@@ -1351,18 +1351,44 @@ function ImageSlot({
     }
   }
 
+  // The whole slot — picture included — takes a drop; the new picture
+  // replaces the old one. The box is also a button for the file picker.
+  const dragProps = canUpload
+    ? {
+        onDragOver: (e: React.DragEvent) => {
+          e.preventDefault()
+          setOver(true)
+        },
+        onDragLeave: () => setOver(false),
+        onDrop: (e: React.DragEvent) => {
+          e.preventDefault()
+          setOver(false)
+          const file = e.dataTransfer.files[0]
+          if (file) void send(file)
+        },
+      }
+    : {}
+
   return (
-    <span className={styles.imageSlot}>
+    <span
+      className={`${styles.imageSlot} ${over ? styles.imageSlotOver : ''}`}
+      title={
+        canUpload ? 'Drop an image anywhere here to replace it' : undefined
+      }
+      {...dragProps}
+    >
       {urls.map(src => (
-        <Image
-          key={src}
-          src={src}
-          alt=""
-          width={56}
-          height={56}
-          unoptimized
-          className={styles.thumb}
-        />
+        <span key={src} className={styles.thumbWrap}>
+          <Image
+            src={src}
+            alt=""
+            width={56}
+            height={56}
+            unoptimized
+            className={styles.thumb}
+          />
+          {over && <span className={styles.thumbOverlay}>Replace</span>}
+        </span>
       ))}
       {canUpload && (
         <span
@@ -1375,17 +1401,6 @@ function ImageSlot({
           onClick={() => inputRef.current?.click()}
           onKeyDown={e => {
             if (e.key === 'Enter') inputRef.current?.click()
-          }}
-          onDragOver={e => {
-            e.preventDefault()
-            setOver(true)
-          }}
-          onDragLeave={() => setOver(false)}
-          onDrop={e => {
-            e.preventDefault()
-            setOver(false)
-            const file = e.dataTransfer.files[0]
-            if (file) void send(file)
           }}
         >
           {busy ? 'Uploading…' : urls.length ? 'Replace' : 'Drop image'}

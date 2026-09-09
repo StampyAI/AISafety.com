@@ -945,9 +945,9 @@ function Detail({
       {item.type === 'Add' && (live || item.fields) && (
         <>
           <SitePreview
+            itemId={item.id}
             page={item.page}
-            fields={live?.fields ?? item.fields ?? {}}
-            edits={d.edits}
+            edits={editsToSave()}
           />
           <Fields
             item={item}

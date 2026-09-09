@@ -280,6 +280,7 @@ export async function getQueueItem(id: string): Promise<QueueItem | null> {
 // ─── The target record, live ────────────────────────────────────────────────
 
 export interface FieldInfo {
+  id: string
   name: string
   type: string
 }
@@ -306,14 +307,17 @@ export async function getTableSchema(table: string): Promise<FieldInfo[]> {
   )
   if (!res.ok) return []
   const data = (await res.json()) as {
-    tables: { id: string; fields: { name: string; type: string }[] }[]
+    tables: {
+      id: string
+      fields: { id: string; name: string; type: string }[]
+    }[]
   }
   for (const t of data.tables) {
     schemaCache.set(t.id, {
       at: Date.now(),
       fields: t.fields
         .filter(f => !PROTECTED_FIELDS.has(f.name))
-        .map(f => ({ name: f.name, type: f.type })),
+        .map(f => ({ id: f.id, name: f.name, type: f.type })),
     })
   }
   return schemaCache.get(table)?.fields ?? []
@@ -365,6 +369,117 @@ export async function getTargetFields(
     }
   }
   return out
+}
+
+// ─── Preview through the site's own code ────────────────────────────────────
+
+import {
+  communityFromRecord,
+  TABLE_ID as COMMUNITIES_TABLE,
+} from '@/lib/data/communities'
+import { eventFromRecord, TABLE_ID as EVENTS_TABLE } from '@/lib/data/events'
+import {
+  recurringProgramFromRecord,
+  trainingProgramFromRecord,
+} from '@/lib/data/training'
+import { funderFromRecord, TABLE_ID as FUNDING_TABLE } from '@/lib/data/funding'
+import {
+  courseFromRecord,
+  TABLE_ID as SELF_STUDY_TABLE,
+} from '@/lib/data/self-study'
+import {
+  mediaChannelFromRecord,
+  TABLE_ID as MEDIA_TABLE,
+} from '@/lib/data/media-channels'
+import {
+  advisorFromRecord,
+  TABLE_ID as ADVISORS_TABLE,
+} from '@/lib/data/advisors'
+import {
+  projectFromRecord,
+  TABLE_ID as PROJECTS_TABLE,
+} from '@/lib/data/projects'
+import {
+  founderResourceFromRecord,
+  TABLE_ID as FOUNDERS_TABLE,
+} from '@/lib/data/founders'
+import type { AirtableRawRecord } from '@/lib/data/airtable'
+
+const TRAINING_TABLE = 'tbli1YSCpIuNY2DvL'
+const RECURRING_TABLE = 'tblEEIbj6dW5oS4cX'
+
+export type PreviewKind =
+  | 'community'
+  | 'event'
+  | 'training'
+  | 'recurring'
+  | 'funder'
+  | 'course'
+  | 'mediaChannel'
+  | 'advisor'
+  | 'project'
+  | 'founder'
+
+export interface PreviewListing {
+  kind: PreviewKind
+  listing: unknown
+}
+
+/** The record as the site would show it: read with fields keyed by id (the
+ *  shape the page mappers take), the admin's edits laid over it by field
+ *  name, then mapped by that table's own record-to-listing function. Null
+ *  when the table has no card (the map) or the mapper skips the record. */
+export async function getPreviewListing(
+  table: string,
+  record: string,
+  edits: Record<string, unknown>
+): Promise<PreviewListing | null> {
+  if (!TABLE_ID_RE.test(table) || !isRecordId(record)) return null
+  const res = await airtableRequest(
+    `${table}/${record}?returnFieldsByFieldId=true`
+  )
+  if (!res.ok) return null
+  const raw = (await res.json()) as {
+    id: string
+    createdTime: string
+    fields: Record<string, unknown>
+  }
+  if (Object.keys(edits).length) {
+    const byName = new Map(
+      (await getTableSchema(table)).map(f => [f.name, f.id])
+    )
+    for (const [name, value] of Object.entries(edits)) {
+      const id = byName.get(name)
+      if (id) raw.fields[id] = value
+    }
+  }
+  const rec = raw as unknown as AirtableRawRecord
+  const wrap = (kind: PreviewKind, listing: unknown): PreviewListing | null =>
+    listing ? { kind, listing } : null
+  switch (table) {
+    case COMMUNITIES_TABLE:
+      return wrap('community', communityFromRecord(rec))
+    case EVENTS_TABLE:
+      return wrap('event', eventFromRecord(rec))
+    case TRAINING_TABLE:
+      return wrap('training', trainingProgramFromRecord(rec))
+    case RECURRING_TABLE:
+      return wrap('recurring', recurringProgramFromRecord(rec))
+    case FUNDING_TABLE:
+      return wrap('funder', funderFromRecord(rec))
+    case SELF_STUDY_TABLE:
+      return wrap('course', courseFromRecord(rec))
+    case MEDIA_TABLE:
+      return wrap('mediaChannel', mediaChannelFromRecord(rec))
+    case ADVISORS_TABLE:
+      return wrap('advisor', advisorFromRecord(rec))
+    case PROJECTS_TABLE:
+      return wrap('project', projectFromRecord(rec))
+    case FOUNDERS_TABLE:
+      return wrap('founder', founderResourceFromRecord(rec))
+    default:
+      return null
+  }
 }
 
 // ─── Image upload ───────────────────────────────────────────────────────────

@@ -1,10 +1,14 @@
 /*
   Queue API (sessions with the queue area only).
 
-  GET  /api/admin/queue                        → { items }
+  GET  /api/admin/queue                        → { items, agent }
   GET  /api/admin/queue?target=<tbl>/<rec>     → { fields, schema } (live)
-  POST /api/admin/queue  body { id, action, edits?, reason?, note? } → { item }
+  POST /api/admin/queue  body { id, action, edits?, reason?, note?, replyDraft? } → { item }
        action: accept | reject | revise | undo
+
+  `agent` is { port, token } for the local agent on the owner's Mac (null
+  when QUEUE_AGENT_SECRET is not set): the page calls it after an accept so
+  a Gmail reply draft lands at once instead of on the worker's next pass.
 
   Every accept writes to the live base, so the route re-reads the row first
   and refuses anything already decided (409). No fresh-session requirement:
@@ -16,6 +20,7 @@ import { NextRequest } from 'next/server'
 import { canReviewQueue, currentAdmin } from '@/lib/admin/auth'
 import {
   acceptItem,
+  agentInfo,
   getQueueItem,
   getTableSchema,
   getTargetFields,
@@ -66,7 +71,11 @@ export async function GET(req: NextRequest) {
       if (!fields) return json({ error: 'That record no longer exists.' }, 404)
       return json({ fields, schema })
     }
-    return json({ items: await listQueue() })
+    const me = await currentAdmin()
+    return json({
+      items: await listQueue(),
+      agent: agentInfo(me?.email ?? ''),
+    })
   } catch (e) {
     return failure(e)
   }
@@ -94,7 +103,11 @@ export async function POST(req: NextRequest) {
     if (!item) return json({ error: 'That item no longer exists.' }, 404)
     const me = await currentAdmin()
     if (action === 'accept') {
-      await acceptItem(item, sanitiseEdits(body.edits))
+      await acceptItem(
+        item,
+        sanitiseEdits(body.edits),
+        typeof body.replyDraft === 'string' ? body.replyDraft : null
+      )
     } else if (action === 'reject') {
       await rejectItem(item, typeof body.reason === 'string' ? body.reason : '')
     } else if (action === 'revise') {

@@ -24,6 +24,7 @@
 
 import { revalidateTag } from 'next/cache'
 import { airtableRequest, isRecordId, listAll } from './airtable'
+import { sealToken } from './session'
 
 export const QUEUE_TABLE_ID = 'tblonlKwIFJ7Aa8QN'
 const BROOM_ISSUES_TABLE_ID = 'tblntD3WITPEgjHRK'
@@ -107,6 +108,9 @@ export interface QueueItem {
   rejectChips: string[]
   replyDraft: string | null
   replyStatus: string | null
+  /** Email/Discord: who the reply draft goes to (from the proposal's
+   *  `reply` block, written at intake by the Secretary). */
+  replyTo: string | null
   rejectReason: string | null
   note: string | null
   edits: Record<string, unknown> | null
@@ -182,6 +186,7 @@ function rowToItem(row: {
   let diff: string | null = null
   let summary: string | null = null
   let appliesTo: string | null = null
+  let replyTo: string | null = null
   if (isRecord(proposal)) {
     changes = toChanges(proposal.changes)
     diff = str(proposal.diff)
@@ -189,6 +194,11 @@ function rowToItem(row: {
     appliesTo = str(proposal.applies_to) ?? str(proposal.appliesTo)
     name = str(proposal.name)
     url = str(proposal.url)
+    if (isRecord(proposal.reply)) {
+      const to = str(proposal.reply.to)
+      const who = str(proposal.reply.name)
+      replyTo = to ? (who ? `${who} <${to}>` : to) : null
+    }
     if (isRecord(proposal.fields)) {
       fields = proposal.fields
     } else if (changes.length === 0 && !diff) {
@@ -225,6 +235,7 @@ function rowToItem(row: {
     rejectChips: lines(f[F.rejectChips]),
     replyDraft: str(f[F.replyDraft]),
     replyStatus: str(f[F.replyStatus]),
+    replyTo,
     rejectReason: str(f[F.rejectReason]),
     note: str(f[F.note]),
     edits: isRecord(edits) ? edits : null,
@@ -684,11 +695,20 @@ function requireOpen(item: QueueItem): void {
 
 export async function acceptItem(
   item: QueueItem,
-  edits: Record<string, unknown>
+  edits: Record<string, unknown>,
+  replyDraft: string | null = null
 ): Promise<void> {
   requireOpen(item)
   const stamp = now()
   const editsJson = Object.keys(edits).length ? JSON.stringify(edits) : null
+  // The reply draft as it reads on the page goes on the row first, so the
+  // Mac agent (or the worker) saves exactly what the admin approved.
+  const draft =
+    replyDraft !== null && item.replyDraft !== null
+      ? replyDraft.trim().slice(0, 5000)
+      : null
+  const draftFields: Record<string, unknown> =
+    draft !== null && draft !== item.replyDraft ? { [F.replyDraft]: draft } : {}
   try {
     if (item.type === 'Add') {
       const t = target(item)
@@ -710,6 +730,7 @@ export async function acceptItem(
     } else {
       // Rule: the file lives on the Mac; the worker applies it.
       await patchQueueRow(item.id, {
+        ...draftFields,
         [F.status]: 'Accepted',
         [F.decidedAt]: stamp,
         [F.error]: null,
@@ -725,6 +746,7 @@ export async function acceptItem(
     throw e
   }
   await patchQueueRow(item.id, {
+    ...draftFields,
     [F.status]: 'Applied',
     [F.decidedAt]: stamp,
     [F.appliedAt]: stamp,
@@ -732,6 +754,39 @@ export async function acceptItem(
     [F.error]: null,
   })
   refreshCache()
+}
+
+// ─── The local agent on the owner's Mac ─────────────────────────────────────
+
+/** A Gmail draft, a Discord send or a rulebook patch cannot run on Vercel;
+ *  a small agent on the owner's Mac (~/Queue/agent.py, loopback only) does
+ *  them the moment Accept is clicked. The page calls it directly and shows
+ *  it this token, sealed with the secret both sides hold, so a stray page
+ *  in the same browser cannot drive the agent. Null when the secret is not
+ *  configured: the page then leaves those steps to the Mac worker. */
+export interface AgentInfo {
+  port: number
+  token: string
+}
+
+const AGENT_TOKEN_LIFE_SECONDS = 12 * 60 * 60
+
+export function agentInfo(email: string): AgentInfo | null {
+  const secret = process.env.QUEUE_AGENT_SECRET
+  if (!secret || !email) return null
+  const port = Number(process.env.QUEUE_AGENT_PORT) || 8790
+  const iat = Math.floor(Date.now() / 1000)
+  const token = sealToken(
+    {
+      v: 1,
+      kind: 'queue-agent',
+      email,
+      iat,
+      exp: iat + AGENT_TOKEN_LIFE_SECONDS,
+    },
+    secret
+  )
+  return { port, token }
 }
 
 export async function rejectItem(

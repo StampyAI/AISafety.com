@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import type { FieldInfo, QueueItem } from '@/lib/admin/queue'
+import type { AgentInfo, FieldInfo, QueueItem } from '@/lib/admin/queue'
 import Icon from '@/components/Icon'
 import SitePreview from './SitePreview'
 import styles from './queue.module.css'
@@ -197,6 +197,27 @@ function acceptLabel(item: QueueItem): string {
   return 'Apply rule'
 }
 
+/** An emailed request whose reply draft still has to reach Gmail. */
+function wantsDraft(item: QueueItem): boolean {
+  return (
+    Boolean(item.replyDraft) &&
+    (item.source === 'Email' || item.source === 'Form') &&
+    item.replyStatus !== 'Saved' &&
+    item.replyStatus !== 'Sent'
+  )
+}
+
+function replyLabel(item: QueueItem): string {
+  if (!item.replyDraft) return ''
+  if (item.replyStatus === 'Saved') return 'Draft saved in Gmail'
+  if (item.replyStatus === 'Sent') return 'Reply sent'
+  if (item.replyStatus === 'Failed') return 'Draft failed'
+  if (item.status === 'Applied' || item.status === 'Accepted') {
+    return 'Draft on its way to Gmail'
+  }
+  return ''
+}
+
 function doneLabel(item: QueueItem): string {
   if (item.status === 'Rejected') return 'Rejected'
   if (item.status === 'Accepted') return 'Accepted'
@@ -215,6 +236,9 @@ interface Draft {
   chip: string | null
   other: string
   note: string
+  /** The reply draft as edited on the page (null = as written at intake). */
+  reply: string | null
+  editingReply: boolean
   busy: boolean
   error: string | null
 }
@@ -226,6 +250,8 @@ const FRESH: Draft = {
   chip: null,
   other: '',
   note: '',
+  reply: null,
+  editingReply: false,
   busy: false,
   error: null,
 }
@@ -233,7 +259,62 @@ const FRESH: Draft = {
 interface Toast {
   item: QueueItem
   text: string
+  /** A second line that fills in later: what happened to the reply draft. */
+  sub?: string
 }
+
+/** What the page tells the Mac agent to do after an accept. */
+type AgentAction = 'gmail_draft'
+
+interface AgentResult {
+  ok: boolean
+  /** The agent could not be reached at all (not running, or blocked). */
+  offline: boolean
+  replyStatus: string | null
+  detail: string
+}
+
+const AGENT_TIMEOUT_MS = 15000
+
+/** Call the local agent on the owner's Mac (~/Queue/agent.py). It listens
+ *  on loopback only and checks the token the site minted, so the call is
+ *  harmless from anywhere but this page in this browser. */
+async function callAgent(
+  agent: AgentInfo,
+  path: '/ping' | '/act',
+  body?: { id: string; action: AgentAction }
+): Promise<AgentResult> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), AGENT_TIMEOUT_MS)
+  try {
+    const res = await fetch(`http://127.0.0.1:${agent.port}${path}`, {
+      method: body ? 'POST' : 'GET',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify({ ...body, token: agent.token }) : undefined,
+      cache: 'no-store',
+      signal: ctrl.signal,
+    })
+    const data = (await res.json()) as {
+      ok?: boolean
+      replyStatus?: string
+      detail?: string
+      error?: string
+    }
+    return {
+      ok: Boolean(data.ok),
+      offline: false,
+      replyStatus: data.replyStatus ?? null,
+      detail: data.detail ?? data.error ?? '',
+    }
+  } catch {
+    return { ok: false, offline: true, replyStatus: null, detail: '' }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const WORKER_NOTE = 'the Mac saves the reply draft within five minutes'
+const OFFLINE_SUB = `Mac agent not reachable · ${WORKER_NOTE}`
 
 type Action = 'accept' | 'reject' | 'revise' | 'undo'
 
@@ -243,6 +324,13 @@ export default function QueueAdmin() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [toast, setToast] = useState<Toast | null>(null)
+  // The local agent on the owner's Mac: its port + a token from the API
+  // (null when the secret is not configured), and whether it answered a
+  // ping. Reply drafts go through it the moment an emailed request is
+  // accepted; the Mac worker is the fallback.
+  const [agent, setAgent] = useState<AgentInfo | null>(null)
+  const [agentOnline, setAgentOnline] = useState<boolean | null>(null)
+  const wantedRef = useRef<string | null>(null)
   // The focused item's record as it is in Airtable now, plus the table's
   // field list, so empty fields (a missing logo) show as empty. By item id.
   const [live, setLive] = useState<
@@ -327,19 +415,52 @@ export default function QueueAdmin() {
     setLoadError(null)
     try {
       const res = await fetch(API, { cache: 'no-store' })
-      const data = (await res.json()) as { items?: QueueItem[]; error?: string }
+      const data = (await res.json()) as {
+        items?: QueueItem[]
+        agent?: AgentInfo | null
+        error?: string
+      }
       if (!res.ok || !data.items) {
         throw new Error(data.error ?? `HTTP ${res.status}`)
       }
       setItems(data.items)
+      setAgent(data.agent ?? null)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e))
     }
   }, [])
 
   useEffect(() => {
+    wantedRef.current =
+      /^#(rec[A-Za-z0-9]{14})$/.exec(window.location.hash)?.[1] ?? null
     void load()
   }, [load])
+
+  // A "#rec…" in the address (the Secretary note's "Queued:" link) opens
+  // that item; one already decided shows in the done list.
+  useEffect(() => {
+    if (!items || !wantedRef.current) return
+    const id = wantedRef.current
+    wantedRef.current = null
+    const hit = items.find(i => i.id === id)
+    if (!hit) return
+    setSelectedId(id)
+    if (!isOpen(hit)) setShowDone(true)
+  }, [items])
+
+  useEffect(() => {
+    if (!agent) {
+      setAgentOnline(null)
+      return
+    }
+    let cancelled = false
+    void callAgent(agent, '/ping').then(res => {
+      if (!cancelled) setAgentOnline(res.ok)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [agent])
 
   // One flat, ordered list of open items: requests, Broom, rules, then Comb
   // with Fable's Publish verdicts first. Keyboard navigation walks it.
@@ -451,6 +572,43 @@ export default function QueueAdmin() {
     [ordered.flat, selectedId, select]
   )
 
+  // After an accept: have the Mac agent save the reply draft in Gmail now,
+  // and tell the toast and the row how it went. If the agent is not
+  // reachable the worker does it within five minutes.
+  const saveReply = useCallback(
+    async (item: QueueItem) => {
+      const res = agent
+        ? await callAgent(agent, '/act', { id: item.id, action: 'gmail_draft' })
+        : { ok: false, offline: true, replyStatus: null, detail: '' }
+      if (agent) setAgentOnline(!res.offline)
+      const sub = res.ok
+        ? res.detail || 'Draft saved in Gmail'
+        : res.offline
+          ? OFFLINE_SUB
+          : `Reply draft failed: ${res.detail}`
+      if (res.replyStatus) {
+        const status = res.replyStatus
+        setItems(prev =>
+          prev
+            ? prev.map(i =>
+                i.id === item.id
+                  ? {
+                      ...i,
+                      replyStatus: status,
+                      error: res.ok ? null : res.detail,
+                    }
+                  : i
+              )
+            : prev
+        )
+      }
+      setToast(prev =>
+        prev && prev.item.id === item.id ? { ...prev, sub } : prev
+      )
+    },
+    [agent]
+  )
+
   const act = useCallback(
     async (
       item: QueueItem,
@@ -458,11 +616,21 @@ export default function QueueAdmin() {
       extra: Record<string, unknown> = {}
     ) => {
       setDraft(item.id, { busy: true, error: null })
+      // The reply draft as it reads on the page goes with the accept, so
+      // what reaches Gmail is what was approved.
+      const reply = drafts[item.id]?.reply ?? null
+      const replyDraft =
+        action === 'accept' && reply !== null ? { replyDraft: reply } : {}
       try {
         const res = await fetch(API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: item.id, action, ...extra }),
+          body: JSON.stringify({
+            id: item.id,
+            action,
+            ...replyDraft,
+            ...extra,
+          }),
         })
         const data = (await res.json()) as { item?: QueueItem; error?: string }
         if (!res.ok || !data.item) {
@@ -478,18 +646,25 @@ export default function QueueAdmin() {
           return next
         })
         if (action === 'accept' || action === 'reject') {
+          const draftPending = action === 'accept' && wantsDraft(updated)
           setToast({
             item: updated,
             text:
               action === 'reject'
                 ? `Rejected · ${updated.rejectReason ?? ''}`
                 : doneLabel(updated),
+            sub: draftPending
+              ? agent
+                ? 'Saving the reply draft in Gmail…'
+                : `Reply draft: ${WORKER_NOTE}`
+              : undefined,
           })
           // Auto-advance to the next open item.
           const flat = ordered.flat
           const i = flat.findIndex(x => x.id === item.id)
           const next = flat[i + 1] ?? flat[i - 1]
           if (next) select(next.id)
+          if (draftPending) void saveReply(updated)
         } else if (action === 'undo') {
           setToast(null)
           select(updated.id)
@@ -501,7 +676,7 @@ export default function QueueAdmin() {
         })
       }
     },
-    [ordered.flat, select, setDraft]
+    [ordered.flat, select, setDraft, drafts, agent, saveReply]
   )
 
   useEffect(() => {
@@ -658,6 +833,20 @@ export default function QueueAdmin() {
           </span>
         </div>
         <div className={styles.topRight}>
+          {agent && (
+            <span
+              className={`${styles.agentDot} ${agentOnline ? styles.agentOn : agentOnline === false ? styles.agentOff : ''}`}
+              title={
+                agentOnline
+                  ? 'The agent on your Mac is running: reply drafts reach Gmail the moment you accept.'
+                  : agentOnline === false
+                    ? 'The agent on your Mac is not answering: the worker saves reply drafts within five minutes.'
+                    : 'Checking the agent on your Mac…'
+              }
+            >
+              Mac
+            </span>
+          )}
           <button
             className={styles.ghost}
             onClick={() => setShowHelp(v => !v)}
@@ -745,6 +934,7 @@ export default function QueueAdmin() {
                 d={draft(selected.id)}
                 setD={patch => setDraft(selected.id, patch)}
                 act={(action, extra) => void act(selected, action, extra)}
+                agentOnline={agent ? agentOnline : null}
               />
             ) : (
               <div className={styles.emptyDetail}>
@@ -761,8 +951,15 @@ export default function QueueAdmin() {
             <Icon
               src={toast.item.status === 'Rejected' ? ICON.x : ICON.check}
             />
-            <strong>{toast.text}</strong>
-            <span className={styles.toastTitle}>{toast.item.title}</span>
+            <span className={styles.toastBody}>
+              <span>
+                <strong>{toast.text}</strong>
+                <span className={styles.toastTitle}> {toast.item.title}</span>
+              </span>
+              {toast.sub && (
+                <span className={styles.toastSub}>{toast.sub}</span>
+              )}
+            </span>
           </span>
           <button
             className={styles.toastUndo}
@@ -877,6 +1074,7 @@ function Detail({
   d,
   setD,
   act,
+  agentOnline,
 }: {
   item: QueueItem
   live: { fields: Record<string, unknown>; schema: FieldInfo[] } | null
@@ -884,6 +1082,8 @@ function Detail({
   d: Draft
   setD: (patch: Partial<Draft>) => void
   act: (action: Action, extra?: Record<string, unknown>) => void
+  /** null: no agent configured; true/false: whether it answered a ping. */
+  agentOnline: boolean | null
 }) {
   const revising = item.status === 'Revising'
   const nothingToApply = item.type === 'Change' && item.changes.length === 0
@@ -1045,8 +1245,60 @@ function Detail({
 
       {item.replyDraft && (
         <section className={styles.block}>
-          <h3 className={styles.h3}>Reply draft</h3>
-          <pre className={styles.draft}>{item.replyDraft}</pre>
+          <h3 className={styles.h3}>
+            Reply draft{item.replyTo ? ` to ${item.replyTo}` : ''}
+          </h3>
+          {d.editingReply ? (
+            <textarea
+              className={`${styles.input} ${styles.replyInput}`}
+              rows={Math.min(
+                14,
+                Math.max(4, item.replyDraft.split('\n').length + 1)
+              )}
+              autoFocus
+              defaultValue={d.reply ?? item.replyDraft}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setD({ editingReply: false })
+                }
+              }}
+              onBlur={e => setD({ editingReply: false, reply: e.target.value })}
+            />
+          ) : (
+            <ReplyDraft
+              text={d.reply ?? item.replyDraft}
+              edited={d.reply !== null && d.reply !== item.replyDraft}
+              canEdit={!revising && isOpen(item)}
+              onEdit={() => setD({ editingReply: true })}
+            />
+          )}
+          <p className={styles.note}>
+            {item.replyStatus === 'Saved' ? (
+              <>
+                Saved in Gmail as a draft
+                {item.sourceLink && (
+                  <>
+                    {' · '}
+                    <a href={item.sourceLink} target="_blank" rel="noreferrer">
+                      open the thread
+                    </a>
+                  </>
+                )}
+                . Nothing was sent.
+              </>
+            ) : item.replyStatus === 'Failed' ? (
+              `The draft could not be saved${item.error ? `: ${item.error}` : '.'}`
+            ) : isOpen(item) ? (
+              agentOnline ? (
+                `${acceptLabel(item)} saves this as a Gmail draft at once. Nothing is sent.`
+              ) : (
+                `${acceptLabel(item)} saves this as a Gmail draft (${WORKER_NOTE}). Nothing is sent.`
+              )
+            ) : (
+              replyLabel(item)
+            )}
+          </p>
         </section>
       )}
 
@@ -1609,6 +1861,42 @@ function EditableValue({
   )
 }
 
+/** The reply draft as a block: click anywhere on it to edit. */
+function ReplyDraft({
+  text,
+  edited,
+  canEdit,
+  onEdit,
+}: {
+  text: string
+  edited: boolean
+  canEdit: boolean
+  onEdit: () => void
+}) {
+  if (!canEdit) return <pre className={styles.draft}>{text}</pre>
+  return (
+    <pre
+      className={`${styles.draft} ${styles.draftEditable}`}
+      role="button"
+      tabIndex={0}
+      title="Click to edit"
+      onClick={onEdit}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onEdit()
+        }
+      }}
+    >
+      {text}
+      <span className={styles.draftHint}>
+        {edited && <em className={styles.edited}>edited</em>}
+        <Icon src={ICON.pencil} size={12} />
+      </span>
+    </pre>
+  )
+}
+
 function DoneList({
   items,
   busyFor,
@@ -1650,6 +1938,9 @@ function DoneList({
               </span>
               {doneLabel(item)}
               {item.rejectReason && ` · ${item.rejectReason}`}
+              {item.status !== 'Rejected' && replyLabel(item)
+                ? ` · ${replyLabel(item)}`
+                : ''}
               <span className={styles.when}> · {ago(item.decidedAt)}</span>
             </span>
             <span className={styles.doneActions}>

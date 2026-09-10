@@ -62,9 +62,12 @@ export async function POST(req: NextRequest) {
     )
     return json({ urls })
   } catch (e) {
-    if (e instanceof QueueError) return json({ error: e.message }, e.status)
+    if (e instanceof QueueError) return json({ error: e.detail }, e.status)
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[admin-queue] upload', msg)
-    return json({ error: msg }, 502)
+    return json(
+      { error: 'The upload failed; details are in the server log.' },
+      502
+    )
   }
 }

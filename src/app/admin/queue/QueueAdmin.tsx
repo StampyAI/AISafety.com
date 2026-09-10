@@ -79,10 +79,28 @@ function verdictIcon(item: QueueItem): string {
   return ICON.x
 }
 
+/** The host of a link, lower-case, or '' when it is not an http(s) URL.
+ *  Icons and labels are picked by exact host, never by substring, so a
+ *  link to "airtable.com.example" is just an outside link. */
+function hostOf(url: string): string {
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return ''
+    return u.hostname.toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
+function onHost(url: string, host: string): boolean {
+  const h = hostOf(url)
+  return h === host || h.endsWith(`.${host}`)
+}
+
 function linkIcon(url: string): string {
-  if (url.includes('airtable.com')) return ICON.table
-  if (url.includes('discord.com')) return ICON.discord
-  if (url.includes('mail.google.com')) return ICON.mail
+  if (onHost(url, 'airtable.com')) return ICON.table
+  if (onHost(url, 'discord.com')) return ICON.discord
+  if (hostOf(url) === 'mail.google.com') return ICON.mail
   return ICON.external
 }
 
@@ -136,9 +154,9 @@ const URL_KEYS = /^(url|website|link|join link|apply link|application link)$/i
 const DESC_KEYS = /description/i
 
 function linkLabel(url: string): string {
-  if (url.includes('mail.google.com')) return 'Open email'
-  if (url.includes('discord.com')) return 'Open Discord'
-  if (url.includes('airtable.com')) return 'Open in Airtable'
+  if (hostOf(url) === 'mail.google.com') return 'Open email'
+  if (onHost(url, 'discord.com')) return 'Open Discord'
+  if (onHost(url, 'airtable.com')) return 'Open in Airtable'
   return 'Open source'
 }
 

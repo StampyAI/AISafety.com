@@ -122,12 +122,16 @@ export interface QueueItem {
 type RawFields = Record<string, unknown>
 
 /** Thrown for a problem the page should show as-is (bad input, already
- *  decided, Airtable refused). `status` is the HTTP status to answer with. */
+ *  decided, Airtable refused). `status` is the HTTP status to answer with;
+ *  `detail` is the text for the page, written here for the admin's eyes
+ *  (the routes never echo a raw exception message). */
 export class QueueError extends Error {
   status: number
+  detail: string
   constructor(message: string, status = 400) {
     super(message)
     this.status = status
+    this.detail = message
   }
 }
 

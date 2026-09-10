@@ -282,7 +282,11 @@ export async function getQueueItem(id: string): Promise<QueueItem | null> {
 export interface FieldInfo {
   id: string
   name: string
+  /** Airtable field type: singleSelect, multipleSelects, checkbox, date,
+   *  number, multilineText, url, multipleAttachments, … */
   type: string
+  /** The options of a select field, in Airtable's order. */
+  choices?: string[]
 }
 
 const schemaCache = new Map<string, { at: number; fields: FieldInfo[] }>()
@@ -309,7 +313,12 @@ export async function getTableSchema(table: string): Promise<FieldInfo[]> {
   const data = (await res.json()) as {
     tables: {
       id: string
-      fields: { id: string; name: string; type: string }[]
+      fields: {
+        id: string
+        name: string
+        type: string
+        options?: { choices?: { name: string }[] }
+      }[]
     }[]
   }
   for (const t of data.tables) {
@@ -317,7 +326,12 @@ export async function getTableSchema(table: string): Promise<FieldInfo[]> {
       at: Date.now(),
       fields: t.fields
         .filter(f => !PROTECTED_FIELDS.has(f.name))
-        .map(f => ({ id: f.id, name: f.name, type: f.type })),
+        .map(f => {
+          const choices = f.options?.choices?.map(c => c.name)
+          return choices?.length
+            ? { id: f.id, name: f.name, type: f.type, choices }
+            : { id: f.id, name: f.name, type: f.type }
+        }),
     })
   }
   return schemaCache.get(table)?.fields ?? []

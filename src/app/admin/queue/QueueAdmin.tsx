@@ -158,19 +158,25 @@ function isEditable(v: unknown): boolean {
  *  a list stays a list, a number stays a number, empty clears the field. */
 function coerceEdits(
   edits: Record<string, string>,
-  original: Record<string, unknown>
+  original: Record<string, unknown>,
+  types: Map<string, FieldInfo> = new Map()
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const [k, text] of Object.entries(edits)) {
     const was = original[k]
     const t = text.trim()
-    if (t === '') out[k] = null
-    else if (Array.isArray(was)) {
+    const type = types.get(k)?.type
+    if (type === 'checkbox') out[k] = t === 'true'
+    else if (t === '') out[k] = null
+    else if (type === 'multipleSelects' || Array.isArray(was)) {
       out[k] = t
         .split(',')
         .map(x => x.trim())
         .filter(Boolean)
-    } else if (typeof was === 'number' && !Number.isNaN(Number(t))) {
+    } else if (
+      (type === 'number' || typeof was === 'number') &&
+      !Number.isNaN(Number(t))
+    ) {
       out[k] = Number(t)
     } else out[k] = text
   }
@@ -548,7 +554,8 @@ export default function QueueAdmin() {
                   d.edits,
                   item.type === 'Change'
                     ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
-                    : (live[item.id]?.fields ?? item.fields ?? {})
+                    : (live[item.id]?.fields ?? item.fields ?? {}),
+                  new Map((live[item.id]?.schema ?? []).map(f => [f.name, f]))
                 ),
               })
             }
@@ -886,7 +893,8 @@ function Detail({
     item.type === 'Change'
       ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
       : (live?.fields ?? item.fields ?? {})
-  const editsToSave = () => coerceEdits(d.edits, original)
+  const types = new Map((live?.schema ?? []).map(f => [f.name, f]))
+  const editsToSave = () => coerceEdits(d.edits, original, types)
 
   return (
     <div className={styles.detailInner}>
@@ -1199,6 +1207,7 @@ function Fields({
   // in the table's order (name, link and description first); without it,
   // only what the snapshot carries.
   const types = new Map(schema.map(f => [f.name, f.type]))
+  const infos = new Map(schema.map(f => [f.name, f]))
   const all: Record<string, unknown> = {}
   if (schema.length) {
     for (const f of schema) all[f.name] = fields[f.name] ?? null
@@ -1214,6 +1223,7 @@ function Fields({
   const last = entries.filter(([k]) => !seen.has(k) && HOUSEKEEPING.test(k))
   const revising = item.status === 'Revising'
   const row = ([k, v]: [string, unknown]) => {
+    const info = infos.get(k)
     const isAttachment = types.get(k) === 'multipleAttachments'
     const empty =
       v === null ||
@@ -1228,23 +1238,13 @@ function Fields({
         <span className={styles.label}>{k}</span>
         <span className={styles.value}>
           {d.editing === k ? (
-            <textarea
-              className={styles.input}
-              rows={value.length > 120 ? 5 : 2}
-              autoFocus
-              defaultValue={empty && !edited ? '' : value}
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
-                  e.preventDefault()
-                  setD({ editing: null })
-                }
-              }}
-              onBlur={e =>
-                setD({
-                  editing: null,
-                  edits: { ...d.edits, [k]: e.target.value },
-                })
+            <FieldEditor
+              info={info}
+              value={empty && !edited ? '' : value}
+              onSave={text =>
+                setD({ editing: null, edits: { ...d.edits, [k]: text } })
               }
+              onCancel={() => setD({ editing: null })}
             />
           ) : isAttachment || isImageList(v) ? (
             <ImageSlot
@@ -1254,6 +1254,24 @@ function Fields({
               canUpload={isAttachment && !revising}
               onDone={urls => onImage(k, urls)}
             />
+          ) : info?.type === 'checkbox' ? (
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={edited ? d.edits[k] === 'true' : v === true}
+                disabled={revising}
+                onChange={e =>
+                  setD({
+                    edits: {
+                      ...d.edits,
+                      [k]: e.target.checked ? 'true' : 'false',
+                    },
+                  })
+                }
+              />
+              {(edited ? d.edits[k] === 'true' : v === true) ? 'Yes' : 'No'}
+              {edited && <em className={styles.edited}>edited</em>}
+            </label>
           ) : empty ? (
             <EditableValue
               text="—"
@@ -1422,6 +1440,120 @@ function ImageSlot({
       )}
       {error && <span className={styles.noticeInline}>{error}</span>}
     </span>
+  )
+}
+
+/** The right control for a field's Airtable type: a dropdown of the
+ *  field's own options, toggle chips for a multi-select, a date or number
+ *  input, else a text box. Values travel as text (lists comma-joined) and
+ *  coerceEdits turns them back into the field's shape. */
+function FieldEditor({
+  info,
+  value,
+  onSave,
+  onCancel,
+}: {
+  info: FieldInfo | undefined
+  value: string
+  onSave: (text: string) => void
+  onCancel: () => void
+}) {
+  const type = info?.type
+  const choices = info?.choices ?? []
+  const [picked, setPicked] = useState<string[]>(() =>
+    value
+      .split(',')
+      .map(x => x.trim())
+      .filter(Boolean)
+  )
+  const esc = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      onCancel()
+    }
+  }
+  if (type === 'singleSelect' && choices.length) {
+    return (
+      <select
+        className={styles.input}
+        autoFocus
+        defaultValue={value}
+        onKeyDown={esc}
+        onChange={e => onSave(e.target.value)}
+        onBlur={e => onSave(e.target.value)}
+      >
+        <option value="">—</option>
+        {choices.map(c => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+    )
+  }
+  if (type === 'multipleSelects' && choices.length) {
+    return (
+      <span className={styles.panel} onKeyDown={esc}>
+        <span className={styles.chips}>
+          {choices.map(c => {
+            const on = picked.includes(c)
+            return (
+              <button
+                key={c}
+                className={`${styles.chip} ${on ? styles.chipOn : ''}`}
+                onClick={() =>
+                  setPicked(on ? picked.filter(x => x !== c) : [...picked, c])
+                }
+              >
+                {c}
+              </button>
+            )
+          })}
+        </span>
+        <span className={styles.buttons}>
+          <button
+            className={styles.button}
+            autoFocus
+            onClick={() => onSave(picked.join(', '))}
+          >
+            Done
+          </button>
+          <button className={styles.ghost} onClick={onCancel}>
+            Cancel <kbd>Esc</kbd>
+          </button>
+        </span>
+      </span>
+    )
+  }
+  if (
+    type === 'date' ||
+    type === 'number' ||
+    type === 'url' ||
+    type === 'email'
+  ) {
+    return (
+      <input
+        className={styles.input}
+        type={type === 'date' ? 'date' : type === 'number' ? 'number' : 'text'}
+        autoFocus
+        defaultValue={value}
+        onKeyDown={e => {
+          esc(e)
+          if (e.key === 'Enter') onSave((e.target as HTMLInputElement).value)
+        }}
+        onBlur={e => onSave(e.target.value)}
+      />
+    )
+  }
+  return (
+    <textarea
+      className={styles.input}
+      rows={value.length > 120 ? 5 : 2}
+      autoFocus
+      defaultValue={value}
+      onKeyDown={esc}
+      onBlur={e => onSave(e.target.value)}
+    />
   )
 }
 

@@ -1415,7 +1415,8 @@ function Detail({
             )}
             {editCount > 0 && (
               <span className={styles.note}>
-                {editCount} edit{editCount === 1 ? '' : 's'} go with it
+                {editCount === 1 ? '1 edit goes' : `${editCount} edits go`} with
+                it
               </span>
             )}
           </div>
@@ -1493,9 +1494,14 @@ function Fields({
             <FieldEditor
               info={info}
               value={empty && !edited ? '' : value}
-              onSave={text =>
-                setD({ editing: null, edits: { ...d.edits, [k]: text } })
-              }
+              onSave={text => {
+                // Saving what was already there is not an edit.
+                const same = text === (empty ? '' : show(v))
+                const edits = { ...d.edits }
+                if (same) delete edits[k]
+                else edits[k] = text
+                setD({ editing: null, edits })
+              }}
               onCancel={() => setD({ editing: null })}
             />
           ) : isAttachment || isImageList(v) ? (
@@ -1524,7 +1530,7 @@ function Fields({
               {(edited ? d.edits[k] === 'true' : v === true) ? 'Yes' : 'No'}
               {edited && <em className={styles.edited}>edited</em>}
             </label>
-          ) : empty ? (
+          ) : empty && !edited ? (
             <EditableValue
               text="—"
               muted
@@ -1718,10 +1724,24 @@ function FieldEditor({
       .map(x => x.trim())
       .filter(Boolean)
   )
+  // The editor settles exactly once: a select saves on change and must not
+  // save again when it loses focus as it closes, and a blur that follows
+  // Escape is not a save.
+  const settled = useRef(false)
+  const save = (text: string) => {
+    if (settled.current) return
+    settled.current = true
+    onSave(text)
+  }
+  const cancel = () => {
+    if (settled.current) return
+    settled.current = true
+    onCancel()
+  }
   const esc = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault()
-      onCancel()
+      cancel()
     }
   }
   if (type === 'singleSelect' && choices.length) {
@@ -1731,8 +1751,8 @@ function FieldEditor({
         autoFocus
         defaultValue={value}
         onKeyDown={esc}
-        onChange={e => onSave(e.target.value)}
-        onBlur={e => onSave(e.target.value)}
+        onChange={e => save(e.target.value)}
+        onBlur={e => save(e.target.value)}
       >
         <option value="">—</option>
         {choices.map(c => (
@@ -1766,11 +1786,11 @@ function FieldEditor({
           <button
             className={styles.button}
             autoFocus
-            onClick={() => onSave(picked.join(', '))}
+            onClick={() => save(picked.join(', '))}
           >
             Done
           </button>
-          <button className={styles.ghost} onClick={onCancel}>
+          <button className={styles.ghost} onClick={cancel}>
             Cancel <kbd>Esc</kbd>
           </button>
         </span>
@@ -1791,9 +1811,9 @@ function FieldEditor({
         defaultValue={value}
         onKeyDown={e => {
           esc(e)
-          if (e.key === 'Enter') onSave((e.target as HTMLInputElement).value)
+          if (e.key === 'Enter') save((e.target as HTMLInputElement).value)
         }}
-        onBlur={e => onSave(e.target.value)}
+        onBlur={e => save(e.target.value)}
       />
     )
   }
@@ -1804,7 +1824,7 @@ function FieldEditor({
       autoFocus
       defaultValue={value}
       onKeyDown={esc}
-      onBlur={e => onSave(e.target.value)}
+      onBlur={e => save(e.target.value)}
     />
   )
 }

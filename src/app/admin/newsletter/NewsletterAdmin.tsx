@@ -4,6 +4,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import adminStyles from '../admin.module.css'
 import styles from './newsletter.module.css'
 
+interface CardInfo {
+  key: string
+  title: string
+}
+
+interface CardGroup {
+  id: string
+  label: string
+  cards: CardInfo[]
+}
+
 interface Draft {
   id: string
   name: string
@@ -15,6 +26,9 @@ interface Draft {
   listName: string | null
   activeContacts: number | null
   problems: string[]
+  /** Cards by section, current order; null for drafts built before the
+   *  renderer stamped card markers (no Reorder button then). */
+  cards: CardGroup[] | null
 }
 
 interface Recent {
@@ -63,6 +77,9 @@ export default function NewsletterAdmin({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [previewId, setPreviewId] = useState<string | null>(null)
+  const [reorderId, setReorderId] = useState<string | null>(null)
+  /** Bumped after a reorder so the preview frame reloads the new order. */
+  const [previewNonce, setPreviewNonce] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [confirming, setConfirming] = useState<Draft | null>(null)
   const [notice, setNotice] = useState<{
@@ -132,6 +149,19 @@ export default function NewsletterAdmin({
     } finally {
       setBusyId(null)
     }
+  }
+
+  function reordered(draftId: string, cards: CardGroup[]) {
+    setData(d =>
+      d
+        ? {
+            ...d,
+            drafts: d.drafts.map(x => (x.id === draftId ? { ...x, cards } : x)),
+          }
+        : d
+    )
+    setPreviewNonce(n => n + 1)
+    setNotice({ kind: 'ok', text: 'Order saved to the draft.' })
   }
 
   return (
@@ -269,6 +299,17 @@ export default function NewsletterAdmin({
                 >
                   {previewId === draft.id ? 'Hide preview' : 'Preview'}
                 </button>
+                {data.canSend && draft.cards && ok && (
+                  <button
+                    type="button"
+                    className={styles.button}
+                    onClick={() =>
+                      setReorderId(reorderId === draft.id ? null : draft.id)
+                    }
+                  >
+                    {reorderId === draft.id ? 'Hide reorder' : 'Reorder'}
+                  </button>
+                )}
                 {data.canSend && (
                   <button
                     type="button"
@@ -280,12 +321,19 @@ export default function NewsletterAdmin({
                   </button>
                 )}
               </div>
+              {reorderId === draft.id && draft.cards && (
+                <ReorderPanel
+                  key={draft.id}
+                  draft={draft}
+                  onSaved={cards => reordered(draft.id, cards)}
+                />
+              )}
               {previewId === draft.id && (
                 <iframe
                   title={`Preview of ${draft.subject}`}
                   className={styles.previewFrame}
                   sandbox=""
-                  src={`/api/admin/newsletter/preview?draft=${draft.id}`}
+                  src={`/api/admin/newsletter/preview?draft=${draft.id}&v=${previewNonce}`}
                 />
               )}
             </div>
@@ -351,6 +399,172 @@ export default function NewsletterAdmin({
           onConfirm={() => void send(confirming)}
         />
       )}
+    </div>
+  )
+}
+
+const keysOf = (groups: CardGroup[]) => groups.map(g => g.cards.map(c => c.key))
+
+/** Drag-and-drop ordering of a draft's cards, one list per section (a card
+ *  never leaves its section). Saving rewrites the draft inside
+ *  ActiveCampaign; nothing is sent. Up/down buttons are the keyboard route. */
+function ReorderPanel({
+  draft,
+  onSaved,
+}: {
+  draft: Draft
+  onSaved: (cards: CardGroup[]) => void
+}) {
+  const original = draft.cards ?? []
+  const [groups, setGroups] = useState<CardGroup[]>(() =>
+    original.map(g => ({ ...g, cards: [...g.cards] }))
+  )
+  const [drag, setDrag] = useState<{ gid: string; key: string } | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const dirty =
+    JSON.stringify(keysOf(groups)) !== JSON.stringify(keysOf(original))
+
+  function move(gid: string, from: number, to: number) {
+    if (from === to) return
+    setGroups(gs =>
+      gs.map(g => {
+        if (g.id !== gid) return g
+        const cards = [...g.cards]
+        const [card] = cards.splice(from, 1)
+        cards.splice(to, 0, card)
+        return { ...g, cards }
+      })
+    )
+  }
+
+  /** Live reorder while dragging: the dragged card takes the slot of the
+   *  card under the pointer (same section only). */
+  function enter(gid: string, key: string) {
+    if (!drag || drag.gid !== gid || drag.key === key) return
+    const g = groups.find(x => x.id === gid)
+    if (!g) return
+    const from = g.cards.findIndex(c => c.key === drag.key)
+    const to = g.cards.findIndex(c => c.key === key)
+    if (from >= 0 && to >= 0) move(gid, from, to)
+  }
+
+  async function save() {
+    setSaving(true)
+    setError(null)
+    try {
+      const order = Object.fromEntries(
+        groups.map(g => [g.id, g.cards.map(c => c.key)])
+      )
+      const res = await fetch('/api/admin/newsletter/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign: draft.id, order }),
+      })
+      const body = (await res.json()) as {
+        error?: string
+        problems?: string[]
+        cards?: CardGroup[]
+      }
+      if (!res.ok || !body.cards) {
+        throw new Error(
+          body.problems?.length
+            ? body.problems.join('; ')
+            : (body.error ?? `HTTP ${res.status}`)
+        )
+      }
+      setGroups(body.cards.map(g => ({ ...g, cards: [...g.cards] })))
+      onSaved(body.cards)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={styles.reorder}>
+      <p className={adminStyles.sectionHint}>
+        Drag a listing to move it. Cards stay within their section. Save writes
+        the new order into the draft (the preview updates); it sends nothing.
+      </p>
+      {groups.map(g => (
+        <div key={g.id} className={styles.reorderGroup}>
+          {groups.length > 1 && (
+            <div className={styles.reorderGroupLabel}>{g.label}</div>
+          )}
+          <ol className={styles.reorderList}>
+            {g.cards.map((c, i) => (
+              <li
+                key={c.key}
+                className={`${styles.reorderRow}${
+                  drag?.gid === g.id && drag.key === c.key
+                    ? ` ${styles.reorderRowDragging}`
+                    : ''
+                }`}
+                draggable={!saving}
+                onDragStart={e => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/plain', c.key)
+                  setDrag({ gid: g.id, key: c.key })
+                }}
+                onDragEnter={() => enter(g.id, c.key)}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => e.preventDefault()}
+                onDragEnd={() => setDrag(null)}
+              >
+                <span className={styles.reorderHandle} aria-hidden="true">
+                  ⋮⋮
+                </span>
+                <span className={styles.reorderIndex}>{i + 1}</span>
+                <span className={styles.reorderTitle}>{c.title}</span>
+                <span className={styles.reorderNudge}>
+                  <button
+                    type="button"
+                    aria-label={`Move “${c.title}” up`}
+                    disabled={i === 0 || saving}
+                    onClick={() => move(g.id, i, i - 1)}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move “${c.title}” down`}
+                    disabled={i === g.cards.length - 1 || saving}
+                    onClick={() => move(g.id, i, i + 1)}
+                  >
+                    ▼
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+      {error && <p className={styles.noticeError}>Not saved: {error}</p>}
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.buttonPrimary}
+          disabled={!dirty || saving}
+          onClick={() => void save()}
+        >
+          {saving ? 'Saving…' : 'Save order'}
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          disabled={!dirty || saving}
+          onClick={() =>
+            setGroups(original.map(g => ({ ...g, cards: [...g.cards] })))
+          }
+        >
+          Reset
+        </button>
+        {!dirty && !saving && (
+          <span className={styles.notice}>Order matches the draft.</span>
+        )}
+      </div>
     </div>
   )
 }

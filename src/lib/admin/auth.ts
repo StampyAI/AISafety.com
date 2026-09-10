@@ -189,6 +189,12 @@ export async function canViewNewsletter(): Promise<boolean> {
   return a.newsletter || a.newsletterPreview
 }
 
+/** May open /admin/queue and accept or reject proposals. Every accept is a
+ *  write to the live base (a publish, a field change, a deletion later). */
+export async function canReviewQueue(): Promise<boolean> {
+  return (await currentAccess()).queue
+}
+
 /** May open /admin/users and change who can sign in; the write routes also
  *  require hasFreshSession(SENSITIVE_FRESH_SECONDS). */
 export async function canManageUsers(): Promise<boolean> {

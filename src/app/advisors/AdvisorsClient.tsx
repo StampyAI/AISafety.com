@@ -1,16 +1,14 @@
 'use client'
 
 import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
-import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Advisor } from '@/lib/data/advisors'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
-import { trackListingClick } from '@/lib/analytics'
-import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
+import AdvisorCard from './AdvisorCard'
 
 interface AdvisorsClientProps {
   advisors: Advisor[]
@@ -114,55 +112,11 @@ export default function AdvisorsClient({ advisors }: AdvisorsClientProps) {
 
         <div className="collection-list padding-bottom-40px">
           {filteredAdvisors.map(advisor => (
-            <a
+            <AdvisorCard
               key={advisor.id}
-              href={withUtm(advisor.url, 'Advisors')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-              onClick={() =>
-                trackListingClick(
-                  'Advisors',
-                  advisor.name,
-                  advisor.url,
-                  advisor.id,
-                  placements.get(advisor.id)
-                )
-              }
-            >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {advisor.logo && (
-                    <Image
-                      src={advisor.logo}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                      loading="eager"
-                      onError={e => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                </div>
-                <h3>{advisor.name}</h3>
-              </div>
-              <p className="paragraph-small padding-bottom-24px">
-                {advisor.description}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Focus
-              </p>
-              <p className="paragraph-small padding-bottom-16px">
-                {advisor.focus}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Status
-              </p>
-              <p className="paragraph-small">{advisor.status}</p>
-            </a>
+              advisor={advisor}
+              placement={placements.get(advisor.id)}
+            />
           ))}
           {filteredAdvisors.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>

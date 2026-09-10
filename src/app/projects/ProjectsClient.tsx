@@ -7,6 +7,7 @@ import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { Project } from '@/lib/data/projects'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
+import ProjectCard from './ProjectCard'
 
 interface ProjectsClientProps {
   projects: Project[]
@@ -86,23 +87,7 @@ export default function ProjectsClient({ projects }: ProjectsClientProps) {
 
         <div className="collection-list padding-bottom-40px">
           {filteredProjects.map(project => (
-            <div key={project.id} className="card card-static">
-              <h3 className="padding-bottom-24px">{project.name}</h3>
-              <p className="paragraph-small padding-bottom-24px">
-                {project.description}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Contact
-              </p>
-              <p className="paragraph-small">{project.contact}</p>
-              {project.email && (
-                <p className="paragraph-small">{project.email}</p>
-              )}
-              <p className="paragraph-xs-bold padding-top-16px padding-bottom-4px color-teal-400">
-                Status
-              </p>
-              <p className="paragraph-small">{project.status}</p>
-            </div>
+            <ProjectCard key={project.id} project={project} />
           ))}
           {filteredProjects.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>

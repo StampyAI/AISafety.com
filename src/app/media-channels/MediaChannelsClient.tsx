@@ -1,16 +1,14 @@
 'use client'
 
 import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
-import Image from 'next/image'
 import FilterGroup from '@/components/FilterGroup'
 import FilterSidebar from '@/components/FilterSidebar'
 import ContributeButtons from '@/components/ContributeButtons'
 import SearchBar from '@/components/SearchBar'
 import { MediaChannel } from '@/lib/data/media-channels'
 import { filterItems, optionCounts } from '@/lib/filter-counts'
-import { trackListingClick } from '@/lib/analytics'
-import { withUtm } from '@/lib/utm'
 import { placementsById } from '@/lib/placements'
+import MediaChannelCard from './MediaChannelCard'
 
 interface MediaChannelsClientProps {
   channels: MediaChannel[]
@@ -109,49 +107,11 @@ export default function MediaChannelsClient({
 
         <div className="collection-list padding-bottom-40px">
           {filteredChannels.map(channel => (
-            <a
+            <MediaChannelCard
               key={channel.id}
-              href={withUtm(channel.url, 'Media channels')}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card"
-              onClick={() =>
-                trackListingClick(
-                  'Media channels',
-                  channel.name,
-                  channel.url,
-                  channel.id,
-                  placements.get(channel.id)
-                )
-              }
-            >
-              <div className="flex items-center gap-16px padding-bottom-24px">
-                <div className="featured-img">
-                  {channel.logo && (
-                    <Image
-                      src={channel.logo}
-                      alt=""
-                      className="card-image"
-                      width={64}
-                      height={64}
-                      unoptimized
-                      loading="eager"
-                      onError={e => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                  )}
-                </div>
-                <h3>{channel.name}</h3>
-              </div>
-              <p className="paragraph-small padding-bottom-24px">
-                {channel.description}
-              </p>
-              <p className="paragraph-xs-bold padding-bottom-4px color-teal-400">
-                Type
-              </p>
-              <p className="paragraph-small">{channel.type}</p>
-            </a>
+              channel={channel}
+              placement={placements.get(channel.id)}
+            />
           ))}
           {filteredChannels.length === 0 && (
             <p className="paragraph-small color-teal-300">Nothing found.</p>

@@ -1273,36 +1273,36 @@ function Detail({
               <span className={styles.pillPage}>{item.page}</span>
             )}
             <span className={styles.when}>{ago(item.createdAt)}</span>
+            <div className={styles.links}>
+              {item.sourceLink && (
+                <a
+                  href={item.sourceLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.withIcon}
+                >
+                  <Icon src={linkIcon(item.sourceLink)} size={12} />
+                  {linkLabel(item.sourceLink)}
+                </a>
+              )}
+              {item.url && (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.withIcon}
+                >
+                  <Icon src={ICON.external} size={12} />
+                  {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                </a>
+              )}
+            </div>
           </div>
           {/* With a card on show the heading only repeats what Broom found
               (or the record's name), so it is left out. */}
           {!showsCard && (
             <h2 className={styles.title}>{splitTitle(item).heading}</h2>
           )}
-          <div className={styles.links}>
-            {item.sourceLink && (
-              <a
-                href={item.sourceLink}
-                target="_blank"
-                rel="noreferrer"
-                className={styles.withIcon}
-              >
-                <Icon src={linkIcon(item.sourceLink)} size={12} />
-                {linkLabel(item.sourceLink)}
-              </a>
-            )}
-            {item.url && (
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noreferrer"
-                className={styles.withIcon}
-              >
-                <Icon src={ICON.external} size={12} />
-                {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-              </a>
-            )}
-          </div>
         </div>
 
         {/* The record as the site shows it, with the proposed change laid

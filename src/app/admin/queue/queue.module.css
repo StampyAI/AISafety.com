@@ -510,10 +510,12 @@
   white-space: pre-wrap;
 }
 
+/* The links sit at the right end of the pills row. */
 .links {
   display: flex;
   gap: 18px;
   flex-wrap: wrap;
+  margin-left: auto;
   font-size: 13px;
 }
 

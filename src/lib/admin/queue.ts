@@ -867,12 +867,47 @@ function target(item: QueueItem): { table: string; record: string } {
 
 /** Field name → value pairs the admin typed, checked before they reach
  *  Airtable: names must be plain short strings and never the publish flags. */
+/** A picture as a proposal carries it — `{url, filename}` or a list of
+ *  those — in the one shape Airtable writes to an attachment field and the
+ *  site's card reads from one: a list of `{url, filename}`. Null for
+ *  anything else (a bare URL string is a text field's value, not a file). */
+export function asAttachments(
+  v: unknown
+): { url: string; filename: string }[] | null {
+  const list = Array.isArray(v) ? v : [v]
+  if (!list.length) return null
+  const out: { url: string; filename: string }[] = []
+  for (const x of list) {
+    if (!isRecord(x) || typeof x.url !== 'string') return null
+    const url = x.url.trim()
+    if (!/^https?:\/\//i.test(url) || url.length > 2000) return null
+    let filename =
+      typeof x.filename === 'string' ? x.filename.trim().slice(0, 120) : ''
+    if (!filename) {
+      try {
+        filename = decodeURIComponent(
+          new URL(url).pathname.split('/').pop() ?? ''
+        )
+      } catch {
+        filename = ''
+      }
+    }
+    out.push({ url, filename: filename || 'image' })
+  }
+  return out
+}
+
 export function sanitiseEdits(input: unknown): Record<string, unknown> {
   if (!isRecord(input)) return {}
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(input)) {
     const name = k.trim()
     if (!name || name.length > 100 || PROTECTED_FIELDS.has(name)) continue
+    const files = asAttachments(v)
+    if (files) {
+      out[name] = files
+      continue
+    }
     if (
       v === null ||
       typeof v === 'string' ||
@@ -930,7 +965,9 @@ export async function acceptItem(
       const fields: Record<string, unknown> = {}
       for (const c of item.changes) {
         if (PROTECTED_FIELDS.has(c.field) || c.field.length > 100) continue
-        fields[c.field] = c.field in edits ? edits[c.field] : c.to
+        // A proposed picture goes to Airtable as an attachment list.
+        fields[c.field] =
+          c.field in edits ? edits[c.field] : (asAttachments(c.to) ?? c.to)
       }
       if (Object.keys(fields).length === 0) {
         // Accepting a flag with no proposed change: the flag is real and

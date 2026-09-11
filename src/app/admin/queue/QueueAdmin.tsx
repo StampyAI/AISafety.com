@@ -72,6 +72,7 @@ const ICON = {
   table: '/images/icons/table.svg',
   arrow: '/images/icons/arrow-right.svg',
   timer: '/images/icons/timer.svg',
+  download: '/images/icons/download.svg',
   done: '/images/icons/check-in-circle.svg',
   pencil: '/images/icons/pencil-small.svg',
   chevron: '/images/icons/chevron-down.svg',
@@ -269,18 +270,93 @@ function pictureOf(
   }
 }
 
-/** One side of a change to an image field: the picture, with its file
- *  name under it. A missing picture (an expired link) shows the name only. */
+/** Saves a picture under its file name. A host that refuses a cross-site
+ *  read cannot be fetched from here, so the picture opens in a tab instead
+ *  (a plain download link is ignored by browsers for another site). */
+async function downloadPicture(url: string, name: string | null) {
+  try {
+    const res = await fetch(url, { mode: 'cors' })
+    if (!res.ok) throw new Error(String(res.status))
+    const href = URL.createObjectURL(await res.blob())
+    const a = document.createElement('a')
+    a.href = href
+    a.download = name ?? 'image'
+    document.body.append(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
+  } catch {
+    window.open(url, '_blank', 'noopener')
+  }
+}
+
+function fileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
+/** One side of a change to an image field: the picture with a download
+ *  button on hover, then its file name, then its size in pixels and bytes
+ *  (the bytes only when the host lets the page read the file). A missing
+ *  picture (an expired link) shows the name only. */
 function Picture({ url, name }: { url: string | null; name: string | null }) {
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null)
+  const [bytes, setBytes] = useState<number | null>(null)
+  // Keyed by URL where it is used, so a new picture is a fresh component.
+  useEffect(() => {
+    if (!url) return
+    let cancelled = false
+    fetch(url, { mode: 'cors' })
+      .then(r => (r.ok ? r.blob() : null))
+      .then(b => {
+        if (!cancelled && b) setBytes(b.size)
+      })
+      .catch(() => {
+        // the host does not allow a cross-site read: no byte count
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [url])
+  const meta = [
+    dims ? `${dims.w} × ${dims.h}` : null,
+    bytes !== null ? fileSize(bytes) : null,
+  ].filter(Boolean)
   return (
     <span className={styles.picture}>
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className={styles.pictureImg} src={url} alt="" />
-      ) : (
-        <span className={`${styles.pictureImg} ${styles.pictureEmpty}`} />
-      )}
+      <span className={styles.pictureFrame}>
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className={styles.pictureImg}
+            src={url}
+            alt=""
+            onLoad={e => {
+              const el = e.currentTarget
+              if (el.naturalWidth) {
+                setDims({ w: el.naturalWidth, h: el.naturalHeight })
+              }
+            }}
+          />
+        ) : (
+          <span className={`${styles.pictureImg} ${styles.pictureEmpty}`} />
+        )}
+        {url && (
+          <button
+            type="button"
+            className={styles.pictureDownload}
+            title={`Download ${name ?? 'the picture'}`}
+            aria-label={`Download ${name ?? 'the picture'}`}
+            onClick={() => void downloadPicture(url, name)}
+          >
+            <Icon src={ICON.download} size={12} />
+          </button>
+        )}
+      </span>
       {name && <span className={styles.pictureName}>{name}</span>}
+      {meta.length > 0 && (
+        <span className={styles.pictureMeta}>{meta.join(' · ')}</span>
+      )}
     </span>
   )
 }
@@ -712,7 +788,7 @@ export default function QueueAdmin({
   }, [])
 
   // The address bar follows the item in focus, so a link to one specific
-  // suggestion can be copied and sent. Replaced, not pushed: J/K through
+  // suggestion can be copied and sent. Replaced, not pushed: W/Q through
   // the list must not fill the back button.
   useEffect(() => {
     if (!items) return
@@ -998,7 +1074,7 @@ export default function QueueAdmin({
     return () => clearTimeout(t)
   }, [toast])
 
-  // Keyboard: J/K or arrows move, A/Enter accept, R reject, N note, U undo,
+  // Keyboard: W/Q or arrows move, A/Enter accept, R reject, N note, U undo,
   // ? help, Esc cancel. Ignored while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1016,12 +1092,12 @@ export default function QueueAdmin({
       const item = selected
       const d = item ? draft(item.id) : FRESH
       switch (e.key) {
-        case 'j':
+        case 'w':
         case 'ArrowDown':
           e.preventDefault()
           move(1)
           break
-        case 'k':
+        case 'q':
         case 'ArrowUp':
           e.preventDefault()
           move(-1)
@@ -1285,19 +1361,31 @@ export default function QueueAdmin({
       )}
 
       {toast && (
+        // Laid out like a list row (logo, name, the muted line) with a
+        // bold tick or cross in front, so the eye reads it the same way.
         <div className={styles.toast} role="status">
-          <span className={styles.toastText}>
+          <span
+            className={`${styles.toastMark} ${toast.item.status === 'Rejected' ? styles.toastMarkNo : ''}`}
+          >
             <Icon
               src={toast.item.status === 'Rejected' ? ICON.x : ICON.check}
+              size={16}
             />
-            <span className={styles.toastBody}>
-              <span>
-                <strong>{toast.text}</strong>
-                <span className={styles.toastTitle}> {toast.item.title}</span>
-              </span>
-              {toast.sub && (
-                <span className={styles.toastSub}>{toast.sub}</span>
-              )}
+          </span>
+          {toast.item.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={styles.rowLogo} src={toast.item.logo} alt="" />
+          ) : (
+            <span className={`${styles.rowLogo} ${styles.rowLogoEmpty}`} />
+          )}
+          <span className={styles.toastBody}>
+            <span className={styles.rowTitle}>
+              {splitTitle(toast.item).name ?? toast.item.title}
+            </span>
+            <span className={styles.rowMeta}>
+              <span>{toast.text}</span>
+              {toast.item.page && <span>{toast.item.page}</span>}
+              {toast.sub && <span>{toast.sub}</span>}
             </span>
           </span>
           <button
@@ -1317,7 +1405,7 @@ export default function QueueAdmin({
             <div className={styles.helpTitle}>Keyboard</div>
             <dl className={styles.helpList}>
               <dt>
-                <kbd>J</kbd> <kbd>K</kbd>
+                <kbd>W</kbd> <kbd>Q</kbd>
               </dt>
               <dd>next / previous item</dd>
               <dt>
@@ -1616,7 +1704,11 @@ function Detail({
                   <span className={styles.from}>
                     {(() => {
                       const pic = pictureOf(c.from, live?.fields[c.field])
-                      return pic ? <Picture {...pic} /> : show(c.from)
+                      return pic ? (
+                        <Picture key={pic.url ?? ''} {...pic} />
+                      ) : (
+                        show(c.from)
+                      )
                     })()}
                   </span>
                   <span className={styles.arrow}>
@@ -1630,7 +1722,9 @@ function Detail({
                         return null
                       }
                       const pic = pictureOf(c.to, null)
-                      return pic ? <Picture {...pic} /> : null
+                      return pic ? (
+                        <Picture key={pic.url ?? ''} {...pic} />
+                      ) : null
                     })() ??
                       (d.editing === c.field ? (
                         <textarea

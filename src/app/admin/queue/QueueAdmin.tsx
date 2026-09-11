@@ -546,6 +546,9 @@ export default function QueueAdmin() {
 
   const chooseKind = (next: Kind) => {
     setKind(next)
+    // An item from the other view must not stay in focus: let the
+    // focus-keeping effect pick the first item of this one.
+    if (selected && kindOf(selected) !== next) setSelectedId(null)
     try {
       localStorage.setItem(KIND_KEY, next)
     } catch {

@@ -72,6 +72,21 @@ async function fetchPreview(
   return p
 }
 
+/** Put ready-built cards into the cache (from the bulk previews route). */
+export function seedPreviews(
+  entries: {
+    table: string
+    record: string
+    edits: Record<string, unknown>
+    preview: Preview
+  }[]
+): void {
+  for (const e of entries) {
+    const key = previewKey(e.table, e.record, JSON.stringify(e.edits))
+    if (!previews.has(key)) previews.set(key, Promise.resolve(e.preview))
+  }
+}
+
 /** Warm the cache for a card the admin is likely to open next. */
 export function prefetchPreview(
   table: string,
@@ -118,15 +133,12 @@ export default function SitePreview({
   record,
   page,
   edits,
-  compact = false,
 }: {
   table: string
   record: string
   page: string | null
   /** The admin's edits in the field's own shape (see coerceEdits). */
   edits: Record<string, unknown>
-  /** Scaled down so the whole item fits on one screen. */
-  compact?: boolean
 }) {
   const editsKey = JSON.stringify(edits)
   const key = previewKey(table, record, editsKey)
@@ -172,9 +184,7 @@ export default function SitePreview({
     <section className={styles.block}>
       <h3 className={styles.h3}>On {page ?? 'the site'}</h3>
       {preview?.kind && preview.listing ? (
-        <div
-          className={`${styles.siteFrame} ${compact ? styles.siteFrameCompact : ''}`}
-        >
+        <div className={styles.siteFrame}>
           <Card kind={preview.kind} listing={preview.listing} />
         </div>
       ) : preview && !preview.kind ? (

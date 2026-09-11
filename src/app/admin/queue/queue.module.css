@@ -388,24 +388,6 @@
   color: var(--q-text);
 }
 
-.pillVerdict.yes {
-  background: var(--q-accent);
-  border-color: var(--q-accent);
-  color: var(--q-accent-text);
-}
-
-.pillVerdict.maybe {
-  background: var(--q-warn);
-  border-color: var(--q-warn);
-  color: #fff;
-}
-
-.pillVerdict.no {
-  background: var(--q-danger);
-  border-color: var(--q-danger);
-  color: #fff;
-}
-
 .detailTwoCol .actions {
   grid-column: 1 / -1;
 }
@@ -781,11 +763,7 @@
   text-decoration: none;
 }
 
-/* Change items: the card sits beside what Broom found, scaled down, so the
-   item fits on one screen without scrolling. */
-.siteFrameCompact {
-  zoom: 1.08;
-}
+/* Change items: the card sits beside what Broom found. */
 
 .cardRow {
   display: grid;

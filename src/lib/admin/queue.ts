@@ -23,7 +23,12 @@
 */
 
 import { revalidateTag } from 'next/cache'
-import { airtableRequest, isRecordId, listAll } from './airtable'
+import {
+  airtableRequest,
+  isRecordId,
+  listAll,
+  type AirtableRow,
+} from './airtable'
 import { sealToken } from './session'
 
 export const QUEUE_TABLE_ID = 'tblonlKwIFJ7Aa8QN'
@@ -592,19 +597,79 @@ export async function getPreviewListing(
     `${table}/${record}?returnFieldsByFieldId=true`
   )
   if (!res.ok) return null
-  const raw = (await res.json()) as {
-    id: string
-    createdTime: string
-    fields: Record<string, unknown>
+  const raw = (await res.json()) as AirtableRow<Record<string, unknown>>
+  const byName = Object.keys(edits).length
+    ? new Map((await getTableSchema(table)).map(f => [f.name, f.id]))
+    : new Map<string, string>()
+  return mapPreview(table, raw, edits, byName)
+}
+
+export interface PreviewTarget {
+  table: string
+  record: string
+  edits: Record<string, unknown>
+}
+
+/** Every open item's card in one go, so the page can hold them ready
+ *  before an item is opened: one list read per 40 records of a table
+ *  (Airtable allows five requests a second, so tables run one after
+ *  another), keyed "table/record". Unknown or deleted records map to null. */
+export async function getPreviewListings(
+  targets: PreviewTarget[]
+): Promise<Record<string, PreviewListing | null>> {
+  const out: Record<string, PreviewListing | null> = {}
+  const byTable = new Map<string, PreviewTarget[]>()
+  for (const t of targets) {
+    if (!TABLE_ID_RE.test(t.table) || !isRecordId(t.record)) continue
+    const list = byTable.get(t.table) ?? []
+    list.push(t)
+    byTable.set(t.table, list)
   }
-  if (Object.keys(edits).length) {
+  for (const [table, list] of byTable) {
     const byName = new Map(
       (await getTableSchema(table)).map(f => [f.name, f.id])
     )
-    for (const [name, value] of Object.entries(edits)) {
-      const id = byName.get(name)
-      if (id) raw.fields[id] = value
+    for (let i = 0; i < list.length; i += 40) {
+      const chunk = list.slice(i, i + 40)
+      const params = new URLSearchParams()
+      params.set('returnFieldsByFieldId', 'true')
+      params.set(
+        'filterByFormula',
+        `OR(${chunk.map(t => `RECORD_ID()='${t.record}'`).join(',')})`
+      )
+      const rows = new Map(
+        (await listAll<Record<string, unknown>>(table, params)).map(r => [
+          r.id,
+          r,
+        ])
+      )
+      for (const t of chunk) {
+        const r = rows.get(t.record)
+        out[`${table}/${t.record}`] = r
+          ? mapPreview(
+              table,
+              { ...r, fields: { ...r.fields } },
+              t.edits,
+              byName
+            )
+          : null
+      }
     }
+  }
+  return out
+}
+
+/** The record with the edits laid over it (by field name → id), mapped by
+ *  that table's own record-to-listing function. */
+function mapPreview(
+  table: string,
+  raw: AirtableRow<Record<string, unknown>>,
+  edits: Record<string, unknown>,
+  byName: Map<string, string>
+): PreviewListing | null {
+  for (const [name, value] of Object.entries(edits)) {
+    const id = byName.get(name)
+    if (id) raw.fields[id] = value
   }
   const rec = raw as unknown as AirtableRawRecord
   const wrap = (kind: PreviewKind, listing: unknown): PreviewListing | null =>

@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import type { AgentInfo, FieldInfo, QueueItem } from '@/lib/admin/queue'
+import type {
+  AgentInfo,
+  FieldInfo,
+  PreviewKind,
+  QueueItem,
+} from '@/lib/admin/queue'
 import Icon from '@/components/Icon'
-import SitePreview, { prefetchPreview } from './SitePreview'
+import SitePreview, { prefetchPreview, seedPreviews } from './SitePreview'
 import styles from './queue.module.css'
 
 // The Queue is a triage tool Bryce sits in for long stretches, so it has its
@@ -234,6 +239,52 @@ function isOpen(item: QueueItem): boolean {
     item.status === 'Revising' ||
     item.status === 'Failed'
   )
+}
+
+/** The edits a card preview is built with before the admin touches
+ *  anything: a Change shows its proposed values, an Add shows the record. */
+function proposedEdits(item: QueueItem): Record<string, unknown> {
+  return item.type === 'Change'
+    ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
+    : {}
+}
+
+/** Build every open item's card in one request and hold them ready, so
+ *  opening an item never waits on Airtable. Best effort. */
+async function preloadCards(items: QueueItem[]): Promise<void> {
+  const targets = items
+    .filter(
+      i =>
+        isOpen(i) &&
+        (i.type === 'Add' || i.type === 'Change') &&
+        i.targetTable &&
+        i.targetRecord
+    )
+    .map(i => ({
+      table: i.targetTable as string,
+      record: i.targetRecord as string,
+      edits: proposedEdits(i),
+    }))
+  if (!targets.length) return
+  try {
+    const res = await fetch(`${API}/previews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targets }),
+    })
+    const data = (await res.json()) as {
+      previews?: Record<string, { kind: PreviewKind | null; listing?: unknown }>
+    }
+    if (!res.ok || !data.previews) return
+    seedPreviews(
+      targets.map(t => ({
+        ...t,
+        preview: data.previews?.[`${t.table}/${t.record}`] ?? { kind: null },
+      }))
+    )
+  } catch {
+    // the single-card route still works
+  }
 }
 
 function acceptLabel(item: QueueItem): string {
@@ -481,6 +532,7 @@ export default function QueueAdmin() {
       }
       setItems(data.items)
       setAgent(data.agent ?? null)
+      void preloadCards(data.items)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e))
     }
@@ -568,13 +620,7 @@ export default function QueueAdmin() {
     const next = flat[flat.findIndex(i => i.id === selected.id) + 1]
     if (!next?.targetTable || !next.targetRecord) return
     if (next.type !== 'Add' && next.type !== 'Change') return
-    prefetchPreview(
-      next.targetTable,
-      next.targetRecord,
-      next.type === 'Change'
-        ? Object.fromEntries(next.changes.map(c => [c.field, c.to]))
-        : {}
-    )
+    prefetchPreview(next.targetTable, next.targetRecord, proposedEdits(next))
   }, [selected, ordered.flat])
 
   useEffect(() => {
@@ -1180,6 +1226,9 @@ function Detail({
 
   const hasCard =
     item.type === 'Change' && Boolean(item.targetTable && item.targetRecord)
+  const showsCard =
+    hasCard ||
+    (item.type === 'Add' && Boolean(item.targetTable && item.targetRecord))
   const excerptBlock = item.sourceExcerpt ? (
     <section className={styles.block}>
       <h3 className={styles.h3}>
@@ -1218,18 +1267,18 @@ function Detail({
               <Icon src={sourceIcon(item)} size={12} />
               {item.source}
             </span>
-            {item.page && <span className={styles.pillPage}>{item.page}</span>}
-            {item.verdict && (
-              <span
-                className={`${styles.pill} ${styles.pillVerdict} ${verdictClass(item)}`}
-              >
-                <Icon src={verdictIcon(item)} size={12} />
-                Fable: {item.verdict}
-              </span>
+            {/* The page is named above the card and the verdict heads the
+                panel on the right, so neither is repeated here. */}
+            {!showsCard && item.page && (
+              <span className={styles.pillPage}>{item.page}</span>
             )}
             <span className={styles.when}>{ago(item.createdAt)}</span>
           </div>
-          <h2 className={styles.title}>{splitTitle(item).heading}</h2>
+          {/* With a card on show the heading only repeats what Broom found
+              (or the record's name), so it is left out. */}
+          {!showsCard && (
+            <h2 className={styles.title}>{splitTitle(item).heading}</h2>
+          )}
           <div className={styles.links}>
             {item.sourceLink && (
               <a
@@ -1264,7 +1313,6 @@ function Detail({
               table={item.targetTable ?? ''}
               record={item.targetRecord ?? ''}
               page={item.page}
-              compact
               edits={{
                 ...Object.fromEntries(item.changes.map(c => [c.field, c.to])),
                 ...editsToSave(),

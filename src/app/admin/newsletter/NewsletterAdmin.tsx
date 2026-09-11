@@ -315,9 +315,12 @@ export default function NewsletterAdmin({
                   <button
                     type="button"
                     className={styles.button}
-                    onClick={() =>
-                      setReorderId(reorderId === draft.id ? null : draft.id)
-                    }
+                    onClick={() => {
+                      const open = reorderId !== draft.id
+                      setReorderId(open ? draft.id : null)
+                      // Reordering only makes sense next to the preview.
+                      if (open) setPreviewId(draft.id)
+                    }}
                   >
                     {reorderId === draft.id ? 'Hide reorder' : 'Reorder'}
                   </button>
@@ -333,20 +336,27 @@ export default function NewsletterAdmin({
                   </button>
                 )}
               </div>
-              {reorderId === draft.id && draft.cards && (
-                <ReorderPanel
-                  key={draft.id}
-                  draft={draft}
-                  onSaved={cards => reordered(draft.id, cards)}
-                />
-              )}
-              {previewId === draft.id && (
-                <iframe
-                  title={`Preview of ${draft.subject}`}
-                  className={styles.previewFrame}
-                  sandbox=""
-                  src={`/api/admin/newsletter/preview?draft=${draft.id}&v=${previewNonce}`}
-                />
+              {(previewId === draft.id ||
+                (reorderId === draft.id && draft.cards)) && (
+                <div className={styles.previewRow}>
+                  {reorderId === draft.id && draft.cards && (
+                    <div className={styles.reorderSide}>
+                      <ReorderPanel
+                        key={draft.id}
+                        draft={draft}
+                        onSaved={cards => reordered(draft.id, cards)}
+                      />
+                    </div>
+                  )}
+                  {previewId === draft.id && (
+                    <iframe
+                      title={`Preview of ${draft.subject}`}
+                      className={styles.previewFrame}
+                      sandbox=""
+                      src={`/api/admin/newsletter/preview?draft=${draft.id}&v=${previewNonce}`}
+                    />
+                  )}
+                </div>
               )}
             </div>
           )

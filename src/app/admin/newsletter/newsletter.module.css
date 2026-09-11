@@ -90,7 +90,34 @@
   color: var(--bright-teal-300);
 }
 
+/* Reorder panel beside the preview (Bryce, 11 Sept 2026), stacked on narrow screens. */
+.previewRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.reorderSide {
+  flex: 0 0 380px;
+  max-width: 100%;
+  position: sticky;
+  top: 86px; /* under the sticky admin header */
+}
+
+@media (max-width: 1100px) {
+  .previewRow {
+    flex-direction: column;
+  }
+  .reorderSide {
+    position: static;
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
 .previewFrame {
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
   height: 820px;
   border: 1px solid var(--teal-800);

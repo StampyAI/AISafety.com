@@ -319,6 +319,108 @@
   gap: 22px;
 }
 
+/* Fable's reasons sit beside the item (as the review comment does in
+   Airtable's sidebar), so nothing has to be scrolled to. */
+.detailTwoCol {
+  max-width: 1160px;
+  grid-template-columns: minmax(0, 760px) minmax(260px, 340px);
+  column-gap: 40px;
+  align-items: start;
+}
+
+.detailMain {
+  min-width: 0;
+  display: grid;
+  gap: 22px;
+}
+
+.detailAside {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--q-border);
+  border-top: 5px solid var(--q-border-strong);
+  border-radius: 8px;
+  background: var(--q-panel);
+}
+
+/* The verdict colours the whole panel: teal go, amber unsure, red no. */
+.detailAside.yes {
+  border-top-color: var(--q-accent);
+  background: var(--q-accent-soft);
+}
+
+.detailAside.maybe {
+  border-top-color: var(--q-warn);
+  background: var(--q-warn-soft);
+}
+
+.detailAside.no {
+  border-top-color: var(--q-danger);
+  background: var(--q-danger-soft);
+}
+
+.verdictHead {
+  display: grid;
+  gap: 2px;
+}
+
+.verdictKicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.verdictBig {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.detailAside .reasons {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--q-text);
+}
+
+.pillVerdict.yes {
+  background: var(--q-accent);
+  border-color: var(--q-accent);
+  color: var(--q-accent-text);
+}
+
+.pillVerdict.maybe {
+  background: var(--q-warn);
+  border-color: var(--q-warn);
+  color: #fff;
+}
+
+.pillVerdict.no {
+  background: var(--q-danger);
+  border-color: var(--q-danger);
+  color: #fff;
+}
+
+.detailTwoCol .actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1180px) {
+  .detailTwoCol {
+    grid-template-columns: minmax(0, 760px);
+  }
+  .detailAside {
+    position: static;
+  }
+}
+
 .emptyDetail {
   padding: 80px 40px;
   color: var(--q-muted);
@@ -366,6 +468,65 @@
   line-height: 1.25;
   letter-spacing: -0.3px;
   color: var(--q-text);
+}
+
+.recordName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--q-border-strong);
+  border-radius: 6px;
+  background: var(--q-panel-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--q-text);
+}
+
+.rowName {
+  font-weight: 650;
+}
+
+.recordLogo,
+.recordLogoEmpty {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  flex: none;
+}
+
+.recordLogo {
+  /* the site's card surface: logos are drawn for a dark background */
+  padding: 3px;
+  object-fit: contain;
+  background: #1c3334;
+}
+
+.recordLogoEmpty {
+  border: 1px dashed var(--q-border-strong);
+}
+
+.finding {
+  display: grid;
+  gap: 8px;
+}
+
+.findingLead {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--q-text);
+  white-space: pre-wrap;
+}
+
+.findingDetail {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--q-muted);
+  white-space: pre-wrap;
 }
 
 .links {

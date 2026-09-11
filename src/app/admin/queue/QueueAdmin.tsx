@@ -128,6 +128,46 @@ function verdictRank(v: QueueItem['verdict']): number {
   }
 }
 
+/** A Change row's title is written as "Record name: what was found"; the
+ *  page shows the name in its own place and the finding as the heading.
+ *  Rows that carry `name` in the proposal use it; older ones split the
+ *  title at the first ": ". */
+function splitTitle(item: QueueItem): { name: string | null; heading: string } {
+  if (item.type !== 'Change') return { name: null, heading: item.title }
+  if (item.name && item.title.startsWith(item.name + ': ')) {
+    return { name: item.name, heading: item.title.slice(item.name.length + 2) }
+  }
+  const at = item.title.indexOf(': ')
+  if (at > 0 && at < 120) {
+    return { name: item.title.slice(0, at), heading: item.title.slice(at + 2) }
+  }
+  return { name: item.name, heading: item.title }
+}
+
+/** The record's own picture: the first attachment in a field called
+ *  Logo or Image (the live record lists attachments as URL arrays). */
+function recordLogo(
+  fields: Record<string, unknown> | undefined
+): string | null {
+  if (!fields) return null
+  for (const [k, v] of Object.entries(fields)) {
+    if (!/logo|image/i.test(k)) continue
+    if (Array.isArray(v) && typeof v[0] === 'string') return v[0]
+  }
+  return null
+}
+
+/** Broom writes its finding as a one-paragraph summary followed by the
+ *  evidence; the summary is what gets read, the rest is there when needed. */
+function splitExcerpt(text: string): { lead: string; detail: string | null } {
+  const m = /\n\s*\n/.exec(text)
+  if (!m) return { lead: text.trim(), detail: null }
+  return {
+    lead: text.slice(0, m.index).trim(),
+    detail: text.slice(m.index + m[0].length).trim() || null,
+  }
+}
+
 function ago(iso: string | null): string {
   if (!iso) return ''
   const ms = Date.now() - new Date(iso).getTime()
@@ -211,8 +251,19 @@ function isOpen(item: QueueItem): boolean {
 
 function acceptLabel(item: QueueItem): string {
   if (item.type === 'Add') return 'Publish'
-  if (item.type === 'Change') return 'Apply change'
+  if (item.type === 'Change') {
+    return item.changes.length ? 'Apply change' : 'Accept flag'
+  }
   return 'Apply rule'
+}
+
+function verdictWord(item: QueueItem): string {
+  if (item.verdict === 'Publish') return 'Publish it'
+  if (item.verdict === "Don't publish") return "Don't publish"
+  if (item.verdict === 'Fix') return 'Fix it'
+  if (item.verdict === 'Dismiss') return 'Dismiss the flag'
+  if (item.verdict === 'Unsure') return 'Unsure'
+  return item.verdict ?? ''
 }
 
 /** An emailed request whose reply draft still has to reach Gmail. */
@@ -523,7 +574,8 @@ export default function QueueAdmin() {
   }, [items, ordered.flat, selectedId, selected, showDone])
 
   useEffect(() => {
-    if (!selected || selected.type !== 'Add') return
+    if (!selected) return
+    if (selected.type !== 'Add' && selected.type !== 'Change') return
     if (!selected.targetTable || !selected.targetRecord) return
     if (live[selected.id]) return
     const id = selected.id
@@ -1049,7 +1101,16 @@ function Row({
         <Icon src={sourceIcon(item)} />
       </span>
       <span className={styles.rowBody}>
-        <span className={styles.rowTitle}>{item.title}</span>
+        <span className={styles.rowTitle}>
+          {splitTitle(item).name ? (
+            <>
+              <b className={styles.rowName}>{splitTitle(item).name}</b>{' '}
+              {splitTitle(item).heading}
+            </>
+          ) : (
+            item.title
+          )}
+        </span>
         <span className={styles.rowMeta}>
           {item.source !== 'Comb' && <span>{item.source}</span>}
           {item.page && <span>{item.page}</span>}
@@ -1115,213 +1176,264 @@ function Detail({
   const editsToSave = () => coerceEdits(d.edits, original, types)
 
   return (
-    <div className={styles.detailInner}>
-      <div className={styles.detailHead}>
-        <div className={styles.pills}>
-          <span className={`${styles.pill} ${dotClass(item)}`}>
-            <Icon src={sourceIcon(item)} size={12} />
-            {item.source}
-          </span>
-          {item.page && <span className={styles.pillPage}>{item.page}</span>}
-          {item.verdict && (
-            <span className={`${styles.pill} ${verdictClass(item)}`}>
-              <Icon src={verdictIcon(item)} size={12} />
-              Fable: {item.verdict}
+    <div
+      className={`${styles.detailInner} ${item.verdict || item.reasons.length > 0 ? styles.detailTwoCol : ''}`}
+    >
+      <div className={styles.detailMain}>
+        <div className={styles.detailHead}>
+          <div className={styles.pills}>
+            <span className={`${styles.pill} ${dotClass(item)}`}>
+              <Icon src={sourceIcon(item)} size={12} />
+              {item.source}
             </span>
+            {item.page && <span className={styles.pillPage}>{item.page}</span>}
+            {item.verdict && (
+              <span
+                className={`${styles.pill} ${styles.pillVerdict} ${verdictClass(item)}`}
+              >
+                <Icon src={verdictIcon(item)} size={12} />
+                Fable: {item.verdict}
+              </span>
+            )}
+            <span className={styles.when}>{ago(item.createdAt)}</span>
+          </div>
+          {splitTitle(item).name && (
+            <div className={styles.recordName}>
+              {recordLogo(live?.fields) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className={styles.recordLogo}
+                  src={recordLogo(live?.fields) ?? ''}
+                  alt=""
+                />
+              ) : (
+                <span className={styles.recordLogoEmpty} />
+              )}
+              {splitTitle(item).name}
+            </div>
           )}
-          <span className={styles.when}>{ago(item.createdAt)}</span>
+          <h2 className={styles.title}>{splitTitle(item).heading}</h2>
+          <div className={styles.links}>
+            {item.sourceLink && (
+              <a
+                href={item.sourceLink}
+                target="_blank"
+                rel="noreferrer"
+                className={styles.withIcon}
+              >
+                <Icon src={linkIcon(item.sourceLink)} size={12} />
+                {linkLabel(item.sourceLink)}
+              </a>
+            )}
+            {item.url && (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className={styles.withIcon}
+              >
+                <Icon src={ICON.external} size={12} />
+                {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+              </a>
+            )}
+          </div>
         </div>
-        <h2 className={styles.title}>{item.title}</h2>
-        <div className={styles.links}>
-          {item.sourceLink && (
-            <a
-              href={item.sourceLink}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.withIcon}
-            >
-              <Icon src={linkIcon(item.sourceLink)} size={12} />
-              {linkLabel(item.sourceLink)}
-            </a>
-          )}
-          {item.url && (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.withIcon}
-            >
-              <Icon src={ICON.external} size={12} />
-              {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-            </a>
-          )}
-        </div>
+
+        {item.sourceExcerpt && (
+          <section className={styles.block}>
+            <h3 className={styles.h3}>
+              {item.source === 'Broom' ? 'What Broom found' : 'What they wrote'}
+            </h3>
+            {item.source === 'Broom' ? (
+              <div className={styles.finding}>
+                <p className={styles.findingLead}>
+                  {splitExcerpt(item.sourceExcerpt).lead}
+                </p>
+                {splitExcerpt(item.sourceExcerpt).detail && (
+                  <p className={styles.findingDetail}>
+                    {splitExcerpt(item.sourceExcerpt).detail}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <blockquote className={styles.quote}>
+                {item.sourceExcerpt}
+              </blockquote>
+            )}
+          </section>
+        )}
+
+        {/* Edits typed on the page, in the field's own shape. */}
+        {item.type === 'Add' && (live || item.fields) && (
+          <>
+            <SitePreview
+              itemId={item.id}
+              page={item.page}
+              edits={editsToSave()}
+            />
+            <Fields
+              item={item}
+              fields={live?.fields ?? item.fields ?? {}}
+              schema={live?.schema ?? []}
+              onImage={onImage}
+              d={d}
+              setD={setD}
+            />
+          </>
+        )}
+
+        {item.type === 'Change' &&
+          (nothingToApply ? (
+            <p className={styles.note}>
+              No field change proposed. Accept keeps the flag in Airtable for
+              you to handle; Reject clears it; or ask Claude for a change.
+            </p>
+          ) : (
+            <div className={styles.diff}>
+              {item.changes.map(c => (
+                <div key={c.field} className={styles.diffRow}>
+                  <span className={styles.label}>{c.field}</span>
+                  <span className={styles.from}>{show(c.from)}</span>
+                  <span className={styles.arrow}>
+                    <Icon src={ICON.arrow} size={12} />
+                  </span>
+                  <span className={styles.to}>
+                    {d.editing === c.field ? (
+                      <textarea
+                        className={styles.input}
+                        rows={2}
+                        autoFocus
+                        defaultValue={d.edits[c.field] ?? show(c.to)}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setD({ editing: null })
+                          }
+                        }}
+                        onBlur={e =>
+                          setD({
+                            editing: null,
+                            edits: { ...d.edits, [c.field]: e.target.value },
+                          })
+                        }
+                      />
+                    ) : (
+                      <EditableValue
+                        text={
+                          c.field in d.edits ? d.edits[c.field] : show(c.to)
+                        }
+                        edited={c.field in d.edits}
+                        canEdit={!revising}
+                        onEdit={() => setD({ editing: c.field })}
+                      />
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+
+        {item.type === 'Rule' && (
+          <section className={styles.block}>
+            <h3 className={styles.h3}>What changes for the bots</h3>
+            <p className={styles.summary}>
+              {item.summary ?? 'No summary was written for this rule.'}
+            </p>
+            {item.appliesTo && (
+              <p className={styles.note}>Applies to: {item.appliesTo}</p>
+            )}
+          </section>
+        )}
+
+        {item.replyDraft && (
+          <section className={styles.block}>
+            <h3 className={styles.h3}>
+              Reply draft{item.replyTo ? ` to ${item.replyTo}` : ''}
+            </h3>
+            {d.editingReply ? (
+              <textarea
+                className={`${styles.input} ${styles.replyInput}`}
+                rows={Math.min(
+                  14,
+                  Math.max(4, item.replyDraft.split('\n').length + 1)
+                )}
+                autoFocus
+                defaultValue={d.reply ?? item.replyDraft}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setD({ editingReply: false })
+                  }
+                }}
+                onBlur={e =>
+                  setD({ editingReply: false, reply: e.target.value })
+                }
+              />
+            ) : (
+              <ReplyDraft
+                text={d.reply ?? item.replyDraft}
+                edited={d.reply !== null && d.reply !== item.replyDraft}
+                canEdit={!revising && isOpen(item)}
+                onEdit={() => setD({ editingReply: true })}
+              />
+            )}
+            <p className={styles.note}>
+              {item.replyStatus === 'Saved' ? (
+                <>
+                  Saved in Gmail as a draft
+                  {item.sourceLink && (
+                    <>
+                      {' · '}
+                      <a
+                        href={item.sourceLink}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        open the thread
+                      </a>
+                    </>
+                  )}
+                  . Nothing was sent.
+                </>
+              ) : item.replyStatus === 'Failed' ? (
+                `The draft could not be saved${item.error ? `: ${item.error}` : '.'}`
+              ) : isOpen(item) ? (
+                agentOnline ? (
+                  `${acceptLabel(item)} saves this as a Gmail draft at once. Nothing is sent.`
+                ) : (
+                  `${acceptLabel(item)} saves this as a Gmail draft (${WORKER_NOTE}). Nothing is sent.`
+                )
+              ) : (
+                replyLabel(item)
+              )}
+            </p>
+          </section>
+        )}
+
+        {(item.error || d.error) && (
+          <p className={styles.error}>{d.error ?? item.error}</p>
+        )}
       </div>
 
-      {item.sourceExcerpt && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>
-            {item.source === 'Broom' ? 'What Broom found' : 'What they wrote'}
-          </h3>
-          <blockquote className={styles.quote}>{item.sourceExcerpt}</blockquote>
-        </section>
-      )}
-
-      {/* Edits typed on the page, in the field's own shape. */}
-      {item.type === 'Add' && (live || item.fields) && (
-        <>
-          <SitePreview
-            itemId={item.id}
-            page={item.page}
-            edits={editsToSave()}
-          />
-          <Fields
-            item={item}
-            fields={live?.fields ?? item.fields ?? {}}
-            schema={live?.schema ?? []}
-            onImage={onImage}
-            d={d}
-            setD={setD}
-          />
-        </>
-      )}
-
-      {item.type === 'Change' &&
-        (nothingToApply ? (
-          <p className={styles.note}>
-            {item.verdict === 'Dismiss'
-              ? 'Fable thinks this flag is wrong. Reject clears it.'
-              : 'No change proposed. Reject clears the flag, or ask Claude.'}
-          </p>
-        ) : (
-          <div className={styles.diff}>
-            {item.changes.map(c => (
-              <div key={c.field} className={styles.diffRow}>
-                <span className={styles.label}>{c.field}</span>
-                <span className={styles.from}>{show(c.from)}</span>
-                <span className={styles.arrow}>
-                  <Icon src={ICON.arrow} size={12} />
-                </span>
-                <span className={styles.to}>
-                  {d.editing === c.field ? (
-                    <textarea
-                      className={styles.input}
-                      rows={2}
-                      autoFocus
-                      defaultValue={d.edits[c.field] ?? show(c.to)}
-                      onKeyDown={e => {
-                        if (e.key === 'Escape') {
-                          e.preventDefault()
-                          setD({ editing: null })
-                        }
-                      }}
-                      onBlur={e =>
-                        setD({
-                          editing: null,
-                          edits: { ...d.edits, [c.field]: e.target.value },
-                        })
-                      }
-                    />
-                  ) : (
-                    <EditableValue
-                      text={c.field in d.edits ? d.edits[c.field] : show(c.to)}
-                      edited={c.field in d.edits}
-                      canEdit={!revising}
-                      onEdit={() => setD({ editing: c.field })}
-                    />
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        ))}
-
-      {item.type === 'Rule' && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>What changes for the bots</h3>
-          <p className={styles.summary}>
-            {item.summary ?? 'No summary was written for this rule.'}
-          </p>
-          {item.appliesTo && (
-            <p className={styles.note}>Applies to: {item.appliesTo}</p>
+      {(item.verdict || item.reasons.length > 0) && (
+        <aside className={`${styles.detailAside} ${verdictClass(item)}`}>
+          {item.verdict && (
+            <div className={styles.verdictHead}>
+              <span className={styles.verdictKicker}>Fable says</span>
+              <span className={`${styles.verdictBig} ${styles.withIcon}`}>
+                <Icon src={verdictIcon(item)} size={16} />
+                {verdictWord(item)}
+              </span>
+            </div>
           )}
-        </section>
-      )}
-
-      {item.reasons.length > 0 && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>
-            Why {item.verdict ? item.verdict.toLowerCase() : 'this'}
-          </h3>
-          <ul className={styles.reasons}>
-            {item.reasons.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {item.replyDraft && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>
-            Reply draft{item.replyTo ? ` to ${item.replyTo}` : ''}
-          </h3>
-          {d.editingReply ? (
-            <textarea
-              className={`${styles.input} ${styles.replyInput}`}
-              rows={Math.min(
-                14,
-                Math.max(4, item.replyDraft.split('\n').length + 1)
-              )}
-              autoFocus
-              defaultValue={d.reply ?? item.replyDraft}
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
-                  e.preventDefault()
-                  setD({ editingReply: false })
-                }
-              }}
-              onBlur={e => setD({ editingReply: false, reply: e.target.value })}
-            />
-          ) : (
-            <ReplyDraft
-              text={d.reply ?? item.replyDraft}
-              edited={d.reply !== null && d.reply !== item.replyDraft}
-              canEdit={!revising && isOpen(item)}
-              onEdit={() => setD({ editingReply: true })}
-            />
+          {item.reasons.length > 0 && (
+            <ul className={styles.reasons}>
+              {item.reasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
           )}
-          <p className={styles.note}>
-            {item.replyStatus === 'Saved' ? (
-              <>
-                Saved in Gmail as a draft
-                {item.sourceLink && (
-                  <>
-                    {' · '}
-                    <a href={item.sourceLink} target="_blank" rel="noreferrer">
-                      open the thread
-                    </a>
-                  </>
-                )}
-                . Nothing was sent.
-              </>
-            ) : item.replyStatus === 'Failed' ? (
-              `The draft could not be saved${item.error ? `: ${item.error}` : '.'}`
-            ) : isOpen(item) ? (
-              agentOnline ? (
-                `${acceptLabel(item)} saves this as a Gmail draft at once. Nothing is sent.`
-              ) : (
-                `${acceptLabel(item)} saves this as a Gmail draft (${WORKER_NOTE}). Nothing is sent.`
-              )
-            ) : (
-              replyLabel(item)
-            )}
-          </p>
-        </section>
-      )}
-
-      {(item.error || d.error) && (
-        <p className={styles.error}>{d.error ?? item.error}</p>
+        </aside>
       )}
 
       <div className={styles.actions}>
@@ -1400,19 +1512,17 @@ function Detail({
           </div>
         ) : (
           <div className={styles.buttons}>
-            {!nothingToApply && (
-              <button
-                className={`${styles.button} ${styles.primary}`}
-                disabled={d.busy}
-                onClick={() => act('accept', { edits: editsToSave() })}
-              >
-                <Icon
-                  src={item.type === 'Add' ? ICON.plus : ICON.check}
-                  size={12}
-                />
-                {d.busy ? 'Applying…' : acceptLabel(item)} <kbd>A</kbd>
-              </button>
-            )}
+            <button
+              className={`${styles.button} ${styles.primary}`}
+              disabled={d.busy}
+              onClick={() => act('accept', { edits: editsToSave() })}
+            >
+              <Icon
+                src={item.type === 'Add' ? ICON.plus : ICON.check}
+                size={12}
+              />
+              {d.busy ? 'Applying…' : acceptLabel(item)} <kbd>A</kbd>
+            </button>
             <button
               className={`${styles.button} ${styles.danger}`}
               disabled={d.busy}

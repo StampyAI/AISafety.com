@@ -725,7 +725,16 @@ export async function acceptItem(
         fields[c.field] = c.field in edits ? edits[c.field] : c.to
       }
       if (Object.keys(fields).length === 0) {
-        throw new QueueError('This item proposes no field changes.', 400)
+        // Accepting a flag with no proposed change: the flag is real and
+        // the admin handles it by hand, so the Broom issue row stays; the
+        // Mac worker marks this row Applied once that issue is cleared.
+        await patchQueueRow(item.id, {
+          ...draftFields,
+          [F.status]: 'Accepted',
+          [F.decidedAt]: stamp,
+          [F.error]: null,
+        })
+        return
       }
       await patchRecord(t.table, t.record, fields)
       if (item.issueRow && isRecordId(item.issueRow)) {
@@ -868,7 +877,12 @@ export async function undoItem(item: QueueItem): Promise<void> {
     await patchQueueRow(item.id, reopen)
     return
   }
-  if (item.status === 'Accepted' && item.type === 'Rule') {
+  if (
+    item.status === 'Accepted' &&
+    (item.type === 'Rule' || item.type === 'Change')
+  ) {
+    // A rule the worker has not applied yet, or a flag accepted without a
+    // field change: nothing was written, so reopening is enough.
     await patchQueueRow(item.id, reopen)
     return
   }

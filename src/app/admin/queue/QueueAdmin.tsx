@@ -22,13 +22,30 @@ import styles from './queue.module.css'
 const API = '/api/admin/queue'
 const UPLOAD_API = '/api/admin/queue/upload'
 
-// The list shows one kind of work at a time (additions to judge whole, or
-// changes to judge as a diff; rules ride along with both), grouped by where
-// each item came from. Bryce, 11 Sept 2026: "to be in the headspace for
-// one of those all at once".
+// The list shows one kind of work at a time (additions to judge whole,
+// changes to judge as a diff, or rules for the bots), grouped by where each
+// item came from. Bryce, 11 Sept 2026: "to be in the headspace for one of
+// those all at once".
 type Section = 'requests' | 'broom' | 'rules' | 'comb'
 const SECTIONS: Section[] = ['requests', 'broom', 'rules', 'comb']
-type Kind = 'additions' | 'changes'
+type Kind = 'additions' | 'changes' | 'rules'
+const KINDS: { key: Kind; label: string; title: string }[] = [
+  {
+    key: 'additions',
+    label: 'Additions',
+    title: 'New listings to publish or reject',
+  },
+  {
+    key: 'changes',
+    label: 'Changes',
+    title: 'Proposed changes to existing listings',
+  },
+  {
+    key: 'rules',
+    label: 'Rules',
+    title: 'Changes to the bots\u2019 rulebooks',
+  },
+]
 const SECTION_LABEL: Record<Section, string> = {
   requests: 'Requests',
   broom: 'Broom',
@@ -119,10 +136,9 @@ function sectionOf(item: QueueItem): Section {
   return 'requests'
 }
 
-/** Which side of the Additions / Changes switch an item belongs to; rules
- *  show on both. */
-function kindOf(item: QueueItem): Kind | 'both' {
-  if (item.type === 'Rule' || item.source === 'Teach') return 'both'
+/** Which of the Additions / Changes / Rules views an item belongs to. */
+function kindOf(item: QueueItem): Kind {
+  if (item.type === 'Rule' || item.source === 'Teach') return 'rules'
   return item.type === 'Add' ? 'additions' : 'changes'
 }
 
@@ -510,7 +526,7 @@ export default function QueueAdmin() {
         })
       }
       const k = localStorage.getItem(KIND_KEY)
-      if (k === 'additions' || k === 'changes') setKind(k)
+      if (k === 'additions' || k === 'changes' || k === 'rules') setKind(k)
     } catch {
       // storage refused: stay on the defaults
     }
@@ -609,7 +625,11 @@ export default function QueueAdmin() {
       comb: [],
     }
     const done: QueueItem[] = []
-    const perKind: Record<Kind, number> = { additions: 0, changes: 0 }
+    const perKind: Record<Kind, number> = {
+      additions: 0,
+      changes: 0,
+      rules: 0,
+    }
     let open = 0
     for (const item of items ?? []) {
       if (!isOpen(item)) {
@@ -618,8 +638,8 @@ export default function QueueAdmin() {
       }
       open++
       const k = kindOf(item)
-      if (k !== 'both') perKind[k]++
-      if (k === kind || k === 'both') groups[sectionOf(item)].push(item)
+      perKind[k]++
+      if (k === kind) groups[sectionOf(item)].push(item)
     }
     const newest = (a: QueueItem, b: QueueItem) =>
       a.createdAt < b.createdAt ? 1 : -1
@@ -993,24 +1013,19 @@ export default function QueueAdmin() {
             role="group"
             aria-label="Which kind of item to show"
           >
-            <button
-              className={kind === 'additions' ? styles.segOn : ''}
-              onClick={() => chooseKind('additions')}
-              title="New listings to publish or reject"
-            >
-              Additions
-              <span className={styles.segCount}>
-                {ordered.perKind.additions}
-              </span>
-            </button>
-            <button
-              className={kind === 'changes' ? styles.segOn : ''}
-              onClick={() => chooseKind('changes')}
-              title="Proposed changes to existing listings"
-            >
-              Changes
-              <span className={styles.segCount}>{ordered.perKind.changes}</span>
-            </button>
+            {KINDS.map(k => (
+              <button
+                key={k.key}
+                className={kind === k.key ? styles.segOn : ''}
+                onClick={() => chooseKind(k.key)}
+                title={k.title}
+              >
+                {k.label}
+                <span className={styles.segCount}>
+                  {ordered.perKind[k.key]}
+                </span>
+              </button>
+            ))}
           </span>
         </div>
         <div className={styles.topRight}>
@@ -1063,7 +1078,11 @@ export default function QueueAdmin() {
           <div className={styles.list} ref={listRef}>
             {SECTIONS.map(section => {
               const list = ordered.groups[section]
-              if (list.length === 0 && section !== 'requests') return null
+              if (
+                list.length === 0 &&
+                (section !== 'requests' || kind === 'rules')
+              )
+                return null
               return (
                 <div key={section} className={styles.group}>
                   <button

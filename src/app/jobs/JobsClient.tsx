@@ -402,7 +402,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
         <FilterDropdown
           trackingPage="Jobs"
           title="Skill set"
-          icon="/images/icons/category.svg"
+          icon="/images/icons/wrench.svg"
           options={skillSetOptions}
           selected={selectedSkills}
           counts={skillCounts}
@@ -433,7 +433,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
         <FilterDropdown
           trackingPage="Jobs"
           title="Type"
-          icon="/images/icons/tag.svg"
+          icon="/images/icons/person-alt.svg"
           options={typeOptions}
           selected={selectedTypes}
           counts={typeCounts}
@@ -523,7 +523,7 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                   ...(job.skillSet
                     ? [
                         {
-                          icon: '/images/icons/category.svg',
+                          icon: '/images/icons/wrench.svg',
                           value: `Skillset: ${job.skillSet}`,
                         },
                       ]
@@ -562,7 +562,12 @@ export default function JobsClient({ jobs }: JobsClientProps) {
                       ]
                     : []),
                   ...(typeValue
-                    ? [{ icon: '/images/icons/tag.svg', value: typeValue }]
+                    ? [
+                        {
+                          icon: '/images/icons/person-alt.svg',
+                          value: typeValue,
+                        },
+                      ]
                     : []),
                   // Compensation last so its presence/absence never shifts the
                   // rows above it.

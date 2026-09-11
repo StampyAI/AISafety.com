@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import type { AgentInfo, FieldInfo, QueueItem } from '@/lib/admin/queue'
+import type {
+  AgentInfo,
+  FieldInfo,
+  PreviewKind,
+  QueueItem,
+} from '@/lib/admin/queue'
 import Icon from '@/components/Icon'
-import SitePreview from './SitePreview'
+import SitePreview, { prefetchPreview, seedPreviews } from './SitePreview'
 import styles from './queue.module.css'
 
 // The Queue is a triage tool Bryce sits in for long stretches, so it has its
@@ -17,8 +22,30 @@ import styles from './queue.module.css'
 const API = '/api/admin/queue'
 const UPLOAD_API = '/api/admin/queue/upload'
 
+// The list shows one kind of work at a time (additions to judge whole,
+// changes to judge as a diff, or rules for the bots), grouped by where each
+// item came from. Bryce, 11 Sept 2026: "to be in the headspace for one of
+// those all at once".
 type Section = 'requests' | 'broom' | 'rules' | 'comb'
 const SECTIONS: Section[] = ['requests', 'broom', 'rules', 'comb']
+type Kind = 'additions' | 'changes' | 'rules'
+const KINDS: { key: Kind; label: string; title: string }[] = [
+  {
+    key: 'additions',
+    label: 'Additions',
+    title: 'New listings to publish or reject',
+  },
+  {
+    key: 'changes',
+    label: 'Changes',
+    title: 'Proposed changes to existing listings',
+  },
+  {
+    key: 'rules',
+    label: 'Rules',
+    title: 'Changes to the bots\u2019 rulebooks',
+  },
+]
 const SECTION_LABEL: Record<Section, string> = {
   requests: 'Requests',
   broom: 'Broom',
@@ -49,13 +76,6 @@ const ICON = {
   pencil: '/images/icons/pencil-small.svg',
   chevron: '/images/icons/chevron-down.svg',
 } as const
-
-const SECTION_ICON: Record<Section, string> = {
-  requests: ICON.requests,
-  broom: ICON.broom,
-  rules: ICON.rule,
-  comb: ICON.comb,
-}
 
 function sourceIcon(item: QueueItem): string {
   if (item.type === 'Rule' || item.source === 'Teach') return ICON.rule
@@ -107,12 +127,19 @@ function linkIcon(url: string): string {
 type Theme = 'light' | 'dark'
 const THEME_KEY = 'aisafety-admin-queue:theme'
 const COLLAPSED_KEY = 'aisafety-admin-queue:collapsed'
+const KIND_KEY = 'aisafety-admin-queue:kind'
 
 function sectionOf(item: QueueItem): Section {
   if (item.type === 'Rule' || item.source === 'Teach') return 'rules'
   if (item.source === 'Broom') return 'broom'
   if (item.source === 'Comb') return 'comb'
   return 'requests'
+}
+
+/** Which of the Additions / Changes / Rules views an item belongs to. */
+function kindOf(item: QueueItem): Kind {
+  if (item.type === 'Rule' || item.source === 'Teach') return 'rules'
+  return item.type === 'Add' ? 'additions' : 'changes'
 }
 
 function verdictRank(v: QueueItem['verdict']): number {
@@ -125,6 +152,33 @@ function verdictRank(v: QueueItem['verdict']): number {
       return 1
     default:
       return 2
+  }
+}
+
+/** A Change row's title is written as "Record name: what was found"; the
+ *  page shows the name in its own place and the finding as the heading.
+ *  Rows that carry `name` in the proposal use it; older ones split the
+ *  title at the first ": ". */
+function splitTitle(item: QueueItem): { name: string | null; heading: string } {
+  if (item.type !== 'Change') return { name: null, heading: item.title }
+  if (item.name && item.title.startsWith(item.name + ': ')) {
+    return { name: item.name, heading: item.title.slice(item.name.length + 2) }
+  }
+  const at = item.title.indexOf(': ')
+  if (at > 0 && at < 120) {
+    return { name: item.title.slice(0, at), heading: item.title.slice(at + 2) }
+  }
+  return { name: item.name, heading: item.title }
+}
+
+/** Broom writes its finding as a one-paragraph summary followed by the
+ *  evidence; the summary is what gets read, the rest is there when needed. */
+function splitExcerpt(text: string): { lead: string; detail: string | null } {
+  const m = /\n\s*\n/.exec(text)
+  if (!m) return { lead: text.trim(), detail: null }
+  return {
+    lead: text.slice(0, m.index).trim(),
+    detail: text.slice(m.index + m[0].length).trim() || null,
   }
 }
 
@@ -214,10 +268,78 @@ function isOpen(item: QueueItem): boolean {
   )
 }
 
+/** The edits a card preview is built with before the admin touches
+ *  anything: a Change shows its proposed values, an Add shows the record. */
+function proposedEdits(item: QueueItem): Record<string, unknown> {
+  return item.type === 'Change'
+    ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
+    : {}
+}
+
+/** Build every open item's card in one request and hold them ready, so
+ *  opening an item never waits on Airtable. Best effort. */
+async function preloadCards(items: QueueItem[]): Promise<void> {
+  const targets = items
+    .filter(
+      i =>
+        isOpen(i) &&
+        (i.type === 'Add' || i.type === 'Change') &&
+        i.targetTable &&
+        i.targetRecord
+    )
+    .map(i => ({
+      table: i.targetTable as string,
+      record: i.targetRecord as string,
+      edits: proposedEdits(i),
+    }))
+  if (!targets.length) return
+  try {
+    const res = await fetch(`${API}/previews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targets }),
+    })
+    const data = (await res.json()) as {
+      previews?: Record<string, { kind: PreviewKind | null; listing?: unknown }>
+    }
+    if (!res.ok || !data.previews) return
+    seedPreviews(
+      targets.map(t => ({
+        ...t,
+        preview: data.previews?.[`${t.table}/${t.record}`] ?? { kind: null },
+      }))
+    )
+  } catch {
+    // the single-card route still works
+  }
+}
+
+// Recurring programs live under /training's "recurring" view.
+const RECURRING_TABLE = 'tblEEIbj6dW5oS4cX'
+
+/** The live page, landing on this record's card (every site card carries
+ *  its record id as an anchor; ScrollToHash finds it once rendered). */
+function livePageUrl(item: QueueItem): string {
+  const view = item.targetTable === RECURRING_TABLE ? '?view=recurring' : ''
+  const hash = item.targetRecord ? `#${item.targetRecord}` : ''
+  return `https://aisafety.com${item.page ?? ''}${view}${hash}`
+}
+
 function acceptLabel(item: QueueItem): string {
   if (item.type === 'Add') return 'Publish'
-  if (item.type === 'Change') return 'Apply change'
+  if (item.type === 'Change') {
+    return item.changes.length ? 'Apply change' : 'Accept flag'
+  }
   return 'Apply rule'
+}
+
+function verdictWord(item: QueueItem): string {
+  if (item.verdict === 'Publish') return 'Publish it'
+  if (item.verdict === "Don't publish") return "Don't publish"
+  if (item.verdict === 'Fix') return 'Fix it'
+  if (item.verdict === 'Dismiss') return 'Dismiss the flag'
+  if (item.verdict === 'Unsure') return 'Unsure'
+  return item.verdict ?? ''
 }
 
 /** An emailed request whose reply draft still has to reach Gmail. */
@@ -362,6 +484,7 @@ export default function QueueAdmin() {
   const [showDone, setShowDone] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [theme, setTheme] = useState<Theme>('light')
+  const [kind, setKind] = useState<Kind>('additions')
   const [collapsed, setCollapsed] = useState<Record<Section, boolean>>({
     requests: false,
     broom: false,
@@ -407,6 +530,8 @@ export default function QueueAdmin() {
           return next
         })
       }
+      const k = localStorage.getItem(KIND_KEY)
+      if (k === 'additions' || k === 'changes' || k === 'rules') setKind(k)
     } catch {
       // storage refused: stay on the defaults
     }
@@ -422,6 +547,18 @@ export default function QueueAdmin() {
       }
       return next
     })
+  }
+
+  const chooseKind = (next: Kind) => {
+    setKind(next)
+    // An item from the other view must not stay in focus: let the
+    // focus-keeping effect pick the first item of this one.
+    if (selected && kindOf(selected) !== next) setSelectedId(null)
+    try {
+      localStorage.setItem(KIND_KEY, next)
+    } catch {
+      // ignore
+    }
   }
 
   const toggleTheme = () => {
@@ -448,6 +585,7 @@ export default function QueueAdmin() {
       }
       setItems(data.items)
       setAgent(data.agent ?? null)
+      void preloadCards(data.items)
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e))
     }
@@ -472,6 +610,8 @@ export default function QueueAdmin() {
     }
     setSelectedId(id)
     if (!isOpen(hit)) setShowDone(true)
+    // The list shows one kind at a time; the linked item's kind wins.
+    else setKind(kindOf(hit))
     // The focus-keeping effect below runs in this same pass, before the
     // selection above has landed; it clears the ref and stands aside.
   }, [items])
@@ -527,9 +667,21 @@ export default function QueueAdmin() {
       comb: [],
     }
     const done: QueueItem[] = []
+    const perKind: Record<Kind, number> = {
+      additions: 0,
+      changes: 0,
+      rules: 0,
+    }
+    let open = 0
     for (const item of items ?? []) {
-      if (isOpen(item)) groups[sectionOf(item)].push(item)
-      else done.push(item)
+      if (!isOpen(item)) {
+        done.push(item)
+        continue
+      }
+      open++
+      const k = kindOf(item)
+      perKind[k]++
+      if (k === kind) groups[sectionOf(item)].push(item)
     }
     const newest = (a: QueueItem, b: QueueItem) =>
       a.createdAt < b.createdAt ? 1 : -1
@@ -541,8 +693,8 @@ export default function QueueAdmin() {
     groups.comb.sort(byVerdict)
     done.sort((a, b) => ((a.decidedAt ?? '') < (b.decidedAt ?? '') ? 1 : -1))
     const flat = SECTIONS.filter(s => !collapsed[s]).flatMap(s => groups[s])
-    return { groups, done, flat }
-  }, [items, collapsed])
+    return { groups, done, flat, open, perKind }
+  }, [items, collapsed, kind])
 
   const selected = useMemo(() => {
     if (!items) return null
@@ -562,6 +714,17 @@ export default function QueueAdmin() {
     if (selected && !isOpen(selected) && showDone) return
     setSelectedId(ordered.flat[0]?.id ?? null)
   }, [items, ordered.flat, selectedId, selected, showDone])
+
+  // The card of the item after this one is fetched now, so J/auto-advance
+  // shows it at once.
+  useEffect(() => {
+    if (!selected) return
+    const flat = ordered.flat
+    const next = flat[flat.findIndex(i => i.id === selected.id) + 1]
+    if (!next?.targetTable || !next.targetRecord) return
+    if (next.type !== 'Add' && next.type !== 'Change') return
+    prefetchPreview(next.targetTable, next.targetRecord, proposedEdits(next))
+  }, [selected, ordered.flat])
 
   useEffect(() => {
     if (!selected || selected.type !== 'Add') return
@@ -774,25 +937,26 @@ export default function QueueAdmin() {
           break
         case 'a':
         case 'Enter':
+          // Only A accepts (Bryce, 11 Sept 2026: Enter is too easy to hit);
+          // Enter still confirms a reject once a reason is picked.
           if (
+            e.key === 'a' &&
             item &&
             isOpen(item) &&
             item.status !== 'Revising' &&
             d.mode === 'idle' &&
             !d.busy
           ) {
-            if (!(item.type === 'Change' && item.changes.length === 0)) {
-              e.preventDefault()
-              void act(item, 'accept', {
-                edits: coerceEdits(
-                  d.edits,
-                  item.type === 'Change'
-                    ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
-                    : (live[item.id]?.fields ?? item.fields ?? {}),
-                  new Map((live[item.id]?.schema ?? []).map(f => [f.name, f]))
-                ),
-              })
-            }
+            e.preventDefault()
+            void act(item, 'accept', {
+              edits: coerceEdits(
+                d.edits,
+                item.type === 'Change'
+                  ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
+                  : (live[item.id]?.fields ?? item.fields ?? {}),
+                new Map((live[item.id]?.schema ?? []).map(f => [f.name, f]))
+              ),
+            })
           } else if (
             item &&
             d.mode === 'reject' &&
@@ -860,7 +1024,7 @@ export default function QueueAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, drafts, move, act, toast, showHelp, setDraft, live])
 
-  const waiting = ordered.flat.length
+  const waiting = ordered.open
   const doneToday = ordered.done.length
   const total = waiting + doneToday
 
@@ -889,6 +1053,25 @@ export default function QueueAdmin() {
                 </button>
               </>
             )}
+          </span>
+          <span
+            className={styles.segmented}
+            role="group"
+            aria-label="Which kind of item to show"
+          >
+            {KINDS.map(k => (
+              <button
+                key={k.key}
+                className={kind === k.key ? styles.segOn : ''}
+                onClick={() => chooseKind(k.key)}
+                title={k.title}
+              >
+                {k.label}
+                <span className={styles.segCount}>
+                  {ordered.perKind[k.key]}
+                </span>
+              </button>
+            ))}
           </span>
         </div>
         <div className={styles.topRight}>
@@ -941,7 +1124,11 @@ export default function QueueAdmin() {
           <div className={styles.list} ref={listRef}>
             {SECTIONS.map(section => {
               const list = ordered.groups[section]
-              if (list.length === 0 && section !== 'requests') return null
+              if (
+                list.length === 0 &&
+                (section !== 'requests' || kind === 'rules')
+              )
+                return null
               return (
                 <div key={section} className={styles.group}>
                   <button
@@ -949,7 +1136,6 @@ export default function QueueAdmin() {
                     onClick={() => toggleGroup(section)}
                     aria-expanded={!collapsed[section]}
                   >
-                    <Icon src={SECTION_ICON[section]} size={12} />
                     {SECTION_LABEL[section]}
                     <span className={styles.groupCount}>{list.length}</span>
                     <span
@@ -1041,7 +1227,7 @@ export default function QueueAdmin() {
               </dt>
               <dd>next / previous item</dd>
               <dt>
-                <kbd>A</kbd> or <kbd>Enter</kbd>
+                <kbd>A</kbd>
               </dt>
               <dd>accept</dd>
               <dt>
@@ -1086,11 +1272,33 @@ function Row({
       className={`${styles.row} ${active ? styles.rowActive : ''}`}
       onClick={onClick}
     >
-      <span className={`${styles.rowIcon} ${dotClass(item)}`}>
-        <Icon src={sourceIcon(item)} />
-      </span>
+      {item.logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className={styles.rowLogo}
+          src={item.logo}
+          alt=""
+          onError={e => {
+            // an expired link: show the plain box rather than a broken image
+            const img = e.currentTarget
+            img.replaceWith(
+              Object.assign(document.createElement('span'), {
+                className: `${styles.rowLogo} ${styles.rowLogoEmpty}`,
+              })
+            )
+          }}
+        />
+      ) : (
+        <span
+          className={`${styles.rowLogo} ${styles.rowLogoEmpty} ${dotClass(item)}`}
+        >
+          <Icon src={sourceIcon(item)} />
+        </span>
+      )}
       <span className={styles.rowBody}>
-        <span className={styles.rowTitle}>{item.title}</span>
+        <span className={styles.rowTitle}>
+          {splitTitle(item).name ?? item.title}
+        </span>
         <span className={styles.rowMeta}>
           {item.source !== 'Comb' && <span>{item.source}</span>}
           {item.page && <span>{item.page}</span>}
@@ -1155,214 +1363,292 @@ function Detail({
   const types = new Map((live?.schema ?? []).map(f => [f.name, f]))
   const editsToSave = () => coerceEdits(d.edits, original, types)
 
+  const hasCard =
+    item.type === 'Change' && Boolean(item.targetTable && item.targetRecord)
+  const showsCard =
+    hasCard ||
+    (item.type === 'Add' && Boolean(item.targetTable && item.targetRecord))
+  const excerptBlock = item.sourceExcerpt ? (
+    <section className={styles.block}>
+      <h3 className={styles.h3}>
+        {item.source === 'Broom' ? 'What Broom found' : 'What they wrote'}
+      </h3>
+      {item.source === 'Broom' ? (
+        <div className={styles.finding}>
+          <p className={styles.findingLead}>
+            {splitExcerpt(item.sourceExcerpt).lead}
+          </p>
+          {splitExcerpt(item.sourceExcerpt).detail && (
+            // Broom's evidence, folded away: the summary is what gets
+            // read (Bryce, 11 Sept 2026); the rest is there on a click.
+            <details className={styles.findingMore}>
+              <summary>Details</summary>
+              <p className={styles.findingDetail}>
+                {splitExcerpt(item.sourceExcerpt).detail}
+              </p>
+            </details>
+          )}
+        </div>
+      ) : (
+        <blockquote className={styles.quote}>{item.sourceExcerpt}</blockquote>
+      )}
+    </section>
+  ) : null
+
   return (
-    <div className={styles.detailInner}>
-      <div className={styles.detailHead}>
-        <div className={styles.pills}>
-          <span className={`${styles.pill} ${dotClass(item)}`}>
-            <Icon src={sourceIcon(item)} size={12} />
-            {item.source}
-          </span>
-          {item.page && <span className={styles.pillPage}>{item.page}</span>}
-          {item.verdict && (
-            <span className={`${styles.pill} ${verdictClass(item)}`}>
-              <Icon src={verdictIcon(item)} size={12} />
-              Fable: {item.verdict}
+    <div
+      className={`${styles.detailInner} ${item.verdict || item.reasons.length > 0 ? styles.detailTwoCol : ''}`}
+    >
+      <div className={styles.detailMain}>
+        <div className={styles.detailHead}>
+          <div className={styles.pills}>
+            <span className={`${styles.pill} ${dotClass(item)}`}>
+              <Icon src={sourceIcon(item)} size={12} />
+              {item.source}
             </span>
+            {/* The verdict heads the panel on the right, so it is not
+                repeated here. */}
+            {item.page && (
+              // The live page, landing on this record's card (every card
+              // carries its record id as an anchor) so the change can be
+              // checked on the site.
+              <a
+                className={styles.pageTag}
+                href={livePageUrl(item)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {item.page}
+              </a>
+            )}
+            <span className={styles.when}>{ago(item.createdAt)}</span>
+            <div className={styles.links}>
+              {item.sourceLink && (
+                <a
+                  href={item.sourceLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.withIcon}
+                >
+                  <Icon src={linkIcon(item.sourceLink)} size={12} />
+                  {linkLabel(item.sourceLink)}
+                </a>
+              )}
+              {item.url && (
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.withIcon}
+                >
+                  <Icon src={ICON.external} size={12} />
+                  {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                </a>
+              )}
+            </div>
+          </div>
+          {/* With a card on show the heading only repeats what Broom found
+              (or the record's name), so it is left out. */}
+          {!showsCard && (
+            <h2 className={styles.title}>{splitTitle(item).heading}</h2>
           )}
-          <span className={styles.when}>{ago(item.createdAt)}</span>
         </div>
-        <h2 className={styles.title}>{item.title}</h2>
-        <div className={styles.links}>
-          {item.sourceLink && (
-            <a
-              href={item.sourceLink}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.withIcon}
-            >
-              <Icon src={linkIcon(item.sourceLink)} size={12} />
-              {linkLabel(item.sourceLink)}
-            </a>
+
+        {/* The record as the site shows it, with the proposed change laid
+            over it, so the effect of Accept is visible. */}
+        {hasCard && (
+          <div className={styles.cardRow}>
+            <SitePreview
+              table={item.targetTable ?? ''}
+              record={item.targetRecord ?? ''}
+              edits={{
+                ...Object.fromEntries(item.changes.map(c => [c.field, c.to])),
+                ...editsToSave(),
+              }}
+            />
+            <div className={styles.cardRowText}>{excerptBlock}</div>
+          </div>
+        )}
+
+        {!hasCard && excerptBlock}
+
+        {/* Edits typed on the page, in the field's own shape. */}
+        {item.type === 'Add' &&
+          item.targetTable &&
+          item.targetRecord &&
+          (live || item.fields) && (
+            <>
+              <SitePreview
+                table={item.targetTable ?? ''}
+                record={item.targetRecord ?? ''}
+                edits={editsToSave()}
+              />
+              <Fields
+                item={item}
+                fields={live?.fields ?? item.fields ?? {}}
+                schema={live?.schema ?? []}
+                onImage={onImage}
+                d={d}
+                setD={setD}
+              />
+            </>
           )}
-          {item.url && (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.withIcon}
-            >
-              <Icon src={ICON.external} size={12} />
-              {item.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-            </a>
-          )}
-        </div>
+
+        {item.type === 'Change' &&
+          (nothingToApply ? (
+            <p className={styles.note}>
+              No field change proposed. Accept keeps the flag in Airtable for
+              you to handle; Reject clears it; or ask Claude for a change.
+            </p>
+          ) : (
+            <div className={styles.diff}>
+              {item.changes.map(c => (
+                <div key={c.field} className={styles.diffRow}>
+                  <span className={styles.label}>{c.field}</span>
+                  <span className={styles.from}>{show(c.from)}</span>
+                  <span className={styles.arrow}>
+                    <Icon src={ICON.arrow} size={12} />
+                  </span>
+                  <span className={styles.to}>
+                    {d.editing === c.field ? (
+                      <textarea
+                        className={styles.input}
+                        rows={2}
+                        autoFocus
+                        defaultValue={d.edits[c.field] ?? show(c.to)}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setD({ editing: null })
+                          }
+                        }}
+                        onBlur={e => {
+                          // Closing the box without changing anything is
+                          // not an edit.
+                          const text = e.target.value
+                          const edits = { ...d.edits }
+                          if (text === show(c.to)) delete edits[c.field]
+                          else edits[c.field] = text
+                          setD({ editing: null, edits })
+                        }}
+                      />
+                    ) : (
+                      <EditableValue
+                        text={
+                          c.field in d.edits ? d.edits[c.field] : show(c.to)
+                        }
+                        edited={c.field in d.edits}
+                        canEdit={!revising}
+                        onEdit={() => setD({ editing: c.field })}
+                      />
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+
+        {item.type === 'Rule' && (
+          <section className={styles.block}>
+            <h3 className={styles.h3}>What changes for the bots</h3>
+            <p className={styles.summary}>
+              {item.summary ?? 'No summary was written for this rule.'}
+            </p>
+            {item.appliesTo && (
+              <p className={styles.note}>Applies to: {item.appliesTo}</p>
+            )}
+          </section>
+        )}
+
+        {item.replyDraft && (
+          <section className={styles.block}>
+            <h3 className={styles.h3}>
+              Reply draft{item.replyTo ? ` to ${item.replyTo}` : ''}
+            </h3>
+            {d.editingReply ? (
+              <textarea
+                className={`${styles.input} ${styles.replyInput}`}
+                rows={Math.min(
+                  14,
+                  Math.max(4, item.replyDraft.split('\n').length + 1)
+                )}
+                autoFocus
+                defaultValue={d.reply ?? item.replyDraft}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setD({ editingReply: false })
+                  }
+                }}
+                onBlur={e =>
+                  setD({ editingReply: false, reply: e.target.value })
+                }
+              />
+            ) : (
+              <ReplyDraft
+                text={d.reply ?? item.replyDraft}
+                edited={d.reply !== null && d.reply !== item.replyDraft}
+                canEdit={!revising && isOpen(item)}
+                onEdit={() => setD({ editingReply: true })}
+              />
+            )}
+            <p className={styles.note}>
+              {item.replyStatus === 'Saved' ? (
+                <>
+                  Saved in Gmail as a draft
+                  {item.sourceLink && (
+                    <>
+                      {' · '}
+                      <a
+                        href={item.sourceLink}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        open the thread
+                      </a>
+                    </>
+                  )}
+                  . Nothing was sent.
+                </>
+              ) : item.replyStatus === 'Failed' ? (
+                `The draft could not be saved${item.error ? `: ${item.error}` : '.'}`
+              ) : isOpen(item) ? (
+                agentOnline ? (
+                  `${acceptLabel(item)} saves this as a Gmail draft at once. Nothing is sent.`
+                ) : (
+                  `${acceptLabel(item)} saves this as a Gmail draft (${WORKER_NOTE}). Nothing is sent.`
+                )
+              ) : (
+                replyLabel(item)
+              )}
+            </p>
+          </section>
+        )}
+
+        {(item.error || d.error) && (
+          <p className={styles.error}>{d.error ?? item.error}</p>
+        )}
       </div>
 
-      {item.sourceExcerpt && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>
-            {item.source === 'Broom' ? 'What Broom found' : 'What they wrote'}
-          </h3>
-          <blockquote className={styles.quote}>{item.sourceExcerpt}</blockquote>
-        </section>
-      )}
-
-      {/* Edits typed on the page, in the field's own shape. */}
-      {item.type === 'Add' && (live || item.fields) && (
-        <>
-          <SitePreview
-            itemId={item.id}
-            page={item.page}
-            edits={editsToSave()}
-          />
-          <Fields
-            item={item}
-            fields={live?.fields ?? item.fields ?? {}}
-            schema={live?.schema ?? []}
-            onImage={onImage}
-            d={d}
-            setD={setD}
-          />
-        </>
-      )}
-
-      {item.type === 'Change' &&
-        (nothingToApply ? (
-          <p className={styles.note}>
-            {item.verdict === 'Dismiss'
-              ? 'Fable thinks this flag is wrong. Reject clears it.'
-              : 'No change proposed. Reject clears the flag, or ask Claude.'}
-          </p>
-        ) : (
-          <div className={styles.diff}>
-            {item.changes.map(c => (
-              <div key={c.field} className={styles.diffRow}>
-                <span className={styles.label}>{c.field}</span>
-                <span className={styles.from}>{show(c.from)}</span>
-                <span className={styles.arrow}>
-                  <Icon src={ICON.arrow} size={12} />
-                </span>
-                <span className={styles.to}>
-                  {d.editing === c.field ? (
-                    <textarea
-                      className={styles.input}
-                      rows={2}
-                      autoFocus
-                      defaultValue={d.edits[c.field] ?? show(c.to)}
-                      onKeyDown={e => {
-                        if (e.key === 'Escape') {
-                          e.preventDefault()
-                          setD({ editing: null })
-                        }
-                      }}
-                      onBlur={e =>
-                        setD({
-                          editing: null,
-                          edits: { ...d.edits, [c.field]: e.target.value },
-                        })
-                      }
-                    />
-                  ) : (
-                    <EditableValue
-                      text={c.field in d.edits ? d.edits[c.field] : show(c.to)}
-                      edited={c.field in d.edits}
-                      canEdit={!revising}
-                      onEdit={() => setD({ editing: c.field })}
-                    />
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        ))}
-
-      {item.type === 'Rule' && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>What changes for the bots</h3>
-          <p className={styles.summary}>
-            {item.summary ?? 'No summary was written for this rule.'}
-          </p>
-          {item.appliesTo && (
-            <p className={styles.note}>Applies to: {item.appliesTo}</p>
+      {(item.verdict || item.reasons.length > 0) && (
+        <aside className={`${styles.detailAside} ${verdictClass(item)}`}>
+          {item.verdict && (
+            <div className={styles.verdictHead}>
+              <span className={styles.verdictKicker}>Fable says</span>
+              <span className={`${styles.verdictBig} ${styles.withIcon}`}>
+                <Icon src={verdictIcon(item)} size={16} />
+                {verdictWord(item)}
+              </span>
+            </div>
           )}
-        </section>
-      )}
-
-      {item.reasons.length > 0 && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>
-            Why {item.verdict ? item.verdict.toLowerCase() : 'this'}
-          </h3>
-          <ul className={styles.reasons}>
-            {item.reasons.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {item.replyDraft && (
-        <section className={styles.block}>
-          <h3 className={styles.h3}>
-            Reply draft{item.replyTo ? ` to ${item.replyTo}` : ''}
-          </h3>
-          {d.editingReply ? (
-            <textarea
-              className={`${styles.input} ${styles.replyInput}`}
-              rows={Math.min(
-                14,
-                Math.max(4, item.replyDraft.split('\n').length + 1)
-              )}
-              autoFocus
-              defaultValue={d.reply ?? item.replyDraft}
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
-                  e.preventDefault()
-                  setD({ editingReply: false })
-                }
-              }}
-              onBlur={e => setD({ editingReply: false, reply: e.target.value })}
-            />
-          ) : (
-            <ReplyDraft
-              text={d.reply ?? item.replyDraft}
-              edited={d.reply !== null && d.reply !== item.replyDraft}
-              canEdit={!revising && isOpen(item)}
-              onEdit={() => setD({ editingReply: true })}
-            />
+          {item.reasons.length > 0 && (
+            <ul className={styles.reasons}>
+              {item.reasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
           )}
-          <p className={styles.note}>
-            {item.replyStatus === 'Saved' ? (
-              <>
-                Saved in Gmail as a draft
-                {item.sourceLink && (
-                  <>
-                    {' · '}
-                    <a href={item.sourceLink} target="_blank" rel="noreferrer">
-                      open the thread
-                    </a>
-                  </>
-                )}
-                . Nothing was sent.
-              </>
-            ) : item.replyStatus === 'Failed' ? (
-              `The draft could not be saved${item.error ? `: ${item.error}` : '.'}`
-            ) : isOpen(item) ? (
-              agentOnline ? (
-                `${acceptLabel(item)} saves this as a Gmail draft at once. Nothing is sent.`
-              ) : (
-                `${acceptLabel(item)} saves this as a Gmail draft (${WORKER_NOTE}). Nothing is sent.`
-              )
-            ) : (
-              replyLabel(item)
-            )}
-          </p>
-        </section>
-      )}
-
-      {(item.error || d.error) && (
-        <p className={styles.error}>{d.error ?? item.error}</p>
+        </aside>
       )}
 
       <div className={styles.actions}>
@@ -1380,7 +1666,8 @@ function Detail({
                   className={`${styles.chip} ${d.chip === chip ? styles.chipOn : ''}`}
                   onClick={() => setD({ chip: d.chip === chip ? null : chip })}
                 >
-                  <kbd>{i + 1}</kbd> {chip}
+                  <kbd>{i + 1}</kbd>
+                  <span>{chip}</span>
                 </button>
               ))}
               <input
@@ -1441,19 +1728,17 @@ function Detail({
           </div>
         ) : (
           <div className={styles.buttons}>
-            {!nothingToApply && (
-              <button
-                className={`${styles.button} ${styles.primary}`}
-                disabled={d.busy}
-                onClick={() => act('accept', { edits: editsToSave() })}
-              >
-                <Icon
-                  src={item.type === 'Add' ? ICON.plus : ICON.check}
-                  size={12}
-                />
-                {d.busy ? 'Applying…' : acceptLabel(item)} <kbd>A</kbd>
-              </button>
-            )}
+            <button
+              className={`${styles.button} ${styles.primary}`}
+              disabled={d.busy}
+              onClick={() => act('accept', { edits: editsToSave() })}
+            >
+              <Icon
+                src={item.type === 'Add' ? ICON.plus : ICON.check}
+                size={12}
+              />
+              {d.busy ? 'Applying…' : acceptLabel(item)} <kbd>A</kbd>
+            </button>
             <button
               className={`${styles.button} ${styles.danger}`}
               disabled={d.busy}
@@ -1496,9 +1781,25 @@ function isImageList(v: unknown): v is string[] {
   )
 }
 
-// Fields Airtable fills in itself: shown last, never worth editing.
+// Fields nobody edits from here: Airtable's own bookkeeping by name, and
+// any column Airtable computes (formulas, lookups, counts, timestamps) by
+// type. Left out of the list (Bryce, 11 Sept 2026: "only the fields I may
+// plausibly want to edit").
 const HOUSEKEEPING =
   /^(created|date added|last modified|created time|record id|submitter's email)$/i
+const COMPUTED_TYPES = new Set([
+  'formula',
+  'rollup',
+  'lookup',
+  'multipleLookupValues',
+  'count',
+  'autoNumber',
+  'createdTime',
+  'lastModifiedTime',
+  'createdBy',
+  'lastModifiedBy',
+  'button',
+])
 
 function Fields({
   item,
@@ -1531,8 +1832,9 @@ function Fields({
   const pick = (re: RegExp) => entries.filter(([k]) => re.test(k))
   const main = [...pick(NAME_KEYS), ...pick(URL_KEYS), ...pick(DESC_KEYS)]
   const seen = new Set(main.map(([k]) => k))
-  const rest = entries.filter(([k]) => !seen.has(k) && !HOUSEKEEPING.test(k))
-  const last = entries.filter(([k]) => !seen.has(k) && HOUSEKEEPING.test(k))
+  const editable = ([k]: [string, unknown]) =>
+    !HOUSEKEEPING.test(k) && !COMPUTED_TYPES.has(types.get(k) ?? '')
+  const rest = entries.filter(e => !seen.has(e[0]) && editable(e))
   const revising = item.status === 'Revising'
   const row = ([k, v]: [string, unknown]) => {
     const info = infos.get(k)
@@ -1615,9 +1917,6 @@ function Fields({
       {main.map(row)}
       {rest.length > 0 && (
         <div className={styles.fieldsRest}>{rest.map(row)}</div>
-      )}
-      {last.length > 0 && (
-        <div className={styles.fieldsRest}>{last.map(row)}</div>
       )}
     </div>
   )
@@ -2002,25 +2301,38 @@ function DoneList({
       <div className={styles.doneList}>
         {items.map(item => (
           <div key={item.id} className={styles.doneRow}>
-            <span className={dotClass(item)}>
-              <Icon src={sourceIcon(item)} />
-            </span>
-            <span className={styles.doneTitle}>{item.title}</span>
-            <span className={`${styles.doneWhat} ${styles.withIcon}`}>
+            {item.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className={styles.rowLogo} src={item.logo} alt="" />
+            ) : (
               <span
-                className={item.status === 'Rejected' ? styles.no : styles.yes}
+                className={`${styles.rowLogo} ${styles.rowLogoEmpty} ${dotClass(item)}`}
               >
-                <Icon
-                  src={item.status === 'Rejected' ? ICON.x : ICON.check}
-                  size={12}
-                />
+                <Icon src={sourceIcon(item)} />
               </span>
-              {doneLabel(item)}
-              {item.rejectReason && ` · ${item.rejectReason}`}
-              {item.status !== 'Rejected' && replyLabel(item)
-                ? ` · ${replyLabel(item)}`
-                : ''}
-              <span className={styles.when}> · {ago(item.decidedAt)}</span>
+            )}
+            <span className={styles.rowBody}>
+              <span className={styles.rowTitle}>
+                {splitTitle(item).name ?? item.title}
+              </span>
+              <span className={styles.rowMeta}>
+                {item.source !== 'Comb' && <span>{item.source}</span>}
+                {item.page && <span>{item.page}</span>}
+                <span
+                  className={`${styles.withIcon} ${item.status === 'Rejected' ? styles.no : styles.yes}`}
+                >
+                  <Icon
+                    src={item.status === 'Rejected' ? ICON.x : ICON.check}
+                    size={12}
+                  />
+                  {doneLabel(item)}
+                </span>
+                {item.rejectReason && <span>{item.rejectReason}</span>}
+                {item.status !== 'Rejected' && replyLabel(item) && (
+                  <span>{replyLabel(item)}</span>
+                )}
+                <span>{ago(item.decidedAt)}</span>
+              </span>
             </span>
             <span className={styles.doneActions}>
               {errorFor(item.id) && (

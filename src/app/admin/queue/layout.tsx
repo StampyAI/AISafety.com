@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { currentAccess, currentAdmin } from '@/lib/admin/auth'
-import { pendingQueueCount } from '@/lib/admin/queue'
 import AdminHeader from '../AdminHeader'
 import { adminTabs, adminHomeHref } from '../nav'
 
@@ -16,13 +15,12 @@ export default async function QueueAdminLayout({
     redirect(adminHomeHref(access))
   }
   const who = await currentAdmin()
-  const pendingQueue = await pendingQueueCount()
   // No consoleWrap here: the Queue paints its own full-width surface
   // (queue.module.css) below the shared admin header.
   return (
     <>
       <AdminHeader
-        tabs={adminTabs(access, { pendingQueue })}
+        tabs={adminTabs(access)}
         brandHref={adminHomeHref(access)}
         signedInAs={who?.name}
       />

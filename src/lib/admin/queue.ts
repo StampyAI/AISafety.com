@@ -23,7 +23,12 @@
 */
 
 import { revalidateTag } from 'next/cache'
-import { airtableRequest, isRecordId, listAll } from './airtable'
+import {
+  airtableRequest,
+  isRecordId,
+  listAll,
+  type AirtableRow,
+} from './airtable'
 import { sealToken } from './session'
 
 export const QUEUE_TABLE_ID = 'tblonlKwIFJ7Aa8QN'
@@ -92,6 +97,9 @@ export interface QueueItem {
   issueRow: string | null
   sourceLink: string | null
   sourceExcerpt: string | null
+  /** The record's logo as the site shows it (from the site's own listing
+   *  catalog for published records, else the Add snapshot), for the list. */
+  logo: string | null
   /** Add: the proposed record, field name → value. */
   fields: Record<string, unknown> | null
   name: string | null
@@ -176,11 +184,135 @@ function toChanges(v: unknown): ProposedChange[] {
   return out
 }
 
-function rowToItem(row: {
-  id: string
-  createdTime: string
-  fields: RawFields
-}): QueueItem {
+/** Record id → logo URL for every published listing, from the chatbot's
+ *  catalog (cached five minutes; its ids are "<type>:<record id>"). Empty
+ *  when the catalog cannot be built: the list is not worth an error. */
+async function catalogLogos(): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  try {
+    for (const l of (await getCatalog()).listings) {
+      const rec = l.id.slice(l.id.indexOf(':') + 1)
+      if (l.logo && isRecordId(rec) && !isExpiredAttachment(l.logo)) {
+        out.set(rec, l.logo)
+      }
+    }
+  } catch (e) {
+    console.error(
+      '[admin-queue] catalog logos',
+      e instanceof Error ? e.message : e
+    )
+  }
+  return out
+}
+
+/** Airtable attachment links carry their expiry (ms since the epoch) as a
+ *  path segment and answer 410 after it. The site's cached data can hold
+ *  such links for hours, so anything expiring within ten minutes is
+ *  treated as gone and read afresh. */
+function isExpiredAttachment(url: string): boolean {
+  const m = /airtableusercontent\.com\/.*?\/(\d{13})\//.exec(url)
+  return m ? Number(m[1]) < Date.now() + 10 * 60 * 1000 : false
+}
+
+const logoCache = new Map<string, { url: string | null; at: number }>()
+const LOGO_TTL_MS = 5 * 60 * 1000
+
+/** Logos for records the catalog does not cover (unpublished Add targets):
+ *  one list read per table, attachment fields only, in chunks of 40 ids,
+ *  cached five minutes. Never throws: a missing logo is not worth an error. */
+async function targetLogos(
+  rows: { table: string; record: string }[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const byTable = new Map<string, string[]>()
+  const now = Date.now()
+  for (const { table, record } of rows) {
+    if (!TABLE_ID_RE.test(table) || !isRecordId(record)) continue
+    const hit = logoCache.get(record)
+    if (hit && now - hit.at < LOGO_TTL_MS) {
+      if (hit.url) out.set(record, hit.url)
+      continue
+    }
+    const list = byTable.get(table) ?? []
+    list.push(record)
+    byTable.set(table, list)
+  }
+  await Promise.all(
+    [...byTable].map(async ([table, records]) => {
+      try {
+        const fields = (await getTableSchema(table)).filter(
+          f => f.type === 'multipleAttachments' && /logo|image/i.test(f.name)
+        )
+        if (!fields.length) return
+        for (let i = 0; i < records.length; i += 40) {
+          const chunk = records.slice(i, i + 40)
+          const params = new URLSearchParams()
+          params.set(
+            'filterByFormula',
+            `OR(${chunk.map(r => `RECORD_ID()='${r}'`).join(',')})`
+          )
+          for (const f of fields) params.append('fields[]', f.name)
+          const seen = new Set<string>()
+          for (const r of await listAll<RawFields>(table, params)) {
+            let url: string | null = null
+            for (const f of fields) {
+              const v = r.fields[f.name]
+              const first: unknown = Array.isArray(v) ? v[0] : null
+              if (!isRecord(first)) continue
+              const large =
+                isRecord(first.thumbnails) && isRecord(first.thumbnails.large)
+                  ? first.thumbnails.large.url
+                  : first.url
+              if (typeof large === 'string') {
+                url = large
+                break
+              }
+            }
+            logoCache.set(r.id, { url, at: now })
+            seen.add(r.id)
+            if (url) out.set(r.id, url)
+          }
+          for (const r of chunk) {
+            if (!seen.has(r)) logoCache.set(r, { url: null, at: now })
+          }
+        }
+      } catch (e) {
+        console.error(
+          '[admin-queue] target logos',
+          e instanceof Error ? e.message : e
+        )
+      }
+    })
+  )
+  return out
+}
+
+/** The first picture in an Add snapshot's Logo/Image field. */
+function snapshotLogo(fields: Record<string, unknown> | null): string | null {
+  if (!fields) return null
+  for (const [k, v] of Object.entries(fields)) {
+    if (!/logo|image/i.test(k) || !Array.isArray(v) || !v.length) continue
+    const first: unknown = v[0]
+    const url =
+      typeof first === 'string'
+        ? first
+        : isRecord(first) && typeof first.url === 'string'
+          ? first.url
+          : null
+    // snapshots are days old; an expired link is read afresh instead
+    if (url && !isExpiredAttachment(url)) return url
+  }
+  return null
+}
+
+function rowToItem(
+  row: {
+    id: string
+    createdTime: string
+    fields: RawFields
+  },
+  logos: Map<string, string> = new Map()
+): QueueItem {
   const f = row.fields
   const proposal = parseJson(f[F.proposal])
   let fields: Record<string, unknown> | null = null
@@ -227,6 +359,9 @@ function rowToItem(row: {
     issueRow: str(f[F.issueRow]),
     sourceLink: str(f[F.sourceLink]),
     sourceExcerpt: str(f[F.sourceExcerpt]),
+    logo:
+      (str(f[F.targetRecord]) && logos.get(str(f[F.targetRecord]) ?? '')) ||
+      snapshotLogo(fields),
     fields,
     name,
     url,
@@ -259,20 +394,23 @@ export async function listQueue(): Promise<QueueItem[]> {
   const params = new URLSearchParams()
   params.set('returnFieldsByFieldId', 'true')
   params.set('filterByFormula', LIST_FORMULA)
-  const rows = await listAll<RawFields>(QUEUE_TABLE_ID, params)
-  return rows.map(rowToItem)
-}
-
-/** Count for the tab badge. Never throws: a badge is not worth an error page. */
-export async function pendingQueueCount(): Promise<number> {
-  try {
-    const params = new URLSearchParams()
-    params.set('filterByFormula', "{Status}='Pending'")
-    params.append('fields[]', 'Status')
-    return (await listAll<RawFields>(QUEUE_TABLE_ID, params)).length
-  } catch {
-    return 0
+  const [rows, logos] = await Promise.all([
+    listAll<RawFields>(QUEUE_TABLE_ID, params),
+    catalogLogos(),
+  ])
+  const items = rows.map(r => rowToItem(r, logos))
+  // Unpublished targets (Comb's Adds) are not in the catalog and their
+  // snapshots carry no attachments: read those logos in a few batched calls.
+  const missing = items.filter(i => !i.logo && i.targetTable && i.targetRecord)
+  if (missing.length) {
+    const more = await targetLogos(
+      missing.map(i => ({ table: i.targetTable!, record: i.targetRecord! }))
+    )
+    for (const i of missing) {
+      i.logo = more.get(i.targetRecord!) ?? null
+    }
   }
+  return items
 }
 
 export async function getQueueItem(id: string): Promise<QueueItem | null> {
@@ -288,7 +426,12 @@ export async function getQueueItem(id: string): Promise<QueueItem | null> {
     )
   }
   return rowToItem(
-    (await res.json()) as { id: string; createdTime: string; fields: RawFields }
+    (await res.json()) as {
+      id: string
+      createdTime: string
+      fields: RawFields
+    },
+    await catalogLogos()
   )
 }
 
@@ -432,6 +575,8 @@ import {
   founderResourceFromRecord,
   TABLE_ID as FOUNDERS_TABLE,
 } from '@/lib/data/founders'
+import { mapOrgFromRecord, TABLE_ID as MAP_TABLE } from '@/lib/data/map'
+import { getCatalog } from '@/lib/assistant/catalog'
 import type { AirtableRawRecord } from '@/lib/data/airtable'
 
 const TRAINING_TABLE = 'tbli1YSCpIuNY2DvL'
@@ -448,6 +593,7 @@ export type PreviewKind =
   | 'advisor'
   | 'project'
   | 'founder'
+  | 'mapOrg'
 
 export interface PreviewListing {
   kind: PreviewKind
@@ -457,7 +603,7 @@ export interface PreviewListing {
 /** The record as the site would show it: read with fields keyed by id (the
  *  shape the page mappers take), the admin's edits laid over it by field
  *  name, then mapped by that table's own record-to-listing function. Null
- *  when the table has no card (the map) or the mapper skips the record. */
+ *  when the mapper skips the record. */
 export async function getPreviewListing(
   table: string,
   record: string,
@@ -468,19 +614,79 @@ export async function getPreviewListing(
     `${table}/${record}?returnFieldsByFieldId=true`
   )
   if (!res.ok) return null
-  const raw = (await res.json()) as {
-    id: string
-    createdTime: string
-    fields: Record<string, unknown>
+  const raw = (await res.json()) as AirtableRow<Record<string, unknown>>
+  const byName = Object.keys(edits).length
+    ? new Map((await getTableSchema(table)).map(f => [f.name, f.id]))
+    : new Map<string, string>()
+  return mapPreview(table, raw, edits, byName)
+}
+
+export interface PreviewTarget {
+  table: string
+  record: string
+  edits: Record<string, unknown>
+}
+
+/** Every open item's card in one go, so the page can hold them ready
+ *  before an item is opened: one list read per 40 records of a table
+ *  (Airtable allows five requests a second, so tables run one after
+ *  another), keyed "table/record". Unknown or deleted records map to null. */
+export async function getPreviewListings(
+  targets: PreviewTarget[]
+): Promise<Record<string, PreviewListing | null>> {
+  const out: Record<string, PreviewListing | null> = {}
+  const byTable = new Map<string, PreviewTarget[]>()
+  for (const t of targets) {
+    if (!TABLE_ID_RE.test(t.table) || !isRecordId(t.record)) continue
+    const list = byTable.get(t.table) ?? []
+    list.push(t)
+    byTable.set(t.table, list)
   }
-  if (Object.keys(edits).length) {
+  for (const [table, list] of byTable) {
     const byName = new Map(
       (await getTableSchema(table)).map(f => [f.name, f.id])
     )
-    for (const [name, value] of Object.entries(edits)) {
-      const id = byName.get(name)
-      if (id) raw.fields[id] = value
+    for (let i = 0; i < list.length; i += 40) {
+      const chunk = list.slice(i, i + 40)
+      const params = new URLSearchParams()
+      params.set('returnFieldsByFieldId', 'true')
+      params.set(
+        'filterByFormula',
+        `OR(${chunk.map(t => `RECORD_ID()='${t.record}'`).join(',')})`
+      )
+      const rows = new Map(
+        (await listAll<Record<string, unknown>>(table, params)).map(r => [
+          r.id,
+          r,
+        ])
+      )
+      for (const t of chunk) {
+        const r = rows.get(t.record)
+        out[`${table}/${t.record}`] = r
+          ? mapPreview(
+              table,
+              { ...r, fields: { ...r.fields } },
+              t.edits,
+              byName
+            )
+          : null
+      }
     }
+  }
+  return out
+}
+
+/** The record with the edits laid over it (by field name → id), mapped by
+ *  that table's own record-to-listing function. */
+function mapPreview(
+  table: string,
+  raw: AirtableRow<Record<string, unknown>>,
+  edits: Record<string, unknown>,
+  byName: Map<string, string>
+): PreviewListing | null {
+  for (const [name, value] of Object.entries(edits)) {
+    const id = byName.get(name)
+    if (id) raw.fields[id] = value
   }
   const rec = raw as unknown as AirtableRawRecord
   const wrap = (kind: PreviewKind, listing: unknown): PreviewListing | null =>
@@ -506,6 +712,8 @@ export async function getPreviewListing(
       return wrap('project', projectFromRecord(rec))
     case FOUNDERS_TABLE:
       return wrap('founder', founderResourceFromRecord(rec))
+    case MAP_TABLE:
+      return wrap('mapOrg', mapOrgFromRecord(rec))
     default:
       return null
   }
@@ -725,7 +933,16 @@ export async function acceptItem(
         fields[c.field] = c.field in edits ? edits[c.field] : c.to
       }
       if (Object.keys(fields).length === 0) {
-        throw new QueueError('This item proposes no field changes.', 400)
+        // Accepting a flag with no proposed change: the flag is real and
+        // the admin handles it by hand, so the Broom issue row stays; the
+        // Mac worker marks this row Applied once that issue is cleared.
+        await patchQueueRow(item.id, {
+          ...draftFields,
+          [F.status]: 'Accepted',
+          [F.decidedAt]: stamp,
+          [F.error]: null,
+        })
+        return
       }
       await patchRecord(t.table, t.record, fields)
       if (item.issueRow && isRecordId(item.issueRow)) {
@@ -868,7 +1085,12 @@ export async function undoItem(item: QueueItem): Promise<void> {
     await patchQueueRow(item.id, reopen)
     return
   }
-  if (item.status === 'Accepted' && item.type === 'Rule') {
+  if (
+    item.status === 'Accepted' &&
+    (item.type === 'Rule' || item.type === 'Change')
+  ) {
+    // A rule the worker has not applied yet, or a flag accepted without a
+    // field change: nothing was written, so reopening is enough.
     await patchQueueRow(item.id, reopen)
     return
   }

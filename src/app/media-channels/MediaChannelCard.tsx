@@ -20,6 +20,7 @@ export default function MediaChannelCard({
 }: MediaChannelCardProps) {
   return (
     <a
+      id={channel.id}
       href={withUtm(channel.url, 'Media channels')}
       target="_blank"
       rel="noopener noreferrer"

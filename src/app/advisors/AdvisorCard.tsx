@@ -17,6 +17,7 @@ interface AdvisorCardProps {
 export default function AdvisorCard({ advisor, placement }: AdvisorCardProps) {
   return (
     <a
+      id={advisor.id}
       href={withUtm(advisor.url, 'Advisors')}
       target="_blank"
       rel="noopener noreferrer"

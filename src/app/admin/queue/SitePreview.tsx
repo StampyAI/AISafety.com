@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import ListingCard, { type CardProps } from '@/components/ListingCard'
 import { communityCardProps } from '@/app/communities/card'
 import { eventCardProps } from '@/app/events/card'
@@ -14,6 +14,7 @@ import AdvisorCard from '@/app/advisors/AdvisorCard'
 import FounderResourceCard from '@/app/founders/FounderResourceCard'
 import MediaChannelCard from '@/app/media-channels/MediaChannelCard'
 import ProjectCard from '@/app/projects/ProjectCard'
+import MapOrgCard from '@/app/map/MapOrgCard'
 import type { Community } from '@/lib/data/communities'
 import type { EventListing } from '@/lib/data/events'
 import type { RecurringProgram, TrainingProgram } from '@/lib/data/training'
@@ -23,6 +24,7 @@ import type { Advisor } from '@/lib/data/advisors'
 import type { FounderResource } from '@/lib/data/founders'
 import type { MediaChannel } from '@/lib/data/media-channels'
 import type { Project } from '@/lib/data/projects'
+import type { MapOrg } from '@/lib/data/map'
 import type { PreviewKind } from '@/lib/admin/queue'
 import styles from './queue.module.css'
 
@@ -39,10 +41,123 @@ interface Preview {
   listing?: unknown
 }
 
-/** The site's card for a listing, without the link and click tracking. */
+// Built cards by target + edits, so switching back is instant and the next
+// item's card can be fetched before it is opened.
+const previews = new Map<string, Promise<Preview>>()
+// The same cards once resolved, readable during render so a switch to a
+// cached card paints it in the very first frame (no placeholder flash).
+const ready = new Map<string, Preview>()
+
+function previewKey(table: string, record: string, editsKey: string): string {
+  return `${table}/${record}|${editsKey}`
+}
+
+async function fetchPreview(
+  table: string,
+  record: string,
+  editsKey: string
+): Promise<Preview> {
+  const key = previewKey(table, record, editsKey)
+  const hit = previews.get(key)
+  if (hit) return hit
+  const p = (async () => {
+    const res = await fetch(PREVIEW_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table, record, edits: JSON.parse(editsKey) }),
+    })
+    const data = (await res.json()) as Preview & { error?: string }
+    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+    return data
+  })()
+  previews.set(key, p)
+  p.then(
+    data => {
+      ready.set(key, data)
+      warmImages(data)
+    },
+    () => previews.delete(key)
+  )
+  return p
+}
+
+// ─── Logo warm-up ────────────────────────────────────────────────────────────
+// A built card still has to fetch its logo when drawn; these pull the
+// pictures into the browser cache ahead of time, a few at once, in list
+// order, so the card and its logo appear together.
+
+const warmed = new Set<string>()
+const warmQueue: string[] = []
+let warming = 0
+const WARM_AT_ONCE = 4
+
+function listingImages(listing: unknown): string[] {
+  if (!listing || typeof listing !== 'object') return []
+  const out: string[] = []
+  for (const [k, v] of Object.entries(listing as Record<string, unknown>)) {
+    if (/logo|image/i.test(k) && typeof v === 'string' && /^https?:/.test(v)) {
+      out.push(v)
+    }
+  }
+  return out
+}
+
+function warmNext(): void {
+  while (warming < WARM_AT_ONCE && warmQueue.length) {
+    const url = warmQueue.shift() as string
+    warming++
+    const img = document.createElement('img')
+    img.onload = img.onerror = () => {
+      warming--
+      warmNext()
+    }
+    img.src = url
+  }
+}
+
+function warmImages(preview: Preview): void {
+  if (typeof document === 'undefined') return
+  for (const url of listingImages(preview.listing)) {
+    if (warmed.has(url)) continue
+    warmed.add(url)
+    warmQueue.push(url)
+  }
+  warmNext()
+}
+
+/** Put ready-built cards into the cache (from the bulk previews route). */
+export function seedPreviews(
+  entries: {
+    table: string
+    record: string
+    edits: Record<string, unknown>
+    preview: Preview
+  }[]
+): void {
+  for (const e of entries) {
+    const key = previewKey(e.table, e.record, JSON.stringify(e.edits))
+    if (!previews.has(key)) {
+      previews.set(key, Promise.resolve(e.preview))
+      ready.set(key, e.preview)
+    }
+    warmImages(e.preview)
+  }
+}
+
+/** Warm the cache for a card the admin is likely to open next. */
+export function prefetchPreview(
+  table: string,
+  record: string,
+  edits: Record<string, unknown>
+): void {
+  void fetchPreview(table, record, JSON.stringify(edits)).catch(() => {})
+}
+
+/** The site's card for a listing. Its link opens in a new tab, as on the
+ *  site; the admin page loads no analytics, so clicks are not counted. */
 function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
   const listingCard = (props: CardProps) => (
-    <ListingCard {...props} href={undefined} trackingPage="admin-queue" />
+    <ListingCard {...props} trackingPage="admin-queue" />
   )
   switch (kind) {
     case 'community':
@@ -65,66 +180,73 @@ function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
       return <MediaChannelCard channel={listing as MediaChannel} />
     case 'project':
       return <ProjectCard project={listing as Project} />
+    case 'mapOrg':
+      return <MapOrgCard org={listing as MapOrg} />
   }
 }
 
 export default function SitePreview({
-  itemId,
-  page,
+  table,
+  record,
   edits,
 }: {
-  itemId: string
-  page: string | null
+  table: string
+  record: string
   /** The admin's edits in the field's own shape (see coerceEdits). */
   edits: Record<string, unknown>
 }) {
-  const [preview, setPreview] = useState<Preview | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const editsKey = JSON.stringify(edits)
-  const latest = useRef(0)
+  const key = previewKey(table, record, editsKey)
+  // The result is tagged with the request it answers, so a new record shows
+  // "Building the card…" at once instead of the old card until the new one
+  // arrives (cached cards come back within the same tick).
+  const [result, setResult] = useState<{
+    key: string
+    preview?: Preview
+    error?: string
+  } | null>(null)
+  const known = ready.get(key)
+  const preview = result?.key === key ? result.preview : known
+  const error = result?.key === key ? result.error : undefined
 
   useEffect(() => {
-    const seq = ++latest.current
-    setError(null)
+    if (ready.has(key)) return
+    let live = true
     // Edits arrive keystroke by keystroke; wait for a pause before asking.
     const t = setTimeout(
       () => {
-        void (async () => {
-          try {
-            const res = await fetch(PREVIEW_API, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: itemId, edits: JSON.parse(editsKey) }),
-            })
-            const data = (await res.json()) as Preview & { error?: string }
-            if (seq !== latest.current) return
-            if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
-            setPreview(data)
-          } catch (e) {
-            if (seq === latest.current) {
-              setError(e instanceof Error ? e.message : String(e))
+        fetchPreview(table, record, editsKey).then(
+          data => {
+            if (live) setResult({ key, preview: data })
+          },
+          e => {
+            if (live) {
+              setResult({
+                key,
+                error: e instanceof Error ? e.message : String(e),
+              })
             }
           }
-        })()
+        )
       },
-      preview ? 300 : 0
+      previews.has(key) ? 0 : 250
     )
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemId, editsKey])
+    return () => {
+      live = false
+      clearTimeout(t)
+    }
+  }, [table, record, editsKey, key])
 
   return (
     <section className={styles.block}>
-      <h3 className={styles.h3}>On {page ?? 'the site'}</h3>
       {preview?.kind && preview.listing ? (
         <div className={styles.siteFrame}>
           <Card kind={preview.kind} listing={preview.listing} />
         </div>
       ) : preview && !preview.kind ? (
         <p className={styles.note}>
-          {page === '/map'
-            ? 'The map has no card; the record’s fields are below.'
-            : 'The site would skip this record as it stands (a name is missing, most likely).'}
+          The site would skip this record as it stands (a name or description is
+          missing, most likely).
         </p>
       ) : error ? (
         <p className={styles.error}>Couldn’t build the preview: {error}</p>

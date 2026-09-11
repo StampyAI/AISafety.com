@@ -420,20 +420,15 @@
 }
 
 .pill,
-.pillPage {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid currentColor;
-}
 
-.pillPage {
+
+/* The page, in the top row: the same small caps as the section headings. */
+.pageTag {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--q-muted);
-  border-color: var(--q-border-strong);
 }
 
 .when {

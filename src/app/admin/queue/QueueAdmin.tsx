@@ -1281,11 +1281,9 @@ function Detail({
               <Icon src={sourceIcon(item)} size={12} />
               {item.source}
             </span>
-            {/* The page is named above the card and the verdict heads the
-                panel on the right, so neither is repeated here. */}
-            {!showsCard && item.page && (
-              <span className={styles.pillPage}>{item.page}</span>
-            )}
+            {/* The verdict heads the panel on the right, so it is not
+                repeated here. */}
+            {item.page && <span className={styles.pageTag}>{item.page}</span>}
             <span className={styles.when}>{ago(item.createdAt)}</span>
             <div className={styles.links}>
               {item.sourceLink && (
@@ -1326,7 +1324,6 @@ function Detail({
             <SitePreview
               table={item.targetTable ?? ''}
               record={item.targetRecord ?? ''}
-              page={item.page}
               edits={{
                 ...Object.fromEntries(item.changes.map(c => [c.field, c.to])),
                 ...editsToSave(),
@@ -1347,7 +1344,6 @@ function Detail({
               <SitePreview
                 table={item.targetTable ?? ''}
                 record={item.targetRecord ?? ''}
-                page={item.page}
                 edits={editsToSave()}
               />
               <Fields

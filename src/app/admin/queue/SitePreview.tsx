@@ -44,6 +44,9 @@ interface Preview {
 // Built cards by target + edits, so switching back is instant and the next
 // item's card can be fetched before it is opened.
 const previews = new Map<string, Promise<Preview>>()
+// The same cards once resolved, readable during render so a switch to a
+// cached card paints it in the very first frame (no placeholder flash).
+const ready = new Map<string, Preview>()
 
 function previewKey(table: string, record: string, editsKey: string): string {
   return `${table}/${record}|${editsKey}`
@@ -68,7 +71,13 @@ async function fetchPreview(
     return data
   })()
   previews.set(key, p)
-  p.then(warmImages, () => previews.delete(key))
+  p.then(
+    data => {
+      ready.set(key, data)
+      warmImages(data)
+    },
+    () => previews.delete(key)
+  )
   return p
 }
 
@@ -127,7 +136,10 @@ export function seedPreviews(
 ): void {
   for (const e of entries) {
     const key = previewKey(e.table, e.record, JSON.stringify(e.edits))
-    if (!previews.has(key)) previews.set(key, Promise.resolve(e.preview))
+    if (!previews.has(key)) {
+      previews.set(key, Promise.resolve(e.preview))
+      ready.set(key, e.preview)
+    }
     warmImages(e.preview)
   }
 }
@@ -176,12 +188,10 @@ function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
 export default function SitePreview({
   table,
   record,
-  page,
   edits,
 }: {
   table: string
   record: string
-  page: string | null
   /** The admin's edits in the field's own shape (see coerceEdits). */
   edits: Record<string, unknown>
 }) {
@@ -195,10 +205,12 @@ export default function SitePreview({
     preview?: Preview
     error?: string
   } | null>(null)
-  const preview = result?.key === key ? result.preview : undefined
+  const known = ready.get(key)
+  const preview = result?.key === key ? result.preview : known
   const error = result?.key === key ? result.error : undefined
 
   useEffect(() => {
+    if (ready.has(key)) return
     let live = true
     // Edits arrive keystroke by keystroke; wait for a pause before asking.
     const t = setTimeout(
@@ -227,7 +239,6 @@ export default function SitePreview({
 
   return (
     <section className={styles.block}>
-      <h3 className={styles.h3}>On {page ?? 'the site'}</h3>
       {preview?.kind && preview.listing ? (
         <div className={styles.siteFrame}>
           <Card kind={preview.kind} listing={preview.listing} />

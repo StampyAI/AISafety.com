@@ -1544,7 +1544,8 @@ function Detail({
                   className={`${styles.chip} ${d.chip === chip ? styles.chipOn : ''}`}
                   onClick={() => setD({ chip: d.chip === chip ? null : chip })}
                 >
-                  <kbd>{i + 1}</kbd> {chip}
+                  <kbd>{i + 1}</kbd>
+                  <span>{chip}</span>
                 </button>
               ))}
               <input

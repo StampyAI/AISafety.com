@@ -1003,22 +1003,30 @@
   align-items: center;
 }
 
+/* Fable's reasons run to a sentence or two, so a chip wraps rather than
+   overflowing the panel; the number stays on the first line. */
 .chip {
   display: inline-flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 12px 0 8px;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 6px 12px 6px 8px;
   border: 1px solid var(--q-border-strong);
-  border-radius: 999px;
+  border-radius: 16px;
   background: var(--q-panel);
   color: var(--q-text-2);
   font: inherit;
   font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
   cursor: pointer;
 }
 
 .chip kbd {
-  margin: 0 8px 0 0;
+  flex: none;
+  margin: 1px 0 0;
 }
 
 .chip:hover {

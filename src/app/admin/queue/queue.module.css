@@ -213,7 +213,7 @@
 
 .row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   width: 100%;
   padding: 9px 16px 9px 14px;
@@ -234,12 +234,6 @@
 .rowActive:hover {
   background: var(--q-sel);
   border-left-color: var(--q-accent);
-}
-
-.rowIcon {
-  flex: none;
-  display: inline-flex;
-  margin-top: 2px;
 }
 
 .withIcon {
@@ -470,8 +464,23 @@
   color: var(--q-text);
 }
 
-.rowName {
-  font-weight: 650;
+.rowLogo {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  /* logos are drawn for the site's dark cards */
+  background: #1c3334;
+  padding: 2px;
+}
+
+.rowLogoEmpty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px dashed var(--q-border-strong);
 }
 
 .finding {
@@ -771,7 +780,7 @@
 /* Change items: the card sits beside what Broom found, scaled down, so the
    item fits on one screen without scrolling. */
 .siteFrameCompact {
-  zoom: 0.72;
+  zoom: 1.08;
 }
 
 .cardRow {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import type { AgentInfo, FieldInfo, QueueItem } from '@/lib/admin/queue'
 import Icon from '@/components/Icon'
-import SitePreview from './SitePreview'
+import SitePreview, { prefetchPreview } from './SitePreview'
 import styles from './queue.module.css'
 
 // The Queue is a triage tool Bryce sits in for long stretches, so it has its
@@ -560,6 +560,23 @@ export default function QueueAdmin() {
     setSelectedId(ordered.flat[0]?.id ?? null)
   }, [items, ordered.flat, selectedId, selected, showDone])
 
+  // The card of the item after this one is fetched now, so J/auto-advance
+  // shows it at once.
+  useEffect(() => {
+    if (!selected) return
+    const flat = ordered.flat
+    const next = flat[flat.findIndex(i => i.id === selected.id) + 1]
+    if (!next?.targetTable || !next.targetRecord) return
+    if (next.type !== 'Add' && next.type !== 'Change') return
+    prefetchPreview(
+      next.targetTable,
+      next.targetRecord,
+      next.type === 'Change'
+        ? Object.fromEntries(next.changes.map(c => [c.field, c.to]))
+        : {}
+    )
+  }, [selected, ordered.flat])
+
   useEffect(() => {
     if (!selected || selected.type !== 'Add') return
     if (!selected.targetTable || !selected.targetRecord) return
@@ -1083,19 +1100,19 @@ function Row({
       className={`${styles.row} ${active ? styles.rowActive : ''}`}
       onClick={onClick}
     >
-      <span className={`${styles.rowIcon} ${dotClass(item)}`}>
-        <Icon src={sourceIcon(item)} />
-      </span>
+      {item.logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={styles.rowLogo} src={item.logo} alt="" />
+      ) : (
+        <span
+          className={`${styles.rowLogo} ${styles.rowLogoEmpty} ${dotClass(item)}`}
+        >
+          <Icon src={sourceIcon(item)} />
+        </span>
+      )}
       <span className={styles.rowBody}>
         <span className={styles.rowTitle}>
-          {splitTitle(item).name ? (
-            <>
-              <b className={styles.rowName}>{splitTitle(item).name}</b>{' '}
-              {splitTitle(item).heading}
-            </>
-          ) : (
-            item.title
-          )}
+          {splitTitle(item).name ?? item.title}
         </span>
         <span className={styles.rowMeta}>
           {item.source !== 'Comb' && <span>{item.source}</span>}
@@ -1244,7 +1261,8 @@ function Detail({
         {hasCard && (
           <div className={styles.cardRow}>
             <SitePreview
-              itemId={item.id}
+              table={item.targetTable ?? ''}
+              record={item.targetRecord ?? ''}
               page={item.page}
               compact
               edits={{
@@ -1259,23 +1277,27 @@ function Detail({
         {!hasCard && excerptBlock}
 
         {/* Edits typed on the page, in the field's own shape. */}
-        {item.type === 'Add' && (live || item.fields) && (
-          <>
-            <SitePreview
-              itemId={item.id}
-              page={item.page}
-              edits={editsToSave()}
-            />
-            <Fields
-              item={item}
-              fields={live?.fields ?? item.fields ?? {}}
-              schema={live?.schema ?? []}
-              onImage={onImage}
-              d={d}
-              setD={setD}
-            />
-          </>
-        )}
+        {item.type === 'Add' &&
+          item.targetTable &&
+          item.targetRecord &&
+          (live || item.fields) && (
+            <>
+              <SitePreview
+                table={item.targetTable ?? ''}
+                record={item.targetRecord ?? ''}
+                page={item.page}
+                edits={editsToSave()}
+              />
+              <Fields
+                item={item}
+                fields={live?.fields ?? item.fields ?? {}}
+                schema={live?.schema ?? []}
+                onImage={onImage}
+                d={d}
+                setD={setD}
+              />
+            </>
+          )}
 
         {item.type === 'Change' &&
           (nothingToApply ? (

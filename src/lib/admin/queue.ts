@@ -92,6 +92,9 @@ export interface QueueItem {
   issueRow: string | null
   sourceLink: string | null
   sourceExcerpt: string | null
+  /** The record's logo as the site shows it (from the site's own listing
+   *  catalog for published records, else the Add snapshot), for the list. */
+  logo: string | null
   /** Add: the proposed record, field name → value. */
   fields: Record<string, unknown> | null
   name: string | null
@@ -176,11 +179,118 @@ function toChanges(v: unknown): ProposedChange[] {
   return out
 }
 
-function rowToItem(row: {
-  id: string
-  createdTime: string
-  fields: RawFields
-}): QueueItem {
+/** Record id → logo URL for every published listing, from the chatbot's
+ *  catalog (cached five minutes; its ids are "<type>:<record id>"). Empty
+ *  when the catalog cannot be built: the list is not worth an error. */
+async function catalogLogos(): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  try {
+    for (const l of (await getCatalog()).listings) {
+      const rec = l.id.slice(l.id.indexOf(':') + 1)
+      if (l.logo && isRecordId(rec)) out.set(rec, l.logo)
+    }
+  } catch (e) {
+    console.error(
+      '[admin-queue] catalog logos',
+      e instanceof Error ? e.message : e
+    )
+  }
+  return out
+}
+
+const logoCache = new Map<string, { url: string | null; at: number }>()
+const LOGO_TTL_MS = 5 * 60 * 1000
+
+/** Logos for records the catalog does not cover (unpublished Add targets):
+ *  one list read per table, attachment fields only, in chunks of 40 ids,
+ *  cached five minutes. Never throws: a missing logo is not worth an error. */
+async function targetLogos(
+  rows: { table: string; record: string }[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const byTable = new Map<string, string[]>()
+  const now = Date.now()
+  for (const { table, record } of rows) {
+    if (!TABLE_ID_RE.test(table) || !isRecordId(record)) continue
+    const hit = logoCache.get(record)
+    if (hit && now - hit.at < LOGO_TTL_MS) {
+      if (hit.url) out.set(record, hit.url)
+      continue
+    }
+    const list = byTable.get(table) ?? []
+    list.push(record)
+    byTable.set(table, list)
+  }
+  await Promise.all(
+    [...byTable].map(async ([table, records]) => {
+      try {
+        const fields = (await getTableSchema(table)).filter(
+          f => f.type === 'multipleAttachments' && /logo|image/i.test(f.name)
+        )
+        if (!fields.length) return
+        for (let i = 0; i < records.length; i += 40) {
+          const chunk = records.slice(i, i + 40)
+          const params = new URLSearchParams()
+          params.set(
+            'filterByFormula',
+            `OR(${chunk.map(r => `RECORD_ID()='${r}'`).join(',')})`
+          )
+          for (const f of fields) params.append('fields[]', f.name)
+          const seen = new Set<string>()
+          for (const r of await listAll<RawFields>(table, params)) {
+            let url: string | null = null
+            for (const f of fields) {
+              const v = r.fields[f.name]
+              const first: unknown = Array.isArray(v) ? v[0] : null
+              if (!isRecord(first)) continue
+              const large =
+                isRecord(first.thumbnails) && isRecord(first.thumbnails.large)
+                  ? first.thumbnails.large.url
+                  : first.url
+              if (typeof large === 'string') {
+                url = large
+                break
+              }
+            }
+            logoCache.set(r.id, { url, at: now })
+            seen.add(r.id)
+            if (url) out.set(r.id, url)
+          }
+          for (const r of chunk) {
+            if (!seen.has(r)) logoCache.set(r, { url: null, at: now })
+          }
+        }
+      } catch (e) {
+        console.error(
+          '[admin-queue] target logos',
+          e instanceof Error ? e.message : e
+        )
+      }
+    })
+  )
+  return out
+}
+
+/** The first picture in an Add snapshot's Logo/Image field. */
+function snapshotLogo(fields: Record<string, unknown> | null): string | null {
+  if (!fields) return null
+  for (const [k, v] of Object.entries(fields)) {
+    if (!/logo|image/i.test(k) || !Array.isArray(v) || !v.length) continue
+    const first: unknown = v[0]
+    if (typeof first === 'string') return first
+    if (isRecord(first) && typeof first.url === 'string') return first.url
+  }
+  return null
+}
+
+function rowToItem(
+  row: {
+    id: string
+    createdTime: string
+    fields: RawFields
+  },
+  logos: Map<string, string> = new Map()
+): QueueItem {
   const f = row.fields
   const proposal = parseJson(f[F.proposal])
   let fields: Record<string, unknown> | null = null
@@ -227,6 +337,9 @@ function rowToItem(row: {
     issueRow: str(f[F.issueRow]),
     sourceLink: str(f[F.sourceLink]),
     sourceExcerpt: str(f[F.sourceExcerpt]),
+    logo:
+      (str(f[F.targetRecord]) && logos.get(str(f[F.targetRecord]) ?? '')) ||
+      snapshotLogo(fields),
     fields,
     name,
     url,
@@ -259,8 +372,23 @@ export async function listQueue(): Promise<QueueItem[]> {
   const params = new URLSearchParams()
   params.set('returnFieldsByFieldId', 'true')
   params.set('filterByFormula', LIST_FORMULA)
-  const rows = await listAll<RawFields>(QUEUE_TABLE_ID, params)
-  return rows.map(rowToItem)
+  const [rows, logos] = await Promise.all([
+    listAll<RawFields>(QUEUE_TABLE_ID, params),
+    catalogLogos(),
+  ])
+  const items = rows.map(r => rowToItem(r, logos))
+  // Unpublished targets (Comb's Adds) are not in the catalog and their
+  // snapshots carry no attachments: read those logos in a few batched calls.
+  const missing = items.filter(i => !i.logo && i.targetTable && i.targetRecord)
+  if (missing.length) {
+    const more = await targetLogos(
+      missing.map(i => ({ table: i.targetTable!, record: i.targetRecord! }))
+    )
+    for (const i of missing) {
+      i.logo = more.get(i.targetRecord!) ?? null
+    }
+  }
+  return items
 }
 
 /** Count for the tab badge. Never throws: a badge is not worth an error page. */
@@ -288,7 +416,12 @@ export async function getQueueItem(id: string): Promise<QueueItem | null> {
     )
   }
   return rowToItem(
-    (await res.json()) as { id: string; createdTime: string; fields: RawFields }
+    (await res.json()) as {
+      id: string
+      createdTime: string
+      fields: RawFields
+    },
+    await catalogLogos()
   )
 }
 
@@ -433,6 +566,7 @@ import {
   TABLE_ID as FOUNDERS_TABLE,
 } from '@/lib/data/founders'
 import { mapOrgFromRecord, TABLE_ID as MAP_TABLE } from '@/lib/data/map'
+import { getCatalog } from '@/lib/assistant/catalog'
 import type { AirtableRawRecord } from '@/lib/data/airtable'
 
 const TRAINING_TABLE = 'tbli1YSCpIuNY2DvL'

@@ -1,21 +1,17 @@
 /*
   Queue card preview (sessions with the queue area only).
 
-  POST /api/admin/queue/preview  body { id, edits? } → { kind, listing } | { kind: null }
+  POST /api/admin/queue/preview  body { table, record, edits? } → { kind, listing } | { kind: null }
 
-  Reads the item's target record live, lays the page's edits over it and runs
+  Reads the target record live (the same read the page already gets through
+  GET /api/admin/queue?target=…, so no queue-row lookup first), lays the page's edits over it and runs
   the resource page's own record-to-listing mapper, so the admin sees the
   card exactly as the site would build it. Read-only.
 */
 
 import { NextRequest } from 'next/server'
 import { canReviewQueue } from '@/lib/admin/auth'
-import {
-  getPreviewListing,
-  getQueueItem,
-  QueueError,
-  sanitiseEdits,
-} from '@/lib/admin/queue'
+import { getPreviewListing, QueueError, sanitiseEdits } from '@/lib/admin/queue'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,14 +37,14 @@ export async function POST(req: NextRequest) {
   } catch {
     // handled below
   }
-  const id = typeof body.id === 'string' ? body.id : ''
+  const table = typeof body.table === 'string' ? body.table : ''
+  const record = typeof body.record === 'string' ? body.record : ''
+  if (!table || !record)
+    return json({ error: 'table and record required' }, 400)
   try {
-    const item = await getQueueItem(id)
-    if (!item) return json({ error: 'That item no longer exists.' }, 404)
-    if (!item.targetTable || !item.targetRecord) return json({ kind: null })
     const preview = await getPreviewListing(
-      item.targetTable,
-      item.targetRecord,
+      table,
+      record,
       sanitiseEdits(body.edits)
     )
     return json(preview ?? { kind: null })

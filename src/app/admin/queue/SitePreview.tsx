@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import ListingCard, { type CardProps } from '@/components/ListingCard'
 import { communityCardProps } from '@/app/communities/card'
 import { eventCardProps } from '@/app/events/card'
@@ -41,6 +41,46 @@ interface Preview {
   listing?: unknown
 }
 
+// Built cards by target + edits, so switching back is instant and the next
+// item's card can be fetched before it is opened.
+const previews = new Map<string, Promise<Preview>>()
+
+function previewKey(table: string, record: string, editsKey: string): string {
+  return `${table}/${record}|${editsKey}`
+}
+
+async function fetchPreview(
+  table: string,
+  record: string,
+  editsKey: string
+): Promise<Preview> {
+  const key = previewKey(table, record, editsKey)
+  const hit = previews.get(key)
+  if (hit) return hit
+  const p = (async () => {
+    const res = await fetch(PREVIEW_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table, record, edits: JSON.parse(editsKey) }),
+    })
+    const data = (await res.json()) as Preview & { error?: string }
+    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+    return data
+  })()
+  previews.set(key, p)
+  p.catch(() => previews.delete(key))
+  return p
+}
+
+/** Warm the cache for a card the admin is likely to open next. */
+export function prefetchPreview(
+  table: string,
+  record: string,
+  edits: Record<string, unknown>
+): void {
+  void fetchPreview(table, record, JSON.stringify(edits)).catch(() => {})
+}
+
 /** The site's card for a listing. Its link opens in a new tab, as on the
  *  site; the admin page loads no analytics, so clicks are not counted. */
 function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
@@ -74,52 +114,59 @@ function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
 }
 
 export default function SitePreview({
-  itemId,
+  table,
+  record,
   page,
   edits,
   compact = false,
 }: {
-  itemId: string
+  table: string
+  record: string
   page: string | null
   /** The admin's edits in the field's own shape (see coerceEdits). */
   edits: Record<string, unknown>
   /** Scaled down so the whole item fits on one screen. */
   compact?: boolean
 }) {
-  const [preview, setPreview] = useState<Preview | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const editsKey = JSON.stringify(edits)
-  const latest = useRef(0)
+  const key = previewKey(table, record, editsKey)
+  // The result is tagged with the request it answers, so a new record shows
+  // "Building the card…" at once instead of the old card until the new one
+  // arrives (cached cards come back within the same tick).
+  const [result, setResult] = useState<{
+    key: string
+    preview?: Preview
+    error?: string
+  } | null>(null)
+  const preview = result?.key === key ? result.preview : undefined
+  const error = result?.key === key ? result.error : undefined
 
   useEffect(() => {
-    const seq = ++latest.current
-    setError(null)
+    let live = true
     // Edits arrive keystroke by keystroke; wait for a pause before asking.
     const t = setTimeout(
       () => {
-        void (async () => {
-          try {
-            const res = await fetch(PREVIEW_API, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: itemId, edits: JSON.parse(editsKey) }),
-            })
-            const data = (await res.json()) as Preview & { error?: string }
-            if (seq !== latest.current) return
-            if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
-            setPreview(data)
-          } catch (e) {
-            if (seq === latest.current) {
-              setError(e instanceof Error ? e.message : String(e))
+        fetchPreview(table, record, editsKey).then(
+          data => {
+            if (live) setResult({ key, preview: data })
+          },
+          e => {
+            if (live) {
+              setResult({
+                key,
+                error: e instanceof Error ? e.message : String(e),
+              })
             }
           }
-        })()
+        )
       },
-      preview ? 300 : 0
+      previews.has(key) ? 0 : 250
     )
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemId, editsKey])
+    return () => {
+      live = false
+      clearTimeout(t)
+    }
+  }, [table, record, editsKey, key])
 
   return (
     <section className={styles.block}>

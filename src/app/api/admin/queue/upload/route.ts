@@ -1,5 +1,5 @@
 /*
-  Queue image upload (sessions with the queue area only).
+  Queue image upload (sessions with the queue area's edit grant only).
 
   POST /api/admin/queue/upload
        body { id, field, filename, contentType, data }   data = base64

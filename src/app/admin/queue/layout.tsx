@@ -9,8 +9,9 @@ export default async function QueueAdminLayout({
   children: React.ReactNode
 }) {
   const access = await currentAccess()
-  // Every accept writes to the live base. Anyone signed in without the area
-  // goes to the first area they do have; signed-out sessions to login.
+  // View-only sessions may look; accepting needs the edit grant, which the
+  // page and the API check. Anyone signed in without the area goes to the
+  // first area they do have; signed-out sessions to login.
   if (!access.queue) {
     redirect(adminHomeHref(access))
   }

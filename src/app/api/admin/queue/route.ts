@@ -1,5 +1,6 @@
 /*
-  Queue API (sessions with the queue area only).
+  Queue API. GET needs the queue area (canViewQueue); POST needs its edit
+  grant (canReviewQueue).
 
   GET  /api/admin/queue                        → { items, agent }
   GET  /api/admin/queue?target=<tbl>/<rec>     → { fields, schema } (live)
@@ -17,7 +18,7 @@
 */
 
 import { NextRequest } from 'next/server'
-import { canReviewQueue, currentAdmin } from '@/lib/admin/auth'
+import { canReviewQueue, canViewQueue, currentAdmin } from '@/lib/admin/auth'
 import {
   acceptItem,
   agentInfo,
@@ -45,8 +46,9 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-async function ensureAuth(): Promise<Response | null> {
-  if (!(await canReviewQueue())) return json({ error: 'unauthorized' }, 401)
+async function ensureAuth(write: boolean): Promise<Response | null> {
+  const allowed = write ? await canReviewQueue() : await canViewQueue()
+  if (!allowed) return json({ error: 'unauthorized' }, 401)
   return null
 }
 
@@ -63,7 +65,7 @@ function failure(e: unknown): Response {
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await ensureAuth()
+  const auth = await ensureAuth(false)
   if (auth) return auth
   try {
     const target = req.nextUrl.searchParams.get('target')
@@ -89,7 +91,7 @@ export async function GET(req: NextRequest) {
 const ACTIONS = new Set(['accept', 'reject', 'revise', 'undo'])
 
 export async function POST(req: NextRequest) {
-  const auth = await ensureAuth()
+  const auth = await ensureAuth(true)
   if (auth) return auth
   let body: Record<string, unknown> = {}
   try {

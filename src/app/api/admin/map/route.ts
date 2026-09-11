@@ -8,12 +8,12 @@
                           → body { id, scale, expected? }
                              writes ONLY Scale (Small/Medium/Large)
 
-  Owner-password sessions only (canEditMap). Never revalidates any cache or
-  path: the public /map keeps refreshing on its own schedule.
+  GET needs the mapEditor area (canViewMap); PATCH needs its edit grant
+  (canEditMap). Never revalidates any cache or path: the public /map keeps refreshing on its own schedule.
 */
 
 import { NextRequest } from 'next/server'
-import { canEditMap } from '@/lib/admin/auth'
+import { canEditMap, canViewMap } from '@/lib/admin/auth'
 import {
   getMapState,
   isMapEditorConfigured,
@@ -42,8 +42,9 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-async function ensureAuth(): Promise<Response | null> {
-  if (!(await canEditMap())) return json({ error: 'unauthorized' }, 401)
+async function ensureAuth(write: boolean): Promise<Response | null> {
+  const allowed = write ? await canEditMap() : await canViewMap()
+  if (!allowed) return json({ error: 'unauthorized' }, 401)
   if (!isMapEditorConfigured()) {
     return json({ error: 'AIRTABLE_TOKEN / AIRTABLE_BASE_ID not set' }, 503)
   }
@@ -51,7 +52,7 @@ async function ensureAuth(): Promise<Response | null> {
 }
 
 export async function GET() {
-  const auth = await ensureAuth()
+  const auth = await ensureAuth(false)
   if (auth) return auth
   try {
     const records = await listMapRecordsLive()
@@ -87,7 +88,7 @@ function airtableFailure(id: string, what: string, err: unknown): Response {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await ensureAuth()
+  const auth = await ensureAuth(true)
   if (auth) return auth
 
   let body: unknown

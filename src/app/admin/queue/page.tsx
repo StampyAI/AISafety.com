@@ -1,3 +1,4 @@
+import { canReviewQueue } from '@/lib/admin/auth'
 import QueueAdmin from './QueueAdmin'
 
 // Nothing here is prerendered: the page reads the queue live in the browser
@@ -5,6 +6,8 @@ import QueueAdmin from './QueueAdmin'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default function QueueAdminPage() {
-  return <QueueAdmin />
+export default async function QueueAdminPage() {
+  // View-only sessions get the same page without the deciding parts; the
+  // API refuses their writes regardless.
+  return <QueueAdmin canEdit={await canReviewQueue()} />
 }

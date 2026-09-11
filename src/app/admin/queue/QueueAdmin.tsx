@@ -463,7 +463,13 @@ const OFFLINE_SUB = `Mac agent not reachable · ${WORKER_NOTE}`
 
 type Action = 'accept' | 'reject' | 'revise' | 'undo'
 
-export default function QueueAdmin() {
+export default function QueueAdmin({
+  canEdit,
+}: {
+  /** False for a view-only grant: the same queue with nothing to click that
+   *  would decide anything. The API refuses those writes regardless. */
+  canEdit: boolean
+}) {
   const [items, setItems] = useState<QueueItem[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -837,6 +843,7 @@ export default function QueueAdmin() {
       action: Action,
       extra: Record<string, unknown> = {}
     ) => {
+      if (!canEdit) return
       setDraft(item.id, { busy: true, error: null })
       // The reply draft as it reads on the page goes with the accept, so
       // what reaches Gmail is what was approved.
@@ -898,7 +905,7 @@ export default function QueueAdmin() {
         })
       }
     },
-    [ordered.flat, select, setDraft, drafts, agent, saveReply]
+    [ordered.flat, select, setDraft, drafts, agent, saveReply, canEdit]
   )
 
   useEffect(() => {
@@ -969,6 +976,7 @@ export default function QueueAdmin() {
           break
         case 'r':
           if (
+            canEdit &&
             item &&
             isOpen(item) &&
             item.status !== 'Revising' &&
@@ -980,6 +988,7 @@ export default function QueueAdmin() {
           break
         case 'n':
           if (
+            canEdit &&
             item &&
             isOpen(item) &&
             item.status !== 'Revising' &&
@@ -1167,7 +1176,7 @@ export default function QueueAdmin() {
                 items={ordered.done}
                 busyFor={id => draft(id).busy}
                 errorFor={id => draft(id).error}
-                onUndo={item => void act(item, 'undo')}
+                onUndo={canEdit ? item => void act(item, 'undo') : null}
               />
             ) : selected ? (
               <Detail
@@ -1180,6 +1189,7 @@ export default function QueueAdmin() {
                 setD={patch => setDraft(selected.id, patch)}
                 act={(action, extra) => void act(selected, action, extra)}
                 agentOnline={agent ? agentOnline : null}
+                readOnly={!canEdit}
               />
             ) : (
               <div className={styles.emptyDetail}>
@@ -1342,6 +1352,7 @@ function Detail({
   setD,
   act,
   agentOnline,
+  readOnly,
 }: {
   item: QueueItem
   live: { fields: Record<string, unknown>; schema: FieldInfo[] } | null
@@ -1351,8 +1362,12 @@ function Detail({
   act: (action: Action, extra?: Record<string, unknown>) => void
   /** null: no agent configured; true/false: whether it answered a ping. */
   agentOnline: boolean | null
+  /** A view-only session: no editing, no deciding. */
+  readOnly: boolean
 }) {
-  const revising = item.status === 'Revising'
+  // Nothing on the item can be touched while Claude is revising it, and a
+  // view-only session can never touch it.
+  const revising = item.status === 'Revising' || readOnly
   const nothingToApply = item.type === 'Change' && item.changes.length === 0
   const reason = d.chip ?? d.other.trim()
   const editCount = Object.keys(d.edits).length
@@ -1490,6 +1505,7 @@ function Detail({
                 onImage={onImage}
                 d={d}
                 setD={setD}
+                readOnly={readOnly}
               />
             </>
           )}
@@ -1652,7 +1668,12 @@ function Detail({
       )}
 
       <div className={styles.actions}>
-        {revising ? (
+        {readOnly ? (
+          <p className={styles.note}>
+            View only: accepting, rejecting and editing stay with people who can
+            edit the Queue.
+          </p>
+        ) : revising ? (
           <p className={`${styles.note} ${styles.withIcon}`}>
             <Icon src={ICON.timer} size={12} />
             Claude is revising this{item.note ? ` (“${item.note}”)` : ''}.
@@ -1808,6 +1829,7 @@ function Fields({
   onImage,
   d,
   setD,
+  readOnly,
 }: {
   item: QueueItem
   fields: Record<string, unknown>
@@ -1815,6 +1837,7 @@ function Fields({
   onImage: (field: string, urls: string[]) => void
   d: Draft
   setD: (patch: Partial<Draft>) => void
+  readOnly: boolean
 }) {
   // With the table's field list we show every column, empty ones included,
   // in the table's order (name, link and description first); without it,
@@ -1835,7 +1858,7 @@ function Fields({
   const editable = ([k]: [string, unknown]) =>
     !HOUSEKEEPING.test(k) && !COMPUTED_TYPES.has(types.get(k) ?? '')
   const rest = entries.filter(e => !seen.has(e[0]) && editable(e))
-  const revising = item.status === 'Revising'
+  const revising = item.status === 'Revising' || readOnly
   const row = ([k, v]: [string, unknown]) => {
     const info = infos.get(k)
     const isAttachment = types.get(k) === 'multipleAttachments'
@@ -2284,7 +2307,8 @@ function DoneList({
   items: QueueItem[]
   busyFor: (id: string) => boolean
   errorFor: (id: string) => string | null
-  onUndo: (item: QueueItem) => void
+  /** Null for a view-only session: decisions are shown, not undone. */
+  onUndo: ((item: QueueItem) => void) | null
 }) {
   return (
     <div className={styles.detailInner}>
@@ -2338,14 +2362,16 @@ function DoneList({
               {errorFor(item.id) && (
                 <span className={styles.error}>{errorFor(item.id)}</span>
               )}
-              <button
-                className={styles.ghost}
-                disabled={busyFor(item.id)}
-                onClick={() => onUndo(item)}
-              >
-                <Icon src={ICON.undo} size={12} />
-                {busyFor(item.id) ? 'Undoing…' : 'Undo'}
-              </button>
+              {onUndo && (
+                <button
+                  className={styles.ghost}
+                  disabled={busyFor(item.id)}
+                  onClick={() => onUndo(item)}
+                >
+                  <Icon src={ICON.undo} size={12} />
+                  {busyFor(item.id) ? 'Undoing…' : 'Undo'}
+                </button>
+              )}
             </span>
           </div>
         ))}

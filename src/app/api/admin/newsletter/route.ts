@@ -1,6 +1,6 @@
 /*
   Newsletter approval API. GET is open to anyone who may see the page
-  (canViewNewsletter: approvers and preview-only reviewers); POST needs an
+  (canViewNewsletter: approvers and view-only reviewers); POST needs an
   approver (canSendNewsletter) with a Google session under
   NEWSLETTER_FRESH_SECONDS old.
 

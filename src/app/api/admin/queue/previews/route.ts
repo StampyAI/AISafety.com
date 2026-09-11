@@ -10,7 +10,7 @@
 */
 
 import { NextRequest } from 'next/server'
-import { canReviewQueue } from '@/lib/admin/auth'
+import { canViewQueue } from '@/lib/admin/auth'
 import {
   getPreviewListings,
   QueueError,
@@ -33,7 +33,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await canReviewQueue())) return json({ error: 'unauthorized' }, 401)
+  if (!(await canViewQueue())) return json({ error: 'unauthorized' }, 401)
   let body: Record<string, unknown> = {}
   try {
     const parsed: unknown = await req.json()

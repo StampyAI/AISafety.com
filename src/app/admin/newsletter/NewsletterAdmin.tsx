@@ -170,8 +170,8 @@ export default function NewsletterAdmin({
       )}
       {!canSend && (
         <p className={styles.notice}>
-          Preview only: you can open every drafted issue below, but approving
-          and sending stays with the owner.
+          View only: you can open every drafted issue below, but approving and
+          sending stays with people who can edit Newsletters.
         </p>
       )}
 

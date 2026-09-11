@@ -470,6 +470,8 @@ async function preloadCards(items: QueueItem[]): Promise<void> {
 /** The toast shows for nine seconds; U undoes the last decision for five
  *  minutes after it, toast or no toast (Bryce, 11 Sept 2026). */
 const TOAST_MS = 9000
+/** The slide down at the end, part of TOAST_MS. Matches the CSS. */
+const TOAST_OUT_MS = 220
 const UNDO_MS = 5 * 60 * 1000
 
 // Recurring programs live under /training's "recurring" view.
@@ -642,6 +644,8 @@ export default function QueueAdmin({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [toast, setToast] = useState<Toast | null>(null)
+  // True for the last moments of a toast, while it slides back down.
+  const [toastLeaving, setToastLeaving] = useState(false)
   // The last decision, kept for U after the toast has gone.
   const [undoable, setUndoable] = useState<QueueItem | null>(null)
   // The local agent on the owner's Mac: its port + a token from the API
@@ -1088,8 +1092,19 @@ export default function QueueAdmin({
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), TOAST_MS)
-    return () => clearTimeout(t)
+    const leave = setTimeout(
+      () => setToastLeaving(true),
+      TOAST_MS - TOAST_OUT_MS
+    )
+    const gone = setTimeout(() => {
+      setToast(null)
+      setToastLeaving(false)
+    }, TOAST_MS)
+    return () => {
+      clearTimeout(leave)
+      clearTimeout(gone)
+      setToastLeaving(false)
+    }
   }, [toast])
 
   useEffect(() => {
@@ -1387,7 +1402,11 @@ export default function QueueAdmin({
       {toast && (
         // Laid out like a list row (logo, name, the muted line) with a
         // bold tick or cross in front, so the eye reads it the same way.
-        <div className={styles.toast} role="status">
+        <div
+          key={toast.item.id}
+          className={`${styles.toast} ${toastLeaving ? styles.toastLeaving : ''}`}
+          role="status"
+        >
           <span
             className={`${styles.toastMark} ${toast.item.status === 'Rejected' ? styles.toastMarkNo : ''}`}
           >

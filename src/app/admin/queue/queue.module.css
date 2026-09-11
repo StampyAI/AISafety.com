@@ -1267,6 +1267,41 @@ select.input {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   font-size: 13.5px;
   z-index: 20;
+  /* slides up from below the window edge, and back down at the end */
+  animation: toastIn 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.toastLeaving {
+  animation: toastOut 0.22s ease-in both;
+}
+
+@keyframes toastIn {
+  from {
+    transform: translate(-50%, calc(100% + 24px));
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastOut {
+  from {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, calc(100% + 24px));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toastLeaving {
+    animation: none;
+  }
 }
 
 /* The verdict mark: a filled circle in the accent (or the danger colour

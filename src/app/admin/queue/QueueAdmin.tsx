@@ -1149,7 +1149,20 @@ function Row({
     >
       {item.logo ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className={styles.rowLogo} src={item.logo} alt="" />
+        <img
+          className={styles.rowLogo}
+          src={item.logo}
+          alt=""
+          onError={e => {
+            // an expired link: show the plain box rather than a broken image
+            const img = e.currentTarget
+            img.replaceWith(
+              Object.assign(document.createElement('span'), {
+                className: `${styles.rowLogo} ${styles.rowLogoEmpty}`,
+              })
+            )
+          }}
+        />
       ) : (
         <span
           className={`${styles.rowLogo} ${styles.rowLogoEmpty} ${dotClass(item)}`}
@@ -1631,9 +1644,25 @@ function isImageList(v: unknown): v is string[] {
   )
 }
 
-// Fields Airtable fills in itself: shown last, never worth editing.
+// Fields nobody edits from here: Airtable's own bookkeeping by name, and
+// any column Airtable computes (formulas, lookups, counts, timestamps) by
+// type. Left out of the list (Bryce, 11 Sept 2026: "only the fields I may
+// plausibly want to edit").
 const HOUSEKEEPING =
   /^(created|date added|last modified|created time|record id|submitter's email)$/i
+const COMPUTED_TYPES = new Set([
+  'formula',
+  'rollup',
+  'lookup',
+  'multipleLookupValues',
+  'count',
+  'autoNumber',
+  'createdTime',
+  'lastModifiedTime',
+  'createdBy',
+  'lastModifiedBy',
+  'button',
+])
 
 function Fields({
   item,
@@ -1666,8 +1695,9 @@ function Fields({
   const pick = (re: RegExp) => entries.filter(([k]) => re.test(k))
   const main = [...pick(NAME_KEYS), ...pick(URL_KEYS), ...pick(DESC_KEYS)]
   const seen = new Set(main.map(([k]) => k))
-  const rest = entries.filter(([k]) => !seen.has(k) && !HOUSEKEEPING.test(k))
-  const last = entries.filter(([k]) => !seen.has(k) && HOUSEKEEPING.test(k))
+  const editable = ([k]: [string, unknown]) =>
+    !HOUSEKEEPING.test(k) && !COMPUTED_TYPES.has(types.get(k) ?? '')
+  const rest = entries.filter(e => !seen.has(e[0]) && editable(e))
   const revising = item.status === 'Revising'
   const row = ([k, v]: [string, unknown]) => {
     const info = infos.get(k)
@@ -1750,9 +1780,6 @@ function Fields({
       {main.map(row)}
       {rest.length > 0 && (
         <div className={styles.fieldsRest}>{rest.map(row)}</div>
-      )}
-      {last.length > 0 && (
-        <div className={styles.fieldsRest}>{last.map(row)}</div>
       )}
     </div>
   )

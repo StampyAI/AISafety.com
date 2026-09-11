@@ -68,8 +68,52 @@ async function fetchPreview(
     return data
   })()
   previews.set(key, p)
-  p.catch(() => previews.delete(key))
+  p.then(warmImages, () => previews.delete(key))
   return p
+}
+
+// ─── Logo warm-up ────────────────────────────────────────────────────────────
+// A built card still has to fetch its logo when drawn; these pull the
+// pictures into the browser cache ahead of time, a few at once, in list
+// order, so the card and its logo appear together.
+
+const warmed = new Set<string>()
+const warmQueue: string[] = []
+let warming = 0
+const WARM_AT_ONCE = 4
+
+function listingImages(listing: unknown): string[] {
+  if (!listing || typeof listing !== 'object') return []
+  const out: string[] = []
+  for (const [k, v] of Object.entries(listing as Record<string, unknown>)) {
+    if (/logo|image/i.test(k) && typeof v === 'string' && /^https?:/.test(v)) {
+      out.push(v)
+    }
+  }
+  return out
+}
+
+function warmNext(): void {
+  while (warming < WARM_AT_ONCE && warmQueue.length) {
+    const url = warmQueue.shift() as string
+    warming++
+    const img = document.createElement('img')
+    img.onload = img.onerror = () => {
+      warming--
+      warmNext()
+    }
+    img.src = url
+  }
+}
+
+function warmImages(preview: Preview): void {
+  if (typeof document === 'undefined') return
+  for (const url of listingImages(preview.listing)) {
+    if (warmed.has(url)) continue
+    warmed.add(url)
+    warmQueue.push(url)
+  }
+  warmNext()
 }
 
 /** Put ready-built cards into the cache (from the bulk previews route). */
@@ -84,6 +128,7 @@ export function seedPreviews(
   for (const e of entries) {
     const key = previewKey(e.table, e.record, JSON.stringify(e.edits))
     if (!previews.has(key)) previews.set(key, Promise.resolve(e.preview))
+    warmImages(e.preview)
   }
 }
 

@@ -192,7 +192,9 @@ async function catalogLogos(): Promise<Map<string, string>> {
   try {
     for (const l of (await getCatalog()).listings) {
       const rec = l.id.slice(l.id.indexOf(':') + 1)
-      if (l.logo && isRecordId(rec)) out.set(rec, l.logo)
+      if (l.logo && isRecordId(rec) && !isExpiredAttachment(l.logo)) {
+        out.set(rec, l.logo)
+      }
     }
   } catch (e) {
     console.error(
@@ -201,6 +203,15 @@ async function catalogLogos(): Promise<Map<string, string>> {
     )
   }
   return out
+}
+
+/** Airtable attachment links carry their expiry (ms since the epoch) as a
+ *  path segment and answer 410 after it. The site's cached data can hold
+ *  such links for hours, so anything expiring within ten minutes is
+ *  treated as gone and read afresh. */
+function isExpiredAttachment(url: string): boolean {
+  const m = /airtableusercontent\.com\/.*?\/(\d{13})\//.exec(url)
+  return m ? Number(m[1]) < Date.now() + 10 * 60 * 1000 : false
 }
 
 const logoCache = new Map<string, { url: string | null; at: number }>()
@@ -282,8 +293,14 @@ function snapshotLogo(fields: Record<string, unknown> | null): string | null {
   for (const [k, v] of Object.entries(fields)) {
     if (!/logo|image/i.test(k) || !Array.isArray(v) || !v.length) continue
     const first: unknown = v[0]
-    if (typeof first === 'string') return first
-    if (isRecord(first) && typeof first.url === 'string') return first.url
+    const url =
+      typeof first === 'string'
+        ? first
+        : isRecord(first) && typeof first.url === 'string'
+          ? first.url
+          : null
+    // snapshots are days old; an expired link is read afresh instead
+    if (url && !isExpiredAttachment(url)) return url
   }
   return null
 }

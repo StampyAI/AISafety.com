@@ -470,6 +470,15 @@ async function preloadCards(items: QueueItem[]): Promise<void> {
 // Recurring programs live under /training's "recurring" view.
 const RECURRING_TABLE = 'tblEEIbj6dW5oS4cX'
 
+/** The page as shown on the row and the detail: recurring programs sit in
+ *  /training's own "recurring" view, so they say so. */
+function pageLabel(item: QueueItem): string | null {
+  if (!item.page) return null
+  return item.targetTable === RECURRING_TABLE
+    ? `${item.page} (recurring)`
+    : item.page
+}
+
 /** The live page, landing on this record's card (every site card carries
  *  its record id as an anchor; ScrollToHash finds it once rendered). */
 function livePageUrl(item: QueueItem): string {
@@ -1483,7 +1492,7 @@ function Row({
         </span>
         <span className={styles.rowMeta}>
           {item.source !== 'Comb' && <span>{item.source}</span>}
-          {item.page && <span>{item.page}</span>}
+          {item.page && <span>{pageLabel(item)}</span>}
           {item.verdict && (
             <span className={`${styles.withIcon} ${verdictClass(item)}`}>
               <Icon src={verdictIcon(item)} size={12} />
@@ -1613,7 +1622,7 @@ function Detail({
                     .catch(() => {})
                 }}
               >
-                {item.page}
+                {pageLabel(item)}
               </a>
             )}
             <span className={styles.when}>{ago(item.createdAt)}</span>
@@ -2549,7 +2558,7 @@ function DoneList({
               </span>
               <span className={styles.rowMeta}>
                 {item.source !== 'Comb' && <span>{item.source}</span>}
-                {item.page && <span>{item.page}</span>}
+                {item.page && <span>{pageLabel(item)}</span>}
                 <span
                   className={`${styles.withIcon} ${item.status === 'Rejected' ? styles.no : styles.yes}`}
                 >

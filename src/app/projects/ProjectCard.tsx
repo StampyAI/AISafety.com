@@ -11,7 +11,7 @@ interface ProjectCardProps {
 // look on the site" preview renders this same component.
 export default function ProjectCard({ project }: ProjectCardProps) {
   return (
-    <div className="card card-static">
+    <div id={project.id} className="card card-static">
       <h3 className="padding-bottom-24px">{project.name}</h3>
       <p className="paragraph-small padding-bottom-24px">
         {project.description}

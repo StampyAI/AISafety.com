@@ -1103,25 +1103,19 @@ select.input {
   gap: 6px;
 }
 
+/* The same shape as a list row (logo, name, meta), plus Undo. */
 .doneRow {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto auto;
-  gap: 12px;
+  display: flex;
   align-items: center;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 9px 12px 9px 14px;
   background: var(--q-panel);
   border: 1px solid var(--q-border);
   border-radius: 8px;
 }
 
-.doneTitle {
-  color: var(--q-text);
-  min-width: 0;
-}
-
-.doneWhat {
-  font-size: 13px;
-  color: var(--q-text-2);
+.doneRow .rowBody {
+  flex: 1;
 }
 
 .doneActions {

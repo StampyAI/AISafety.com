@@ -20,6 +20,7 @@ export default function FounderResourceCard({
 }: FounderResourceCardProps) {
   return (
     <a
+      id={resource.id}
       href={withUtm(resource.website, 'Founders')}
       target="_blank"
       rel="noopener noreferrer"

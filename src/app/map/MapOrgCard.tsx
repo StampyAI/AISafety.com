@@ -20,6 +20,7 @@ interface MapOrgCardProps {
 export default function MapOrgCard({ org, placement }: MapOrgCardProps) {
   return (
     <a
+      id={org.id}
       href={withUtm(org.link, 'Map')}
       target="_blank"
       rel="noopener noreferrer"

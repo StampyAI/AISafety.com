@@ -55,13 +55,6 @@ const ICON = {
   chevron: '/images/icons/chevron-down.svg',
 } as const
 
-const SECTION_ICON: Record<Section, string> = {
-  requests: ICON.requests,
-  broom: ICON.broom,
-  rules: ICON.rule,
-  comb: ICON.comb,
-}
-
 function sourceIcon(item: QueueItem): string {
   if (item.type === 'Rule' || item.source === 'Teach') return ICON.rule
   switch (item.source) {
@@ -285,6 +278,17 @@ async function preloadCards(items: QueueItem[]): Promise<void> {
   } catch {
     // the single-card route still works
   }
+}
+
+// Recurring programs live under /training's "recurring" view.
+const RECURRING_TABLE = 'tblEEIbj6dW5oS4cX'
+
+/** The live page, landing on this record's card (every site card carries
+ *  its record id as an anchor; ScrollToHash finds it once rendered). */
+function livePageUrl(item: QueueItem): string {
+  const view = item.targetTable === RECURRING_TABLE ? '?view=recurring' : ''
+  const hash = item.targetRecord ? `#${item.targetRecord}` : ''
+  return `https://aisafety.com${item.page ?? ''}${view}${hash}`
 }
 
 function acceptLabel(item: QueueItem): string {
@@ -1010,7 +1014,6 @@ export default function QueueAdmin() {
                     onClick={() => toggleGroup(section)}
                     aria-expanded={!collapsed[section]}
                   >
-                    <Icon src={SECTION_ICON[section]} size={12} />
                     {SECTION_LABEL[section]}
                     <span className={styles.groupCount}>{list.length}</span>
                     <span
@@ -1283,7 +1286,19 @@ function Detail({
             </span>
             {/* The verdict heads the panel on the right, so it is not
                 repeated here. */}
-            {item.page && <span className={styles.pageTag}>{item.page}</span>}
+            {item.page && (
+              // The live page, landing on this record's card (every card
+              // carries its record id as an anchor) so the change can be
+              // checked on the site.
+              <a
+                className={styles.pageTag}
+                href={livePageUrl(item)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {item.page}
+              </a>
+            )}
             <span className={styles.when}>{ago(item.createdAt)}</span>
             <div className={styles.links}>
               {item.sourceLink && (
@@ -1385,12 +1400,15 @@ function Detail({
                             setD({ editing: null })
                           }
                         }}
-                        onBlur={e =>
-                          setD({
-                            editing: null,
-                            edits: { ...d.edits, [c.field]: e.target.value },
-                          })
-                        }
+                        onBlur={e => {
+                          // Closing the box without changing anything is
+                          // not an edit.
+                          const text = e.target.value
+                          const edits = { ...d.edits }
+                          if (text === show(c.to)) delete edits[c.field]
+                          else edits[c.field] = text
+                          setD({ editing: null, edits })
+                        }}
                       />
                     ) : (
                       <EditableValue
@@ -2160,25 +2178,38 @@ function DoneList({
       <div className={styles.doneList}>
         {items.map(item => (
           <div key={item.id} className={styles.doneRow}>
-            <span className={dotClass(item)}>
-              <Icon src={sourceIcon(item)} />
-            </span>
-            <span className={styles.doneTitle}>{item.title}</span>
-            <span className={`${styles.doneWhat} ${styles.withIcon}`}>
+            {item.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className={styles.rowLogo} src={item.logo} alt="" />
+            ) : (
               <span
-                className={item.status === 'Rejected' ? styles.no : styles.yes}
+                className={`${styles.rowLogo} ${styles.rowLogoEmpty} ${dotClass(item)}`}
               >
-                <Icon
-                  src={item.status === 'Rejected' ? ICON.x : ICON.check}
-                  size={12}
-                />
+                <Icon src={sourceIcon(item)} />
               </span>
-              {doneLabel(item)}
-              {item.rejectReason && ` · ${item.rejectReason}`}
-              {item.status !== 'Rejected' && replyLabel(item)
-                ? ` · ${replyLabel(item)}`
-                : ''}
-              <span className={styles.when}> · {ago(item.decidedAt)}</span>
+            )}
+            <span className={styles.rowBody}>
+              <span className={styles.rowTitle}>
+                {splitTitle(item).name ?? item.title}
+              </span>
+              <span className={styles.rowMeta}>
+                {item.source !== 'Comb' && <span>{item.source}</span>}
+                {item.page && <span>{item.page}</span>}
+                <span
+                  className={`${styles.withIcon} ${item.status === 'Rejected' ? styles.no : styles.yes}`}
+                >
+                  <Icon
+                    src={item.status === 'Rejected' ? ICON.x : ICON.check}
+                    size={12}
+                  />
+                  {doneLabel(item)}
+                </span>
+                {item.rejectReason && <span>{item.rejectReason}</span>}
+                {item.status !== 'Rejected' && replyLabel(item) && (
+                  <span>{replyLabel(item)}</span>
+                )}
+                <span>{ago(item.decidedAt)}</span>
+              </span>
             </span>
             <span className={styles.doneActions}>
               {errorFor(item.id) && (

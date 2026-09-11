@@ -133,11 +133,16 @@ export default function ListingCard({
 
   // No link → a static, non-clickable card (e.g. projects have no external URL).
   if (!href) {
-    return <div className="card card-static">{inner}</div>
+    return (
+      <div id={listingId} className="card card-static">
+        {inner}
+      </div>
+    )
   }
 
   return (
     <a
+      id={listingId}
       href={withUtm(href, trackingPage)}
       target="_blank"
       rel="noopener noreferrer"

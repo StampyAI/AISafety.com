@@ -144,19 +144,6 @@ function splitTitle(item: QueueItem): { name: string | null; heading: string } {
   return { name: item.name, heading: item.title }
 }
 
-/** The record's own picture: the first attachment in a field called
- *  Logo or Image (the live record lists attachments as URL arrays). */
-function recordLogo(
-  fields: Record<string, unknown> | undefined
-): string | null {
-  if (!fields) return null
-  for (const [k, v] of Object.entries(fields)) {
-    if (!/logo|image/i.test(k)) continue
-    if (Array.isArray(v) && typeof v[0] === 'string') return v[0]
-  }
-  return null
-}
-
 /** Broom writes its finding as a one-paragraph summary followed by the
  *  evidence; the summary is what gets read, the rest is there when needed. */
 function splitExcerpt(text: string): { lead: string; detail: string | null } {
@@ -574,8 +561,7 @@ export default function QueueAdmin() {
   }, [items, ordered.flat, selectedId, selected, showDone])
 
   useEffect(() => {
-    if (!selected) return
-    if (selected.type !== 'Add' && selected.type !== 'Change') return
+    if (!selected || selected.type !== 'Add') return
     if (!selected.targetTable || !selected.targetRecord) return
     if (live[selected.id]) return
     const id = selected.id
@@ -1197,21 +1183,6 @@ function Detail({
             )}
             <span className={styles.when}>{ago(item.createdAt)}</span>
           </div>
-          {splitTitle(item).name && (
-            <div className={styles.recordName}>
-              {recordLogo(live?.fields) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  className={styles.recordLogo}
-                  src={recordLogo(live?.fields) ?? ''}
-                  alt=""
-                />
-              ) : (
-                <span className={styles.recordLogoEmpty} />
-              )}
-              {splitTitle(item).name}
-            </div>
-          )}
           <h2 className={styles.title}>{splitTitle(item).heading}</h2>
           <div className={styles.links}>
             {item.sourceLink && (
@@ -1239,6 +1210,19 @@ function Detail({
           </div>
         </div>
 
+        {/* The record as the site shows it, with the proposed change laid
+            over it, so the effect of Accept is visible. */}
+        {item.type === 'Change' && item.targetTable && item.targetRecord && (
+          <SitePreview
+            itemId={item.id}
+            page={item.page}
+            edits={{
+              ...Object.fromEntries(item.changes.map(c => [c.field, c.to])),
+              ...editsToSave(),
+            }}
+          />
+        )}
+
         {item.sourceExcerpt && (
           <section className={styles.block}>
             <h3 className={styles.h3}>
@@ -1250,9 +1234,14 @@ function Detail({
                   {splitExcerpt(item.sourceExcerpt).lead}
                 </p>
                 {splitExcerpt(item.sourceExcerpt).detail && (
-                  <p className={styles.findingDetail}>
-                    {splitExcerpt(item.sourceExcerpt).detail}
-                  </p>
+                  // Broom's evidence, folded away: the summary is what gets
+                  // read (Bryce, 11 Sept 2026); the rest is there on a click.
+                  <details className={styles.findingMore}>
+                    <summary>Details</summary>
+                    <p className={styles.findingDetail}>
+                      {splitExcerpt(item.sourceExcerpt).detail}
+                    </p>
+                  </details>
                 )}
               </div>
             ) : (

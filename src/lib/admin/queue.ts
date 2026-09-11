@@ -432,6 +432,7 @@ import {
   founderResourceFromRecord,
   TABLE_ID as FOUNDERS_TABLE,
 } from '@/lib/data/founders'
+import { mapOrgFromRecord, TABLE_ID as MAP_TABLE } from '@/lib/data/map'
 import type { AirtableRawRecord } from '@/lib/data/airtable'
 
 const TRAINING_TABLE = 'tbli1YSCpIuNY2DvL'
@@ -448,6 +449,7 @@ export type PreviewKind =
   | 'advisor'
   | 'project'
   | 'founder'
+  | 'mapOrg'
 
 export interface PreviewListing {
   kind: PreviewKind
@@ -457,7 +459,8 @@ export interface PreviewListing {
 /** The record as the site would show it: read with fields keyed by id (the
  *  shape the page mappers take), the admin's edits laid over it by field
  *  name, then mapped by that table's own record-to-listing function. Null
- *  when the table has no card (the map) or the mapper skips the record. */
+ *  when the table has no card or the mapper skips the record. The map has
+ *  no card; its entry is the logo plus the hover tooltip. */
 export async function getPreviewListing(
   table: string,
   record: string,
@@ -506,6 +509,8 @@ export async function getPreviewListing(
       return wrap('project', projectFromRecord(rec))
     case FOUNDERS_TABLE:
       return wrap('founder', founderResourceFromRecord(rec))
+    case MAP_TABLE:
+      return wrap('mapOrg', mapOrgFromRecord(rec))
     default:
       return null
   }

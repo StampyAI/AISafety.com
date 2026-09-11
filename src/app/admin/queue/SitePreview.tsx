@@ -23,6 +23,7 @@ import type { Advisor } from '@/lib/data/advisors'
 import type { FounderResource } from '@/lib/data/founders'
 import type { MediaChannel } from '@/lib/data/media-channels'
 import type { Project } from '@/lib/data/projects'
+import type { MapOrg } from '@/lib/data/map'
 import type { PreviewKind } from '@/lib/admin/queue'
 import styles from './queue.module.css'
 
@@ -39,10 +40,42 @@ interface Preview {
   listing?: unknown
 }
 
-/** The site's card for a listing, without the link and click tracking. */
+/** The map has no card: an org is its logo on the map plus the tooltip
+ *  that appears on hover. Clicking opens the org's link, as on the map. */
+function MapEntry({ org }: { org: MapOrg }) {
+  const logo = org.mapLogo ?? org.logo
+  const inner = (
+    <>
+      {logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={styles.mapLogo} src={logo} alt="" />
+      ) : (
+        <span className={`${styles.mapLogo} ${styles.mapLogoEmpty}`} />
+      )}
+      <span className={styles.mapTip}>
+        <strong>{org.tooltipTitle}</strong>
+        <span>{org.description}</span>
+      </span>
+    </>
+  )
+  if (org.link === '#') return <div className={styles.mapEntry}>{inner}</div>
+  return (
+    <a
+      className={styles.mapEntry}
+      href={org.link}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {inner}
+    </a>
+  )
+}
+
+/** The site's card for a listing. Its link opens in a new tab, as on the
+ *  site; the admin page loads no analytics, so clicks are not counted. */
 function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
   const listingCard = (props: CardProps) => (
-    <ListingCard {...props} href={undefined} trackingPage="admin-queue" />
+    <ListingCard {...props} trackingPage="admin-queue" />
   )
   switch (kind) {
     case 'community':
@@ -65,6 +98,8 @@ function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
       return <MediaChannelCard channel={listing as MediaChannel} />
     case 'project':
       return <ProjectCard project={listing as Project} />
+    case 'mapOrg':
+      return <MapEntry org={listing as MapOrg} />
   }
 }
 
@@ -122,9 +157,8 @@ export default function SitePreview({
         </div>
       ) : preview && !preview.kind ? (
         <p className={styles.note}>
-          {page === '/map'
-            ? 'The map has no card; the record’s fields are below.'
-            : 'The site would skip this record as it stands (a name is missing, most likely).'}
+          The site would skip this record as it stands (a name or description is
+          missing, most likely).
         </p>
       ) : error ? (
         <p className={styles.error}>Couldn’t build the preview: {error}</p>

@@ -182,6 +182,11 @@ function splitExcerpt(text: string): { lead: string; detail: string | null } {
   }
 }
 
+/** The record id in the address bar, if it names one. */
+function hashId(): string | null {
+  return /^#(rec[A-Za-z0-9]{14})$/.exec(window.location.hash)?.[1] ?? null
+}
+
 function ago(iso: string | null): string {
   if (!iso) return ''
   const ms = Date.now() - new Date(iso).getTime()
@@ -587,22 +592,56 @@ export default function QueueAdmin() {
   }, [])
 
   useEffect(() => {
-    wantedRef.current =
-      /^#(rec[A-Za-z0-9]{14})$/.exec(window.location.hash)?.[1] ?? null
+    wantedRef.current = hashId()
     void load()
   }, [load])
 
-  // A "#rec…" in the address (the Secretary note's "Queued:" link) opens
-  // that item; one already decided shows in the done list.
+  // A "#rec…" in the address (the Secretary note's "Queued:" link, or one
+  // Bryce copied from his own address bar) opens that item; one already
+  // decided shows in the done list. The same happens when the hash changes
+  // while the page is open.
   useEffect(() => {
     if (!items || !wantedRef.current) return
     const id = wantedRef.current
-    wantedRef.current = null
     const hit = items.find(i => i.id === id)
-    if (!hit) return
+    if (!hit) {
+      wantedRef.current = null
+      return
+    }
     setSelectedId(id)
     if (!isOpen(hit)) setShowDone(true)
+    // The list shows one kind at a time; the linked item's kind wins.
+    else setKind(kindOf(hit))
+    // The focus-keeping effect below runs in this same pass, before the
+    // selection above has landed; it clears the ref and stands aside.
   }, [items])
+
+  useEffect(() => {
+    const onHash = () => {
+      const id = hashId()
+      if (!id) return
+      wantedRef.current = id
+      // Re-run the effect above with the items already loaded.
+      setItems(prev => (prev ? [...prev] : prev))
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  // The address bar follows the item in focus, so a link to one specific
+  // suggestion can be copied and sent. Replaced, not pushed: J/K through
+  // the list must not fill the back button.
+  useEffect(() => {
+    if (!items) return
+    const want = selectedId && !showDone ? `#${selectedId}` : ''
+    if (window.location.hash === want) return
+    if (!want && !window.location.hash) return
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search + want
+    )
+  }, [items, selectedId, showDone])
 
   useEffect(() => {
     if (!agent) {
@@ -666,6 +705,10 @@ export default function QueueAdmin() {
   // decision.
   useEffect(() => {
     if (!items) return
+    if (wantedRef.current) {
+      wantedRef.current = null
+      return
+    }
     if (selectedId && ordered.flat.some(i => i.id === selectedId)) return
     if (selected && isOpen(selected)) return
     if (selected && !isOpen(selected) && showDone) return

@@ -834,25 +834,26 @@ export default function QueueAdmin() {
           break
         case 'a':
         case 'Enter':
+          // Only A accepts (Bryce, 11 Sept 2026: Enter is too easy to hit);
+          // Enter still confirms a reject once a reason is picked.
           if (
+            e.key === 'a' &&
             item &&
             isOpen(item) &&
             item.status !== 'Revising' &&
             d.mode === 'idle' &&
             !d.busy
           ) {
-            if (!(item.type === 'Change' && item.changes.length === 0)) {
-              e.preventDefault()
-              void act(item, 'accept', {
-                edits: coerceEdits(
-                  d.edits,
-                  item.type === 'Change'
-                    ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
-                    : (live[item.id]?.fields ?? item.fields ?? {}),
-                  new Map((live[item.id]?.schema ?? []).map(f => [f.name, f]))
-                ),
-              })
-            }
+            e.preventDefault()
+            void act(item, 'accept', {
+              edits: coerceEdits(
+                d.edits,
+                item.type === 'Change'
+                  ? Object.fromEntries(item.changes.map(c => [c.field, c.to]))
+                  : (live[item.id]?.fields ?? item.fields ?? {}),
+                new Map((live[item.id]?.schema ?? []).map(f => [f.name, f]))
+              ),
+            })
           } else if (
             item &&
             d.mode === 'reject' &&
@@ -1101,7 +1102,7 @@ export default function QueueAdmin() {
               </dt>
               <dd>next / previous item</dd>
               <dt>
-                <kbd>A</kbd> or <kbd>Enter</kbd>
+                <kbd>A</kbd>
               </dt>
               <dd>accept</dd>
               <dt>

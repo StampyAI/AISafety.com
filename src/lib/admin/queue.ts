@@ -459,8 +459,7 @@ export interface PreviewListing {
 /** The record as the site would show it: read with fields keyed by id (the
  *  shape the page mappers take), the admin's edits laid over it by field
  *  name, then mapped by that table's own record-to-listing function. Null
- *  when the table has no card or the mapper skips the record. The map has
- *  no card; its entry is the logo plus the hover tooltip. */
+ *  when the mapper skips the record. */
 export async function getPreviewListing(
   table: string,
   record: string,

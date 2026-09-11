@@ -1161,6 +1161,35 @@ function Detail({
   const types = new Map((live?.schema ?? []).map(f => [f.name, f]))
   const editsToSave = () => coerceEdits(d.edits, original, types)
 
+  const hasCard =
+    item.type === 'Change' && Boolean(item.targetTable && item.targetRecord)
+  const excerptBlock = item.sourceExcerpt ? (
+    <section className={styles.block}>
+      <h3 className={styles.h3}>
+        {item.source === 'Broom' ? 'What Broom found' : 'What they wrote'}
+      </h3>
+      {item.source === 'Broom' ? (
+        <div className={styles.finding}>
+          <p className={styles.findingLead}>
+            {splitExcerpt(item.sourceExcerpt).lead}
+          </p>
+          {splitExcerpt(item.sourceExcerpt).detail && (
+            // Broom's evidence, folded away: the summary is what gets
+            // read (Bryce, 11 Sept 2026); the rest is there on a click.
+            <details className={styles.findingMore}>
+              <summary>Details</summary>
+              <p className={styles.findingDetail}>
+                {splitExcerpt(item.sourceExcerpt).detail}
+              </p>
+            </details>
+          )}
+        </div>
+      ) : (
+        <blockquote className={styles.quote}>{item.sourceExcerpt}</blockquote>
+      )}
+    </section>
+  ) : null
+
   return (
     <div
       className={`${styles.detailInner} ${item.verdict || item.reasons.length > 0 ? styles.detailTwoCol : ''}`}
@@ -1212,45 +1241,22 @@ function Detail({
 
         {/* The record as the site shows it, with the proposed change laid
             over it, so the effect of Accept is visible. */}
-        {item.type === 'Change' && item.targetTable && item.targetRecord && (
-          <SitePreview
-            itemId={item.id}
-            page={item.page}
-            edits={{
-              ...Object.fromEntries(item.changes.map(c => [c.field, c.to])),
-              ...editsToSave(),
-            }}
-          />
+        {hasCard && (
+          <div className={styles.cardRow}>
+            <SitePreview
+              itemId={item.id}
+              page={item.page}
+              compact
+              edits={{
+                ...Object.fromEntries(item.changes.map(c => [c.field, c.to])),
+                ...editsToSave(),
+              }}
+            />
+            <div className={styles.cardRowText}>{excerptBlock}</div>
+          </div>
         )}
 
-        {item.sourceExcerpt && (
-          <section className={styles.block}>
-            <h3 className={styles.h3}>
-              {item.source === 'Broom' ? 'What Broom found' : 'What they wrote'}
-            </h3>
-            {item.source === 'Broom' ? (
-              <div className={styles.finding}>
-                <p className={styles.findingLead}>
-                  {splitExcerpt(item.sourceExcerpt).lead}
-                </p>
-                {splitExcerpt(item.sourceExcerpt).detail && (
-                  // Broom's evidence, folded away: the summary is what gets
-                  // read (Bryce, 11 Sept 2026); the rest is there on a click.
-                  <details className={styles.findingMore}>
-                    <summary>Details</summary>
-                    <p className={styles.findingDetail}>
-                      {splitExcerpt(item.sourceExcerpt).detail}
-                    </p>
-                  </details>
-                )}
-              </div>
-            ) : (
-              <blockquote className={styles.quote}>
-                {item.sourceExcerpt}
-              </blockquote>
-            )}
-          </section>
-        )}
+        {!hasCard && excerptBlock}
 
         {/* Edits typed on the page, in the field's own shape. */}
         {item.type === 'Add' && (live || item.fields) && (

@@ -14,6 +14,7 @@ import AdvisorCard from '@/app/advisors/AdvisorCard'
 import FounderResourceCard from '@/app/founders/FounderResourceCard'
 import MediaChannelCard from '@/app/media-channels/MediaChannelCard'
 import ProjectCard from '@/app/projects/ProjectCard'
+import MapOrgCard from '@/app/map/MapOrgCard'
 import type { Community } from '@/lib/data/communities'
 import type { EventListing } from '@/lib/data/events'
 import type { RecurringProgram, TrainingProgram } from '@/lib/data/training'
@@ -38,37 +39,6 @@ const PREVIEW_API = '/api/admin/queue/preview'
 interface Preview {
   kind: PreviewKind | null
   listing?: unknown
-}
-
-/** The map has no card: an org is its logo on the map plus the tooltip
- *  that appears on hover. Clicking opens the org's link, as on the map. */
-function MapEntry({ org }: { org: MapOrg }) {
-  const logo = org.mapLogo ?? org.logo
-  const inner = (
-    <>
-      {logo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className={styles.mapLogo} src={logo} alt="" />
-      ) : (
-        <span className={`${styles.mapLogo} ${styles.mapLogoEmpty}`} />
-      )}
-      <span className={styles.mapTip}>
-        <strong>{org.tooltipTitle}</strong>
-        <span>{org.description}</span>
-      </span>
-    </>
-  )
-  if (org.link === '#') return <div className={styles.mapEntry}>{inner}</div>
-  return (
-    <a
-      className={styles.mapEntry}
-      href={org.link}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {inner}
-    </a>
-  )
 }
 
 /** The site's card for a listing. Its link opens in a new tab, as on the
@@ -99,7 +69,7 @@ function Card({ kind, listing }: { kind: PreviewKind; listing: unknown }) {
     case 'project':
       return <ProjectCard project={listing as Project} />
     case 'mapOrg':
-      return <MapEntry org={listing as MapOrg} />
+      return <MapOrgCard org={listing as MapOrg} />
   }
 }
 
@@ -107,11 +77,14 @@ export default function SitePreview({
   itemId,
   page,
   edits,
+  compact = false,
 }: {
   itemId: string
   page: string | null
   /** The admin's edits in the field's own shape (see coerceEdits). */
   edits: Record<string, unknown>
+  /** Scaled down so the whole item fits on one screen. */
+  compact?: boolean
 }) {
   const [preview, setPreview] = useState<Preview | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -152,7 +125,9 @@ export default function SitePreview({
     <section className={styles.block}>
       <h3 className={styles.h3}>On {page ?? 'the site'}</h3>
       {preview?.kind && preview.listing ? (
-        <div className={styles.siteFrame}>
+        <div
+          className={`${styles.siteFrame} ${compact ? styles.siteFrameCompact : ''}`}
+        >
           <Card kind={preview.kind} listing={preview.listing} />
         </div>
       ) : preview && !preview.kind ? (

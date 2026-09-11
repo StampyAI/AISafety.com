@@ -467,6 +467,10 @@ async function preloadCards(items: QueueItem[]): Promise<void> {
   }
 }
 
+/** How long the toast (and with it U to undo) stays: five minutes. The
+ *  next decision replaces it anyway. Nine seconds was too short. */
+const TOAST_MS = 5 * 60 * 1000
+
 // Recurring programs live under /training's "recurring" view.
 const RECURRING_TABLE = 'tblEEIbj6dW5oS4cX'
 
@@ -1079,7 +1083,7 @@ export default function QueueAdmin({
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 9000)
+    const t = setTimeout(() => setToast(null), TOAST_MS)
     return () => clearTimeout(t)
   }, [toast])
 

@@ -1201,11 +1201,13 @@ export default function QueueAdmin({
         case '1':
         case '2':
         case '3':
-          if (item && d.mode === 'reject') {
+          if (item && d.mode === 'reject' && !d.busy) {
             const chip = item.rejectChips[Number(e.key) - 1]
             if (chip) {
+              // the number picks the reason and rejects in one go
               e.preventDefault()
-              setDraft(item.id, { chip: d.chip === chip ? null : chip })
+              setDraft(item.id, { chip })
+              void act(item, 'reject', { reason: chip })
             }
           }
           break
@@ -1459,8 +1461,8 @@ export default function QueueAdmin({
                 <kbd>R</kbd>
               </dt>
               <dd>
-                reject, then <kbd>1</kbd>–<kbd>3</kbd> for a reason,{' '}
-                <kbd>Enter</kbd> to confirm
+                reject, then <kbd>1</kbd>–<kbd>3</kbd> picks a reason and
+                rejects at once; or type one and press <kbd>Enter</kbd>
               </dd>
               <dt>
                 <kbd>N</kbd>
@@ -1929,10 +1931,17 @@ function Detail({
           <div className={styles.panel}>
             <div className={styles.chips}>
               {item.rejectChips.map((chip, i) => (
+                // Picking a reason IS the rejection: no Confirm step after
+                // it (Bryce, 11 Sept 2026). Confirm stays for a typed
+                // reason and for rules, which need none.
                 <button
                   key={chip}
                   className={`${styles.chip} ${d.chip === chip ? styles.chipOn : ''}`}
-                  onClick={() => setD({ chip: d.chip === chip ? null : chip })}
+                  disabled={d.busy}
+                  onClick={() => {
+                    setD({ chip })
+                    act('reject', { reason: chip })
+                  }}
                 >
                   <kbd>{i + 1}</kbd>
                   <span>{chip}</span>

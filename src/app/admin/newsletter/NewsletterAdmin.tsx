@@ -7,6 +7,7 @@ import styles from './newsletter.module.css'
 interface CardInfo {
   key: string
   title: string
+  logo: string | null
 }
 
 interface CardGroup {
@@ -539,6 +540,19 @@ function ReorderPanel({
                   ⋮⋮
                 </span>
                 <span className={styles.reorderIndex}>{i + 1}</span>
+                {c.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={c.logo}
+                    alt=""
+                    width={28}
+                    height={28}
+                    className={styles.reorderLogo}
+                    draggable={false}
+                  />
+                ) : (
+                  <span className={styles.reorderLogo} aria-hidden="true" />
+                )}
                 <span className={styles.reorderTitle}>{c.title}</span>
                 <span className={styles.reorderNudge}>
                   <button

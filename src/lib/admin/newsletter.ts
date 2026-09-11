@@ -376,6 +376,8 @@ const MANIFEST_RE = /<!--aisafety-cards:([A-Za-z0-9+/=]+)-->/
 export interface CardInfo {
   key: string
   title: string
+  /** Hosted logo PNG (the same one the email shows), when the listing has one. */
+  logo: string | null
 }
 
 export interface CardGroup {
@@ -440,18 +442,24 @@ function cardBlocks(html: string): Block[] {
 export function cardGroups(html: string): CardGroup[] | null {
   const manifest = readManifest(html)
   if (!manifest) return null
-  const titles = new Map<string, string>()
+  const info = new Map<string, { title: string; logo: string | null }>()
   for (const g of manifest.groups)
-    for (const c of g.cards) titles.set(`${g.id}:${c.key}`, c.title)
+    for (const c of g.cards)
+      info.set(`${g.id}:${c.key}`, {
+        title: c.title,
+        logo: typeof c.logo === 'string' && c.logo ? c.logo : null,
+      })
   const groups = new Map<string, CardGroup>(
     manifest.groups.map(g => [g.id, { id: g.id, label: g.label, cards: [] }])
   )
   for (const b of cardBlocks(html)) {
     const g = groups.get(b.gid)
     if (!g) continue
+    const meta = info.get(`${b.gid}:${b.key}`)
     g.cards.push({
       key: b.key,
-      title: titles.get(`${b.gid}:${b.key}`) ?? b.key,
+      title: meta?.title ?? b.key,
+      logo: meta?.logo ?? null,
     })
   }
   const out = [...groups.values()].filter(g => g.cards.length > 0)

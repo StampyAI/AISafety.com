@@ -88,9 +88,9 @@ describe('cardGroups', () => {
         id: 'g0',
         label: 'New events',
         cards: [
-          { key: 'a', title: 'Title a' },
-          { key: 'b', title: 'Title b' },
-          { key: 'c', title: 'Title c' },
+          { key: 'a', title: 'Title a', logo: null },
+          { key: 'b', title: 'Title b', logo: null },
+          { key: 'c', title: 'Title c', logo: null },
         ],
       },
     ])

@@ -297,6 +297,14 @@
   text-align: right;
 }
 
+.reorderLogo {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
 .reorderTitle {
   flex: 1;
   min-width: 0;

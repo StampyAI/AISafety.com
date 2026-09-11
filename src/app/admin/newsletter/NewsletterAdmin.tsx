@@ -80,7 +80,6 @@ export default function NewsletterAdmin({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [previewId, setPreviewId] = useState<string | null>(null)
-  const [reorderId, setReorderId] = useState<string | null>(null)
   /** Bumped after a reorder so the preview frame reloads the new order. */
   const [previewNonce, setPreviewNonce] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -312,20 +311,6 @@ export default function NewsletterAdmin({
                 >
                   {previewId === draft.id ? 'Hide preview' : 'Preview'}
                 </button>
-                {data.canSend && draft.cards && ok && (
-                  <button
-                    type="button"
-                    className={styles.button}
-                    onClick={() => {
-                      const open = reorderId !== draft.id
-                      setReorderId(open ? draft.id : null)
-                      // Reordering only makes sense next to the preview.
-                      if (open) setPreviewId(draft.id)
-                    }}
-                  >
-                    {reorderId === draft.id ? 'Hide reorder' : 'Reorder'}
-                  </button>
-                )}
                 {data.canSend && (
                   <button
                     type="button"
@@ -337,10 +322,11 @@ export default function NewsletterAdmin({
                   </button>
                 )}
               </div>
-              {(previewId === draft.id ||
-                (reorderId === draft.id && draft.cards)) && (
+              {/* The preview brings the reorder panel with it (approvers only;
+                  no separate button — Bryce, 11 Sept 2026). */}
+              {previewId === draft.id && (
                 <div className={styles.previewRow}>
-                  {reorderId === draft.id && draft.cards && (
+                  {data.canSend && draft.cards && ok && (
                     <div className={styles.reorderSide}>
                       <ReorderPanel
                         key={draft.id}
@@ -349,14 +335,12 @@ export default function NewsletterAdmin({
                       />
                     </div>
                   )}
-                  {previewId === draft.id && (
-                    <iframe
-                      title={`Preview of ${draft.subject}`}
-                      className={styles.previewFrame}
-                      sandbox=""
-                      src={`/api/admin/newsletter/preview?draft=${draft.id}&v=${previewNonce}`}
-                    />
-                  )}
+                  <iframe
+                    title={`Preview of ${draft.subject}`}
+                    className={styles.previewFrame}
+                    sandbox=""
+                    src={`/api/admin/newsletter/preview?draft=${draft.id}&v=${previewNonce}`}
+                  />
                 </div>
               )}
             </div>

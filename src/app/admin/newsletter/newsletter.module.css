@@ -311,28 +311,7 @@
   overflow-wrap: anywhere;
 }
 
-.reorderNudge {
-  display: flex;
-  gap: 4px;
-}
-
-.reorderNudge button {
-  width: 26px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--teal-700);
-  border-radius: 5px;
-  background: var(--teal-900);
-  color: var(--white);
-  font-size: 10px;
-  cursor: pointer;
-}
-
-.reorderNudge button:hover:not(:disabled) {
-  background: var(--teal-800);
-}
-
-.reorderNudge button:disabled {
-  opacity: 0.35;
-  cursor: default;
+.reorderRow:focus-visible {
+  outline: 2px solid var(--bright-teal-300);
+  outline-offset: 1px;
 }

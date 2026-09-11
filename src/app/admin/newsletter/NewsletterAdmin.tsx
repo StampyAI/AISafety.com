@@ -430,7 +430,8 @@ const keysOf = (groups: CardGroup[]) => groups.map(g => g.cards.map(c => c.key))
 
 /** Drag-and-drop ordering of a draft's cards, one list per section (a card
  *  never leaves its section). Saving rewrites the draft inside
- *  ActiveCampaign; nothing is sent. Up/down buttons are the keyboard route. */
+ *  ActiveCampaign; nothing is sent. Arrow keys on a focused row are the
+ *  keyboard route (Bryce, 11 Sept 2026: no visible arrow buttons). */
 function ReorderPanel({
   draft,
   onSaved,
@@ -526,6 +527,18 @@ function ReorderPanel({
                     : ''
                 }`}
                 draggable={!saving}
+                tabIndex={0}
+                aria-label={`${c.title}, position ${i + 1} of ${g.cards.length}. Arrow keys move it.`}
+                onKeyDown={e => {
+                  if (saving) return
+                  if (e.key === 'ArrowUp' && i > 0) {
+                    e.preventDefault()
+                    move(g.id, i, i - 1)
+                  } else if (e.key === 'ArrowDown' && i < g.cards.length - 1) {
+                    e.preventDefault()
+                    move(g.id, i, i + 1)
+                  }
+                }}
                 onDragStart={e => {
                   e.dataTransfer.effectAllowed = 'move'
                   e.dataTransfer.setData('text/plain', c.key)
@@ -554,24 +567,6 @@ function ReorderPanel({
                   <span className={styles.reorderLogo} aria-hidden="true" />
                 )}
                 <span className={styles.reorderTitle}>{c.title}</span>
-                <span className={styles.reorderNudge}>
-                  <button
-                    type="button"
-                    aria-label={`Move “${c.title}” up`}
-                    disabled={i === 0 || saving}
-                    onClick={() => move(g.id, i, i - 1)}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Move “${c.title}” down`}
-                    disabled={i === g.cards.length - 1 || saving}
-                    onClick={() => move(g.id, i, i + 1)}
-                  >
-                    ▼
-                  </button>
-                </span>
               </li>
             ))}
           </ol>

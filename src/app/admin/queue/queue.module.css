@@ -132,6 +132,38 @@
   gap: 8px;
 }
 
+/* By source / By kind */
+.segmented {
+  display: inline-flex;
+  margin-left: 14px;
+  padding: 2px;
+  border: 1px solid var(--q-border-strong);
+  border-radius: 8px;
+  background: var(--q-panel-2);
+}
+
+.segmented button {
+  padding: 3px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--q-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.segmented button:hover {
+  color: var(--q-text);
+}
+
+.segmented .segOn {
+  background: var(--q-panel);
+  color: var(--q-text);
+  box-shadow: var(--q-shadow);
+}
+
 .progress {
   position: absolute;
   left: 0;

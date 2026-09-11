@@ -467,9 +467,10 @@ async function preloadCards(items: QueueItem[]): Promise<void> {
   }
 }
 
-/** How long the toast (and with it U to undo) stays: five minutes. The
- *  next decision replaces it anyway. Nine seconds was too short. */
-const TOAST_MS = 5 * 60 * 1000
+/** The toast shows for nine seconds; U undoes the last decision for five
+ *  minutes after it, toast or no toast (Bryce, 11 Sept 2026). */
+const TOAST_MS = 9000
+const UNDO_MS = 5 * 60 * 1000
 
 // Recurring programs live under /training's "recurring" view.
 const RECURRING_TABLE = 'tblEEIbj6dW5oS4cX'
@@ -641,6 +642,8 @@ export default function QueueAdmin({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [toast, setToast] = useState<Toast | null>(null)
+  // The last decision, kept for U after the toast has gone.
+  const [undoable, setUndoable] = useState<QueueItem | null>(null)
   // The local agent on the owner's Mac: its port + a token from the API
   // (null when the secret is not configured), and whether it answered a
   // ping. Reply drafts go through it the moment an emailed request is
@@ -1049,6 +1052,7 @@ export default function QueueAdmin({
         })
         if (action === 'accept' || action === 'reject') {
           const draftPending = action === 'accept' && wantsDraft(updated)
+          setUndoable(updated)
           setToast({
             item: updated,
             text:
@@ -1069,6 +1073,7 @@ export default function QueueAdmin({
           if (draftPending) void saveReply(updated)
         } else if (action === 'undo') {
           setToast(null)
+          setUndoable(null)
           select(updated.id)
         }
       } catch (e) {
@@ -1086,6 +1091,12 @@ export default function QueueAdmin({
     const t = setTimeout(() => setToast(null), TOAST_MS)
     return () => clearTimeout(t)
   }, [toast])
+
+  useEffect(() => {
+    if (!undoable) return
+    const t = setTimeout(() => setUndoable(null), UNDO_MS)
+    return () => clearTimeout(t)
+  }, [undoable])
 
   // Keyboard: W/Q or arrows move, A/Enter accept, R reject, N note, U undo,
   // ? help, Esc cancel. Ignored while typing.
@@ -1184,9 +1195,9 @@ export default function QueueAdmin({
           }
           break
         case 'u':
-          if (toast && !draft(toast.item.id).busy) {
+          if (undoable && !draft(undoable.id).busy) {
             e.preventDefault()
-            void act(toast.item, 'undo')
+            void act(undoable, 'undo')
           }
           break
         case '?':
@@ -1204,7 +1215,7 @@ export default function QueueAdmin({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, drafts, move, act, toast, showHelp, setDraft, live])
+  }, [selected, drafts, move, act, undoable, showHelp, setDraft, live])
 
   const waiting = ordered.open
   const doneToday = ordered.done.length

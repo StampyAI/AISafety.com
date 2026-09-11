@@ -130,14 +130,9 @@ export function accessFrom(
 export const ALL_ACCESS: AccessFlags = accessFrom(ACCESS_KEYS, ACCESS_KEYS)
 export const NO_ACCESS: AccessFlags = accessFrom([])
 
-/** What a newly added person gets before the owner adjusts it: the everyday
- *  areas to look at, none of the ones that write, send or grant. */
-export const DEFAULT_NEW_ACCESS: AccessFlags = accessFrom([
-  'playground',
-  'conversationLog',
-  'analytics',
-  'preview',
-])
+/** What the Add someone form and a sign-in request start with: nothing
+ *  ticked, so every tab a person gets is one the owner chose on purpose. */
+export const DEFAULT_NEW_ACCESS: AccessFlags = NO_ACCESS
 
 export function hasAnyAccess(a: AccessFlags): boolean {
   return ACCESS_KEYS.some(k => a[k] !== false)

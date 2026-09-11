@@ -49,12 +49,8 @@ describe('access flags', () => {
     }
   })
 
-  it('keeps the writing, sending and granting areas out of the default', () => {
-    expect(DEFAULT_NEW_ACCESS.queue).toBe(false)
-    expect(DEFAULT_NEW_ACCESS.mapEditor).toBe(false)
-    expect(DEFAULT_NEW_ACCESS.newsletter).toBe(false)
-    expect(DEFAULT_NEW_ACCESS.manageUsers).toBe(false)
-    expect(DEFAULT_NEW_ACCESS.playground).toBe('view')
+  it('starts a new person with nothing ticked', () => {
+    expect(hasAnyAccess(DEFAULT_NEW_ACCESS)).toBe(false)
   })
 
   it('shows the same tab whether a session may edit or only look', () => {

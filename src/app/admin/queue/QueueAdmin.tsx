@@ -22,31 +22,18 @@ import styles from './queue.module.css'
 const API = '/api/admin/queue'
 const UPLOAD_API = '/api/admin/queue/upload'
 
-// The list can be grouped two ways: by where an item came from (people's
-// requests, Broom, rules, Comb) or by the kind of work it asks for
-// (additions to judge whole, changes to judge as a diff, rules). Bryce,
-// 11 Sept 2026: both, switchable, "to be in the headspace for one at once".
-type Section = 'requests' | 'broom' | 'rules' | 'comb' | 'additions' | 'changes'
-type Grouping = 'source' | 'kind'
-const SECTIONS_BY: Record<Grouping, Section[]> = {
-  source: ['requests', 'broom', 'rules', 'comb'],
-  kind: ['additions', 'changes', 'rules'],
-}
-const ALL_SECTIONS: Section[] = [
-  'requests',
-  'broom',
-  'rules',
-  'comb',
-  'additions',
-  'changes',
-]
+// The list shows one kind of work at a time (additions to judge whole, or
+// changes to judge as a diff; rules ride along with both), grouped by where
+// each item came from. Bryce, 11 Sept 2026: "to be in the headspace for
+// one of those all at once".
+type Section = 'requests' | 'broom' | 'rules' | 'comb'
+const SECTIONS: Section[] = ['requests', 'broom', 'rules', 'comb']
+type Kind = 'additions' | 'changes'
 const SECTION_LABEL: Record<Section, string> = {
   requests: 'Requests',
   broom: 'Broom',
   rules: 'Rules',
   comb: 'Comb',
-  additions: 'Additions',
-  changes: 'Changes',
 }
 
 // Library icons (public/images/icons), rendered through the site's <Icon>.
@@ -123,19 +110,20 @@ function linkIcon(url: string): string {
 type Theme = 'light' | 'dark'
 const THEME_KEY = 'aisafety-admin-queue:theme'
 const COLLAPSED_KEY = 'aisafety-admin-queue:collapsed'
-const GROUPING_KEY = 'aisafety-admin-queue:grouping'
+const KIND_KEY = 'aisafety-admin-queue:kind'
 
-function sectionOf(item: QueueItem, grouping: Grouping): Section {
+function sectionOf(item: QueueItem): Section {
   if (item.type === 'Rule' || item.source === 'Teach') return 'rules'
-  if (grouping === 'kind') return item.type === 'Add' ? 'additions' : 'changes'
   if (item.source === 'Broom') return 'broom'
   if (item.source === 'Comb') return 'comb'
   return 'requests'
 }
 
-/** People's requests come before the bots' suggestions within a kind. */
-function sourceRank(item: QueueItem): number {
-  return item.source === 'Broom' || item.source === 'Comb' ? 1 : 0
+/** Which side of the Additions / Changes switch an item belongs to; rules
+ *  show on both. */
+function kindOf(item: QueueItem): Kind | 'both' {
+  if (item.type === 'Rule' || item.source === 'Teach') return 'both'
+  return item.type === 'Add' ? 'additions' : 'changes'
 }
 
 function verdictRank(v: QueueItem['verdict']): number {
@@ -475,14 +463,12 @@ export default function QueueAdmin() {
   const [showDone, setShowDone] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [theme, setTheme] = useState<Theme>('light')
-  const [grouping, setGrouping] = useState<Grouping>('source')
+  const [kind, setKind] = useState<Kind>('additions')
   const [collapsed, setCollapsed] = useState<Record<Section, boolean>>({
     requests: false,
     broom: false,
     rules: false,
     comb: false,
-    additions: false,
-    changes: false,
   })
   const listRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -519,12 +505,12 @@ export default function QueueAdmin() {
       if (folded && typeof folded === 'object') {
         setCollapsed(prev => {
           const next = { ...prev }
-          for (const key of ALL_SECTIONS) next[key] = folded[key] === true
+          for (const key of SECTIONS) next[key] = folded[key] === true
           return next
         })
       }
-      const g = localStorage.getItem(GROUPING_KEY)
-      if (g === 'source' || g === 'kind') setGrouping(g)
+      const k = localStorage.getItem(KIND_KEY)
+      if (k === 'additions' || k === 'changes') setKind(k)
     } catch {
       // storage refused: stay on the defaults
     }
@@ -542,10 +528,10 @@ export default function QueueAdmin() {
     })
   }
 
-  const chooseGrouping = (next: Grouping) => {
-    setGrouping(next)
+  const chooseKind = (next: Kind) => {
+    setKind(next)
     try {
-      localStorage.setItem(GROUPING_KEY, next)
+      localStorage.setItem(KIND_KEY, next)
     } catch {
       // ignore
     }
@@ -621,32 +607,32 @@ export default function QueueAdmin() {
       broom: [],
       rules: [],
       comb: [],
-      additions: [],
-      changes: [],
     }
     const done: QueueItem[] = []
+    const perKind: Record<Kind, number> = { additions: 0, changes: 0 }
+    let open = 0
     for (const item of items ?? []) {
-      if (isOpen(item)) groups[sectionOf(item, grouping)].push(item)
-      else done.push(item)
+      if (!isOpen(item)) {
+        done.push(item)
+        continue
+      }
+      open++
+      const k = kindOf(item)
+      if (k !== 'both') perKind[k]++
+      if (k === kind || k === 'both') groups[sectionOf(item)].push(item)
     }
     const newest = (a: QueueItem, b: QueueItem) =>
       a.createdAt < b.createdAt ? 1 : -1
     const byVerdict = (a: QueueItem, b: QueueItem) =>
       verdictRank(a.verdict) - verdictRank(b.verdict) || newest(a, b)
-    const peopleFirst = (a: QueueItem, b: QueueItem) =>
-      sourceRank(a) - sourceRank(b) || byVerdict(a, b)
     groups.requests.sort(newest)
     groups.broom.sort(byVerdict)
     groups.rules.sort(newest)
     groups.comb.sort(byVerdict)
-    groups.additions.sort(peopleFirst)
-    groups.changes.sort(peopleFirst)
     done.sort((a, b) => ((a.decidedAt ?? '') < (b.decidedAt ?? '') ? 1 : -1))
-    const flat = SECTIONS_BY[grouping]
-      .filter(s => !collapsed[s])
-      .flatMap(s => groups[s])
-    return { groups, done, flat }
-  }, [items, collapsed, grouping])
+    const flat = SECTIONS.filter(s => !collapsed[s]).flatMap(s => groups[s])
+    return { groups, done, flat, open, perKind }
+  }, [items, collapsed, kind])
 
   const selected = useMemo(() => {
     if (!items) return null
@@ -972,7 +958,7 @@ export default function QueueAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, drafts, move, act, toast, showHelp, setDraft, live])
 
-  const waiting = ordered.flat.length
+  const waiting = ordered.open
   const doneToday = ordered.done.length
   const total = waiting + doneToday
 
@@ -1005,21 +991,25 @@ export default function QueueAdmin() {
           <span
             className={styles.segmented}
             role="group"
-            aria-label="Group the list by"
+            aria-label="Which kind of item to show"
           >
             <button
-              className={grouping === 'source' ? styles.segOn : ''}
-              onClick={() => chooseGrouping('source')}
-              title="Group by where each item came from"
+              className={kind === 'additions' ? styles.segOn : ''}
+              onClick={() => chooseKind('additions')}
+              title="New listings to publish or reject"
             >
-              By source
+              Additions
+              <span className={styles.segCount}>
+                {ordered.perKind.additions}
+              </span>
             </button>
             <button
-              className={grouping === 'kind' ? styles.segOn : ''}
-              onClick={() => chooseGrouping('kind')}
-              title="Group by the kind of work: additions, changes, rules"
+              className={kind === 'changes' ? styles.segOn : ''}
+              onClick={() => chooseKind('changes')}
+              title="Proposed changes to existing listings"
             >
-              By kind
+              Changes
+              <span className={styles.segCount}>{ordered.perKind.changes}</span>
             </button>
           </span>
         </div>
@@ -1071,7 +1061,7 @@ export default function QueueAdmin() {
       {items && (
         <div className={styles.split}>
           <div className={styles.list} ref={listRef}>
-            {SECTIONS_BY[grouping].map(section => {
+            {SECTIONS.map(section => {
               const list = ordered.groups[section]
               if (list.length === 0 && section !== 'requests') return null
               return (

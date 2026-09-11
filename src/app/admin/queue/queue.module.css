@@ -158,6 +158,12 @@
   color: var(--q-text);
 }
 
+.segCount {
+  margin-left: 6px;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
 .segmented .segOn {
   background: var(--q-panel);
   color: var(--q-text);
@@ -451,8 +457,16 @@
   flex-wrap: wrap;
 }
 
-.pill,
-
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid currentColor;
+}
 
 /* The page, in the top row: the same small caps as the section headings. */
 .pageTag {

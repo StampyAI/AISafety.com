@@ -26,6 +26,8 @@ interface Draft {
   listName: string | null
   activeContacts: number | null
   problems: string[]
+  /** The inbox preview line (hidden preheader), as Gmail shows it. */
+  preview: string | null
   /** Cards by section, current order; null for drafts built before the
    *  renderer stamped card markers (no Reorder button then). */
   cards: CardGroup[] | null
@@ -253,6 +255,14 @@ export default function NewsletterAdmin({
                   Subject{' '}
                   <span className={styles.draftMetaValue}>{draft.subject}</span>
                 </span>
+                {draft.preview && (
+                  <span>
+                    Preview{' '}
+                    <span className={styles.draftMetaValue}>
+                      {draft.preview}
+                    </span>
+                  </span>
+                )}
                 <span>
                   To{' '}
                   <span className={styles.draftMetaValue}>
@@ -610,13 +620,22 @@ function ConfirmSend({
         onClick={e => e.stopPropagation()}
       >
         <h2 id="confirm-send-title" className={styles.dialogTitle}>
-          Send this issue?
+          Send “{draft.name}”?
         </h2>
+        {/* In the order the inbox shows them: sender, subject, preview line. */}
         <dl className={styles.dialogFacts}>
-          <dt>Issue</dt>
-          <dd>{draft.name}</dd>
+          <dt>From</dt>
+          <dd>
+            {draft.fromName} &lt;{draft.fromEmail}&gt;
+          </dd>
           <dt>Subject</dt>
           <dd>{draft.subject}</dd>
+          {draft.preview && (
+            <>
+              <dt>Preview</dt>
+              <dd className={styles.muted}>{draft.preview}</dd>
+            </>
+          )}
           <dt>To</dt>
           <dd>
             {listLabel}
@@ -626,10 +645,6 @@ function ConfirmSend({
                 · {count} active contact{count === 1 ? '' : 's'}
               </span>
             )}
-          </dd>
-          <dt>From</dt>
-          <dd>
-            {draft.fromName} &lt;{draft.fromEmail}&gt;
           </dd>
         </dl>
         <p className={styles.dialogNote}>

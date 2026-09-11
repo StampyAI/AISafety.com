@@ -3,6 +3,7 @@ import {
   cardGroups,
   contentDigest,
   formatLocal,
+  previewText,
   ReorderError,
   reorderHtml,
 } from './newsletter'
@@ -140,5 +141,23 @@ describe('reorderHtml', () => {
   })
   it('refuses an email without a manifest', () => {
     expect(() => reorderHtml('<p>x</p>', { g0: ['a'] })).toThrow(ReorderError)
+  })
+})
+
+describe('previewText', () => {
+  it('reads the hidden preheader and drops the invisible padding (entity form)', () => {
+    const html =
+      '<body><div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#00191b;">This is a weekly newsletter that lists newly announced events.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div><p>x</p></body>'
+    expect(previewText(html)).toBe(
+      'This is a weekly newsletter that lists newly announced events.'
+    )
+  })
+  it('handles the armoured form: colour wrapper inside, padding as characters, entities resolved', () => {
+    const html =
+      '<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;"><span style="color:#00191b;color:rgb(0 25 27 / 0.99);">Funding &amp; more &ndash; it’s open. ‌ ‌</span></div>'
+    expect(previewText(html)).toBe('Funding & more – it’s open.')
+  })
+  it('is null without a preheader', () => {
+    expect(previewText('<p>no preheader</p>')).toBeNull()
   })
 })

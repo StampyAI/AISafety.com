@@ -156,6 +156,9 @@ export interface DraftSummary {
   activeContacts: number | null
   /** Empty when the draft passes every check and may be sent. */
   problems: string[]
+  /** The inbox preview line (the email's hidden preheader), as Gmail shows it
+   *  after the subject. Null when the email has none. */
+  preview: string | null
   /** The email's cards by section, in their current order — what the
    *  Reorder panel edits. Null for emails built before card markers existed. */
   cards: CardGroup[] | null
@@ -302,10 +305,37 @@ export async function listDrafts(): Promise<DraftSummary[]> {
       listName: listId ? (names.get(listId) ?? null) : null,
       activeContacts: listId ? await activeContactCount(listId) : null,
       problems,
+      preview: previewText(msg.html ?? ''),
       cards: cardGroups(msg.html ?? ''),
     })
   }
   return out
+}
+
+const PREHEADER_RE = /<div style="display:none[^"]*"[^>]*>([\s\S]*?)<\/div>/
+
+/** The preheader the renderer hides at the top of the email: the text mail
+ *  apps show after the subject in the inbox. Tags stripped, the invisible
+ *  padding (nbsp + zero-width non-joiner, as entities or characters) and
+ *  common entities resolved. */
+export function previewText(html: string): string | null {
+  const m = PREHEADER_RE.exec(html)
+  if (!m) return null
+  const text = m[1]
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;|&zwnj;|&#8204;|\u00a0|\u200c/g, ' ')
+    .replace(/&rsquo;/g, '\u2019')
+    .replace(/&lsquo;/g, '\u2018')
+    .replace(/&ndash;/g, '\u2013')
+    .replace(/&mdash;/g, '\u2014')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text || null
 }
 
 /** The most recent sends (and anything scheduled or stuck), newest first. */

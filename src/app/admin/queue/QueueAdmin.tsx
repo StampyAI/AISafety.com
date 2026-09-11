@@ -155,6 +155,15 @@ function verdictRank(v: QueueItem['verdict']): number {
   }
 }
 
+/** Sizes a text box to what is typed in it, on open and on every keystroke,
+ *  so a long description is never hidden behind a scrollbar. */
+function fitToText(el: HTMLTextAreaElement | null) {
+  if (!el) return
+  el.style.height = 'auto'
+  // scrollHeight leaves out the border; offset - client is exactly that.
+  el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`
+}
+
 /** A Change row's title is written as "Record name: what was found"; the
  *  page shows the name in its own place and the finding as the heading.
  *  Rows that carry `name` in the proposal use it; older ones split the
@@ -206,6 +215,74 @@ function show(v: unknown): string {
   if (typeof v === 'number') return String(v)
   if (Array.isArray(v)) return v.map(show).join(', ')
   return JSON.stringify(v)
+}
+
+/** An attachment value as the queue sees it: Airtable's own shape (an
+ *  object or list with `url`), the site's snapshot (a list of URLs), or
+ *  Broom's proposal (`{url, filename}`). The old side of a change often
+ *  carries only `{id, filename}`, which is why `pictureOf` also takes the
+ *  record's live field. */
+function pictureUrl(v: unknown): string | null {
+  if (Array.isArray(v)) return v.length ? pictureUrl(v[0]) : null
+  if (typeof v === 'string') return IMAGE_URL.test(v) ? v : null
+  if (v && typeof v === 'object' && 'url' in v) {
+    const url = (v as { url: unknown }).url
+    return typeof url === 'string' ? url : null
+  }
+  return null
+}
+
+function looksLikeAttachment(v: unknown): boolean {
+  if (Array.isArray(v)) return v.length > 0 && v.every(looksLikeAttachment)
+  return Boolean(
+    v && typeof v === 'object' && ('url' in v || 'filename' in v || 'id' in v)
+  )
+}
+
+function fileNameOf(v: unknown): string | null {
+  if (Array.isArray(v)) return v.length ? fileNameOf(v[0]) : null
+  if (v && typeof v === 'object' && 'filename' in v) {
+    const f = (v as { filename: unknown }).filename
+    return typeof f === 'string' ? f : null
+  }
+  if (typeof v === 'string') {
+    try {
+      return decodeURIComponent(new URL(v).pathname.split('/').pop() ?? '')
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+/** The picture behind one side of a change to a logo or image field: the
+ *  value's own URL, else (for the old side, whose snapshot has none) the
+ *  record's live field. Null when the value is not a picture at all. */
+function pictureOf(
+  v: unknown,
+  liveValue: unknown
+): { url: string | null; name: string | null } | null {
+  if (!looksLikeAttachment(v) && !pictureUrl(v)) return null
+  return {
+    url: pictureUrl(v) ?? pictureUrl(liveValue),
+    name: fileNameOf(v) ?? fileNameOf(liveValue),
+  }
+}
+
+/** One side of a change to an image field: the picture, with its file
+ *  name under it. A missing picture (an expired link) shows the name only. */
+function Picture({ url, name }: { url: string | null; name: string | null }) {
+  return (
+    <span className={styles.picture}>
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className={styles.pictureImg} src={url} alt="" />
+      ) : (
+        <span className={`${styles.pictureImg} ${styles.pictureEmpty}`} />
+      )}
+      {name && <span className={styles.pictureName}>{name}</span>}
+    </span>
+  )
 }
 
 const NAME_KEYS = /\b(name|title)\b|^organi[sz]ation$/i
@@ -733,7 +810,14 @@ export default function QueueAdmin({
   }, [selected, ordered.flat])
 
   useEffect(() => {
-    if (!selected || selected.type !== 'Add') return
+    if (!selected) return
+    // Additions always; a Change only when it swaps a picture, whose old
+    // side is snapshotted without a link (the live read supplies one).
+    const wantsLive =
+      selected.type === 'Add' ||
+      (selected.type === 'Change' &&
+        selected.changes.some(c => looksLikeAttachment(c.from)))
+    if (!wantsLive) return
     if (!selected.targetTable || !selected.targetRecord) return
     if (live[selected.id]) return
     const id = selected.id
@@ -1432,6 +1516,14 @@ function Detail({
                 href={livePageUrl(item)}
                 target="_blank"
                 rel="noreferrer"
+                title="Opens the live card and copies the listing's name"
+                onClick={() => {
+                  // The name goes to the clipboard on the way, ready to
+                  // paste into the site search or Airtable.
+                  navigator.clipboard
+                    ?.writeText(splitTitle(item).name ?? item.title)
+                    .catch(() => {})
+                }}
               >
                 {item.page}
               </a>
@@ -1521,43 +1613,59 @@ function Detail({
               {item.changes.map(c => (
                 <div key={c.field} className={styles.diffRow}>
                   <span className={styles.label}>{c.field}</span>
-                  <span className={styles.from}>{show(c.from)}</span>
+                  <span className={styles.from}>
+                    {(() => {
+                      const pic = pictureOf(c.from, live?.fields[c.field])
+                      return pic ? <Picture {...pic} /> : show(c.from)
+                    })()}
+                  </span>
                   <span className={styles.arrow}>
                     <Icon src={ICON.arrow} size={12} />
                   </span>
                   <span className={styles.to}>
-                    {d.editing === c.field ? (
-                      <textarea
-                        className={styles.input}
-                        rows={2}
-                        autoFocus
-                        defaultValue={d.edits[c.field] ?? show(c.to)}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') {
-                            e.preventDefault()
-                            setD({ editing: null })
+                    {(() => {
+                      // A proposed picture is shown, not its JSON, and
+                      // is not typed over: it is taken or refused whole.
+                      if (c.field in d.edits || d.editing === c.field) {
+                        return null
+                      }
+                      const pic = pictureOf(c.to, null)
+                      return pic ? <Picture {...pic} /> : null
+                    })() ??
+                      (d.editing === c.field ? (
+                        <textarea
+                          ref={fitToText}
+                          onInput={e => fitToText(e.currentTarget)}
+                          className={styles.input}
+                          rows={2}
+                          autoFocus
+                          defaultValue={d.edits[c.field] ?? show(c.to)}
+                          onKeyDown={e => {
+                            if (e.key === 'Escape') {
+                              e.preventDefault()
+                              setD({ editing: null })
+                            }
+                          }}
+                          onBlur={e => {
+                            // Closing the box without changing anything is
+                            // not an edit.
+                            const text = e.target.value
+                            const edits = { ...d.edits }
+                            if (text === show(c.to)) delete edits[c.field]
+                            else edits[c.field] = text
+                            setD({ editing: null, edits })
+                          }}
+                        />
+                      ) : (
+                        <EditableValue
+                          text={
+                            c.field in d.edits ? d.edits[c.field] : show(c.to)
                           }
-                        }}
-                        onBlur={e => {
-                          // Closing the box without changing anything is
-                          // not an edit.
-                          const text = e.target.value
-                          const edits = { ...d.edits }
-                          if (text === show(c.to)) delete edits[c.field]
-                          else edits[c.field] = text
-                          setD({ editing: null, edits })
-                        }}
-                      />
-                    ) : (
-                      <EditableValue
-                        text={
-                          c.field in d.edits ? d.edits[c.field] : show(c.to)
-                        }
-                        edited={c.field in d.edits}
-                        canEdit={!revising}
-                        onEdit={() => setD({ editing: c.field })}
-                      />
-                    )}
+                          edited={c.field in d.edits}
+                          canEdit={!revising}
+                          onEdit={() => setD({ editing: c.field })}
+                        />
+                      ))}
                   </span>
                 </div>
               ))}
@@ -1583,6 +1691,8 @@ function Detail({
             </h3>
             {d.editingReply ? (
               <textarea
+                ref={fitToText}
+                onInput={e => fitToText(e.currentTarget)}
                 className={`${styles.input} ${styles.replyInput}`}
                 rows={Math.min(
                   14,
@@ -1722,6 +1832,8 @@ function Detail({
         ) : d.mode === 'note' ? (
           <div className={styles.panel}>
             <textarea
+              ref={fitToText}
+              onInput={e => fitToText(e.currentTarget)}
               className={styles.input}
               rows={3}
               autoFocus
@@ -2200,6 +2312,8 @@ function FieldEditor({
   }
   return (
     <textarea
+      ref={fitToText}
+      onInput={e => fitToText(e.currentTarget)}
       className={styles.input}
       rows={value.length > 120 ? 5 : 2}
       autoFocus

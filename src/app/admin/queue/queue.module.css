@@ -627,6 +627,38 @@
   font-weight: 500;
 }
 
+/* A change to a logo or image field: the picture itself, the site's dark
+   card colour behind it, and the file name in small type under it. */
+.picture {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.pictureImg {
+  display: block;
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #1c3334;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.pictureEmpty {
+  background: none;
+  border: 1px dashed var(--q-border-strong);
+}
+
+.pictureName {
+  font-size: 12px;
+  color: var(--q-muted);
+  overflow-wrap: anywhere;
+}
+
 .editable {
   display: inline-flex;
   align-items: baseline;

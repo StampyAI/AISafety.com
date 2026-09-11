@@ -137,7 +137,7 @@ export default function NewsletterAdmin({
       }
       setNotice({
         kind: 'ok',
-        text: `Approved. “${draft.subject}” is scheduled to send at ${when(body.sdate ?? null)} (campaign ${body.campaignId}). Nothing more to do.`,
+        text: `Approved. “${draft.name}” is scheduled to send at ${when(body.sdate ?? null)} (campaign ${body.campaignId}). Nothing more to do.`,
       })
       if (previewId === draft.id) setPreviewId(null)
       await load()
@@ -243,14 +243,16 @@ export default function NewsletterAdmin({
           return (
             <div key={draft.id} className={adminStyles.editorBlock}>
               <div className={adminStyles.editorBlockHeader}>
-                <h3 className={adminStyles.editorBlockTitle}>
-                  {draft.subject}
-                </h3>
+                <h3 className={adminStyles.editorBlockTitle}>{draft.name}</h3>
                 <span className={ok ? styles.statusOk : styles.statusBad}>
                   {ok ? 'Verified' : 'Cannot send'}
                 </span>
               </div>
               <p className={styles.draftMeta}>
+                <span>
+                  Subject{' '}
+                  <span className={styles.draftMetaValue}>{draft.subject}</span>
+                </span>
                 <span>
                   To{' '}
                   <span className={styles.draftMetaValue}>
@@ -611,6 +613,8 @@ function ConfirmSend({
           Send this issue?
         </h2>
         <dl className={styles.dialogFacts}>
+          <dt>Issue</dt>
+          <dd>{draft.name}</dd>
           <dt>Subject</dt>
           <dd>{draft.subject}</dd>
           <dt>To</dt>

@@ -368,6 +368,8 @@
   min-width: 0;
   display: grid;
   gap: 22px;
+  /* lets .cardRow below ask how wide this column really is */
+  container-type: inline-size;
 }
 
 .detailAside {
@@ -513,6 +515,14 @@
 .finding {
   display: grid;
   gap: 8px;
+  /* a grid item cannot shrink below its longest word unless told so; a
+     bare URL in the details used to push the whole block under the
+     verdict panel */
+  min-width: 0;
+}
+
+.findingMore {
+  min-width: 0;
 }
 
 .findingLead {
@@ -522,6 +532,7 @@
   line-height: 1.45;
   color: var(--q-text);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .findingMore summary {
@@ -549,6 +560,7 @@
   line-height: 1.5;
   color: var(--q-muted);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* The links sit at the right end of the pills row. */
@@ -889,6 +901,15 @@
   min-width: 0;
   display: grid;
   gap: 22px;
+}
+
+/* Beside the card the text needs room to read; when the column cannot
+   give it (the verdict panel takes the rest), the finding goes under the
+   card instead of being squeezed to a few words a line. */
+@container (max-width: 719px) {
+  .cardRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .siteFrame > * {

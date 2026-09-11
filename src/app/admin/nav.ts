@@ -18,7 +18,7 @@ export interface AdminNavTab {
  *  no tab at all. */
 export function adminTabs(
   access: AdminAccess,
-  opts: { pendingRequests?: number; pendingQueue?: number } = {}
+  opts: { pendingRequests?: number } = {}
 ): AdminNavTab[] {
   const tabs: AdminNavTab[] = []
   for (const a of ACCESS_AREAS) {
@@ -31,11 +31,9 @@ export function adminTabs(
       label:
         a.key === 'manageUsers' && opts.pendingRequests
           ? `${a.label} (${opts.pendingRequests})`
-          : a.key === 'queue' && opts.pendingQueue
-            ? `${a.label} (${opts.pendingQueue})`
-            : a.key === 'newsletterPreview'
-              ? 'Newsletters'
-              : a.label,
+          : a.key === 'newsletterPreview'
+            ? 'Newsletters'
+            : a.label,
       group:
         a.key === 'playground' || a.key === 'conversationLog'
           ? 'chatbot'

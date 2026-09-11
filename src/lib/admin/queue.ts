@@ -391,18 +391,6 @@ export async function listQueue(): Promise<QueueItem[]> {
   return items
 }
 
-/** Count for the tab badge. Never throws: a badge is not worth an error page. */
-export async function pendingQueueCount(): Promise<number> {
-  try {
-    const params = new URLSearchParams()
-    params.set('filterByFormula', "{Status}='Pending'")
-    params.append('fields[]', 'Status')
-    return (await listAll<RawFields>(QUEUE_TABLE_ID, params)).length
-  } catch {
-    return 0
-  }
-}
-
 export async function getQueueItem(id: string): Promise<QueueItem | null> {
   if (!isRecordId(id)) return null
   const res = await airtableRequest(
